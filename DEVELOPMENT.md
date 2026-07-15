@@ -88,8 +88,7 @@ its own 3.12.3).
 
 1. `docker pull espressif/idf:v5.4.2` (already available locally as of this
    verification).
-2. From the repository root, once `firmware/` contains an actual ESP-IDF
-   project (M1's "ESP-IDF project scaffolding" item — not yet done):
+2. From the repository root:
    ```
    docker run --rm -u "$(id -u):$(id -g)" \
      -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
@@ -156,9 +155,10 @@ Once the simulator target exists (M1):
 
 ## Build/test workflow
 
-- **Firmware build:** `idf.py build` (and `flash`, `monitor`) against the
-  `firmware/` ESP-IDF project, once it exists — see [ESP-IDF
-  setup](#esp-idf-setup) above for the verified Docker-based command.
+- **Firmware build:** `idf.py build` against the `firmware/` ESP-IDF
+  project — see [ESP-IDF setup](#esp-idf-setup) above for the verified
+  Docker-based command. `flash`/`monitor` need real Tab5 hardware, not
+  yet exercised.
 - **Simulator build:**
   ```
   cd simulator && cmake -B build -G Ninja && cmake --build build
@@ -191,10 +191,7 @@ the three build/test commands above:
 - [`tests.yml`](.github/workflows/tests.yml) — builds and runs the unit
   test suite; a failing test fails the job, not just a failing compile.
 - [`firmware.yml`](.github/workflows/firmware.yml) — builds firmware via
-  the same Docker command documented in [ESP-IDF setup](#esp-idf-setup),
-  but skips cleanly (not a failure) until `firmware/` actually has an
-  ESP-IDF project — see M1's "ESP-IDF project scaffolding" item in
-  [roadmap.md](docs/roadmap.md).
+  the same Docker command documented in [ESP-IDF setup](#esp-idf-setup).
 
 All three were verified locally with [`act`](https://github.com/nektos/act)
 before being relied on, the same "run it, don't just read the YAML"
@@ -203,7 +200,8 @@ standard applied to every other build command in this document.
 ## Status
 
 M0 is complete (see [docs/roadmap.md](docs/roadmap.md)). M1 is in
-progress: the simulator scaffold, the unit test framework, and CI all
-build and run for real, per the sections above. No firmware/ESP-IDF
-project exists yet, and no Core/UI/module source exists yet — this
-document will keep being revised as the rest of M1 makes it concrete.
+progress: the simulator scaffold, the bare ESP-IDF firmware scaffold, the
+unit test framework, and CI all build and run for real, per the sections
+above. No on-device Tab5 bring-up has happened yet (needs real hardware),
+and no Core/UI/module source exists yet — this document will keep being
+revised as the rest of M1 makes it concrete.

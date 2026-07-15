@@ -45,14 +45,13 @@ possible, but none is planned or committed to.
 **Milestone M1 — Platform.** M0 (architecture documentation, ADRs, and a
 verified dev environment for both build targets) is complete. The
 [desktop simulator](simulator/README.md)'s host-native CMake + LVGL/SDL2
-scaffold builds and runs, and CI plus the [unit test
-framework](tests/README.md) (GoogleTest+GoogleMock) are in place and
-running on every push/PR — see the badges above. No Core/UI/module source
-or ESP-IDF firmware project exist yet (the Firmware badge stays green by
-skipping cleanly until that exists — see
-[DEVELOPMENT.md](DEVELOPMENT.md#continuous-integration)). See
-[docs/roadmap.md](docs/roadmap.md) for the full milestone plan and the
-architectural decisions index.
+scaffold and the bare [ESP-IDF project](firmware/README.md) scaffold both
+build and run, and CI plus the [unit test framework](tests/README.md)
+(GoogleTest+GoogleMock) are in place and running on every push/PR — see
+the badges above. No Core/UI/module source exists yet, and no on-device
+Tab5 bring-up has been done — that needs real hardware, not just the
+toolchain. See [docs/roadmap.md](docs/roadmap.md) for the full milestone
+plan and the architectural decisions index.
 
 ## Architecture
 

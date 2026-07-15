@@ -50,19 +50,22 @@ both targets.
       host-native CMake project per [tests/README.md](../tests/README.md),
       not nested inside `simulator/` as this bullet originally said — see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework)),
-      and `firmware` (builds via the `espressif/idf:v5.4.2` Docker image,
-      skipping cleanly until "ESP-IDF project scaffolding" below actually
-      exists to build). The tests workflow runs a real smoke test (one
-      plain assertion, one GoogleMock-based test) proving the framework
-      runs, not just declared — real Core/module tests arrive alongside
-      the code they
-      test, not before it exists.
+      and `firmware` (builds via the `espressif/idf:v5.4.2` Docker image —
+      initially skipped cleanly until "ESP-IDF project scaffolding" below
+      landed, now a real build). The tests workflow runs a real smoke
+      test (one plain assertion, one GoogleMock-based test) proving the
+      framework runs, not just declared — real Core/module tests arrive
+      alongside the code they test, not before it exists.
 - [ ] Confirm reference hardware SKU/kit (battery is only included with the
       K145 kit variant — see [hardware.md](architecture/hardware.md#power))
       and which touch/display controller revision it ships with (GT911 vs.
       ST7123 vs. ST7121 — see
       [hardware.md](architecture/hardware.md#display-and-touch))
-- [ ] ESP-IDF project scaffolding
+- [x] ESP-IDF project scaffolding — confirmed working: `idf.py set-target
+      esp32p4 build` produces a real `homedeck.bin` (see
+      [firmware/README.md](../firmware/README.md)). Bare template only —
+      `app_main()` does nothing yet; no on-device bring-up has been done,
+      since the items below need real hardware, not just the toolchain.
 - [ ] Tab5 boot
 - [ ] Confirm whether the ESP32-C6 co-processor's power/SDIO domain is
       independent of the P4's deep-sleep domain — determines whether the
