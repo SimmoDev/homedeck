@@ -3,17 +3,21 @@
 Test suites for HomeDeck: GoogleTest+GoogleMock unit tests, built as their
 own host-native CMake project (the same tooling approach as
 [../simulator/](../simulator/), not ESP-IDF, but a separate CMake project
-from it — this will need to link against wherever the shared Core library
-ends up living, not simulator-specific LVGL/SDL2 code). No separate
-on-target test framework is used — see
+from it). Links against `homedeck_core` from [../src/](../src/) — Core's
+LVGL-free portion; `../src/`'s `homedeck_ui` target (which does depend on
+LVGL) is never built here, since LVGL is never fetched in this project.
+No separate on-target test framework is used — see
 [ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#5-test-framework)
 for why.
 
-Currently just a smoke test (`smoke_test.cpp`) proving the framework
-actually builds, links, and runs — one plain `TEST()` and one
-`MOCK_METHOD`/`EXPECT_CALL`-based test, since GoogleMock has its own
-linking requirements distinct from GoogleTest. Real Core/module tests
-arrive alongside the code they test, not before it exists.
+Covers the Core Concurrency Abstraction (`task_test.cpp`,
+`queue_test.cpp`, `timer_test.cpp`) and `EventBus`
+(`event_bus_test.cpp`) for real — a queue actually blocking and
+delivering in FIFO order, a timer actually firing on schedule and
+stopping promptly on destruction, `SubscribeUi` actually routing through
+an injected dispatcher — plus the original `smoke_test.cpp` proving the
+framework itself builds, links, and runs. Real module tests arrive
+alongside the modules they test, not before they exist.
 
 Build and run locally:
 

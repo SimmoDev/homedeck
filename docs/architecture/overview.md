@@ -86,12 +86,12 @@ that doesn't exist yet.
 ## Where things live in the repository
 
 See the top-level [README.md](../../README.md#repository-structure) for the
-full repository layout. In brief: `firmware/` and `simulator/` share the
-portable Core/UI/module source and differ only in how they're built and
-which hardware-facing implementation they link against;
-`webui/` is the Web Management UI frontend; `hardware/` holds any physical
-accessory/enclosure design work; `tools/` and `tests/` are supporting
-tooling and test suites.
+full repository layout. In brief: `src/` holds the portable Core/UI/
+module source shared by `firmware/` and `simulator/`, which differ only
+in how they're built and which hardware-facing implementation they link
+against; `webui/` is the Web Management UI frontend; `hardware/` holds
+any physical accessory/enclosure design work; `tools/` and `tests/` are
+supporting tooling and test suites.
 
 ## Related documents
 

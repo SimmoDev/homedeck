@@ -80,16 +80,28 @@ both targets.
 - [ ] Touch input bring-up, including runtime controller detection if not
       already handled by M5Unified (I2C probing + persisted result — see
       [ADR-0009](decisions/ADR-0009-touch-display-detection.md))
-- [ ] Basic LVGL application running on-device, with a dedicated UI task
-      owning LVGL exclusively from the start, and event payload types built
-      on reference-counted copy from the first event type onward (see
-      [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md)) — this is
-      foundational to get right before any module background task exists
-      to expose a threading or use-after-free bug later
-- [ ] Desktop simulator target running the same application (separate
+- [ ] Basic LVGL application running **on-device** — blocked on hardware.
+      The mechanism itself (dedicated UI task owning LVGL exclusively,
+      event payload types built on reference-counted copy from the first
+      event type onward — see
+      [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md)) is already
+      built and running in the simulator (below); this item is porting
+      the same `src/` code to real hardware, not designing it from
+      scratch.
+- [x] Desktop simulator target running the same application (separate
       host-native CMake project, Core Concurrency Abstraction backed by
       the C++ standard library — see
-      [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system))
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system)).
+      Confirmed working end to end, not just compiling: a background
+      `Timer` publishes a reference-counted `HeartbeatEvent` once a
+      second, delivered safely to the dedicated UI task via `EventBus`'s
+      `lv_async_call()` hand-off, and rendered on screen — verified by
+      screenshot, the counter visibly incrementing. `Task`/`Queue`/
+      `Timer`/`EventBus` all have real unit tests in
+      [tests/](../tests/), not just the app exercising them. Portable
+      source lives in the new [src/](../src/) directory (a repository
+      structure question CLAUDE.md's own diagram left open — see
+      [src/README.md](../src/README.md) for the layout and why).
 - [ ] Initial dashboard shell
 - [ ] Persistent home affordance included in the base screen layout from
       the first non-dashboard screen onward, not retrofitted later (see

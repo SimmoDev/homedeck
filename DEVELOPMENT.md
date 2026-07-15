@@ -161,8 +161,9 @@ Once the simulator target exists (M1):
   GoogleTest+GoogleMock (see
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#5-test-framework)),
   its own host-native CMake project — see [tests/README.md](tests/README.md).
-  Currently just a smoke test proving the framework works; real Core/module
-  tests arrive alongside the code they test. No separate on-target test
+  Now covers `Task`/`Queue`/`Timer` (the Core Concurrency Abstraction) and
+  `EventBus` for real, not just a smoke test; further Core/module tests
+  arrive alongside the code they test. No separate on-target test
   framework is used — hardware-dependent behavior (deep sleep/wake,
   display, OTA, real Wi-Fi reconnect) is validated by manual bring-up
   checks on real hardware instead, not automated on-target tests.
@@ -188,8 +189,10 @@ standard applied to every other build command in this document.
 ## Status
 
 M0 is complete (see [docs/roadmap.md](docs/roadmap.md)). M1 is in
-progress: the simulator scaffold, the bare ESP-IDF firmware scaffold, the
-unit test framework, and CI all build and run for real, per the sections
-above. No on-device Tab5 bring-up has happened yet (needs real hardware),
-and no Core/UI/module source exists yet — this document will keep being
-revised as the rest of M1 makes it concrete.
+progress: the simulator scaffold, the bare ESP-IDF firmware scaffold, CI,
+and the Core Concurrency Abstraction + `EventBus` + dedicated UI task
+(`src/`, exercised for real by the simulator and covered by unit tests)
+all build and run, per the sections above. No on-device Tab5 bring-up has
+happened yet (needs real hardware), and no module or dashboard code
+exists yet — this document will keep being revised as the rest of M1
+makes it concrete.

@@ -86,14 +86,10 @@ for why this ruled out a separate web-based mock UI.
 
 ## Status
 
-Not yet implemented. This design (separate host-native build, Core
-concurrency abstraction) doesn't depend on ESP-IDF's Linux/POSIX target,
-which is documented as being for headless testing, not graphical
-applications — see
-[ADR-0002](../decisions/ADR-0002-technology-stack.md#decision-build-system)
-for the evidence. It hasn't been built yet, so it should still be
-validated early in M1 rather than assumed. The simulator target should
-exist from very early in M1 so subsequent UI work doesn't accumulate
-hardware-only dependencies. See
-[DEVELOPMENT.md](../../DEVELOPMENT.md#simulator-workflow) for the intended
-day-to-day workflow once it exists.
+The build, the Core Concurrency Abstraction's host backend, `EventBus`,
+and the dedicated UI task all exist and run for real — confirmed by a
+background `Timer` publishing a reference-counted event that's safely
+delivered to the UI task and rendered on screen (`Task`/`Queue`/`Timer`/
+`EventBus` also have unit tests in `tests/`). No module or dashboard code
+exists yet. See [DEVELOPMENT.md](../../DEVELOPMENT.md#simulator-workflow)
+for the day-to-day workflow.

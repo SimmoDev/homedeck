@@ -43,15 +43,17 @@ possible, but none is planned or committed to.
 ## Current status
 
 **Milestone M1 — Platform.** M0 (architecture documentation, ADRs, and a
-verified dev environment for both build targets) is complete. The
-[desktop simulator](simulator/README.md)'s host-native CMake + LVGL/SDL2
-scaffold and the bare [ESP-IDF project](firmware/README.md) scaffold both
-build and run, and CI plus the [unit test framework](tests/README.md)
-(GoogleTest+GoogleMock) are in place and running on every push/PR — see
-the badges above. No Core/UI/module source exists yet, and no on-device
-Tab5 bring-up has been done — that needs real hardware, not just the
-toolchain. See [docs/roadmap.md](docs/roadmap.md) for the full milestone
-plan and the architectural decisions index.
+verified dev environment for both build targets) is complete. The Core
+Concurrency Abstraction (`Task`/`Queue`/`Timer`), the `EventBus`, and a
+dedicated UI task now exist in [src/](src/) and run for real in the
+[desktop simulator](simulator/README.md) — a background `Timer`
+publishing a reference-counted event, safely delivered to the UI task via
+`lv_async_call()`, and rendered on screen. CI plus the [unit test
+framework](tests/README.md) cover all of it. No module or dashboard code
+exists yet, and no on-device Tab5 bring-up has been done — that needs
+real hardware, not just the toolchain. See
+[docs/roadmap.md](docs/roadmap.md) for the full milestone plan and the
+architectural decisions index.
 
 ## Architecture
 
@@ -89,6 +91,7 @@ decisions are recorded as ADRs in
 ```
 HomeDeck/
 ├── docs/            architecture, ADRs, roadmap
+├── src/             portable Core/UI source, shared by firmware/ and simulator/
 ├── firmware/        ESP-IDF firmware (Tab5 target)
 ├── simulator/       desktop simulator build
 ├── webui/           Web Management UI frontend
@@ -97,7 +100,7 @@ HomeDeck/
 └── tests/           test suites
 ```
 
-`firmware/` and `simulator/` share the same portable Core/UI/module source;
+`firmware/` and `simulator/` share the portable Core/UI source in `src/`;
 they differ only in which hardware-facing implementation they're built
 against. See [docs/architecture/simulator.md](docs/architecture/simulator.md).
 

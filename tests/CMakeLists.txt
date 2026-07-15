@@ -14,10 +14,22 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# The portable Core/UI source shared with simulator/ and firmware/ (see
+# docs/architecture/overview.md#hardware-abstraction). LVGL is never
+# fetched here, so src/'s homedeck_ui target isn't defined - only
+# homedeck_core (and its homedeck_platform_host dependency) are.
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_BINARY_DIR}/src)
+
 enable_testing()
 include(GoogleTest)
 
-add_executable(homedeck_tests smoke_test.cpp)
-target_link_libraries(homedeck_tests PRIVATE GTest::gtest_main GTest::gmock)
+add_executable(homedeck_tests
+  smoke_test.cpp
+  task_test.cpp
+  queue_test.cpp
+  timer_test.cpp
+  event_bus_test.cpp
+)
+target_link_libraries(homedeck_tests PRIVATE homedeck_core GTest::gtest_main GTest::gmock)
 
 gtest_discover_tests(homedeck_tests)
