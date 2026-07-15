@@ -113,4 +113,5 @@ MIT — see [LICENSE](LICENSE) and
 
 HomeDeck is early-stage — see [docs/roadmap.md](docs/roadmap.md) for the
 current milestone. For development setup, see
-[DEVELOPMENT.md](DEVELOPMENT.md).
+[DEVELOPMENT.md](DEVELOPMENT.md); for how to submit a change, see
+[CONTRIBUTING.md](CONTRIBUTING.md).
