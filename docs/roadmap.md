@@ -39,6 +39,18 @@ both targets.
       `FetchContent`, renders a real SDL2 window. Still just a scaffold —
       no Core/UI/module source yet, see
       [simulator/README.md](../simulator/README.md).
+- [ ] CI and unit test framework, set up early rather than retrofitted once
+      more code exists to protect: a GitHub Actions workflow building the
+      simulator (works today, against the existing scaffold), a second
+      workflow building firmware via the `espressif/idf:v5.4.2` Docker
+      image (see [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup)) that
+      skips gracefully until "ESP-IDF project scaffolding" below actually
+      exists to build, and GoogleTest+GoogleMock wired into the simulator
+      CMake project (see
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework))
+      with a trivial smoke test proving the framework runs in CI, not just
+      declared — real Core/module tests arrive alongside the code they
+      test, not before it exists.
 - [ ] Confirm reference hardware SKU/kit (battery is only included with the
       K145 kit variant — see [hardware.md](architecture/hardware.md#power))
       and which touch/display controller revision it ships with (GT911 vs.
