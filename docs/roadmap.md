@@ -27,13 +27,14 @@ resolved; only the environment setup/verification step remains.
 
 ## M1 — Platform
 
-- [ ] **First action, before anything else in M1:** stand up the
-      simulator's host-native CMake project with LVGL's SDL2 driver — a
-      well-trodden combination, but still worth confirming before other M1
-      work assumes it's in place (see
+- [x] **First action, before anything else in M1:** stand up the
+      simulator's host-native CMake project with LVGL's SDL2 driver (see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system)
-      and [simulator.md](architecture/simulator.md#status)). This needs no
-      Tab5 hardware at all, so it can be done immediately.
+      and [simulator.md](architecture/simulator.md#status)). Confirmed
+      working: builds via CMake/Ninja, LVGL pinned to `v9.5.0` via
+      `FetchContent`, renders a real SDL2 window. Still just a scaffold —
+      no Core/UI/module source yet, see
+      [simulator/README.md](../simulator/README.md).
 - [ ] Confirm reference hardware SKU/kit (battery is only included with the
       K145 kit variant — see [hardware.md](architecture/hardware.md#power))
       and which touch/display controller revision it ships with (GT911 vs.
