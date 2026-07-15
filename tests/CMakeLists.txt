@@ -29,6 +29,8 @@ add_executable(homedeck_tests
   queue_test.cpp
   timer_test.cpp
   event_bus_test.cpp
+  battery_reader_test.cpp
+  clock_test.cpp
 )
 target_link_libraries(homedeck_tests PRIVATE homedeck_core GTest::gtest_main GTest::gmock)
 

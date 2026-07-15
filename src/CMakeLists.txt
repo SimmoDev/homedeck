@@ -7,6 +7,7 @@ target_compile_features(homedeck_platform_host PUBLIC cxx_std_20)
 
 add_library(homedeck_core
   core/event_bus.cpp
+  core/clock.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host)
 
@@ -17,6 +18,7 @@ target_link_libraries(homedeck_core PUBLIC homedeck_platform_host)
 if(TARGET lvgl)
   add_library(homedeck_ui
     ui/ui_task.cpp
+    ui/screens/dashboard_screen.cpp
   )
   target_link_libraries(homedeck_ui PUBLIC homedeck_core lvgl)
 endif()

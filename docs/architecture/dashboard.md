@@ -81,6 +81,12 @@ enough real widgets to make customization meaningful.
 
 ## Status
 
-No dashboard implementation exists yet. The initial dashboard shell (clock,
-date, battery — Core-only widgets, no widget framework yet) is an M1
-deliverable; the general widget framework is an M2 deliverable.
+The initial dashboard shell exists and runs in the simulator: a live
+clock/date (`Clock` in `src/core/`, publishing once a second — and once
+immediately at startup, so the display never shows a placeholder before
+the first tick — through the `EventBus`) and a battery percentage
+(`BatteryReader`, a fixed mock value for now — see
+[simulator.md](simulator.md#how-it-works) for why). Both are direct,
+hardcoded widgets — no pluggable widget-registration system or grid
+layout yet; those stay M2. See `docs/roadmap.md` for what's next
+(persistent home affordance, still blocked on a second screen existing).

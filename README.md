@@ -44,14 +44,14 @@ possible, but none is planned or committed to.
 
 **Milestone M1 — Platform.** M0 (architecture documentation, ADRs, and a
 verified dev environment for both build targets) is complete. The Core
-Concurrency Abstraction (`Task`/`Queue`/`Timer`), the `EventBus`, and a
-dedicated UI task now exist in [src/](src/) and run for real in the
-[desktop simulator](simulator/README.md) — a background `Timer`
-publishing a reference-counted event, safely delivered to the UI task via
-`lv_async_call()`, and rendered on screen. CI plus the [unit test
-framework](tests/README.md) cover all of it. No module or dashboard code
-exists yet, and no on-device Tab5 bring-up has been done — that needs
-real hardware, not just the toolchain. See
+Concurrency Abstraction (`Task`/`Queue`/`Timer`), the `EventBus`, a
+dedicated UI task, and an initial dashboard shell (live clock/date,
+battery) all exist in [src/](src/) and run for real in the [desktop
+simulator](simulator/README.md). CI plus the [unit test
+framework](tests/README.md) cover all of it. No module code exists yet,
+the persistent home affordance is still blocked on a second screen
+existing, and no on-device Tab5 bring-up has been done — that needs real
+hardware, not just the toolchain. See
 [docs/roadmap.md](docs/roadmap.md) for the full milestone plan and the
 architectural decisions index.
 

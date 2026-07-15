@@ -121,6 +121,9 @@ modules only supply the notification's content.
 
 ## Status
 
-No screens exist yet. The first Touch UI work is the initial dashboard
-shell in M1 (clock/date display, battery status) — see
-[roadmap.md](../roadmap.md).
+The dashboard exists (`DashboardScreen` in `src/ui/screens/`) — the first
+real Touch UI, replacing the throwaway proof-of-mechanism screen from the
+previous M1 item. It's the only screen so far; the persistent home
+affordance described above has nothing to attach to until a second,
+non-dashboard screen exists (see [roadmap.md](../roadmap.md)), so neither
+it nor a Navigation manager are built yet.

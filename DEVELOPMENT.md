@@ -31,16 +31,23 @@ M1, this is the essential reading, in order:
 7. [ADR-0009](docs/decisions/ADR-0009-touch-display-detection.md) and
    [ADR-0011](docs/decisions/ADR-0011-lvgl-thread-safety.md) — the two
    M1-specific decisions with real implementation consequences.
-8. [docs/roadmap.md](docs/roadmap.md)'s M1 section — the actual task list,
-   which links out to anything else specific as it comes up.
+8. [docs/architecture/core.md](docs/architecture/core.md) — the Event bus
+   and Time/date services sections describe `EventBus`/`Clock`, which
+   already exist and run (`src/core/`); the rest is still M2+ design, not
+   implementation.
+9. [docs/architecture/dashboard.md](docs/architecture/dashboard.md) — the
+   Widget system section describes the real, currently-hardcoded
+   `DashboardScreen` (`src/ui/screens/`); Customization and the general
+   widget-registration interface are still M2+/M7.
+10. [docs/roadmap.md](docs/roadmap.md)'s M1 section — the actual task
+    list, which links out to anything else specific as it comes up.
 
-Everything else — `core.md`, `modules.md`, `web-ui.md`, `dashboard.md`,
-`networking.md`, `security.md`, `diagnostics.md`, `power-management.md`,
-and most of the ADRs
-(0001, 0003–0008, 0010, 0012, 0013) — covers M2 platform services or later
-milestones. Worth skimming for context, but nothing there blocks starting
-M1, and re-reading it in full when M2 actually starts will be more useful
-than trying to hold all of it in mind now.
+Everything else — `modules.md`, `web-ui.md`, `networking.md`,
+`security.md`, `diagnostics.md`, `power-management.md`, and most of the
+ADRs (0001, 0003–0008, 0010, 0012, 0013) — covers M2 platform services or
+later milestones. Worth skimming for context, but nothing there blocks
+starting M1, and re-reading it in full when M2 actually starts will be
+more useful than trying to hold all of it in mind now.
 
 ## Required tools
 
@@ -190,9 +197,10 @@ standard applied to every other build command in this document.
 
 M0 is complete (see [docs/roadmap.md](docs/roadmap.md)). M1 is in
 progress: the simulator scaffold, the bare ESP-IDF firmware scaffold, CI,
-and the Core Concurrency Abstraction + `EventBus` + dedicated UI task
-(`src/`, exercised for real by the simulator and covered by unit tests)
-all build and run, per the sections above. No on-device Tab5 bring-up has
-happened yet (needs real hardware), and no module or dashboard code
-exists yet — this document will keep being revised as the rest of M1
-makes it concrete.
+the Core Concurrency Abstraction + `EventBus` + dedicated UI task, and the
+initial dashboard shell (live clock/date, battery — `src/`, exercised for
+real by the simulator and covered by unit tests) all build and run, per
+the sections above. No on-device Tab5 bring-up has happened yet (needs
+real hardware), the persistent home affordance is still blocked on a
+second screen existing, and no module code exists yet — this document
+will keep being revised as the rest of M1 makes it concrete.

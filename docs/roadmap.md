@@ -102,12 +102,36 @@ both targets.
       source lives in the new [src/](../src/) directory (a repository
       structure question CLAUDE.md's own diagram left open — see
       [src/README.md](../src/README.md) for the layout and why).
-- [ ] Initial dashboard shell
+- [x] Initial dashboard shell — `DashboardScreen` (see
+      [src/README.md](../src/README.md)), replacing the throwaway
+      heartbeat proof-of-mechanism screen. Confirmed working by
+      screenshot, not just compiling. Core-only widgets, hardcoded
+      directly (no pluggable widget-registration system, no grid layout)
+      — both explicitly M2 scope per
+      [dashboard.md](architecture/dashboard.md#status) and
+      [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-dashboard-layout-model).
 - [ ] Persistent home affordance included in the base screen layout from
       the first non-dashboard screen onward, not retrofitted later (see
-      [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance))
-- [ ] Clock/date display
-- [ ] Battery status display
+      [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance)).
+      Still blocked: per [ui.md](architecture/ui.md#navigation-model),
+      the affordance sits on every screen *except* the dashboard, so it
+      has nothing to attach to until a second, non-dashboard screen
+      exists — none does yet, nor does a Navigation manager to route
+      between screens. Building either against an imagined second screen
+      would be designing ahead of a real one.
+- [x] Clock/date display — `Clock` (`src/core/`) publishes a
+      `ClockTickEvent` once a second via the `EventBus`, plus once
+      immediately at construction so the display never shows LVGL's
+      placeholder text before the first periodic tick (a real bug caught
+      by screenshot, fixed, and covered by a dedicated test — see
+      `tests/clock_test.cpp`). `TimeSource`'s host backend wraps
+      `std::chrono::system_clock`.
+- [x] Battery status display — `BatteryReader` returns a fixed mock
+      value. [simulator.md](architecture/simulator.md#how-it-works)
+      documents battery as adjustable via a debug control; that control
+      isn't built here — there's no real consumer for *adjustable* mock
+      battery yet (power-management testing, M2 scope), just a widget
+      that needs to render a number.
 
 **Exit criteria:** a Tab5 boots into a minimal but real HomeDeck UI showing
 live clock and battery status, and the same UI runs in the desktop

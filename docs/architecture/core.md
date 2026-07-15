@@ -94,8 +94,14 @@ generic notification and hands it to Core. See
 
 ## Status
 
-Core's service interfaces are not yet implemented — this document describes
-required responsibilities, not finalized APIs. Interface design happens
-starting at M2 (Platform Services), informed by the concrete needs of the
-Harmony module in M3 rather than designed speculatively ahead of a real
-consumer.
+Two Core services exist for real, built during M1 rather than waiting for
+M2 because the dedicated-UI-task work needed them directly: the **Event
+bus** (`EventBus` in `src/core/`) and **Time/date services** (`Clock`).
+Both are unit-tested in `tests/`. Everything else in the Responsibilities
+list above — Application lifecycle, Navigation, Dashboard's general
+widget-registration system, Notifications, Configuration, Storage,
+Networking, Logging, Diagnostics, OTA updates, Power management, Weather
+services — is still just the required responsibility, not a finalized
+API; that design happens starting at M2 (Platform Services), informed by
+the concrete needs of the Harmony module in M3 rather than designed
+speculatively ahead of a real consumer.

@@ -13,13 +13,20 @@ src/
 │                (see ADR-0002); host/ holds the shared std::thread-backed
 │                implementation used by both simulator/ and tests/. A
 │                firmware/platform/ FreeRTOS backend doesn't exist yet -
-│                blocked on hardware, a separate roadmap item.
+│                blocked on hardware, a separate roadmap item. Also
+│                BatteryReader/TimeSource - small virtual interfaces
+│                (not pImpl'd like Task/Timer - simple, rarely-called,
+│                and directly mockable matters more than dispatch cost).
 ├── core/        EventBus - publish/subscribe with reference-counted
 │                payloads (see ADR-0011). Deliberately has no LVGL
-│                dependency, so it's fully unit-testable in tests/.
+│                dependency, so it's fully unit-testable in tests/. Also
+│                Clock - Time/date services, publishing a ClockTickEvent
+│                once a second (and once immediately at construction).
 └── ui/          UiTask - owns LVGL exclusively (the SDL2 window here,
                  M5GFX on firmware later), provides the lv_async_call()
-                 hand-off EventBus's UI-facing subscriptions use.
+                 hand-off EventBus's UI-facing subscriptions use. Also
+                 ui/screens/ - DashboardScreen, the home screen (see
+                 docs/architecture/dashboard.md).
 ```
 
 `homedeck_ui` (the `ui/` target) is only defined when a target named
