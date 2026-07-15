@@ -199,7 +199,11 @@ simulator.
       vibration is out of scope, no motor exists on the confirmed BOM
 - [ ] Widget framework (general dashboard widget interface), including the
       weather widget (Core `WeatherProvider` interface, Open-Meteo as the
-      direct provider — see [dashboard.md](architecture/dashboard.md#weather-source))
+      direct provider — see [dashboard.md](architecture/dashboard.md#weather-source)) —
+      first real case of a screen/widget being destroyed at runtime while
+      subscribed to Core events, so resolve `EventBus`'s known
+      cross-thread subscriber-lifetime gap (see [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#consequences))
+      before or alongside this, not after
 - [ ] Power management state model, including the alert-priority wake-check
       cycle during Sleeping (interval tuned against real reconnect-cost/
       battery measurements on hardware — see

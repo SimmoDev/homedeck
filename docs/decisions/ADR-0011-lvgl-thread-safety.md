@@ -138,3 +138,19 @@ a load that doesn't exist.
   LVGL core constraint independent of the display driver — no divergence
   risk of the kind flagged for the HTTP/WebSocket transport in
   [ADR-0002](ADR-0002-technology-stack.md#3-embedded-webwebsocket-server).
+- **Known gap, not yet solved:** `lv_async_call()` hands off *when* a
+  callback runs safely, not *whether* the subscriber it belongs to still
+  exists by then. `EventBus::Unsubscribe` (triggered by a
+  `ScopedSubscription` going out of scope — see
+  [ADR-0004](ADR-0004-ui-philosophy.md#decision-ui-state-management-pattern))
+  only stops *future* publishes from including that subscriber; if a
+  publish already ran on a non-UI thread and queued the hand-off before
+  `Unsubscribe` completes, that queued callback still fires afterward,
+  against a subscriber that may by then be destroyed. Harmless today
+  because nothing yet destroys a screen at runtime (`Navigation` caches
+  every registered screen for the process's lifetime), but this becomes a
+  real, timing-dependent use-after-free the moment something is destroyed
+  while subscribed to an event published from another thread — which
+  `Clock`'s `Timer` already does. Must be resolved before that becomes
+  possible; see the widget framework item in
+  [roadmap.md](../roadmap.md#m2--platform-services).

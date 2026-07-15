@@ -27,6 +27,14 @@ public:
     // so a screen controller's "unsubscribe on exit" (see ADR-0004) is
     // just "let this member go out of scope," not a call site to
     // remember.
+    //
+    // This only stops *future* publishes from reaching the callback. A
+    // SubscribeUi callback dispatched from a publish that already
+    // happened on another thread (e.g. Clock's Timer) may still be
+    // queued and fire after this handle is destroyed - safe today only
+    // because nothing yet destroys a screen at runtime. See ADR-0011's
+    // "Known gap, not yet solved" before relying on this for a
+    // subscriber that can be destroyed while live.
     class ScopedSubscription {
     public:
         ScopedSubscription() = default;
