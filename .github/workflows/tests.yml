@@ -1,0 +1,35 @@
+name: Unit tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-run:
+    name: Build and run unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: tests/build/_deps
+          key: tests-deps-${{ hashFiles('tests/CMakeLists.txt') }}
+
+      - name: Configure
+        working-directory: tests
+        run: cmake -B build -G Ninja
+
+      - name: Build
+        working-directory: tests
+        run: cmake --build build
+
+      - name: Run tests
+        working-directory: tests
+        run: ctest --test-dir build --output-on-failure

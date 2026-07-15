@@ -8,6 +8,9 @@ firmware/dependencies.lock
 # Simulator build (host-native CMake)
 simulator/build/
 
+# Test build (host-native CMake)
+tests/build/
+
 # Web Management UI frontend
 webui/node_modules/
 webui/dist/

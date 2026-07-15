@@ -39,17 +39,23 @@ both targets.
       `FetchContent`, renders a real SDL2 window. Still just a scaffold —
       no Core/UI/module source yet, see
       [simulator/README.md](../simulator/README.md).
-- [ ] CI and unit test framework, set up early rather than retrofitted once
-      more code exists to protect: a GitHub Actions workflow building the
-      simulator (works today, against the existing scaffold), a second
-      workflow building firmware via the `espressif/idf:v5.4.2` Docker
-      image (see [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup)) that
-      skips gracefully until "ESP-IDF project scaffolding" below actually
-      exists to build, and GoogleTest+GoogleMock wired into the simulator
-      CMake project (see
-      [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework))
-      with a trivial smoke test proving the framework runs in CI, not just
-      declared — real Core/module tests arrive alongside the code they
+- [x] CI and unit test framework, set up early rather than retrofitted once
+      more code exists to protect. Confirmed working (built and verified
+      locally with `act` before ever pushing — see
+      [DEVELOPMENT.md](../DEVELOPMENT.md#continuous-integration)):
+      three independent GitHub Actions workflows, one per job (separate
+      files rather than one shared workflow, so each gets its own status
+      badge — see [README.md](../README.md)): `simulator` (builds the
+      existing scaffold), `tests` (GoogleTest+GoogleMock, its own
+      host-native CMake project per [tests/README.md](../tests/README.md),
+      not nested inside `simulator/` as this bullet originally said — see
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework)),
+      and `firmware` (builds via the `espressif/idf:v5.4.2` Docker image,
+      skipping cleanly until "ESP-IDF project scaffolding" below actually
+      exists to build). The tests workflow runs a real smoke test (one
+      plain assertion, one GoogleMock-based test) proving the framework
+      runs, not just declared — real Core/module tests arrive alongside
+      the code they
       test, not before it exists.
 - [ ] Confirm reference hardware SKU/kit (battery is only included with the
       K145 kit variant — see [hardware.md](architecture/hardware.md#power))

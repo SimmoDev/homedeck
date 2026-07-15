@@ -157,25 +157,53 @@ Once the simulator target exists (M1):
 ## Build/test workflow
 
 - **Firmware build:** `idf.py build` (and `flash`, `monitor`) against the
-  `firmware/` ESP-IDF project, once it exists.
-- **Simulator build:** ordinary CMake (`cmake -B build && cmake --build
-  build`, or equivalent) against `simulator/`'s own host-native project,
-  once it exists — a separate build system from firmware, not `idf.py`.
-- **Automated tests:** GoogleTest+GoogleMock-based tests (see
-  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#5-test-framework))
-  run against the simulator build, for Core/module logic. No separate
-  on-target test framework is used — hardware-dependent behavior (deep
-  sleep/wake, display, OTA, real Wi-Fi reconnect) is validated by manual
-  bring-up checks on real hardware instead, not automated on-target tests.
+  `firmware/` ESP-IDF project, once it exists — see [ESP-IDF
+  setup](#esp-idf-setup) above for the verified Docker-based command.
+- **Simulator build:**
+  ```
+  cd simulator && cmake -B build -G Ninja && cmake --build build
+  ```
+  A separate build system from firmware, not `idf.py` — see
+  [Simulator workflow](#simulator-workflow) above.
+- **Automated tests:**
+  ```
+  cd tests && cmake -B build -G Ninja && cmake --build build
+  ctest --test-dir build --output-on-failure
+  ```
+  GoogleTest+GoogleMock (see
+  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#5-test-framework)),
+  its own host-native CMake project — see [tests/README.md](tests/README.md).
+  Currently just a smoke test proving the framework works; real Core/module
+  tests arrive alongside the code they test. No separate on-target test
+  framework is used — hardware-dependent behavior (deep sleep/wake,
+  display, OTA, real Wi-Fi reconnect) is validated by manual bring-up
+  checks on real hardware instead, not automated on-target tests.
 
-No test suite exists yet; this section describes the intended shape
-per [ADR-0002](docs/decisions/ADR-0002-technology-stack.md) and will be
-updated with real commands once M1/M2 implementation produces something to
-run.
+## Continuous integration
+
+GitHub Actions runs on every push and PR against `main`, as three
+independent workflows (separate files, not jobs within one workflow, so
+each gets its own status badge — see [README.md](README.md)) mirroring
+the three build/test commands above:
+
+- [`simulator.yml`](.github/workflows/simulator.yml) — builds the
+  simulator.
+- [`tests.yml`](.github/workflows/tests.yml) — builds and runs the unit
+  test suite; a failing test fails the job, not just a failing compile.
+- [`firmware.yml`](.github/workflows/firmware.yml) — builds firmware via
+  the same Docker command documented in [ESP-IDF setup](#esp-idf-setup),
+  but skips cleanly (not a failure) until `firmware/` actually has an
+  ESP-IDF project — see M1's "ESP-IDF project scaffolding" item in
+  [roadmap.md](docs/roadmap.md).
+
+All three were verified locally with [`act`](https://github.com/nektos/act)
+before being relied on, the same "run it, don't just read the YAML"
+standard applied to every other build command in this document.
 
 ## Status
 
-No buildable code exists yet (see [docs/roadmap.md](docs/roadmap.md) — M0
-is documentation/foundation only). This document will be revised
-continuously as M1 implementation makes the workflow above concrete and
-verifiable.
+M0 is complete (see [docs/roadmap.md](docs/roadmap.md)). M1 is in
+progress: the simulator scaffold, the unit test framework, and CI all
+build and run for real, per the sections above. No firmware/ESP-IDF
+project exists yet, and no Core/UI/module source exists yet — this
+document will keep being revised as the rest of M1 makes it concrete.

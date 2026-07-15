@@ -1,5 +1,9 @@
 # HomeDeck
 
+[![Firmware](https://github.com/SimmoDev/homedeck/actions/workflows/firmware.yml/badge.svg)](https://github.com/SimmoDev/homedeck/actions/workflows/firmware.yml)
+[![Simulator](https://github.com/SimmoDev/homedeck/actions/workflows/simulator.yml/badge.svg)](https://github.com/SimmoDev/homedeck/actions/workflows/simulator.yml)
+[![Unit tests](https://github.com/SimmoDev/homedeck/actions/workflows/tests.yml/badge.svg)](https://github.com/SimmoDev/homedeck/actions/workflows/tests.yml)
+
 HomeDeck is a battery-powered handheld smart home controller built around
 the [M5Stack Tab5 Kit](https://docs.m5stack.com/en/core/Tab5). It's
 designed to replace a Logitech Harmony Hub remote, then grow into a
@@ -41,9 +45,14 @@ possible, but none is planned or committed to.
 **Milestone M1 — Platform.** M0 (architecture documentation, ADRs, and a
 verified dev environment for both build targets) is complete. The
 [desktop simulator](simulator/README.md)'s host-native CMake + LVGL/SDL2
-scaffold builds and runs; no Core/UI/module source or ESP-IDF firmware
-project exist yet. See [docs/roadmap.md](docs/roadmap.md) for the full
-milestone plan and the architectural decisions index.
+scaffold builds and runs, and CI plus the [unit test
+framework](tests/README.md) (GoogleTest+GoogleMock) are in place and
+running on every push/PR — see the badges above. No Core/UI/module source
+or ESP-IDF firmware project exist yet (the Firmware badge stays green by
+skipping cleanly until that exists — see
+[DEVELOPMENT.md](DEVELOPMENT.md#continuous-integration)). See
+[docs/roadmap.md](docs/roadmap.md) for the full milestone plan and the
+architectural decisions index.
 
 ## Architecture
 

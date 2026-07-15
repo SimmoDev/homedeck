@@ -1,0 +1,31 @@
+name: Simulator
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build simulator
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libsdl2-dev
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: simulator/build/_deps
+          key: simulator-deps-${{ hashFiles('simulator/CMakeLists.txt') }}
+
+      - name: Configure
+        working-directory: simulator
+        run: cmake -B build -G Ninja
+
+      - name: Build
+        working-directory: simulator
+        run: cmake --build build
