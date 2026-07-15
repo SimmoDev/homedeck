@@ -4,7 +4,7 @@ This roadmap tracks the milestones defined in CLAUDE.md. Milestones are
 sequential — scope is not expanded until the current milestone's goal is
 complete, per the project's scope-control philosophy.
 
-## M0 — Foundation (current)
+## M0 — Foundation (complete)
 
 **Goal:** establish the architectural and documentation foundation before
 any implementation begins.
@@ -18,14 +18,18 @@ any implementation begins.
       below) — all resolved except the Harmony local-control investigation
       (in progress, scoped) and the module interface (intentionally
       deferred to M3 by design)
-- [ ] Development environment set up and verified (ESP-IDF toolchain,
-      simulator build prerequisites)
+- [x] Development environment set up and verified — ESP-IDF v5.4.2 via the
+      `espressif/idf` Docker image (confirmed `esp32p4` target support with
+      a real `idf.py build` producing a flashable `.bin`), and simulator
+      build prerequisites (CMake, Ninja, SDL2, C++20 — confirmed by
+      actually building and running the [simulator
+      scaffold](../simulator/README.md)). See [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup).
 
-**Exit criteria:** a developer can follow [DEVELOPMENT.md](../DEVELOPMENT.md)
-to get a working build environment. The architectural decisions are now
-resolved; only the environment setup/verification step remains.
+**Exit criteria met:** a developer can follow
+[DEVELOPMENT.md](../DEVELOPMENT.md) to get a working build environment for
+both targets.
 
-## M1 — Platform
+## M1 — Platform (current)
 
 - [x] **First action, before anything else in M1:** stand up the
       simulator's host-native CMake project with LVGL's SDL2 driver (see

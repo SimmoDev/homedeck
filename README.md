@@ -38,10 +38,12 @@ possible, but none is planned or committed to.
 
 ## Current status
 
-**Milestone M0 — Foundation.** The repository structure, architecture
-documentation, and initial ADRs have just been established. No firmware
-implementation exists yet. See [docs/roadmap.md](docs/roadmap.md) for the
-full milestone plan and the architectural decisions index.
+**Milestone M1 — Platform.** M0 (architecture documentation, ADRs, and a
+verified dev environment for both build targets) is complete. The
+[desktop simulator](simulator/README.md)'s host-native CMake + LVGL/SDL2
+scaffold builds and runs; no Core/UI/module source or ESP-IDF firmware
+project exist yet. See [docs/roadmap.md](docs/roadmap.md) for the full
+milestone plan and the architectural decisions index.
 
 ## Architecture
 

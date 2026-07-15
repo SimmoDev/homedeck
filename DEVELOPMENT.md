@@ -44,12 +44,16 @@ than trying to hold all of it in mind now.
 
 ## Required tools
 
-- **ESP-IDF** — the firmware target's build toolchain (`idf.py`). Version
-  is not yet pinned; confirm against the ESP32-P4's current minimum
-  supported ESP-IDF release at the start of M1, and pin explicitly here
-  once chosen — don't assume a version from memory. Not used for the
-  simulator, which is a separate host-native CMake build — see
-  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system).
+- **ESP-IDF v5.4.2** — the firmware target's build toolchain (`idf.py`),
+  pinned to this version. Confirmed to build for the `esp32p4` target (see
+  [ESP-IDF setup](#esp-idf-setup) below for how this was verified). Not
+  used for the simulator, which is a separate host-native CMake build —
+  see [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system).
+- **Docker** — runs the `espressif/idf:v5.4.2` image, the verified way to
+  get the ESP-IDF toolchain without installing it natively on the host.
+  This is the primary supported path; a native install per Espressif's own
+  "Get Started" guide remains a documented alternative for anyone who
+  prefers it, but isn't what this project verifies against.
 - **CMake** and **Ninja** — build system for the simulator's own host-native
   project, and (wrapped by `idf.py`) for the firmware target. These are two
   independent build definitions, not one shared one — see
@@ -66,8 +70,9 @@ than trying to hold all of it in mind now.
   A plain host CMake + SDL2 build is a well-trodden combination — see
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system)
   for why this was chosen over running it under ESP-IDF's Linux target.
-- **Python 3** — required by ESP-IDF's own tooling (`idf.py` and friends),
-  for the firmware target.
+- **Python 3** — only needed on the host if using a native ESP-IDF install
+  instead of Docker; the `espressif/idf:v5.4.2` image bundles its own
+  (Python 3.12.3, verified working).
 - **Node.js + a package manager** — required once the Web Management UI
   frontend build exists (M2). Exact tooling depends on the frontend
   framework decision in
@@ -75,19 +80,53 @@ than trying to hold all of it in mind now.
 
 ## ESP-IDF setup
 
-1. Follow Espressif's official ESP-IDF "Get Started" instructions for your
-   platform to install the toolchain, targeting the ESP32-P4 chip.
-2. `source` (or `.` on Windows: run) the ESP-IDF export script in each new
-   shell before running `idf.py` commands, as usual for ESP-IDF projects.
-3. Once `firmware/` contains an actual ESP-IDF project (M1), building and
-   flashing follows the standard `idf.py set-target esp32p4`,
-   `idf.py build`, `idf.py -p <PORT> flash monitor` workflow.
+**Verified working:** `esp32p4` target support, a full `idf.py build` of a
+minimal project, producing a flashable `.bin`, all run through the
+`espressif/idf:v5.4.2` Docker image — no native ESP-IDF install involved
+(and no issue with the host's own, very new Python — the container brings
+its own 3.12.3).
 
-The simulator does **not** use `idf.py` — it's a separate host-native CMake
-project, described in [Simulator workflow](#simulator-workflow) below. This
-section will be filled in with exact, verified commands once the M1
-ESP-IDF project scaffolding exists — treat the above as the expected shape,
-not a copy-pasteable final version yet.
+1. `docker pull espressif/idf:v5.4.2` (already available locally as of this
+   verification).
+2. From the repository root, once `firmware/` contains an actual ESP-IDF
+   project (M1's "ESP-IDF project scaffolding" item — not yet done):
+   ```
+   docker run --rm -u "$(id -u):$(id -g)" \
+     -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+     -v "$(pwd)/firmware:/project" -w /project \
+     espressif/idf:v5.4.2 idf.py set-target esp32p4 build
+   ```
+   **The `-u "$(id -u):$(id -g)"` matters, not just style:** without it, the
+   container runs as root, and every file it writes into the bind-mounted
+   `firmware/` directory (the `build/` output, `sdkconfig`, etc.) comes out
+   root-owned on the host — confirmed directly during this verification,
+   where cleaning up a root-owned scratch build required a second Docker
+   invocation just to `rm` it. Running as the host UID/GID fixes this —
+   confirmed end-to-end with a full `idf.py build` producing a flashable
+   `.bin` while owned by the host user throughout.
+
+   **The `GIT_CONFIG_*` env vars matter too:** running as a non-root host
+   UID means git refuses to touch `/opt/esp/idf`'s components (they're
+   root-owned inside the image) and prints a "dubious ownership" warning —
+   confirmed this doesn't block configure or build, but it's needless
+   noise. Setting `safe.directory=*` via environment variables (rather than
+   `git config --global`, which would need a writable `$HOME` the
+   container doesn't reliably have for an arbitrary host UID) suppresses
+   it cleanly — confirmed with a full rebuild producing an identical,
+   warning-free result.
+3. **Flashing** needs the device passed through to the container (e.g.
+   `--device=/dev/ttyUSB0` on Linux) — not yet exercised, since it needs
+   real Tab5 hardware connected. Confirm the exact flags during M1 hardware
+   bring-up rather than assuming this plan is complete.
+
+A native install per Espressif's own "Get Started" guide (`source`-ing the
+export script in each shell, then the standard `idf.py set-target esp32p4`
+/ `idf.py build` / `idf.py -p <PORT> flash monitor` workflow) remains a
+documented alternative, but isn't what this project verifies against.
+
+The simulator does **not** use `idf.py` or Docker — it's a separate
+host-native CMake project, described in [Simulator
+workflow](#simulator-workflow) below.
 
 ## Simulator workflow
 
