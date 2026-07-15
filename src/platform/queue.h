@@ -18,6 +18,11 @@ namespace homedeck {
 template <typename T>
 class Queue {
 public:
+    Queue() = default;
+
+    Queue(const Queue&) = delete;
+    Queue& operator=(const Queue&) = delete;
+
     void Push(T item) {
         {
             std::lock_guard<std::mutex> lock(mutex_);

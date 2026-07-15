@@ -9,6 +9,12 @@
 namespace homedeck {
 
 struct Timer::Impl {
+    // Declaration order matters: members are destroyed in reverse, so
+    // `task` (and the thread it owns) is stopped and joined *before*
+    // `mutex`/`cv` are destroyed, even though the thread function below
+    // holds a raw pointer back to this Impl and touches mutex/cv from
+    // it. Reordering these members would silently reintroduce a
+    // use-after-free with no compiler diagnostic.
     std::mutex mutex;
     std::condition_variable_any cv;
     std::unique_ptr<Task> task;
