@@ -13,9 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Runs as root inside the container - simplest option, and fine here
+      # since the runner VM is thrown away after the job, unlike a local
+      # dev machine where root-owned build output would be a real
+      # nuisance (see DEVELOPMENT.md's ESP-IDF setup for the local case).
       - name: Build via ESP-IDF Docker image
         run: |
-          docker run --rm -u "$(id -u):$(id -g)" \
-            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
-            -v "$(pwd)/firmware:/project" -w /project \
+          docker run --rm -v "$(pwd)/firmware:/project" -w /project \
             espressif/idf:v5.4.2 idf.py set-target esp32p4 build

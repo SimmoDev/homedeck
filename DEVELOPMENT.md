@@ -90,29 +90,17 @@ its own 3.12.3).
    verification).
 2. From the repository root:
    ```
-   docker run --rm -u "$(id -u):$(id -g)" \
-     -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
-     -v "$(pwd)/firmware:/project" -w /project \
+   docker run --rm -v "$(pwd)/firmware:/project" -w /project \
      espressif/idf:v5.4.2 idf.py set-target esp32p4 build
+   docker run --rm -v "$(pwd)/firmware:/project" \
+     espressif/idf:v5.4.2 chown -R "$(id -u):$(id -g)" /project
    ```
-   **The `-u "$(id -u):$(id -g)"` matters, not just style:** without it, the
-   container runs as root, and every file it writes into the bind-mounted
-   `firmware/` directory (the `build/` output, `sdkconfig`, etc.) comes out
-   root-owned on the host — confirmed directly during this verification,
-   where cleaning up a root-owned scratch build required a second Docker
-   invocation just to `rm` it. Running as the host UID/GID fixes this —
-   confirmed end-to-end with a full `idf.py build` producing a flashable
-   `.bin` while owned by the host user throughout.
-
-   **The `GIT_CONFIG_*` env vars matter too:** running as a non-root host
-   UID means git refuses to touch `/opt/esp/idf`'s components (they're
-   root-owned inside the image) and prints a "dubious ownership" warning —
-   confirmed this doesn't block configure or build, but it's needless
-   noise. Setting `safe.directory=*` via environment variables (rather than
-   `git config --global`, which would need a writable `$HOME` the
-   container doesn't reliably have for an arbitrary host UID) suppresses
-   it cleanly — confirmed with a full rebuild producing an identical,
-   warning-free result.
+   **Two steps, not one:** the build runs as root inside the container —
+   root always has a valid, writable `$HOME`, so ccache, git, and
+   everything else that cares about it just works. The second command
+   then reclaims ownership of whatever got written into the bind-mounted
+   `firmware/` directory (the `build/` output, `sdkconfig`, etc.), which
+   would otherwise be root-owned on the host.
 3. **Flashing** needs the device passed through to the container (e.g.
    `--device=/dev/ttyUSB0` on Linux) — not yet exercised, since it needs
    real Tab5 hardware connected. Confirm the exact flags during M1 hardware
