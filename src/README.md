@@ -25,7 +25,13 @@ src/
 └── ui/          UiTask - owns LVGL exclusively (the SDL2 window here,
                  M5GFX on firmware later), provides the lv_async_call()
                  hand-off EventBus's UI-facing subscriptions use. Also
-                 ui/screens/ - DashboardScreen, the home screen (see
+                 Navigation - a minimal real route registry (Core's
+                 Navigation responsibility conceptually, but lives here
+                 since lv_scr_load() is a UI-layer implementation detail,
+                 same reasoning as EventBus staying LVGL-free);
+                 home_affordance.h - the reusable persistent home icon
+                 every non-dashboard screen includes; and ui/screens/ -
+                 DashboardScreen, the home screen (see
                  docs/architecture/dashboard.md).
 ```
 

@@ -20,8 +20,8 @@ void RunAndDelete(void* user_data) {
 
 UiTask::UiTask(int32_t width, int32_t height, EventBus& event_bus) {
     lv_init();
-    display_ = lv_sdl_window_create(width, height);
-    lv_sdl_window_set_title(display_, "HomeDeck Simulator");
+    lv_display_t* display = lv_sdl_window_create(width, height);
+    lv_sdl_window_set_title(display, "HomeDeck Simulator");
     lv_sdl_mouse_create();
 
     event_bus.SetUiDispatcher([](std::function<void()> fn) {
@@ -29,8 +29,6 @@ UiTask::UiTask(int32_t width, int32_t height, EventBus& event_bus) {
         lv_async_call(RunAndDelete, heap_fn);
     });
 }
-
-lv_obj_t* UiTask::ActiveScreen() const { return lv_display_get_screen_active(display_); }
 
 void UiTask::Run() {
     while (true) {

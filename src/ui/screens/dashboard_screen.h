@@ -13,9 +13,15 @@ namespace homedeck {
 // M2 scope, not this - see docs/architecture/dashboard.md.
 class DashboardScreen {
 public:
-    DashboardScreen(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader);
+    DashboardScreen(EventBus& event_bus, BatteryReader& battery_reader);
+
+    // Owns its own root (rather than taking an externally-provided
+    // parent) so Navigation can lv_scr_load() it directly and switch to
+    // other screens that own theirs.
+    lv_obj_t* Root() const { return root_; }
 
 private:
+    lv_obj_t* root_;
     lv_obj_t* clock_label_;
     lv_obj_t* battery_label_;
     EventBus::ScopedSubscription clock_subscription_;

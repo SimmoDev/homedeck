@@ -19,13 +19,14 @@ void FormatTime(std::chrono::system_clock::time_point time, char* buffer, size_t
 
 }  // namespace
 
-DashboardScreen::DashboardScreen(lv_obj_t* parent, EventBus& event_bus,
-                                  BatteryReader& battery_reader) {
-    clock_label_ = lv_label_create(parent);
+DashboardScreen::DashboardScreen(EventBus& event_bus, BatteryReader& battery_reader) {
+    root_ = lv_obj_create(nullptr);
+
+    clock_label_ = lv_label_create(root_);
     lv_obj_set_style_text_align(clock_label_, LV_TEXT_ALIGN_CENTER, 0);
     lv_obj_align(clock_label_, LV_ALIGN_CENTER, 0, 0);
 
-    battery_label_ = lv_label_create(parent);
+    battery_label_ = lv_label_create(root_);
     char battery_text[16];
     std::snprintf(battery_text, sizeof(battery_text), "%d%%", battery_reader.ReadPercent());
     lv_label_set_text(battery_label_, battery_text);

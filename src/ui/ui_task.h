@@ -14,16 +14,9 @@ class UiTask {
 public:
     UiTask(int32_t width, int32_t height, EventBus& event_bus);
 
-    // Screen widgets are created on this, e.g.
-    // lv_label_create(ui_task.ActiveScreen()).
-    lv_obj_t* ActiveScreen() const;
-
     // Runs lv_timer_handler() in a loop. Blocks forever - there is no
     // shutdown path yet, matching there being no exit screen either.
     [[noreturn]] void Run();
-
-private:
-    lv_display_t* display_;
 };
 
 }  // namespace homedeck

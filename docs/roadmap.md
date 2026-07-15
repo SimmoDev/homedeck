@@ -31,6 +31,10 @@ both targets.
 
 ## M1 — Platform (current)
 
+Every remaining unchecked item below needs the physical Tab5 (SKU
+confirmation, boot, display/touch bring-up, the on-device LVGL app) —
+everything simulator-buildable without hardware is done.
+
 - [x] **First action, before anything else in M1:** stand up the
       simulator's host-native CMake project with LVGL's SDL2 driver (see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system)
@@ -110,15 +114,19 @@ both targets.
       — both explicitly M2 scope per
       [dashboard.md](architecture/dashboard.md#status) and
       [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-dashboard-layout-model).
-- [ ] Persistent home affordance included in the base screen layout from
-      the first non-dashboard screen onward, not retrofitted later (see
+- [x] Persistent home affordance included in the base screen layout from
+      the first non-dashboard screen onward (see
       [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance)).
-      Still blocked: per [ui.md](architecture/ui.md#navigation-model),
-      the affordance sits on every screen *except* the dashboard, so it
-      has nothing to attach to until a second, non-dashboard screen
-      exists — none does yet, nor does a Navigation manager to route
-      between screens. Building either against an imagined second screen
-      would be designing ahead of a real one.
+      A minimal real Navigation manager (`src/ui/navigation.h` -
+      `Register`/`GoTo`/`GoHome`, not a hardcoded two-screen switch) and
+      a reusable `LV_SYMBOL_HOME` affordance
+      (`src/ui/home_affordance.h`), proven against a deliberately
+      throwaway second screen
+      (`simulator/screens/placeholder_screen.h`, mirroring the earlier
+      heartbeat screen's role) — confirmed working in both directions by
+      manually running the simulator and tapping both buttons, not just
+      compiling. Replaced once a genuine second screen exists (an M2
+      settings screen, or the first M3 module screen).
 - [x] Clock/date display — `Clock` (`src/core/`) publishes a
       `ClockTickEvent` once a second via the `EventBus`, plus once
       immediately at construction so the display never shows LVGL's

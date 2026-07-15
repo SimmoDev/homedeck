@@ -121,9 +121,11 @@ modules only supply the notification's content.
 
 ## Status
 
-The dashboard exists (`DashboardScreen` in `src/ui/screens/`) — the first
-real Touch UI, replacing the throwaway proof-of-mechanism screen from the
-previous M1 item. It's the only screen so far; the persistent home
-affordance described above has nothing to attach to until a second,
-non-dashboard screen exists (see [roadmap.md](../roadmap.md)), so neither
-it nor a Navigation manager are built yet.
+The dashboard exists (`DashboardScreen` in `src/ui/screens/`), and so do
+Navigation (`src/ui/navigation.h`) and the persistent home affordance
+(`src/ui/home_affordance.h`) — a minimal real route registry (`Register`/
+`GoTo`/`GoHome`) and a reusable `LV_SYMBOL_HOME` button, proven end to end
+against a deliberately throwaway second screen
+(`simulator/screens/placeholder_screen.h`, replaced once a genuine second
+screen exists — an M2 settings screen, or the first M3 module screen).
+Confirmed working manually in both directions, not just compiling.

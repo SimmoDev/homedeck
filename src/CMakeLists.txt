@@ -18,6 +18,8 @@ target_link_libraries(homedeck_core PUBLIC homedeck_platform_host)
 if(TARGET lvgl)
   add_library(homedeck_ui
     ui/ui_task.cpp
+    ui/navigation.cpp
+    ui/home_affordance.cpp
     ui/screens/dashboard_screen.cpp
   )
   target_link_libraries(homedeck_ui PUBLIC homedeck_core lvgl)
