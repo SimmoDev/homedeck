@@ -1,0 +1,21 @@
+# ESP-IDF firmware build
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/managed_components/
+firmware/dependencies.lock
+
+# Simulator build (host-native CMake)
+simulator/build/
+
+# Web Management UI frontend
+webui/node_modules/
+webui/dist/
+
+# Editor/OS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
