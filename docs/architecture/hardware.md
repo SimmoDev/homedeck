@@ -69,10 +69,19 @@ permanent guarantee.
   [ADR-0009](../decisions/ADR-0009-touch-display-detection.md) for why a
   compile-time approach was rejected (it breaks the single-OTA-image
   model) and what's still unconfirmed (the chip-ID register, and whether
-  ST7123/ST7121 need genuinely separate driver paths). Confirm which
-  revision M5GFX/M5Unified's existing Tab5 support already targets before
-  writing new detection code, and record which revision the project's own
-  reference hardware uses.
+  ST7123/ST7121 need genuinely separate driver paths).
+- **Confirmed:** the project's reference unit uses the **ST7123**
+  integrated display+touch driver (I2C address 0x55) — read directly off
+  the physical unit's sticker, no probing needed for this fact. The
+  runtime I2C-probing detection logic itself is still not built (M2/
+  display-bring-up scope, per ADR-0009 — a single reference unit knowing
+  its own driver doesn't remove the need for runtime detection across
+  units in the field).
+- **M5Stack's own I2C address map for Tab5** (SCL: GPIO32, SDA: GPIO31),
+  confirming several facts elsewhere in this document at once: ES8388
+  (0x10), GT911 (0x14, not present on this unit), RX8130CE (0x32), SC2356
+  (0x36), ES7210 (0x40), INA226 (0x41), PI4IOE5V6408-1/2 (0x43/0x44, I/O
+  expanders not otherwise recorded here), ST7123 (0x55), BMI270 (0x68).
 
 ## IMU
 
