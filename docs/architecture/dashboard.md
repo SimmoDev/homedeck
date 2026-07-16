@@ -11,25 +11,48 @@ tradeoffs and rejected alternatives behind the decisions referenced below.
 ## Widget system
 
 Widgets are the unit of dashboard content. Core owns the dashboard layout
-and rendering host; modules (and Core itself, for things like date/time and
-battery) contribute widgets through a standard interface rather than being
+and rendering host; modules (and Core itself, for things like weather)
+contribute widgets through a standard interface rather than being
 hardcoded into the dashboard. Widgets are arranged in a fixed grid — see
 [ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-dashboard-layout-model)
 for why a fixed grid was chosen over a freeform layout.
 
-Example widgets described in CLAUDE.md:
+A compact date/time and battery status are *not* dashboard widgets,
+despite being listed as example widgets in CLAUDE.md — see [Status
+bar](#status-bar) below for why they live in persistent screen chrome
+instead. This doesn't rule out a separate, optional *large clock* widget
+also living in the grid — the same way Android pairs a compact status-bar
+clock with an optional larger clock widget on the home screen — that's
+ordinary widget-catalog scope, not decided here.
 
-- Date/time (Core)
+Example grid widgets:
+
 - Weather (Core — see [Weather source](#weather-source) below)
-- Battery status (Core)
 - Network status (Core)
 - Current Harmony activity (Harmony module)
 - Uptime Kuma service health (Uptime Kuma module)
 - Home Assistant states (Home Assistant module)
+- Large clock (Core, optional — distinct from the always-on status bar
+  time, see [Status bar](#status-bar) below)
 
 Because widgets are contributed through a standard interface, a module can
 ship a new widget without any Core change, and the dashboard doesn't need
 to know what kind of module produced a given widget.
+
+## Status bar
+
+A compact date/time and battery status are shown in a persistent status bar
+present on every screen, not just the dashboard — closer to how Android,
+iOS, and desktop environments treat a status bar than how they treat a
+home-screen widget. Unlike grid widgets, the status bar isn't
+user-customizable (no enable/disable, no reordering); it's fixed system
+chrome, the same treatment as the [persistent home
+affordance](ui.md#navigation-model). Network status is a natural candidate
+to also live here rather than in the grid, but that isn't decided — see
+[ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)
+for the full rationale and what's still open (including whether the status
+bar and the home affordance should eventually be a single, unified piece
+of chrome).
 
 ## Weather source
 
@@ -86,7 +109,9 @@ clock/date (`Clock` in `src/core/`, publishing once a second — and once
 immediately at startup, so the display never shows a placeholder before
 the first tick — through the `EventBus`) and a battery percentage
 (`BatteryReader`, a fixed mock value for now — see
-[simulator.md](simulator.md#how-it-works) for why). Both are direct,
-hardcoded widgets — no pluggable widget-registration system or grid
-layout yet; those stay M2. See `docs/roadmap.md` for what's next
-(persistent home affordance, still blocked on a second screen existing).
+[simulator.md](simulator.md#how-it-works) for why). Both are currently
+hardcoded directly on `DashboardScreen`, standing in for what M2 turns
+into shared status-bar chrome present on every screen (see [Status
+bar](#status-bar) above) — not dashboard-grid widgets. No pluggable
+widget-registration system, grid layout, or status bar exists yet; those
+stay M2. See `docs/roadmap.md` for what's next.

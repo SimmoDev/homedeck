@@ -40,6 +40,15 @@ except the dashboard itself — not a gesture or a hardware button. See
 for why a persistent affordance was chosen over an edge-swipe gesture or a
 power-button long-press.
 
+A separate, independent piece of persistent chrome — a status bar showing
+date/time and battery on every screen, dashboard included — sits alongside
+the home affordance; it's not part of the navigation manager and doesn't
+route anywhere. See
+[dashboard.md](dashboard.md#status-bar) and
+[ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)
+for why it exists and why it's kept separate from the home affordance for
+now.
+
 ## Rendering
 
 LVGL is the rendering toolkit, driven through M5GFX/M5Unified on-device and

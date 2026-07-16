@@ -7,13 +7,14 @@ Accepted
 ## Context
 
 [dashboard.md](../architecture/dashboard.md) describes the dashboard as a
-live, glanceable widget host per [ADR-0004](ADR-0004-ui-philosophy.md). Two
-decisions within that scope involved real tradeoffs and rejected
-alternatives: how widgets are laid out on screen, and how the weather
-widget specifically sources its data, since weather has no local source on
-this hardware and the project otherwise avoids cloud dependencies. This ADR
-records both, so the architecture doc can state the current design without
-carrying the full rationale inline.
+live, glanceable widget host per [ADR-0004](ADR-0004-ui-philosophy.md).
+Three decisions within that scope involved real tradeoffs and rejected
+alternatives: how widgets are laid out on screen, how the weather widget
+specifically sources its data (since weather has no local source on this
+hardware and the project otherwise avoids cloud dependencies), and whether
+date/time and battery status belong in that same layout or somewhere else
+entirely. This ADR records all three, so the architecture doc can state the
+current design without carrying the full rationale inline.
 
 ## Decision: Dashboard layout model
 
@@ -72,13 +73,82 @@ waiting for HA at M6 — resolving the "always direct" vs. "HA-only" options'
 respective downsides (mandatory cloud dependency vs. delayed availability)
 without accepting either.
 
+## Decision: Status bar vs. dashboard-only widgets
+
+**Context:** CLAUDE.md's example widget list treats date/time and battery
+status as ordinary dashboard widgets, living in the same fixed grid as
+weather, Home Assistant states, and every module-contributed widget. That
+scoping means they're only visible while the user happens to be looking at
+the dashboard — invisible during remote control, media browsing, or any
+other screen, despite being exactly the kind of glanceable, always-relevant
+status a handheld device benefits from showing continuously, closer to how
+Android, iOS, and most desktop environments treat a status bar than how
+they treat a home-screen widget.
+
+**Options:**
+- Keep date/time and battery as ordinary dashboard-grid widgets — simple,
+  consistent with every other widget's customization model, but invisible
+  on every screen except the dashboard.
+- A persistent top status bar, shown on every screen (dashboard included),
+  sitting outside the widget grid as system-level chrome — architecturally
+  the same category as the persistent home affordance
+  ([ADR-0004](ADR-0004-ui-philosophy.md#decision-return-home-affordance)),
+  not a dashboard widget.
+
+**Decided:** the persistent top bar. It hosts a *compact* date/time and
+battery status at minimum. Network status (also listed as an example
+widget in CLAUDE.md) is a natural additional candidate for the bar, but
+which widgets beyond date/time/battery belong there is an M2
+implementation detail, not decided by this ADR.
+
+This changes what the compact date/time and battery indicators *are*, not
+just where they render: they move from customizable dashboard widgets
+(subject to the eventual enable/reorder goal — see
+[dashboard.md](../architecture/dashboard.md#customization-future)) to fixed
+system chrome that a user doesn't remove or reorder, the same treatment as
+the home affordance. That's an intentional trade for these two
+specifically — a status that's always present is worth more here than
+optionality.
+
+This does **not** rule out a separate, optional *large clock* widget also
+living in the dashboard grid, the same way Android keeps a compact clock in
+its status bar while still offering a larger clock as an optional
+home-screen widget. The two serve different purposes — the status bar's
+job is guaranteed visibility from any screen; a grid widget's job is a
+deliberately prominent presence on the dashboard specifically, for users
+who want it — and aren't mutually exclusive. Whether such a widget ships,
+and whether the same reasoning extends to an optional large-battery
+widget, is ordinary widget-catalog scope for M2 and later, not something
+this ADR needs to decide.
+
+The persistent home affordance is a separate, independent piece of chrome
+and is **not** being folded into the status bar by this decision. Whether
+they should eventually be unified — or whether a broader app-switcher dock
+should absorb the home affordance instead, as discussed alongside this
+decision — is an open question deferred until there's a real module
+catalog to design a dock against (see the M2 widget framework item in
+[roadmap.md](../roadmap.md#m2--platform-services)). This ADR only settles
+where date/time and battery live.
+
 ## Consequences
 
 - [dashboard.md](../architecture/dashboard.md) states the resulting design
-  (fixed grid, pluggable weather provider) without repeating the rejected
-  alternatives.
+  (fixed grid for optional/reorderable widgets, pluggable weather provider,
+  a separate persistent status bar for date/time and battery) without
+  repeating the rejected alternatives.
 - The weather widget is opt-in and off by default — a user who enables
   neither provider sees no weather widget, not a broken one.
 - The HA module (M6) is a `WeatherProvider` implementation, not the owner
   of the interface — see [modules.md](../architecture/modules.md) for the
   general module/Core boundary this follows.
+- The dashboard's widget grid no longer includes date/time or battery —
+  its scope narrows to genuinely optional, reorderable content (weather,
+  Harmony activity, Uptime Kuma health, Home Assistant states, and future
+  module widgets).
+- [ui.md](../architecture/ui.md#navigation-model) should describe the
+  status bar as a second, independent piece of persistent screen chrome
+  alongside the home affordance, not part of the navigation manager itself.
+- M1's current hardcoded `DashboardScreen` clock/battery labels already
+  show roughly the right information; M2's actual work is relocating them
+  into shared status-bar chrome present on every screen, not building a
+  grid cell for them.

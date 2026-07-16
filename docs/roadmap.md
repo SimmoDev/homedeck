@@ -204,6 +204,10 @@ simulator.
       subscribed to Core events, so resolve `EventBus`'s known
       cross-thread subscriber-lifetime gap (see [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#consequences))
       before or alongside this, not after
+- [ ] Status bar (persistent date/time and battery, shown on every screen —
+      not a dashboard widget, see
+      [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)),
+      replacing `DashboardScreen`'s current hardcoded clock/battery labels
 - [ ] Power management state model, including the alert-priority wake-check
       cycle during Sleeping (interval tuned against real reconnect-cost/
       battery measurements on hardware — see
