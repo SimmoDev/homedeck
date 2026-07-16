@@ -110,13 +110,15 @@ everything simulator-buildable without hardware is done.
       panel reports `720x1280` (portrait) by default, not `1280x720` —
       relevant input for the still-open orientation decision, not a
       blocker to bring-up itself.
-- [ ] Touch input bring-up — **partially done as a side effect of display
-      bring-up above:** `espressif/m5stack_tab5` initialized the ST7123
-      touch controller successfully in the same pass (`Touch panel create
-      success`, 10-point multitouch, matching the display's runtime
-      controller detection). Not yet wired into any actual input
-      handling — this is controller init only, not touch events reaching
-      LVGL or app code.
+- [x] Touch input bring-up — confirmed fully working end to end on
+      hardware, not just controller init: `bsp_display_start()` already
+      wires touch into LVGL as a real input device
+      (`lvgl_port_add_touch()`, called internally, no extra plumbing
+      needed), and a real on-screen touch handler proved it — tapping
+      the panel logs real coordinates (within the confirmed `720x1280`
+      bounds) and visibly toggles the screen color. `espressif/m5stack_tab5`
+      also confirmed the same ST7123 touch controller as display
+      (`Touch panel create success`, 10-point multitouch).
 - [ ] Basic LVGL application running **on-device** — not yet built
       (display/touch bring-up above unblocked this, but it isn't done
       just because hardware works now). The mechanism itself (dedicated

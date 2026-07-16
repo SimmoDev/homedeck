@@ -172,6 +172,17 @@ still-open landscape-vs-portrait decision, but doesn't resolve it by
 itself; whether this is the panel's native scan direction or just this
 driver's default init orientation isn't confirmed yet.
 
+**Touch confirmed working end to end, not just controller init.**
+`bsp_display_start()` already wires the touch controller into LVGL as a
+real input device (`lvgl_port_add_touch()`, called internally — no extra
+plumbing needed on this project's side). Verified on hardware with a real
+on-screen touch handler: tapping the panel logs real coordinates, all
+within the confirmed `720x1280` bounds, and visibly reacts (a color
+toggle). `LV_EVENT_PRESSED` fires once per discrete touch-down, confirmed
+by holding and dragging a finger on hardware — exactly one log line for
+the whole press, not a stream (that would be `LV_EVENT_PRESSING`, not
+registered here).
+
 ## IMU
 
 - **BMI270** (6-axis accelerometer + gyroscope). Supports interrupt-based
