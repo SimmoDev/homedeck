@@ -41,16 +41,26 @@ permanent guarantee.
   link. See [networking.md](networking.md) and
   [power-management.md](power-management.md) for the consequences (reconnect
   cost on wake, OTA scope question for the co-processor's own firmware).
-- **Not yet confirmed:** whether the C6's power/SDIO domain is independent
-  of the P4's deep-sleep domain. If independent, the C6 could stay in
-  Wi-Fi modem-sleep (associated, low duty cycle) through P4 deep sleep
-  instead of losing its association entirely — a materially different, and
-  cheaper, wake-cycle cost model than full re-association. This changes
-  the *shape* of the alert-priority wake cycle's cost, not just its tuned
-  numbers — see
-  [power-management.md](power-management.md#notifications-during-sleeping).
-  Confirm during M1 against the actual board/schematic, not assumed either
-  way.
+- **Link confirmed: SDIO** (`SDIO2_D0`–`D3`, `SDIO2_CMD`, `SDIO2_CK`),
+  running ESP-Hosted over that bus, per M5Stack's official BSP source
+  (`m5stack_tab5.c` in
+  [M5Tab5-UserDemo](https://github.com/m5stack/M5Tab5-UserDemo)).
+- **Power domain — partially confirmed.** The C6's power enable
+  (`WLAN_PWR_EN`) is bit 0 of a dedicated I2C GPIO expander output
+  (PI4IOE5V6408, I2C address `0x44` — see the address map above),
+  toggled in software via `bsp_set_wifi_power_enable()`. No automatic
+  hardware coupling to the P4's own sleep state exists in that BSP source
+  — the C6's power rail is independently switchable, not wired to
+  collapse whenever the P4 sleeps. This answers the specific "are they
+  wired together" question, but **does not by itself confirm** the
+  practical question the alert-priority wake cycle actually cares about:
+  whether ESP-Hosted/SDIO can meaningfully keep the C6 "associated, low
+  duty cycle" while the *P4 itself* is in deep sleep and unable to
+  service the SDIO link — that's a protocol/software behavior question,
+  not a wiring one, and still needs real testing during M2/M5's power
+  work, not assumed from this alone. See
+  [power-management.md](power-management.md#notifications-during-sleeping)
+  for where this feeds into the wake-cycle cost model.
 
 ## Display and touch
 

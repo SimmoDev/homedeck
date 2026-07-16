@@ -85,10 +85,15 @@ everything simulator-buildable without hardware is done.
       confirmed 32MB PSRAM now initializes correctly (was reporting 0
       free bytes with SPIRAM disabled by default).
 - [ ] Confirm whether the ESP32-C6 co-processor's power/SDIO domain is
-      independent of the P4's deep-sleep domain — determines whether the
-      alert-priority wake cycle's cost model is full re-association or
-      modem-sleep resume, not just its tuned interval (see
-      [hardware.md](architecture/hardware.md#wireless) and
+      independent of the P4's deep-sleep domain — **partially done:** the
+      C6's power rail is confirmed independently switchable (I2C GPIO
+      expander, no hardware coupling to P4 sleep state — see
+      [hardware.md](architecture/hardware.md#wireless)), but whether
+      ESP-Hosted/SDIO can actually keep the C6 usefully associated while
+      the P4 itself is asleep is a separate, still-open protocol
+      question — determines whether the alert-priority wake cycle's cost
+      model is full re-association or modem-sleep resume, not just its
+      tuned interval (see
       [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping))
 - [ ] Display bring-up, including confirming whether M5GFX/M5Unified's
       existing Tab5 support already handles touch/display controller
