@@ -60,10 +60,11 @@ everything simulator-buildable without hardware is done.
       test (one plain assertion, one GoogleMock-based test) proving the
       framework runs, not just declared — real Core/module tests arrive
       alongside the code they test, not before it exists.
-- [ ] Confirm reference hardware SKU/kit (battery is only included with the
-      K145 kit variant — see [hardware.md](architecture/hardware.md#power))
+- [ ] Confirm reference hardware SKU/kit — **done:** the reference unit is
+      the K145 kit (see [hardware.md](architecture/hardware.md#power)) —
       and which touch/display controller revision it ships with (GT911 vs.
-      ST7123 vs. ST7121 — see
+      ST7123 vs. ST7121 — still open, needs I2C probing once firmware
+      boots — see
       [hardware.md](architecture/hardware.md#display-and-touch))
 - [x] ESP-IDF project scaffolding — confirmed working: `idf.py set-target
       esp32p4 build` produces a real `homedeck.bin` (see

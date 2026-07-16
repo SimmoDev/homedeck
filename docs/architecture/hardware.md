@@ -80,11 +80,15 @@ permanent guarantee.
 
 ## Power
 
-- **Battery:** NP-F550 removable Li-ion, 7.4V @ 2000mAh (14.8Wh). **Only
-  included with the K145 kit variant** — the base Tab5 may ship without a
-  battery. HomeDeck's "battery-powered handheld" identity depends on this
-  being the reference SKU; confirm which exact kit/SKU is the project's
-  reference hardware and record it here.
+- **Battery:** NP-F550 removable Li-ion, 7.4V @ 2000mAh (14.8Wh). Per
+  [M5Stack's product page](https://docs.m5stack.com/en/core/Tab5), the
+  Tab5 ships as two SKUs differing *only* in whether the battery is
+  included: **K145** (with battery) and **C145** (without). The project's
+  reference unit is the K145, but the battery is not a hard software
+  requirement: a C145 unit should still run HomeDeck fully on USB-C power
+  alone, just without portability. See [Battery-optional
+  operation](#battery-optional-operation) below for what that means for
+  the power state model.
 - **Charging:** IP2326 charging management chip.
 - **Conversion:** MP4560 buck-boost converter.
 - **Power monitoring:** INA226 (I2C), providing real-time voltage *and*
@@ -98,6 +102,55 @@ permanent guarantee.
   the deep-sleep wake architecture described in
   [power-management.md](power-management.md) is real hardware, not
   speculative.
+
+### Battery-optional operation
+
+HomeDeck should run fully on a battery-less C145 unit powered from USB-C
+alone — CLAUDE.md's "work fully using stock Tab5 hardware" requirement,
+applied to both SKUs, not just the K145 reference unit. This is a real,
+not hypothetical, gap in what's currently verified:
+
+- **Unconfirmed:** what the INA226 power monitor (see [Power
+  monitoring](#power) above) reports when no battery is physically
+  attached — zero, a floating/garbage reading, or a dedicated
+  presence-detection signal elsewhere in the charge circuit. `BatteryReader`
+  needs to distinguish "no battery installed" from "battery installed,
+  reading temporarily unavailable," not just report a raw percentage —
+  otherwise a battery-less unit would show a permanently wrong or
+  nonsensical battery indicator instead of correctly showing "no battery."
+- **Not yet reflected in the design:** [power-management.md](power-management.md)'s
+  explicit power states currently assume a battery is present and track
+  its charge level; a "no battery, wired only" configuration isn't
+  explicitly designed for yet — e.g. the Sleeping state's deep-sleep
+  wake-cycle cost model exists specifically to conserve battery, which is
+  moot with no battery to conserve.
+- **Directly testable on the existing reference unit:** the battery is
+  removable (NP-F550, clips onto the M-Bus connector — see
+  [Physical form factor](#physical-form-factor) below), so this doesn't
+  need separate base-Tab5 hardware to verify — unclip it from the K145 kit
+  already in hand and confirm `BatteryReader`/the power state model behave
+  correctly with it absent.
+
+## Physical form factor
+
+Confirmed against the project's own reference unit:
+
+- The battery (see [Power](#power) above) clips onto the back of the
+  device, on the opposite short edge from the USB ports.
+- With the device held in the landscape orientation the current
+  simulator/demo shell uses, the battery ends up on the right-hand side.
+- The battery pack is ~2cm thick overall, but only ~0.6cm of that is
+  recessed into the body — it protrudes ~1.4cm proud of the back. Laid
+  flat, screen-up, on a surface, the device doesn't sit level — it tilts
+  up at the battery end, acting as a passive kickstand without any
+  dedicated stand hardware.
+- The camera (see [Camera](#camera-out-of-current-scope) below, not used
+  by HomeDeck) sits on the same right-hand edge as the battery in this
+  orientation.
+
+This is real input for the still-open landscape-vs-portrait orientation
+decision, but doesn't resolve it by itself — recorded here as a confirmed
+physical fact, independent of whatever that decision ends up being.
 
 ## Audio
 
