@@ -51,12 +51,17 @@ more useful than trying to hold all of it in mind now.
 
 ## Required tools
 
-- **ESP-IDF v5.4.2** — the firmware target's build toolchain (`idf.py`),
-  pinned to this version. Confirmed to build for the `esp32p4` target (see
-  [ESP-IDF setup](#esp-idf-setup) below for how this was verified). Not
-  used for the simulator, which is a separate host-native CMake build —
-  see [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system).
-- **Docker** — runs the `espressif/idf:v5.4.2` image, the verified way to
+- **ESP-IDF v5.4.3** — the firmware target's build toolchain (`idf.py`),
+  pinned to this version specifically: v5.4.2 lacks a HAL function
+  (`espressif/m5stack_tab5`'s `usb` dependency needs custom FIFO sizing,
+  backported to v5.4.3) that the display bring-up work needs, while
+  v5.5.x has its own confirmed DSI display bugs on this exact chip — see
+  [hardware.md](docs/architecture/hardware.md#display-and-touch). Confirmed
+  to build for the `esp32p4` target (see [ESP-IDF setup](#esp-idf-setup)
+  below for how this was verified). Not used for the simulator, which is a
+  separate host-native CMake build — see
+  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system).
+- **Docker** — runs the `espressif/idf:v5.4.3` image, the verified way to
   get the ESP-IDF toolchain without installing it natively on the host.
   This is the primary supported path; a native install per Espressif's own
   "Get Started" guide remains a documented alternative for anyone who
@@ -78,7 +83,7 @@ more useful than trying to hold all of it in mind now.
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system)
   for why this was chosen over running it under ESP-IDF's Linux target.
 - **Python 3** — only needed on the host if using a native ESP-IDF install
-  instead of Docker; the `espressif/idf:v5.4.2` image bundles its own
+  instead of Docker; the `espressif/idf:v5.4.3` image bundles its own
   (Python 3.12.3, verified working).
 - **Node.js + a package manager** — required once the Web Management UI
   frontend build exists (M2). Exact tooling depends on the frontend
@@ -89,18 +94,18 @@ more useful than trying to hold all of it in mind now.
 
 **Verified working:** `esp32p4` target support, a full `idf.py build` of a
 minimal project, producing a flashable `.bin`, all run through the
-`espressif/idf:v5.4.2` Docker image — no native ESP-IDF install involved
+`espressif/idf:v5.4.3` Docker image — no native ESP-IDF install involved
 (and no issue with the host's own, very new Python — the container brings
 its own 3.12.3).
 
-1. `docker pull espressif/idf:v5.4.2` (already available locally as of this
-   verification).
+1. `docker pull espressif/idf:v5.4.3` (not yet pulled on every machine —
+   run this before the first build/flash after upgrading from v5.4.2).
 2. From the repository root:
    ```
    docker run --rm -v "$(pwd)/firmware:/project" -w /project \
-     espressif/idf:v5.4.2 idf.py set-target esp32p4 build
+     espressif/idf:v5.4.3 idf.py set-target esp32p4 build
    docker run --rm -v "$(pwd)/firmware:/project" \
-     espressif/idf:v5.4.2 chown -R "$(id -u):$(id -g)" /project
+     espressif/idf:v5.4.3 chown -R "$(id -u):$(id -g)" /project
    ```
    **Two steps, not one:** the build runs as root inside the container —
    root always has a valid, writable `$HOME`, so ccache, git, and
@@ -108,13 +113,23 @@ its own 3.12.3).
    then reclaims ownership of whatever got written into the bind-mounted
    `firmware/` directory (the `build/` output, `sdkconfig`, etc.), which
    would otherwise be root-owned on the host.
+
+   **Switching the Docker image tag needs a clean rebuild.** CMake's
+   cache bakes in the toolchain paths from whichever image last
+   configured the build — reusing an existing `build/` dir (or even just
+   `sdkconfig`/`dependencies.lock`/`managed_components/`) against a
+   different `espressif/idf` tag fails confusingly (a missing-compiler
+   error, not an obvious "wrong image" one). Delete `build/`,
+   `managed_components/`, `dependencies.lock`, `sdkconfig`, and
+   `sdkconfig.old`, then `set-target` again, whenever changing the pinned
+   IDF version.
 3. **Flashing and monitoring — confirmed working** against the real Tab5
    K145 reference unit (see [docs/roadmap.md](docs/roadmap.md)'s M1 Tab5
    boot item):
    ```
    docker run --rm -it -v "$(pwd)/firmware:/project" -w /project \
      --device=/dev/ttyACM0 \
-     espressif/idf:v5.4.2 idf.py -p /dev/ttyACM0 flash monitor
+     espressif/idf:v5.4.3 idf.py -p /dev/ttyACM0 flash monitor
    ```
    - `/dev/ttyACM0` (not `/dev/ttyUSB0`) is expected on Linux — the P4 has
      native USB-Serial/JTAG, not a separate USB-UART bridge chip, so it
@@ -132,18 +147,13 @@ its own 3.12.3).
      "Build directory ... configured for project ... not ...". Always use
      `-v "$(pwd)/firmware:/project" -w /project`, matching step 2 above,
      for both build and flash.
-   - **Automatic reset into download mode isn't reliable through this
-     Docker passthrough setup.** If `flash` fails with "Serial data
-     stream stopped: Possible serial noise or corruption" right at
-     "Connecting...", manually force download mode first: hold the power
-     button for ~2 seconds until the internal green LED flashes rapidly,
-     then release, then retry the flash command.
-   - **The automatic hard-reset-into-app after flashing is equally
-     unreliable.** `flash monitor` may leave the device sitting at
-     "waiting for download" (bootloader mode) instead of booting the
-     freshly-flashed app. If `monitor` doesn't show boot output, press
-     the power button once (a normal press, not the 2-second hold) to
-     reset into the app.
+   - If flashing ever fails with "Serial data stream stopped: Possible
+     serial noise or corruption" right at "Connecting...", or `monitor`
+     sits at "waiting for download" instead of showing boot output, a
+     manual power-button press resets the device out of it (hold ~2s
+     until the green LED flashes rapidly to force download mode; a
+     normal press resets into the app). Only seen once so far, not a
+     routine step — automatic reset has worked on every other flash.
 
 A native install per Espressif's own "Get Started" guide (`source`-ing the
 export script in each shell, then the standard `idf.py set-target esp32p4`
@@ -228,11 +238,14 @@ standard applied to every other build command in this document.
 ## Status
 
 M0 is complete (see [docs/roadmap.md](docs/roadmap.md)). M1 is in
-progress: the simulator scaffold, the bare ESP-IDF firmware scaffold, CI,
-the Core Concurrency Abstraction + `EventBus` + dedicated UI task, and the
-initial dashboard shell (live clock/date, battery — `src/`, exercised for
-real by the simulator and covered by unit tests) all build and run, per
-the sections above. No on-device Tab5 bring-up has happened yet (needs
-real hardware), the persistent home affordance is still blocked on a
-second screen existing, and no module code exists yet — this document
-will keep being revised as the rest of M1 makes it concrete.
+progress: the simulator scaffold, CI, the Core Concurrency Abstraction +
+`EventBus` + dedicated UI task, the initial dashboard shell (live
+clock/date, battery), Navigation, and the persistent home affordance
+(`src/`, exercised for real by the simulator and covered by unit tests)
+all build and run, per the sections above. On real Tab5 hardware: boot,
+display, and touch/display controller bring-up are all confirmed working
+(see [docs/architecture/hardware.md](docs/architecture/hardware.md) and
+[firmware/README.md](firmware/README.md)), but touch isn't wired into
+any input handling yet, no real UI/LVGL application runs on-device yet,
+and no module code exists yet — this document will keep being revised as
+the rest of M1 makes it concrete.

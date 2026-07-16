@@ -20,9 +20,11 @@ any implementation begins.
       deferred to M3 by design)
 - [x] Development environment set up and verified — ESP-IDF v5.4.2 via the
       `espressif/idf` Docker image (confirmed `esp32p4` target support with
-      a real `idf.py build` producing a flashable `.bin`), and simulator
-      build prerequisites (CMake, Ninja, SDL2, C++20 — confirmed by
-      actually building and running the [simulator
+      a real `idf.py build` producing a flashable `.bin`; later bumped to
+      v5.4.3 during M1 display bring-up — see
+      [hardware.md](architecture/hardware.md#display-and-touch)), and
+      simulator build prerequisites (CMake, Ninja, SDL2, C++20 — confirmed
+      by actually building and running the [simulator
       scaffold](../simulator/README.md)). See [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup).
 
 **Exit criteria met:** a developer can follow
@@ -54,7 +56,7 @@ everything simulator-buildable without hardware is done.
       host-native CMake project per [tests/README.md](../tests/README.md),
       not nested inside `simulator/` as this bullet originally said — see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework)),
-      and `firmware` (builds via the `espressif/idf:v5.4.2` Docker image —
+      and `firmware` (builds via the `espressif/idf:v5.4.3` Docker image —
       initially skipped cleanly until "ESP-IDF project scaffolding" below
       landed, now a real build). The tests workflow runs a real smoke
       test (one plain assertion, one GoogleMock-based test) proving the
@@ -95,15 +97,30 @@ everything simulator-buildable without hardware is done.
       model is full re-association or modem-sleep resume, not just its
       tuned interval (see
       [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping))
-- [ ] Display bring-up, including confirming whether M5GFX/M5Unified's
-      existing Tab5 support already handles touch/display controller
-      detection before writing new detection code (see
-      [ADR-0009](decisions/ADR-0009-touch-display-detection.md))
-- [ ] Touch input bring-up, including runtime controller detection if not
-      already handled by M5Unified (I2C probing + persisted result — see
-      [ADR-0009](decisions/ADR-0009-touch-display-detection.md))
-- [ ] Basic LVGL application running **on-device** — blocked on hardware.
-      The mechanism itself (dedicated UI task owning LVGL exclusively,
+- [x] Display bring-up — real pixels confirmed on the Tab5 panel (a solid
+      color fill via `bsp_display_start()`, see
+      [hardware.md](architecture/hardware.md#display-driver-strategy)),
+      using `espressif/m5stack_tab5` rather than M5GFX/M5Unified (avoids a
+      confirmed crash — see hardware.md), which independently confirmed
+      the same ST7123 controller read off the unit's sticker. A DMA/PSRAM
+      underrun on the first test (PSRAM at Kconfig's default 20MHz) is
+      fixed — raised to 200MHz (the only other option ESP-IDF exposes for
+      this chip, gated behind `IDF_EXPERIMENTAL_FEATURES`), confirmed
+      clean on hardware with no more underrun logs. Also surfaced: the
+      panel reports `720x1280` (portrait) by default, not `1280x720` —
+      relevant input for the still-open orientation decision, not a
+      blocker to bring-up itself.
+- [ ] Touch input bring-up — **partially done as a side effect of display
+      bring-up above:** `espressif/m5stack_tab5` initialized the ST7123
+      touch controller successfully in the same pass (`Touch panel create
+      success`, 10-point multitouch, matching the display's runtime
+      controller detection). Not yet wired into any actual input
+      handling — this is controller init only, not touch events reaching
+      LVGL or app code.
+- [ ] Basic LVGL application running **on-device** — not yet built
+      (display/touch bring-up above unblocked this, but it isn't done
+      just because hardware works now). The mechanism itself (dedicated
+      UI task owning LVGL exclusively,
       event payload types built on reference-counted copy from the first
       event type onward — see
       [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md)) is already
@@ -332,6 +349,7 @@ index — decision name, ADR, one-line outcome.
 | Dashboard layout model | [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-dashboard-layout-model) | Fixed grid |
 | Weather data source | [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-weather-data-source) | Pluggable `WeatherProvider`; Open-Meteo from M2, HA-sourced from M6 |
 | Touch/display controller detection | [ADR-0009](decisions/ADR-0009-touch-display-detection.md) | Runtime detection + persisted result, not a compile-time flag |
+| Hardware support library (display/touch) | [ADR-0014](decisions/ADR-0014-hardware-support-library.md) | `espressif/m5stack_tab5` (ESP-IDF-native), not M5Unified/M5GFX — confirmed crash on this chip via Arduino-as-Component |
 | Secret storage | [ADR-0010](decisions/ADR-0010-secret-storage.md) | NVS encryption (HMAC-peripheral key scheme, confirmed independent of flash encryption on ESP32-P4) + hashed admin password |
 | OTA image signing | [security.md](architecture/security.md#ota-image-integrity) | Known gap, deliberately deferred — not yet in scope |
 | LVGL thread safety | [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md) | Dedicated UI task owns LVGL; event bus guarantees safe hand-off via `lv_async_call()` |

@@ -19,3 +19,14 @@ CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 # SPIRAM_MODE option is HEX ("16-Line-Mode PSRAM"), a P4-specific memory
 # controller mode, so it doesn't need setting explicitly here.
 CONFIG_SPIRAM=y
+
+# ESP32-P4's PSRAM Kconfig only offers two speeds: 20MHz (the default,
+# gated behind nothing) or 200MHz (gated behind IDF_EXPERIMENTAL_FEATURES
+# - no 100MHz option exists despite what the Kconfig help text implies).
+# 20MHz caused a continuous DMA underrun feeding the display's PSRAM-
+# backed framebuffer - confirmed fixed on hardware by raising to 200MHz
+# (see hardware.md#display-and-touch). This is explicitly marked
+# experimental by ESP-IDF itself, not just an arbitrary faster number -
+# flag if this destabilizes anything else later, not just the underrun.
+CONFIG_IDF_EXPERIMENTAL_FEATURES=y
+CONFIG_SPIRAM_SPEED_200M=y

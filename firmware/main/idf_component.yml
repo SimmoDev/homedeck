@@ -1,0 +1,16 @@
+dependencies:
+  # Espressif's own official Tab5 BSP - handles MIPI-DSI panel + touch init
+  # (runtime probing between ili9881c+gt911 and st7123+st7123 hardware
+  # revisions) without going through M5Unified/M5GFX's Arduino-as-Component
+  # path, which has a confirmed crash on this exact chip (m5stack/M5Unified#231)
+  # - see docs/architecture/hardware.md#display-and-touch and
+  # docs/decisions/ADR-0009-touch-display-detection.md.
+  espressif/m5stack_tab5: "^1.2.0~1"
+  # m5stack_tab5 unconditionally pulls in `usb` (for camera/UVC support we
+  # don't use for display bring-up). Its auto-resolved version calls a HAL
+  # function (custom FIFO sizing) that ESP-IDF v5.4.2 doesn't have - fixed
+  # by requiring v5.4.3 instead, which backported it, without needing
+  # v5.5.x (which has its own confirmed DSI display bugs - see
+  # hardware.md#display-and-touch). Project-wide IDF version bumped
+  # accordingly - see DEVELOPMENT.md#esp-idf-setup.
+  idf: ">=5.4.3"

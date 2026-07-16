@@ -13,7 +13,8 @@ src/
 │                (see ADR-0002); host/ holds the shared std::thread-backed
 │                implementation used by both simulator/ and tests/. A
 │                firmware/platform/ FreeRTOS backend doesn't exist yet -
-│                blocked on hardware, a separate roadmap item. Also
+│                deliberately deferred until the on-device LVGL app
+│                actually needs it, a separate roadmap item. Also
 │                BatteryReader/TimeSource - small virtual interfaces
 │                (not pImpl'd like Task/Timer - simple, rarely-called,
 │                and directly mockable matters more than dispatch cost).

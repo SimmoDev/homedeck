@@ -27,10 +27,21 @@ permanent guarantee.
   see [roadmap.md](../roadmap.md)'s M1 Tab5 boot item, and
   `firmware/sdkconfig.defaults`): chip revision v1.3, 16MB flash
   physically detected, 32MB PSRAM detected and initialized (vendor "AP",
-  generation 4, running at 20MHz) with ~33.5MB reported free. Boots at
-  360MHz by default (400MHz is the rated max, not necessarily the default
-  without explicit clock config — not changed, since nothing currently
-  needs the higher clock).
+  generation 4) with ~33.5MB reported free. Boots at 360MHz by default
+  (400MHz is the rated max, not necessarily the default without explicit
+  clock config — not changed, since nothing currently needs the higher
+  clock).
+- **PSRAM speed raised from 20MHz to 200MHz** (`sdkconfig.defaults`) —
+  20MHz is Kconfig's unmodified default, and caused a continuous DMA
+  underrun once display bring-up actually drove the panel (see
+  [Display and touch](#display-and-touch) below), confirmed fixed by this
+  change. These are the *only* two speeds ESP-IDF exposes for this chip's
+  PSRAM controller — no 100MHz or other intermediate option exists
+  despite what the Kconfig help text implies. 200MHz requires
+  `CONFIG_IDF_EXPERIMENTAL_FEATURES=y`, ESP-IDF's own marker that this
+  isn't a fully hardened path — confirmed working on this unit, but worth
+  remembering it's explicitly experimental if anything unrelated gets
+  flaky later.
 
 ## Wireless
 
@@ -92,6 +103,74 @@ permanent guarantee.
   (0x10), GT911 (0x14, not present on this unit), RX8130CE (0x32), SC2356
   (0x36), ES7210 (0x40), INA226 (0x41), PI4IOE5V6408-1/2 (0x43/0x44, I/O
   expanders not otherwise recorded here), ST7123 (0x55), BMI270 (0x68).
+
+### Display driver strategy
+
+See [ADR-0014](../decisions/ADR-0014-hardware-support-library.md) for the
+decision record (options considered, why, consequences); this section is
+the detailed technical evidence and results that decision summarizes.
+
+**M5Unified/M5GFX's Arduino-based path is avoided, not used.** M5Unified
+has a confirmed, open, unresolved crash on ESP32-P4/Tab5 specifically
+when used via ESP-IDF's Arduino-as-Component integration (the only way to
+use it outside the Arduino IDE, which CLAUDE.md rules out) —
+[m5stack/M5Unified#231](https://github.com/m5stack/M5Unified/issues/231),
+a "Load access fault" panic on `M5.Display.width()`. The issue itself
+notes it isn't specific to this chip (references
+[#199](https://github.com/m5stack/M5Unified/issues/199), the same crash
+pattern on a different board), pointing at the Arduino-as-Component
+integration generally, not this hardware.
+
+**Decided instead: `espressif/m5stack_tab5`**, Espressif's own official
+BSP component (pure ESP-IDF, no Arduino at all), pulled via the component
+manager (`firmware/main/idf_component.yml`). As of v1.2.0~1 it does
+runtime I2C probing between the two known hardware revisions
+(ili9881c+gt911 vs. st7123+st7123) — the exact detection ADR-0009 calls
+for, effectively provided by this dependency rather than hand-written.
+Uses its LVGL-integrated API (`bsp_display_start()`) directly, matching
+this project's own LVGL commitment, rather than bypassing it with
+lower-level panel APIs. Self-flagged "Medium Risk" by its own author at
+merge time with limited field validation — expect this may need real
+debugging on first hardware test, not just a config tweak.
+
+**ESP-IDF pinned to v5.4.3, not v5.4.2 or v5.5.x.** `m5stack_tab5`
+unconditionally pulls in `usb` (for camera/UVC support this project
+doesn't use for display bring-up) as a transitive dependency, which calls
+a HAL function (custom FIFO sizing) that doesn't exist in ESP-IDF v5.4.2
+— confirmed by checking IDF's own `hal` component source directly, not
+assumed. That function was backported in v5.4.3 (a minor patch release),
+which resolves the build without needing to jump to v5.5.x — which has
+its own confirmed, unrelated DSI display regression on this exact chip
+([espressif/esp-idf#18083](https://github.com/espressif/esp-idf/issues/18083):
+empty screen / horizontal stripe artifacts, working on v5.4.2 and broken
+on v5.5.x). See [DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for
+the current pinned version and setup instructions.
+
+**First real result, confirmed on hardware:** a solid color fill
+displays correctly on the physical panel. `espressif/m5stack_tab5`'s
+runtime probing independently detected "board version 2 (LCD ST7123,
+Touch ST7123)" — matching the sticker-confirmed controller above without
+being told. Touch also initialized successfully in the same pass
+(10-point multitouch), ahead of the roadmap's separate touch bring-up
+item.
+
+**DMA underrun — resolved.** The first test hit a continuous
+`lcd.dsi.dpi: can't fetch data from external memory fast enough, underrun
+happens`, logged every frame, not a one-off. Fixed by raising PSRAM speed
+from Kconfig's default 20MHz to 200MHz — see
+[Application processor](#application-processor) above for the exact
+`sdkconfig.defaults` change. Confirmed clean on hardware: no more
+underrun logs, and the solid-color fill's actual color rendered correctly
+for the first time (it had visibly appeared wrong — cyan instead of the
+configured blue — on the underrun-affected first test, consistent with
+the underrun corrupting pixel data, not just a coincidental color choice).
+
+**Still genuinely open, not a bring-up blocker:** reported resolution is
+`720x1280` (portrait), not `1280x720`. This is the BSP's default panel
+orientation, not something this project chose — real input for the
+still-open landscape-vs-portrait decision, but doesn't resolve it by
+itself; whether this is the panel's native scan direction or just this
+driver's default init orientation isn't confirmed yet.
 
 ## IMU
 

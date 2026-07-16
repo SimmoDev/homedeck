@@ -54,7 +54,14 @@ that never changes on a given physical unit.
 - [hardware.md](../architecture/hardware.md#display-and-touch) states the
   resolved approach without repeating this reasoning.
 - M1 display/touch bring-up must first check M5Unified/M5GFX's existing
-  Tab5 support before writing any new detection code.
+  Tab5 support before writing any new detection code. **Done, with a
+  different outcome than assumed:** M5Unified/M5GFX doesn't work cleanly
+  on this chip (confirmed crash risk), but a different official library
+  (`espressif/m5stack_tab5`) already does exactly this runtime detection
+  — see [ADR-0014](ADR-0014-hardware-support-library.md). The detection
+  design below (I2C probing, persisted result, manual override) is
+  superseded by that library's own built-in probing; no separate
+  detection code needs writing.
 - Whether ST7123 and ST7121 need genuinely separate driver paths, or can
   share one, is an open sub-question to resolve during M1 bring-up, not
   before — it depends on hardware facts (a chip-ID register, or a real
