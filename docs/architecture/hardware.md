@@ -18,7 +18,19 @@ permanent guarantee.
 
 - **ESP32-P4**, dual-core RISC-V, 400MHz. No integrated radio (Wi-Fi/BT) —
   see [Wireless](#wireless) below.
-- 16MB Flash, 32MB PSRAM (Octal).
+- 16MB Flash, 32MB PSRAM. **Correction:** not Octal — the ESP32-P4 has no
+  Quad/Octal PSRAM choice at all (unlike other Espressif chips); its only
+  mode is what ESP-IDF's own Kconfig and boot log both call "Hex"
+  (16-line), a P4-specific memory controller mode. `firmware/sdkconfig.defaults`
+  reflects this (just `CONFIG_SPIRAM=y`, no mode override needed).
+- **Confirmed via first real boot** (minimal `app_main()`, no display/UI —
+  see [roadmap.md](../roadmap.md)'s M1 Tab5 boot item, and
+  `firmware/sdkconfig.defaults`): chip revision v1.3, 16MB flash
+  physically detected, 32MB PSRAM detected and initialized (vendor "AP",
+  generation 4, running at 20MHz) with ~33.5MB reported free. Boots at
+  360MHz by default (400MHz is the rated max, not necessarily the default
+  without explicit clock config — not changed, since nothing currently
+  needs the higher clock).
 
 ## Wireless
 

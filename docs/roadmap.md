@@ -68,10 +68,19 @@ everything simulator-buildable without hardware is done.
       [hardware.md](architecture/hardware.md#display-and-touch))
 - [x] ESP-IDF project scaffolding — confirmed working: `idf.py set-target
       esp32p4 build` produces a real `homedeck.bin` (see
-      [firmware/README.md](../firmware/README.md)). Bare template only —
-      `app_main()` does nothing yet; no on-device bring-up has been done,
-      since the items below need real hardware, not just the toolchain.
-- [ ] Tab5 boot
+      [firmware/README.md](../firmware/README.md)).
+- [x] Tab5 boot — confirmed on real hardware: flashed and booted cleanly
+      over USB (`idf.py -p /dev/ttyACM0 flash monitor` via the Docker
+      workflow, `--device` passthrough — see
+      [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup) for the confirmed
+      procedure, including manual download-mode entry), heartbeat loop
+      confirmed over the serial console. Fixed two sdkconfig gaps found
+      against the real chip via `firmware/sdkconfig.defaults` (both
+      expected, not hardware faults — see
+      [hardware.md](architecture/hardware.md#application-processor)):
+      flash size now correctly 16MB (was defaulting to 2MB), and the
+      confirmed 32MB PSRAM now initializes correctly (was reporting 0
+      free bytes with SPIRAM disabled by default).
 - [ ] Confirm whether the ESP32-C6 co-processor's power/SDIO domain is
       independent of the P4's deep-sleep domain — determines whether the
       alert-priority wake cycle's cost model is full re-association or

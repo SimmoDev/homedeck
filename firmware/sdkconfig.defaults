@@ -1,0 +1,21 @@
+# Checked-in project defaults, applied on top of ESP-IDF's own Kconfig
+# defaults when sdkconfig is (re)generated - see DEVELOPMENT.md's ESP-IDF
+# setup section. The full generated sdkconfig is gitignored (machine/
+# build-specific); this file is the source of truth for settings the
+# project actually requires against the confirmed reference hardware (see
+# docs/architecture/hardware.md).
+
+# Real flash size confirmed via first boot on the Tab5 K145 reference
+# unit - the ESP-IDF default (2MB) leaves 14MB of real flash unaddressed,
+# which matters once OTA/partition planning (ADR-0012) needs the real
+# budget. CONFIG_ESPTOOLPY_FLASHSIZE is a computed value from this choice,
+# not directly settable.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# 32MB PSRAM confirmed on the reference hardware (see hardware.md's
+# Application processor section) - disabled by ESP-IDF's default config,
+# which left it detected but unusable (0 free bytes reported) on first
+# boot. ESP32-P4 has no Quad/Octal choice like other chips - its only
+# SPIRAM_MODE option is HEX ("16-Line-Mode PSRAM"), a P4-specific memory
+# controller mode, so it doesn't need setting explicitly here.
+CONFIG_SPIRAM=y

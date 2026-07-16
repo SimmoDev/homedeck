@@ -108,10 +108,42 @@ its own 3.12.3).
    then reclaims ownership of whatever got written into the bind-mounted
    `firmware/` directory (the `build/` output, `sdkconfig`, etc.), which
    would otherwise be root-owned on the host.
-3. **Flashing** needs the device passed through to the container (e.g.
-   `--device=/dev/ttyUSB0` on Linux) — not yet exercised, since it needs
-   real Tab5 hardware connected. Confirm the exact flags during M1 hardware
-   bring-up rather than assuming this plan is complete.
+3. **Flashing and monitoring — confirmed working** against the real Tab5
+   K145 reference unit (see [docs/roadmap.md](docs/roadmap.md)'s M1 Tab5
+   boot item):
+   ```
+   docker run --rm -it -v "$(pwd)/firmware:/project" -w /project \
+     --device=/dev/ttyACM0 \
+     espressif/idf:v5.4.2 idf.py -p /dev/ttyACM0 flash monitor
+   ```
+   - `/dev/ttyACM0` (not `/dev/ttyUSB0`) is expected on Linux — the P4 has
+     native USB-Serial/JTAG, not a separate USB-UART bridge chip, so it
+     enumerates as a CDC-ACM device. Confirm the actual node after
+     plugging in (`ls /dev/ttyACM* /dev/ttyUSB*`) rather than assuming.
+   - `-it` (interactive terminal) is required for `monitor` specifically —
+     it stays attached and streams serial output, unlike the plain
+     `build` command above. `Ctrl+]` exits; `Ctrl+C` does **not**, since
+     the monitor forwards most keystrokes to the device instead of
+     treating them as terminal control.
+   - **The build directory must be configured with the same bind-mount
+     path used for flashing.** CMake bakes the absolute build path into
+     its cache — building with a different `-v .../:X` mount than the one
+     used for `flash` (e.g. `/repo/firmware` vs. `/project`) breaks with
+     "Build directory ... configured for project ... not ...". Always use
+     `-v "$(pwd)/firmware:/project" -w /project`, matching step 2 above,
+     for both build and flash.
+   - **Automatic reset into download mode isn't reliable through this
+     Docker passthrough setup.** If `flash` fails with "Serial data
+     stream stopped: Possible serial noise or corruption" right at
+     "Connecting...", manually force download mode first: hold the power
+     button for ~2 seconds until the internal green LED flashes rapidly,
+     then release, then retry the flash command.
+   - **The automatic hard-reset-into-app after flashing is equally
+     unreliable.** `flash monitor` may leave the device sitting at
+     "waiting for download" (bootloader mode) instead of booting the
+     freshly-flashed app. If `monitor` doesn't show boot output, press
+     the power button once (a normal press, not the 2-second hold) to
+     reset into the app.
 
 A native install per Espressif's own "Get Started" guide (`source`-ing the
 export script in each shell, then the standard `idf.py set-target esp32p4`
