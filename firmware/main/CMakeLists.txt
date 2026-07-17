@@ -14,12 +14,15 @@ idf_component_register(
         "wifi_setup.cpp"
         "../../src/core/event_bus.cpp"
         "../../src/core/clock.cpp"
+        "../../src/core/storage.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
         "../../src/platform/firmware/task.cpp"
         "../../src/platform/firmware/timer.cpp"
         "../../src/platform/firmware/i2c_device.cpp"
         "../../src/platform/firmware/battery_reader.cpp"
         "../../src/platform/firmware/time_source.cpp"
+        "../../src/platform/firmware/settings_store.cpp"
+        "../../src/platform/firmware/cache_store.cpp"
     INCLUDE_DIRS
         "."
         "../../src"
@@ -29,4 +32,6 @@ idf_component_register(
         esp_event
         esp_http_server
         nvs_flash
+        fatfs
+        wear_levelling
 )

@@ -1,6 +1,9 @@
 add_library(homedeck_platform_host
   platform/host/task.cpp
   platform/host/timer.cpp
+  platform/host/file_backed_store.cpp
+  platform/host/settings_store.cpp
+  platform/host/cache_store.cpp
 )
 target_include_directories(homedeck_platform_host PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(homedeck_platform_host PUBLIC cxx_std_20)
@@ -8,6 +11,7 @@ target_compile_features(homedeck_platform_host PUBLIC cxx_std_20)
 add_library(homedeck_core
   core/event_bus.cpp
   core/clock.cpp
+  core/storage.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host)
 

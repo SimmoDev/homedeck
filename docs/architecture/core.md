@@ -102,11 +102,27 @@ implementation — a route registry (`Register`/`GoTo`/`GoHome`), proven
 against a deliberately throwaway second screen — though it lives in
 `src/ui/`, not `src/core/`, since its `lv_scr_load()` call is a UI-layer
 implementation detail (see [src/README.md](../../src/README.md) for the
-same reasoning applied to `EventBus` staying LVGL-free). Everything else
-in the Responsibilities list above — Application lifecycle, Dashboard's
-general widget-registration system, Notifications, Configuration,
-Storage, Networking, Logging, Diagnostics, OTA updates, Power management,
-Weather services — is still just the required responsibility, not a
-finalized API; that design happens starting at M2 (Platform Services),
-informed by the concrete needs of the Harmony module in M3 rather than
-designed speculatively ahead of a real consumer.
+same reasoning applied to `EventBus` staying LVGL-free).
+
+**Configuration and Storage** are also real now (`Storage` in
+`src/core/`, unit-tested in `tests/`) — the two named responsibilities
+above map onto one class: schema-versioned settings/cache read-write
+(Configuration) backed by the NVS and internal-flash-FAT tiers of
+[ADR-0012](../decisions/ADR-0012-storage-tiers.md)'s three-tier split
+(Storage), namespaced per module by requiring a module ID on every call
+rather than trusting callers to prefix their own keys. Two things named
+in that ADR are deliberately not built yet, not silently dropped: NVS
+encryption (plain storage for now — see
+[ADR-0010](../decisions/ADR-0010-secret-storage.md) for why activating
+the HMAC-secured scheme is its own follow-up, not blocked on anything
+here) and the microSD tier (scoped to extended log archival, which has no
+consumer until Logging exists).
+
+Everything else in the Responsibilities list above — Application
+lifecycle, Dashboard's general widget-registration system,
+Notifications, Networking, Logging, Diagnostics, OTA updates, Power
+management, Weather services — is still just the required
+responsibility, not a finalized API; that design happens starting at M2
+(Platform Services), informed by the concrete needs of the Harmony
+module in M3 rather than designed speculatively ahead of a real
+consumer.

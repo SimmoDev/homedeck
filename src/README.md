@@ -22,15 +22,27 @@ src/
 │                INA226 power monitor, the RX8130CE RTC - see
 │                docs/architecture/hardware.md#on-device-dashboard).
 │                Queue<T>'s firmware backend stays deferred - still
-│                nothing uses it. BatteryReader/TimeSource themselves are
-│                small virtual interfaces (not pImpl'd like Task/Timer -
-│                simple, rarely-called, and directly mockable matters
-│                more than dispatch cost).
+│                nothing uses it. BatteryReader/TimeSource/SettingsStore/
+│                CacheStore are small virtual interfaces (not pImpl'd
+│                like Task/Timer - simple, infrequently-called, and
+│                directly mockable matters more than dispatch cost).
+│                SettingsStore/CacheStore back Storage's two tiers (see
+│                core/ below); host/ implements both as real files under
+│                a caller-supplied scratch directory, firmware/ wraps NVS
+│                (SettingsStore) and the `storage` FAT partition
+│                (CacheStore, see ADR-0017).
 ├── core/        EventBus - publish/subscribe with reference-counted
 │                payloads (see ADR-0011). Deliberately has no LVGL
 │                dependency, so it's fully unit-testable in tests/. Also
 │                Clock - Time/date services, publishing a ClockTickEvent
 │                once a second (and once immediately at construction).
+│                Also Storage - Core's Configuration and Storage
+│                responsibilities in one class (see core.md#status):
+│                schema-versioned settings/cache read-write over
+│                platform/'s SettingsStore/CacheStore, namespaced per
+│                module by requiring a module ID on every call. NVS
+│                encryption and the microSD tier are deliberately not
+│                built yet (see ADR-0010/ADR-0012).
 └── ui/          UiTask - owns LVGL exclusively via the SDL2 window on
                  the simulator; firmware has no equivalent class, since
                  `espressif/m5stack_tab5`'s `bsp_display_start()` already

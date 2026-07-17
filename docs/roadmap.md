@@ -249,10 +249,18 @@ features start landing and these paragraphs need rewriting anyway.
       [security.md](architecture/security.md#requirement-avoid-insecure-secret-storage)
       and [ADR-0010](decisions/ADR-0010-secret-storage.md)) and per-module
       namespacing enforced by the service itself, not by convention (see
-      [ADR-0012](decisions/ADR-0012-storage-tiers.md#decision-storage-namespacing)) —
-      manufacturing/first-flash must burn the HMAC eFuse key before this
-      works on a given unit (see
-      [ADR-0010](decisions/ADR-0010-secret-storage.md#consequences))
+      [ADR-0012](decisions/ADR-0012-storage-tiers.md#decision-storage-namespacing)).
+      **`Storage` (`src/core/storage.h`) is real** for the NVS and
+      internal-flash-FAT tiers, schema versioning, and per-module
+      namespacing — unit-tested in `tests/`, confirmed on real hardware
+      (the FAT partition mount, formatting cleanly on first boot, is the
+      one part `ctest` can't exercise). Still open, deliberately deferred rather than dropped: NVS
+      encryption (plain storage for now — burning the HMAC eFuse key is
+      its own explicitly-confirmed follow-up, timed to when the Web
+      Management UI item below actually needs to store the admin
+      password hash, not required before that — see
+      [ADR-0010](decisions/ADR-0010-secret-storage.md#consequences)), and
+      the microSD tier (no consumer until Logging exists below)
 - [ ] Web Management UI (settings, module configuration, diagnostics,
       backups as a downloadable JSON export —
       *not* initial Wi-Fi setup, which is the SoftAP flow above; see

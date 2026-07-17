@@ -75,3 +75,10 @@ CONFIG_ESP_HOSTED_SDIO_GPIO_RESET_SLAVE=15
 # modern browser). This is a RAM buffer, not flash - no cost against the
 # tight flash budget above.
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=4096
+
+# FATFS defaults to 8.3 short filenames only - too restrictive for the
+# `storage` partition's real module-ID/key-based paths (e.g.
+# "home_assistant" exceeds 8 characters). Long filename support costs
+# heap, not flash, which is why it's not part of the flash-headroom
+# tradeoffs above.
+CONFIG_FATFS_LFN_HEAP=y
