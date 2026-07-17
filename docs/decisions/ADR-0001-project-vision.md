@@ -49,7 +49,7 @@ CLAUDE.md establishes HomeDeck as open-source but did not specify a license.
 |---|---|
 | MIT | Maximally permissive, minimal text, well understood, no patent clause |
 | Apache-2.0 | Permissive, includes explicit patent grant and contribution terms — relevant given hardware/firmware involvement and potential third-party contributions |
-| GPL-3.0 | Copyleft; would require derivative firmware to remain open source, but complicates commercial/vendor reuse (e.g. someone building a HomeDeck-based product) and mixing with permissively-licensed dependencies (LVGL is MIT, M5Unified is MIT) |
+| GPL-3.0 | Copyleft; would require derivative firmware to remain open source, but complicates commercial/vendor reuse (e.g. someone building a HomeDeck-based product) and mixing with permissively-licensed dependencies (LVGL is MIT, M5Unified is MIT — the dependency landscape at decision time; display/touch specifically later moved to `espressif/m5stack_tab5`, also permissively licensed, per [ADR-0014](ADR-0014-hardware-support-library.md)) |
 
 **Decided: MIT.** Simplicity and instant recognizability outweighed
 Apache-2.0's patent grant for a project with no near-term commercial or

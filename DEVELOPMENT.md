@@ -1,14 +1,14 @@
 # Development Guide
 
-This document describes the intended development workflow for HomeDeck.
-It's written ahead of implementation (see [docs/roadmap.md](docs/roadmap.md),
-M0/M1), so some specifics — exact ESP-IDF version, exact simulator
-dependencies — are marked as needing verification at the start of M1 rather
-than asserted as final.
+This document describes the development workflow for HomeDeck. Most of
+what M0 originally flagged as "needing verification at the start of M1"
+(exact ESP-IDF version, exact simulator dependencies, real hardware
+flash/monitor) is now confirmed — see [docs/roadmap.md](docs/roadmap.md)
+for current milestone status.
 
 ## Where to start
 
-The architecture documentation has grown large (12 architecture docs, 13
+The architecture documentation has grown large (12 architecture docs, 15
 ADRs) across M0's design work. Not all of it is relevant to starting M1 —
 most of it covers M2+ services and later modules. If you're implementing
 M1, this is the essential reading, in order:
@@ -28,13 +28,20 @@ M1, this is the essential reading, in order:
 6. [docs/architecture/ui.md](docs/architecture/ui.md) — navigation model
    and LVGL thread safety, both load-bearing for the first screen you
    write.
-7. [ADR-0009](docs/decisions/ADR-0009-touch-display-detection.md) and
-   [ADR-0011](docs/decisions/ADR-0011-lvgl-thread-safety.md) — the two
-   M1-specific decisions with real implementation consequences.
+7. [ADR-0009](docs/decisions/ADR-0009-touch-display-detection.md),
+   [ADR-0011](docs/decisions/ADR-0011-lvgl-thread-safety.md),
+   [ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md), and
+   [ADR-0015](docs/decisions/ADR-0015-display-orientation.md) — the
+   M1-specific decisions with real implementation consequences: touch/
+   display detection, LVGL thread safety, the hardware support library
+   actually used for display/touch (not CLAUDE.md's originally-named
+   one), and display orientation.
 8. [docs/architecture/core.md](docs/architecture/core.md) — the Event bus
    and Time/date services sections describe `EventBus`/`Clock`, which
-   already exist and run (`src/core/`); the rest is still M2+ design, not
-   implementation.
+   already exist and run (`src/core/`); Navigation also has a minimal
+   real implementation, though it lives in `src/ui/` rather than
+   `src/core/` (see [src/README.md](src/README.md) for why) — the rest
+   of Core's responsibilities are still M2+ design, not implementation.
 9. [docs/architecture/dashboard.md](docs/architecture/dashboard.md) — the
    Widget system section describes the real, currently-hardcoded
    `DashboardScreen` (`src/ui/screens/`); Customization and the general
@@ -210,8 +217,8 @@ Once the simulator target exists (M1):
 
 - **Firmware build:** `idf.py build` against the `firmware/` ESP-IDF
   project — see [ESP-IDF setup](#esp-idf-setup) above for the verified
-  Docker-based command. `flash`/`monitor` need real Tab5 hardware, not
-  yet exercised.
+  Docker-based command, including `flash`/`monitor` against real Tab5
+  hardware, confirmed working.
 - **Simulator build:**
   ```
   cd simulator && cmake -B build -G Ninja && cmake --build build

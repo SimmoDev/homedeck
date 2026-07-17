@@ -28,8 +28,11 @@ crosses this thread boundary safely — if a subscriber's callback runs
 synchronously on the publishing module's task and touches LVGL objects
 directly, that's a real, common RTOS+LVGL bug, not a theoretical one. This
 applies equally to the simulator (SDL2 desktop driver) and firmware
-(M5GFX), since LVGL's core thread-safety requirement is independent of the
-display driver.
+(M5GFX at the time this ADR was written; display/touch specifically now
+use `espressif/m5stack_tab5` instead, per
+[ADR-0014](ADR-0014-hardware-support-library.md) — doesn't change this
+ADR's reasoning, since LVGL's core thread-safety requirement is
+independent of the display driver either way).
 
 ## Decision
 

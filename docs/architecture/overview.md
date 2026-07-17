@@ -66,9 +66,11 @@ rather than requiring every module to know about UI threading — see
 
 ## Hardware abstraction
 
-The Tab5 (M5Unified/M5GFX) is the primary and only currently-supported
-target, but Core and modules must not call M5Unified/M5GFX (or any
-ESP-IDF API) directly. Hardware access is mediated through a thin
+The Tab5 is the primary and only currently-supported target, but Core and
+modules must not call the hardware BSP (M5Unified/M5GFX, or — for
+display/touch specifically — `espressif/m5stack_tab5`, per
+[ADR-0014](../decisions/ADR-0014-hardware-support-library.md)) or any
+ESP-IDF API directly. Hardware access is mediated through a thin
 hardware-facing interface layer, for two reasons:
 
 1. It is what makes the [desktop simulator](simulator.md) possible — the

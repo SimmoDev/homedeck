@@ -33,9 +33,12 @@ both targets.
 
 ## M1 — Platform (current)
 
-Every remaining unchecked item below needs the physical Tab5 (SKU
-confirmation, boot, display/touch bring-up, the on-device LVGL app) —
-everything simulator-buildable without hardware is done.
+Functionally done: a Tab5 boots into the real dashboard (live clock,
+real battery reading), and the same UI runs in the desktop simulator —
+this milestone's exit criteria, below, are met. The one remaining
+unchecked item (the ESP32-C6 power/SDIO domain question) is a protocol
+question explicitly deferred to real testing during M2/M5's power work,
+not a blocker to closing this milestone out.
 
 - [x] **First action, before anything else in M1:** stand up the
       simulator's host-native CMake project with LVGL's SDL2 driver (see
@@ -179,12 +182,15 @@ everything simulator-buildable without hardware is done.
       by screenshot, fixed, and covered by a dedicated test — see
       `tests/clock_test.cpp`). `TimeSource`'s host backend wraps
       `std::chrono::system_clock`.
-- [x] Battery status display — `BatteryReader` returns a fixed mock
-      value. [simulator.md](architecture/simulator.md#how-it-works)
-      documents battery as adjustable via a debug control; that control
-      isn't built here — there's no real consumer for *adjustable* mock
-      battery yet (power-management testing, M2 scope), just a widget
-      that needs to render a number.
+- [x] Battery status display — the simulator's `HostBatteryReader`
+      returns a fixed mock value.
+      [simulator.md](architecture/simulator.md#how-it-works) documents
+      battery as adjustable via a debug control; that control isn't built
+      here — there's no real consumer for *adjustable* mock battery yet
+      (power-management testing, M2 scope), just a widget that needs to
+      render a number. On real hardware this isn't mocked at all — see
+      the "Basic LVGL application running on-device" item above for the
+      real INA226-backed reading.
 
 **Exit criteria:** a Tab5 boots into a minimal but real HomeDeck UI showing
 live clock and battery status, and the same UI runs in the desktop

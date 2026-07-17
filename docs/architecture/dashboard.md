@@ -104,14 +104,17 @@ enough real widgets to make customization meaningful.
 
 ## Status
 
-The initial dashboard shell exists and runs in the simulator: a live
-clock/date (`Clock` in `src/core/`, publishing once a second — and once
-immediately at startup, so the display never shows a placeholder before
-the first tick — through the `EventBus`) and a battery percentage
-(`BatteryReader`, a fixed mock value for now — see
-[simulator.md](simulator.md#how-it-works) for why). Both are currently
-hardcoded directly on `DashboardScreen`, standing in for what M2 turns
-into shared status-bar chrome present on every screen (see [Status
-bar](#status-bar) above) — not dashboard-grid widgets. No pluggable
-widget-registration system, grid layout, or status bar exists yet; those
-stay M2. See `docs/roadmap.md` for what's next.
+The initial dashboard shell exists and runs for real on both targets: the
+simulator, and real Tab5 hardware (see
+[hardware.md](hardware.md#on-device-dashboard)). A live clock/date
+(`Clock` in `src/core/`, publishing once a second — and once immediately
+at startup, so the display never shows a placeholder before the first
+tick — through the `EventBus`) and a battery percentage (`BatteryReader`)
+are both hardcoded directly on `DashboardScreen`, standing in for what M2
+turns into shared status-bar chrome present on every screen (see [Status
+bar](#status-bar) above) — not dashboard-grid widgets. `BatteryReader` is
+mocked in the simulator (a fixed value — see
+[simulator.md](simulator.md#how-it-works) for why) but real on firmware,
+reading the INA226 power monitor. No pluggable widget-registration
+system, grid layout, or status bar exists yet; those stay M2. See
+`docs/roadmap.md` for what's next.

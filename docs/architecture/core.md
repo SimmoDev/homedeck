@@ -97,11 +97,16 @@ generic notification and hands it to Core. See
 Two Core services exist for real, built during M1 rather than waiting for
 M2 because the dedicated-UI-task work needed them directly: the **Event
 bus** (`EventBus` in `src/core/`) and **Time/date services** (`Clock`).
-Both are unit-tested in `tests/`. Everything else in the Responsibilities
-list above — Application lifecycle, Navigation, Dashboard's general
-widget-registration system, Notifications, Configuration, Storage,
-Networking, Logging, Diagnostics, OTA updates, Power management, Weather
-services — is still just the required responsibility, not a finalized
-API; that design happens starting at M2 (Platform Services), informed by
-the concrete needs of the Harmony module in M3 rather than designed
-speculatively ahead of a real consumer.
+Both are unit-tested in `tests/`. **Navigation** also has a minimal real
+implementation — a route registry (`Register`/`GoTo`/`GoHome`), proven
+against a deliberately throwaway second screen — though it lives in
+`src/ui/`, not `src/core/`, since its `lv_scr_load()` call is a UI-layer
+implementation detail (see [src/README.md](../../src/README.md) for the
+same reasoning applied to `EventBus` staying LVGL-free). Everything else
+in the Responsibilities list above — Application lifecycle, Dashboard's
+general widget-registration system, Notifications, Configuration,
+Storage, Networking, Logging, Diagnostics, OTA updates, Power management,
+Weather services — is still just the required responsibility, not a
+finalized API; that design happens starting at M2 (Platform Services),
+informed by the concrete needs of the Harmony module in M3 rather than
+designed speculatively ahead of a real consumer.

@@ -10,15 +10,20 @@ The simulator must run the **same** Core, UI, and module source code as
 firmware — not a reimplementation or visual approximation. This is only
 possible because business logic is written against the [hardware
 abstraction layer](overview.md#hardware-abstraction) rather than directly
-against M5Unified/M5GFX/ESP-IDF APIs. See
+against the hardware BSP or ESP-IDF APIs — CLAUDE.md originally named
+M5Unified/M5GFX as that BSP, but display/touch specifically use
+`espressif/m5stack_tab5` instead, per
+[ADR-0014](../decisions/ADR-0014-hardware-support-library.md); the
+abstraction-layer principle here is unaffected either way. See
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#1-simulator-rendering-backend)
 for why this ruled out a separate web-based mock UI.
 
 ## How it works
 
 - **Rendering:** LVGL's SDL2 desktop driver provides the display surface and
-  input handling on Linux/macOS/Windows, standing in for M5GFX and the
-  touch controller.
+  input handling on Linux/macOS/Windows, standing in for the on-device
+  display/touch BSP (`espressif/m5stack_tab5`, per
+  [ADR-0014](../decisions/ADR-0014-hardware-support-library.md)).
 - **Build:** a separate host-native CMake project (see
   [ADR-0002](../decisions/ADR-0002-technology-stack.md#decision-build-system)),
   compiling Core/UI/module source against a host C++ compiler and
@@ -87,9 +92,12 @@ for why this ruled out a separate web-based mock UI.
 ## Status
 
 The build, the Core Concurrency Abstraction's host backend, `EventBus`,
-and the dedicated UI task all exist and run for real — confirmed by a
-background `Timer` publishing a reference-counted event that's safely
-delivered to the UI task and rendered on screen (`Task`/`Queue`/`Timer`/
-`EventBus` also have unit tests in `tests/`). No module or dashboard code
-exists yet. See [DEVELOPMENT.md](../../DEVELOPMENT.md#simulator-workflow)
-for the day-to-day workflow.
+and the dedicated UI task all exist and run for real (`Task`/`Queue`/
+`Timer`/`EventBus` also have unit tests in `tests/`). The real dashboard
+runs on top of them too — `DashboardScreen` (live clock, battery),
+`Navigation`, and the persistent home affordance are all real,
+confirmed by manually running the simulator, not just compiling — see
+[dashboard.md](dashboard.md#status) and [ui.md](ui.md#status) for detail.
+No module code exists yet. See
+[DEVELOPMENT.md](../../DEVELOPMENT.md#simulator-workflow) for the
+day-to-day workflow.

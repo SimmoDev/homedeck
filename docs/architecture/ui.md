@@ -51,12 +51,15 @@ now.
 
 ## Rendering
 
-LVGL is the rendering toolkit, driven through M5GFX/M5Unified on-device and
-through the SDL2 desktop backend in the [simulator](simulator.md). UI code
-should target LVGL's widget APIs and the hardware-facing interfaces
-described in [overview.md](overview.md#hardware-abstraction), not
-M5Unified/M5GFX or ESP-IDF APIs directly — this is what keeps UI code
-portable to the simulator.
+LVGL is the rendering toolkit, driven through the hardware BSP on-device
+(`espressif/m5stack_tab5` for display/touch specifically — not
+M5Unified/M5GFX, CLAUDE.md's originally-named library, see
+[ADR-0014](../decisions/ADR-0014-hardware-support-library.md)) and
+through the SDL2 desktop backend in the [simulator](simulator.md). UI
+code should target LVGL's widget APIs and the hardware-facing interfaces
+described in [overview.md](overview.md#hardware-abstraction), not the
+BSP or ESP-IDF APIs directly — this is what keeps UI code portable to
+the simulator.
 
 A single dedicated UI task owns LVGL exclusively — it runs the
 `lv_timer_handler()` loop and is the only task that ever calls an LVGL

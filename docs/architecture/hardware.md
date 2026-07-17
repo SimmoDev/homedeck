@@ -94,10 +94,12 @@ permanent guarantee.
 - **Confirmed:** the project's reference unit uses the **ST7123**
   integrated display+touch driver (I2C address 0x55) — read directly off
   the physical unit's sticker, no probing needed for this fact. The
-  runtime I2C-probing detection logic itself is still not built (M2/
-  display-bring-up scope, per ADR-0009 — a single reference unit knowing
-  its own driver doesn't remove the need for runtime detection across
-  units in the field).
+  runtime I2C-probing detection logic itself is now built and confirmed
+  working — see [Display driver strategy](#display-driver-strategy)
+  below: `espressif/m5stack_tab5` provides exactly this detection, not
+  hand-written separately (a single reference unit knowing its own driver
+  doesn't remove the need for runtime detection across units in the
+  field; the BSP's built-in probing is what actually covers that).
 - **M5Stack's own I2C address map for Tab5** (SCL: GPIO32, SDA: GPIO31),
   confirming several facts elsewhere in this document at once: ES8388
   (0x10), GT911 (0x14, not present on this unit), RX8130CE (0x32), SC2356
