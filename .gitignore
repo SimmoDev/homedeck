@@ -5,6 +5,10 @@ firmware/sdkconfig.old
 firmware/managed_components/
 firmware/dependencies.lock
 
+# Local-only Wi-Fi test credentials (never commit real SSID/password) -
+# see firmware/main/wifi_credentials.local.h.example
+firmware/main/wifi_credentials.local.h
+
 # Simulator build (host-native CMake)
 simulator/build/
 

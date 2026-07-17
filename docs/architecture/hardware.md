@@ -55,26 +55,71 @@ permanent guarantee.
   link. See [networking.md](networking.md) and
   [power-management.md](power-management.md) for the consequences (reconnect
   cost on wake, OTA scope question for the co-processor's own firmware).
-- **Link confirmed: SDIO** (`SDIO2_D0`–`D3`, `SDIO2_CMD`, `SDIO2_CK`),
-  running ESP-Hosted over that bus, per M5Stack's official BSP source
-  (`m5stack_tab5.c` in
-  [M5Tab5-UserDemo](https://github.com/m5stack/M5Tab5-UserDemo)).
-- **Power domain — partially confirmed.** The C6's power enable
-  (`WLAN_PWR_EN`) is bit 0 of a dedicated I2C GPIO expander output
-  (PI4IOE5V6408, I2C address `0x44` — see the address map above),
-  toggled in software via `bsp_set_wifi_power_enable()`. No automatic
-  hardware coupling to the P4's own sleep state exists in that BSP source
-  — the C6's power rail is independently switchable, not wired to
-  collapse whenever the P4 sleeps. This answers the specific "are they
-  wired together" question, but **does not by itself confirm** the
-  practical question the alert-priority wake cycle actually cares about:
-  whether ESP-Hosted/SDIO can meaningfully keep the C6 "associated, low
-  duty cycle" while the *P4 itself* is in deep sleep and unable to
-  service the SDIO link — that's a protocol/software behavior question,
-  not a wiring one, and still needs real testing during M2/M5's power
-  work, not assumed from this alone. See
+- **Link confirmed: SDIO, real pins confirmed on hardware:** `SDIO2_CLK`
+  = GPIO 12, `SDIO2_CMD` = GPIO 13, `SDIO2_D0`–`D3` = GPIO 11/10/9/8,
+  slave reset = GPIO 15. ESP-Hosted's Kconfig defaults assume Espressif's
+  P4 eval board wiring, which doesn't match this hardware. Note:
+  `m5stack_tab5.c`'s `GPIO_SDMMC_*` constants (43/44/39/40/41/42) look
+  similar but are the *microSD card slot's* separate SDMMC host instance,
+  not the C6 — that source doesn't contain the C6's SDIO wiring at all.
+  See `firmware/sdkconfig.defaults` for the exact Kconfig settings.
+- **Power domain confirmed.** The C6's power enable (`WLAN_PWR_EN`) is
+  bit 0 of a dedicated I2C GPIO expander output (PI4IOE5V6408, I2C
+  address `0x44` — see the address map above), toggled via
+  `bsp_feature_enable(BSP_FEATURE_WIFI, true)` — not
+  `bsp_set_wifi_power_enable()`, which is a different repo's (M5Stack's
+  own `M5Tab5-UserDemo`) function name and doesn't exist in this
+  project's actual dependency (`espressif/m5stack_tab5`). Confirmed
+  necessary together with the correct SDIO pins above; not verified in
+  isolation. No automatic hardware coupling to the P4's own sleep state
+  exists in that BSP source — the C6's power rail is independently
+  switchable, not wired to collapse whenever the P4 sleeps. This answers
+  the specific "are they wired together" question,
+  but **does not by itself confirm** the practical question the
+  alert-priority wake cycle actually cares about: whether ESP-Hosted/SDIO
+  can meaningfully keep the C6 "associated, low duty cycle" while the
+  *P4 itself* is in deep sleep and unable to service the SDIO link —
+  that's a protocol/software behavior question, not a wiring one, and
+  still needs real testing during M2/M5's power work, not assumed from
+  this alone. See
   [power-management.md](power-management.md#notifications-during-sleeping)
   for where this feeds into the wake-cycle cost model.
+
+### Wi-Fi bring-up
+
+Confirmed end to end on hardware: a real Wi-Fi connection over the C6,
+via ESP-Hosted, getting a real IP address from a real access point - not
+just "the SDIO link came up." Three distinct fixes were needed, two
+already covered above (SDIO pins, power enable) plus:
+
+- **ESP-Hosted's SDIO transport crashed before even reaching the pin
+  problem** - `assert failed: sdio_mempool_create` - requesting a
+  ~48KB single contiguous block of internal DMA-capable RAM that wasn't
+  available as one piece that early in boot (fragmentation, not real
+  exhaustion). Fixed via `CONFIG_ESP_HOSTED_MEMPOOL_PREFER_SPIRAM=y`,
+  redirecting those buffers into PSRAM instead - the same GDMA-through-
+  PSRAM-cache path this project's display already relies on. See
+  `firmware/sdkconfig.defaults` for the full account.
+- **`esp_wifi_remote`'s dependency resolution was a real, checked risk,
+  not assumed safe:** it depends on `esp_hosted >=2.11`, but that
+  component's newest line (`3.0.0`) requires `idf >=5.5`, which conflicts
+  with this project's `v5.4.3` pin (ADR-0014, needed for the display fix).
+  Confirmed via a real build, not the version numbers alone: the resolver
+  correctly picked a compatible `2.12.11` release, not `3.0.0`.
+
+**Known follow-up, not blocking:** the connection log includes
+`Version mismatch: Host [2.12.0] > Co-proc [0.0.0] ==> Upgrade co-proc to
+avoid RPC timeouts` - the C6's own ESP-Hosted slave firmware reports
+version `0.0.0`, suggesting it may be running old or unflashed firmware.
+Basic Wi-Fi association and IP acquisition worked fine despite this
+warning, but RPC timeouts under heavier use are a real, deferred risk,
+not yet resolved.
+
+This bring-up is a small, disposable test (`RunWifiBringupTest()` in
+`firmware/main/homedeck.cpp`, reading credentials from a gitignored local
+header, never committed) proving the link works before the real SoftAP +
+`wifi_provisioning` + captive portal flow (ADR-0006) gets built on top of
+it - not the real feature itself.
 
 ## Display and touch
 

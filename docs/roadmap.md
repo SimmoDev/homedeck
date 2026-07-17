@@ -217,7 +217,15 @@ features start landing and these paragraphs need rewriting anyway.
 - [ ] Wi-Fi connectivity, including initial provisioning (SoftAP + captive
       portal via ESP-IDF's `wifi_provisioning` component, Touch UI keyboard
       entry as fallback — see
-      [networking.md](architecture/networking.md#initial-wi-fi-provisioning))
+      [networking.md](architecture/networking.md#initial-wi-fi-provisioning)).
+      **ESP-Hosted/SDIO bring-up done first, same pattern as M1's display/
+      touch bring-up** — a disposable Wi-Fi station test (not the real
+      provisioning flow) confirmed a real connection and real IP address
+      over the C6, after fixing an SDIO transport memory crash, wrong
+      SDIO pins, and the C6's power rail never being enabled — see
+      [hardware.md](architecture/hardware.md#wireless) for the full
+      account. The real SoftAP + captive portal flow is still ahead of
+      this item.
 - [ ] LAN discovery (thin mDNS wrapper — see
       [networking.md](architecture/networking.md#lan-discovery))
 - [ ] Configuration service (storage-backed) across the three storage tiers

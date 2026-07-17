@@ -23,3 +23,14 @@ dependencies:
   # idf >=5.0, comfortably satisfied by the v5.4.3 pin above.
   espp/ina226: "^1.1.6"
   espp/rx8130ce: "^1.1.6"
+  # Wi-Fi isn't native to the P4 - it runs through the ESP32-C6
+  # co-processor over SDIO (see hardware.md#wireless). esp_wifi_remote
+  # exposes the standard esp_wifi API transparently proxied to the C6 via
+  # ESP-Hosted, rather than a separate ESP-Hosted-specific API surface.
+  # Real risk being tested right now: esp_wifi_remote depends on
+  # esp_hosted ">=2.11", but esp_hosted's newest line (3.0.0) requires
+  # idf >=5.5, which conflicts with the v5.4.3 pin above (needed for the
+  # display fix). Whether the resolver picks a compatible 2.12.x
+  # esp_hosted release instead is being confirmed by an actual build, not
+  # assumed from the version numbers alone.
+  espressif/esp_wifi_remote: "*"
