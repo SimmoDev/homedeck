@@ -48,13 +48,15 @@ Concurrency Abstraction (`Task`/`Queue`/`Timer`), the `EventBus`, a
 dedicated UI task, an initial dashboard shell (live clock/date, battery),
 Navigation, and the persistent home affordance all exist in [src/](src/)
 and run for real in the [desktop simulator](simulator/README.md). CI plus
-the [unit test framework](tests/README.md) cover all of it. No module
-code exists yet. On real Tab5 hardware (see
-[docs/architecture/hardware.md](docs/architecture/hardware.md)): boot,
-display, and touch/display controller bring-up are all confirmed working
-— see [firmware/README.md](firmware/README.md) — but touch isn't wired
-into any input handling yet, and no real UI/LVGL application runs
-on-device yet. See [docs/roadmap.md](docs/roadmap.md) for the full
+the [unit test framework](tests/README.md) cover all of it. On real Tab5
+hardware (see
+[docs/architecture/hardware.md](docs/architecture/hardware.md#on-device-dashboard)):
+the real dashboard runs live, not just a bring-up placeholder — a live
+ticking clock and a real (not mocked) battery percentage, both sourced
+from actual hardware — see [firmware/README.md](firmware/README.md).
+Navigation, the home affordance, and a second on-device screen don't
+exist there yet; no module code exists yet anywhere. See
+[docs/roadmap.md](docs/roadmap.md) for the full
 milestone plan and the architectural decisions index.
 
 ## Architecture

@@ -7,11 +7,40 @@
 #include "ui/screens/dashboard_screen.h"
 #include "ui/ui_task.h"
 
-// Matches the Tab5's confirmed 1280x720 display (see docs/architecture/hardware.md).
-static constexpr int32_t kWindowWidth = 1280;
-static constexpr int32_t kWindowHeight = 720;
+#include <cstdlib>
+
+// Matches the Tab5's native panel resolution and orientation - portrait,
+// not the 1280x720 spec-sheet landscape figure (see
+// docs/architecture/hardware.md#display-driver-strategy for why).
+static constexpr int32_t kWindowWidth = 720;
+static constexpr int32_t kWindowHeight = 1280;
+
+// Desktop dev-convenience only: scales the on-screen window so a
+// 720x1280 logical canvas doesn't demand 1280px of vertical monitor
+// space. LVGL still renders at the real logical resolution above -
+// layout behaves identically to hardware, just displayed smaller. Any
+// zoom other than 1.0 softens text somewhat, even with UiTask's
+// scale-quality hint (see src/ui/ui_task.cpp) - real hardware is
+// unaffected, since it never scales at all. No single value fits every
+// desktop/taskbar layout, so override at runtime with HOMEDECK_SIM_ZOOM
+// (e.g. `HOMEDECK_SIM_ZOOM=0.6 ./homedeck_simulator`) rather than editing
+// this default.
+static constexpr float kDefaultWindowZoom = 0.75f;
 
 namespace {
+
+float ResolveWindowZoom() {
+    const char* override_str = std::getenv("HOMEDECK_SIM_ZOOM");
+    if (override_str == nullptr) {
+        return kDefaultWindowZoom;
+    }
+    char* end = nullptr;
+    float value = std::strtof(override_str, &end);
+    if (end == override_str || value <= 0.0f) {
+        return kDefaultWindowZoom;
+    }
+    return value;
+}
 
 // Temporary test-only wiring proving Navigation/the persistent home
 // affordance (see docs/roadmap.md's M1 item) - there's no real
@@ -42,7 +71,7 @@ void CreateTestNavButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
 // deliberately throwaway second screen (see screens/placeholder_screen.h).
 int main() {
     homedeck::EventBus event_bus;
-    homedeck::UiTask ui_task(kWindowWidth, kWindowHeight, event_bus);
+    homedeck::UiTask ui_task(kWindowWidth, kWindowHeight, event_bus, ResolveWindowZoom());
 
     // DashboardScreen (the ClockTickEvent subscriber) must exist before
     // Clock (the publisher) - Clock publishes one tick immediately at

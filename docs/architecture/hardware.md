@@ -165,12 +165,32 @@ for the first time (it had visibly appeared wrong — cyan instead of the
 configured blue — on the underrun-affected first test, consistent with
 the underrun corrupting pixel data, not just a coincidental color choice).
 
-**Still genuinely open, not a bring-up blocker:** reported resolution is
-`720x1280` (portrait), not `1280x720`. This is the BSP's default panel
-orientation, not something this project chose — real input for the
-still-open landscape-vs-portrait decision, but doesn't resolve it by
-itself; whether this is the panel's native scan direction or just this
-driver's default init orientation isn't confirmed yet.
+**Resolved: portrait, no rotation.** Reported resolution is `720x1280`
+(portrait), not the `1280x720` spec-sheet figure — and this is genuinely
+the panel's native scan direction, not just a default init flag: the BSP
+hardcodes it as `BSP_LCD_H_RES`/`BSP_LCD_V_RES` in
+`managed_components/espressif__m5stack_tab5/include/bsp/display.h`, with
+no swap_xy applied at panel-init time. A 90° software rotation to
+landscape is available via the BSP's `bsp_display_rotate()` (wrapping
+LVGL's `lv_disp_set_rotation()`), but was rejected: the BSP's own source
+flags that its anti-tearing mode isn't supported under software rotation,
+and a different project (ESPHome) hit an open, unresolved bug combining
+LVGL + 90° rotation on this same MIPI-DSI panel class — a blank screen
+from a driver/LVGL dimension mismatch
+([esphome/esphome#10740](https://github.com/esphome/esphome/issues/10740)),
+corroborating real risk, not just a hypothetical one. Also weighed: the
+battery pack's kickstand tilt (see [Physical form
+factor](#physical-form-factor) below) lifts the device's top edge in
+portrait — an easel angle facing the viewer — versus a sideways lean off
+the right edge in landscape. `DashboardScreen`'s widgets needed no layout
+changes either way, since both are placed with `LV_ALIGN_CENTER`/
+`LV_ALIGN_TOP_RIGHT` relative to the parent, not fixed coordinates — only
+the simulator's window resolution constants (`simulator/main.cpp`) and
+its `UiTask`'s new desktop-only `zoom` parameter (SDL window size, not
+LVGL's logical resolution, so a 1280px-tall canvas doesn't demand that
+much vertical monitor space during development) changed. Firmware needed
+no change at all — `homedeck.cpp` never called `bsp_display_rotate()`, so
+it was already running the resolved orientation without knowing it.
 
 **Touch confirmed working end to end, not just controller init.**
 `bsp_display_start()` already wires the touch controller into LVGL as a
@@ -182,6 +202,78 @@ toggle). `LV_EVENT_PRESSED` fires once per discrete touch-down, confirmed
 by holding and dragging a finger on hardware — exactly one log line for
 the whole press, not a stream (that would be `LV_EVENT_PRESSING`, not
 registered here).
+
+## On-device dashboard
+
+The real dashboard - `EventBus`, `Clock`, `DashboardScreen`, reused
+directly from `src/`, not reimplemented for firmware - runs live on the
+Tab5, confirmed via a live ticking clock and a real (not mocked) battery
+percentage both actually sourced from hardware. This needed a real
+`src/platform/firmware/` layer, none of which existed before:
+
+- **`Task`/`Timer`** - FreeRTOS-backed, per ADR-0002's already-decided
+  design (`xTaskCreate`/`xTimerCreate` directly, not built on
+  `std::jthread` like the host backend, since ESP-IDF's C++ standard
+  library threading support isn't needed here). Getting destruction
+  ordering right needed real care: FreeRTOS has no built-in "join" for a
+  self-deleting task, and `xTimerDelete` returning only means the delete
+  *command* was queued, not that it's been processed - both destructors
+  block on an explicit completion signal (a semaphore, and for `Timer` a
+  pended function call ordered after the delete in FreeRTOS's single
+  shared timer-command queue) rather than assuming either call is
+  synchronous. A private nested `Impl` type (matching the host backend's
+  pattern) can't be named from the free C function FreeRTOS's API
+  requires as a callback, unlike a capturing lambda - both backends use a
+  separate, ordinary (non-nested) context struct that `Impl` merely owns
+  a pointer to, worked around rather than by loosening `Impl`'s access.
+- **`BatteryReader`** via the INA226 (`espp/ina226`) and **`TimeSource`**
+  via the RX8130CE RTC (`espp/rx8130ce`) - see [Power](#power) and
+  [RTC](#rtc) above for what those real reads actually showed. Both
+  `espp` components communicate via function-pointer glue matching their
+  `BasePeripheral` shape, not a bus handle directly - a small shared
+  `I2cDevice` helper wraps ESP-IDF's `i2c_master` driver once and is
+  reused by both, rather than duplicated. Both reuse the BSP's existing
+  shared I2C bus (`bsp_i2c_get_handle()`) instead of creating a second,
+  conflicting one on the same physical pins.
+
+Three real gaps surfaced getting this to actually build and run, none of
+them display/logic bugs:
+
+- **ESP-IDF disables C++ RTTI by default.** `EventBus` uses
+  `typeid()`/`std::type_index` for its per-event-type dispatch - a real,
+  load-bearing design choice, not something to work around. Fixed via
+  `CONFIG_COMPILER_CXX_RTTI=y` in `firmware/sdkconfig.defaults`.
+- **The default single-app partition table (1024K) left only 1% free**
+  once the real dashboard was actually linked in (RTTI, the BSP, LVGL,
+  and the new platform code all add up). Fixed with ESP-IDF's built-in
+  larger single-app table (1500K,
+  `CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y`) as a pragmatic unblock -
+  not the real OTA A/B partition table, which stays explicit M2 scope
+  per ADR-0012 and the roadmap's OTA item. Expect to need more headroom
+  again as more gets built.
+- **The Docker build only had `firmware/` visible, not the repo root** -
+  fine while firmware only contained its own template code, but this
+  step needed `../../src` (the reused portable source), which lives
+  outside that mount entirely. Fixed by mounting the whole repo root and
+  adjusting the working directory instead (`-v "$(pwd):/project" -w
+  /project/firmware`) - see
+  [DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for the current
+  commands; every previously-documented flash/monitor command changed
+  because of this.
+
+`firmware/main/CMakeLists.txt` lists the reused `src/` files directly by
+relative path rather than nesting `src/CMakeLists.txt`'s plain-CMake
+`add_subdirectory` build inside this ESP-IDF component - the two build
+systems have different conventions, and integrating them properly
+(confirming LVGL's `TARGET lvgl` check in `src/CMakeLists.txt` resolves
+correctly against the managed `lvgl` component, in particular) is real,
+unverified risk not taken on for this step. A known tradeoff: these paths
+need updating by hand if `src/`'s own file list changes.
+
+Deliberately out of scope for this step: Navigation, the home affordance,
+and any second screen - the dashboard is loaded directly as the only
+screen. `Queue<T>`'s firmware backend also stays deferred - still nothing
+in this codebase uses it.
 
 ## IMU
 
@@ -198,6 +290,13 @@ registered here).
   all. Worth keeping in mind if a future revisit of the sleep model (see
   [power-management.md](power-management.md#notifications-during-sleeping))
   wants a lightweight periodic check-in without full reconnect cost.
+- **Never been set:** the reference unit's RTC reads a meaningless
+  factory/power-on date (confirmed on hardware via
+  [On-device dashboard](#on-device-dashboard) below reading real RTC
+  time for the first time) - expected, not a fault. No time-setting
+  mechanism exists yet; needs either SNTP over Wi-Fi or a manual
+  set-time affordance, both M2 scope (networking and Web/Touch UI
+  respectively).
 
 ## Power
 
@@ -217,7 +316,13 @@ registered here).
   sampling, but it is not a dedicated fuel-gauge/coulomb-counter IC — an
   accurate state-of-charge estimate still needs coulomb-counting or a
   voltage/current curve model implemented in firmware, not just reading
-  INA226's instantaneous values directly as a percentage.
+  INA226's instantaneous values directly as a percentage. **Confirmed on
+  hardware:** the simple linear approximation `Ina226BatteryReader`
+  actually uses (see [On-device dashboard](#on-device-dashboard) below)
+  reads ~90%, not 100%, on a pack that had been on USB power long enough
+  to be fully charged — a real, observed instance of exactly this
+  limitation, not a hypothetical one. A real state-of-charge estimate is
+  still M2 power-management scope, not fixed here.
 - **Wake-source aggregation:** a PMS150G-U06 interrupt controller aggregates
   wake interrupts (touch, IMU, RTC, power button) for the P4. This confirms
   the deep-sleep wake architecture described in
@@ -258,20 +363,20 @@ Confirmed against the project's own reference unit:
 
 - The battery (see [Power](#power) above) clips onto the back of the
   device, on the opposite short edge from the USB ports.
-- With the device held in the landscape orientation the current
-  simulator/demo shell uses, the battery ends up on the right-hand side.
+- Held in the portrait orientation the software now uses (see [Display
+  driver strategy](#display-driver-strategy) above), the battery sits at
+  the **top** edge, USB ports at the bottom — the natural grip for a
+  handheld remote, cable/charging access at the bottom like a phone.
 - The battery pack is ~2cm thick overall, but only ~0.6cm of that is
   recessed into the body — it protrudes ~1.4cm proud of the back. Laid
   flat, screen-up, on a surface, the device doesn't sit level — it tilts
-  up at the battery end, acting as a passive kickstand without any
-  dedicated stand hardware.
+  up at the battery end. In this orientation that's the top edge, so the
+  tilt works as a passive kickstand: an easel angle facing the viewer,
+  not a sideways lean — real physical input that fed the portrait
+  decision, not just a coincidence noted after the fact.
 - The camera (see [Camera](#camera-out-of-current-scope) below, not used
-  by HomeDeck) sits on the same right-hand edge as the battery in this
+  by HomeDeck) sits on the same top edge as the battery in this
   orientation.
-
-This is real input for the still-open landscape-vs-portrait orientation
-decision, but doesn't resolve it by itself — recorded here as a confirmed
-physical fact, independent of whatever that decision ends up being.
 
 ## Audio
 

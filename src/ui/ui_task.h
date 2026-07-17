@@ -12,7 +12,12 @@ namespace homedeck {
 // - see ADR-0011. No other code should call an lv_* function directly.
 class UiTask {
 public:
-    UiTask(int32_t width, int32_t height, EventBus& event_bus);
+    // width/height are LVGL's logical render resolution - kept equal to
+    // the real panel's so simulator layout testing matches hardware
+    // exactly. zoom scales only the on-screen SDL window size, purely a
+    // desktop dev-convenience knob with no on-device equivalent (a
+    // physical panel has no "zoom").
+    UiTask(int32_t width, int32_t height, EventBus& event_bus, float zoom = 1.0f);
 
     // Runs lv_timer_handler() in a loop. Blocks forever - there is no
     // shutdown path yet, matching there being no exit screen either.

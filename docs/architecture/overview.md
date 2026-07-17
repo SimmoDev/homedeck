@@ -117,5 +117,5 @@ bottom.
 - [diagnostics.md](diagnostics.md) — cross-cutting diagnostics requirements
   and where each is addressed, including crash/reboot diagnostics
 - [ADR-0001](../decisions/ADR-0001-project-vision.md) through
-  [ADR-0014](../decisions/ADR-0014-hardware-support-library.md) — the
+  [ADR-0015](../decisions/ADR-0015-display-orientation.md) — the
   decisions behind this architecture

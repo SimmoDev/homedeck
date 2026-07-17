@@ -92,21 +92,36 @@ more useful than trying to hold all of it in mind now.
 
 ## ESP-IDF setup
 
-**Verified working:** `esp32p4` target support, a full `idf.py build` of a
-minimal project, producing a flashable `.bin`, all run through the
-`espressif/idf:v5.4.3` Docker image — no native ESP-IDF install involved
-(and no issue with the host's own, very new Python — the container brings
-its own 3.12.3).
+**Verified working:** `esp32p4` target support, a full `idf.py build`, and
+real hardware flash/monitor, all run through the `espressif/idf:v5.4.3`
+Docker image — no native ESP-IDF install involved (and no issue with the
+host's own, very new Python — the container brings its own 3.12.3). The
+firmware target now builds the real HomeDeck dashboard (`EventBus`,
+`Clock`, `DashboardScreen`, reused directly from `src/`, plus
+firmware-specific `Task`/`Timer`/`BatteryReader`/`TimeSource`
+implementations in `src/platform/firmware/`), not just a bare template —
+confirmed running live on the Tab5 K145 reference unit, real sensor data
+included (see [docs/roadmap.md](docs/roadmap.md)'s M1 items).
 
 1. `docker pull espressif/idf:v5.4.3` (not yet pulled on every machine —
    run this before the first build/flash after upgrading from v5.4.2).
 2. From the repository root:
    ```
-   docker run --rm -v "$(pwd)/firmware:/project" -w /project \
+   docker run --rm -v "$(pwd):/project" -w /project/firmware \
      espressif/idf:v5.4.3 idf.py set-target esp32p4 build
-   docker run --rm -v "$(pwd)/firmware:/project" \
-     espressif/idf:v5.4.3 chown -R "$(id -u):$(id -g)" /project
+   docker run --rm -v "$(pwd):/project" \
+     espressif/idf:v5.4.3 chown -R "$(id -u):$(id -g)" /project/firmware
    ```
+   **The mount covers the whole repo root, not just `firmware/`** — the
+   firmware component reuses portable source directly from `../../src`
+   (see `firmware/main/CMakeLists.txt`), which needs to actually be
+   visible inside the container. `-w /project/firmware` keeps `idf.py`'s
+   own behavior (where `build/`, `sdkconfig`, etc. end up) unchanged
+   despite the wider mount. Mounting the repo root does surface a cosmetic
+   git ownership warning ("detected dubious ownership") during configure —
+   harmless, it only means `PROJECT_VER` can't be derived from `git
+   describe`, same as before this change.
+
    **Two steps, not one:** the build runs as root inside the container —
    root always has a valid, writable `$HOME`, so ccache, git, and
    everything else that cares about it just works. The second command
@@ -122,12 +137,14 @@ its own 3.12.3).
    error, not an obvious "wrong image" one). Delete `build/`,
    `managed_components/`, `dependencies.lock`, `sdkconfig`, and
    `sdkconfig.old`, then `set-target` again, whenever changing the pinned
-   IDF version.
+   IDF version. **The same is true whenever `sdkconfig.defaults` changes**
+   (flash size, PSRAM speed, RTTI, partition table size, etc. were all
+   learned this way) — an existing `sdkconfig` silently ignores updated
+   defaults; only deleting it and reconfiguring picks them up.
 3. **Flashing and monitoring — confirmed working** against the real Tab5
-   K145 reference unit (see [docs/roadmap.md](docs/roadmap.md)'s M1 Tab5
-   boot item):
+   K145 reference unit:
    ```
-   docker run --rm -it -v "$(pwd)/firmware:/project" -w /project \
+   docker run --rm -it -v "$(pwd):/project" -w /project/firmware \
      --device=/dev/ttyACM0 \
      espressif/idf:v5.4.3 idf.py -p /dev/ttyACM0 flash monitor
    ```
@@ -143,10 +160,9 @@ its own 3.12.3).
    - **The build directory must be configured with the same bind-mount
      path used for flashing.** CMake bakes the absolute build path into
      its cache — building with a different `-v .../:X` mount than the one
-     used for `flash` (e.g. `/repo/firmware` vs. `/project`) breaks with
-     "Build directory ... configured for project ... not ...". Always use
-     `-v "$(pwd)/firmware:/project" -w /project`, matching step 2 above,
-     for both build and flash.
+     used for `flash` breaks with "Build directory ... configured for
+     project ... not ...". Always use `-v "$(pwd):/project" -w
+     /project/firmware`, matching step 2 above, for both build and flash.
    - If flashing ever fails with "Serial data stream stopped: Possible
      serial noise or corruption" right at "Connecting...", or `monitor`
      sits at "waiting for download" instead of showing boot output, a
@@ -242,10 +258,12 @@ progress: the simulator scaffold, CI, the Core Concurrency Abstraction +
 `EventBus` + dedicated UI task, the initial dashboard shell (live
 clock/date, battery), Navigation, and the persistent home affordance
 (`src/`, exercised for real by the simulator and covered by unit tests)
-all build and run, per the sections above. On real Tab5 hardware: boot,
-display, and touch/display controller bring-up are all confirmed working
-(see [docs/architecture/hardware.md](docs/architecture/hardware.md) and
-[firmware/README.md](firmware/README.md)), but touch isn't wired into
-any input handling yet, no real UI/LVGL application runs on-device yet,
-and no module code exists yet — this document will keep being revised as
-the rest of M1 makes it concrete.
+all build and run, per the sections above. On real Tab5 hardware, the
+real dashboard now runs live too — a live ticking clock and a real (not
+mocked) battery percentage, sourced from the actual RTC and power monitor
+(see
+[docs/architecture/hardware.md](docs/architecture/hardware.md#on-device-dashboard)
+and [firmware/README.md](firmware/README.md)) — but Navigation, the home
+affordance, a second on-device screen, and module code don't exist yet
+anywhere — this document will keep being revised as the rest of M1 makes
+it concrete.

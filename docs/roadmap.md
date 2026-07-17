@@ -108,7 +108,8 @@ everything simulator-buildable without hardware is done.
       this chip, gated behind `IDF_EXPERIMENTAL_FEATURES`), confirmed
       clean on hardware with no more underrun logs. Also surfaced: the
       panel reports `720x1280` (portrait) by default, not `1280x720` —
-      relevant input for the still-open orientation decision, not a
+      relevant input for the orientation decision, later resolved as
+      [ADR-0015](decisions/ADR-0015-display-orientation.md), not a
       blocker to bring-up itself.
 - [x] Touch input bring-up — confirmed fully working end to end on
       hardware, not just controller init: `bsp_display_start()` already
@@ -119,16 +120,23 @@ everything simulator-buildable without hardware is done.
       bounds) and visibly toggles the screen color. `espressif/m5stack_tab5`
       also confirmed the same ST7123 touch controller as display
       (`Touch panel create success`, 10-point multitouch).
-- [ ] Basic LVGL application running **on-device** — not yet built
-      (display/touch bring-up above unblocked this, but it isn't done
-      just because hardware works now). The mechanism itself (dedicated
-      UI task owning LVGL exclusively,
-      event payload types built on reference-counted copy from the first
-      event type onward — see
-      [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md)) is already
-      built and running in the simulator (below); this item is porting
-      the same `src/` code to real hardware, not designing it from
-      scratch.
+- [x] Basic LVGL application running **on-device** — the real dashboard
+      (`EventBus`, `Clock`, `DashboardScreen`, reused directly from
+      `src/`, not reimplemented) confirmed running live on the Tab5, with
+      real sensor data: a live ticking clock and a real (not mocked)
+      battery percentage, both sourced from actual hardware, not
+      simulator stand-ins. Required building `src/platform/firmware/` —
+      FreeRTOS-backed `Task`/`Timer` (per ADR-0002, deferred until
+      genuinely needed, which this is), `BatteryReader` via the INA226
+      (`espp/ina226`), and `TimeSource` via the RX8130CE RTC
+      (`espp/rx8130ce`) — see
+      [hardware.md](architecture/hardware.md#on-device-dashboard) for the
+      full details, including two real gaps this surfaced (a simple
+      linear battery-percentage approximation reading ~90% on a charged
+      pack, and the RTC never having been set). `Queue<T>`'s firmware
+      backend stays deferred — still nothing uses it. Navigation, the
+      home affordance, and a second screen remain out of scope for this
+      item specifically.
 - [x] Desktop simulator target running the same application (separate
       host-native CMake project, Core Concurrency Abstraction backed by
       the C++ standard library — see
@@ -352,6 +360,7 @@ index — decision name, ADR, one-line outcome.
 | Weather data source | [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-weather-data-source) | Pluggable `WeatherProvider`; Open-Meteo from M2, HA-sourced from M6 |
 | Touch/display controller detection | [ADR-0009](decisions/ADR-0009-touch-display-detection.md) | Runtime detection + persisted result, not a compile-time flag |
 | Hardware support library (display/touch) | [ADR-0014](decisions/ADR-0014-hardware-support-library.md) | `espressif/m5stack_tab5` (ESP-IDF-native), not M5Unified/M5GFX — confirmed crash on this chip via Arduino-as-Component |
+| Display orientation | [ADR-0015](decisions/ADR-0015-display-orientation.md) | Portrait, `720x1280`, no rotation — the panel's native scan direction; matches the battery pack's kickstand tilt |
 | Secret storage | [ADR-0010](decisions/ADR-0010-secret-storage.md) | NVS encryption (HMAC-peripheral key scheme, confirmed independent of flash encryption on ESP32-P4) + hashed admin password |
 | OTA image signing | [security.md](architecture/security.md#ota-image-integrity) | Known gap, deliberately deferred — not yet in scope |
 | LVGL thread safety | [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md) | Dedicated UI task owns LVGL; event bus guarantees safe hand-off via `lv_async_call()` |
