@@ -62,7 +62,13 @@ permanent guarantee.
   `m5stack_tab5.c`'s `GPIO_SDMMC_*` constants (43/44/39/40/41/42) look
   similar but are the *microSD card slot's* separate SDMMC host instance,
   not the C6 — that source doesn't contain the C6's SDIO wiring at all.
-  See `firmware/sdkconfig.defaults` for the exact Kconfig settings.
+  These values aren't currently set anywhere in `sdkconfig.defaults` —
+  the bring-up test that needed them has been removed (see
+  [Wi-Fi bring-up](#wi-fi-bring-up) below); re-apply them via
+  `CONFIG_ESP_HOSTED_SDIO_SLOT_1=y` plus the individual
+  `CONFIG_ESP_HOSTED_PRIV_SDIO_PIN_*_SLOT_1` and
+  `CONFIG_ESP_HOSTED_SDIO_GPIO_RESET_SLAVE` options when the real Wi-Fi
+  feature is built.
 - **Power domain confirmed.** The C6's power enable (`WLAN_PWR_EN`) is
   bit 0 of a dedicated I2C GPIO expander output (PI4IOE5V6408, I2C
   address `0x44` — see the address map above), toggled via
@@ -98,8 +104,9 @@ already covered above (SDIO pins, power enable) plus:
   available as one piece that early in boot (fragmentation, not real
   exhaustion). Fixed via `CONFIG_ESP_HOSTED_MEMPOOL_PREFER_SPIRAM=y`,
   redirecting those buffers into PSRAM instead - the same GDMA-through-
-  PSRAM-cache path this project's display already relies on. See
-  `firmware/sdkconfig.defaults` for the full account.
+  PSRAM-cache path this project's display already relies on. Not
+  currently set in `sdkconfig.defaults` - re-apply alongside the SDIO
+  pin settings above when the real Wi-Fi feature is built.
 - **`esp_wifi_remote`'s dependency resolution was a real, checked risk,
   not assumed safe:** it depends on `esp_hosted >=2.11`, but that
   component's newest line (`3.0.0`) requires `idf >=5.5`, which conflicts
@@ -115,11 +122,15 @@ Basic Wi-Fi association and IP acquisition worked fine despite this
 warning, but RPC timeouts under heavier use are a real, deferred risk,
 not yet resolved.
 
-This bring-up is a small, disposable test (`RunWifiBringupTest()` in
-`firmware/main/homedeck.cpp`, reading credentials from a gitignored local
-header, never committed) proving the link works before the real SoftAP +
-`wifi_provisioning` + captive portal flow (ADR-0006) gets built on top of
-it - not the real feature itself.
+This was a small, disposable test (`RunWifiBringupTest()`, reading
+credentials from a gitignored local header, never committed) - it
+proved the link works, then was removed from `firmware/main/homedeck.cpp`
+rather than left in the tree, since it hard-required that local
+credentials file to even compile and would otherwise permanently break
+CI (which has no such file, by design). The confirmed Kconfig settings
+above are the durable result; the real SoftAP + `wifi_provisioning` +
+captive portal flow (ADR-0006) still needs building from here, along
+with `espressif/esp_wifi_remote` as a real dependency again.
 
 ## Display and touch
 
