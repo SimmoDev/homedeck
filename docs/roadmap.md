@@ -235,9 +235,10 @@ features start landing and these paragraphs need rewriting anyway.
       Core's real Configuration/Storage service instead of `esp_wifi`'s
       own default persistence on the C6 co-processor (see
       [hardware.md](architecture/hardware.md#wi-fi-bring-up) for why that
-      matters here specifically). Flash headroom is now down to 1% free
-      on the current partition table with Wi-Fi linked in — worth
-      weighing against the OTA item below before adding much more.
+      matters here specifically). Flash headroom dropped to 1% free on
+      the old single-app table with Wi-Fi linked in — resolved by the
+      real OTA A/B partition table (see
+      [ADR-0017](decisions/ADR-0017-partition-table.md)).
 - [ ] LAN discovery (thin mDNS wrapper — see
       [networking.md](architecture/networking.md#lan-discovery))
 - [ ] Configuration service (storage-backed) across the three storage tiers
@@ -278,12 +279,11 @@ features start landing and these paragraphs need rewriting anyway.
       panic (dedicated flash partition, downloadable raw via Web UI, not
       symbolicated on-device — see
       [ADR-0013](decisions/ADR-0013-crash-and-reboot-diagnostics.md)) —
-      the core dump partition must be planned into the partition table
-      alongside the OTA A/B scheme this milestone actually builds (the
-      current firmware is still on ESP-IDF's single-app table as a
-      pragmatic M1 unblock — see
-      [hardware.md](architecture/hardware.md#on-device-dashboard)), not
-      added later
+      the `coredump` partition already exists in the real OTA A/B
+      partition table (see
+      [ADR-0017](decisions/ADR-0017-partition-table.md)); this item is
+      capture/reporting logic against that reserved space, not partition
+      planning
 - [ ] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —

@@ -166,10 +166,9 @@ dashboard](#on-device-dashboard) below). With `esp_wifi_remote`,
 `esp_hosted`, `esp_http_server`, and their dependencies (`wpa_supplicant`,
 `mbedtls`, etc.) linked in, a real build drops that to **1% free**
 (`0x5170` bytes on a `0x177000` byte partition) - confirmed via the same
-Docker build used for CI. This is a real, near-term constraint on what
-else M2 can add before the real OTA A/B partition table (explicit scope
-per [ADR-0012](../decisions/ADR-0012-storage-tiers.md) and the roadmap's
-OTA item) has to happen - not a "someday" concern anymore.
+Docker build used for CI. **Resolved by the real partition table** (see
+[ADR-0017](../decisions/ADR-0017-partition-table.md)): `ota_0`/`ota_1`
+are now 4MB each, real headroom past this point.
 
 ## Display and touch
 
@@ -352,13 +351,14 @@ them display/logic bugs:
   once the real dashboard was actually linked in (RTTI, the BSP, LVGL,
   and the new platform code all add up). Fixed with ESP-IDF's built-in
   larger single-app table (1500K,
-  `CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y`) as a pragmatic unblock -
-  not the real OTA A/B partition table, which stays explicit M2 scope
-  per ADR-0012 and the roadmap's OTA item. Confirmed via a real build:
-  32% free on the 1500K table with the full M1 dashboard linked in
+  `CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y`) as a pragmatic M1 unblock,
+  not the real OTA A/B partition table. Confirmed via a real build: 32%
+  free on the 1500K table with the full M1 dashboard linked in
   (`espp/ina226`/`espp/rx8130ce` included, per
-  [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)). Expect to
-  need more headroom again as more gets built.
+  [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)). As expected,
+  M2's Wi-Fi stack needed more headroom again - the real OTA A/B table
+  (see [ADR-0017](../decisions/ADR-0017-partition-table.md)) replaces
+  this single-app table entirely.
 - **The Docker build only had `firmware/` visible, not the repo root** -
   fine while firmware only contained its own template code, but this
   step needed `../../src` (the reused portable source), which lives

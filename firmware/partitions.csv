@@ -1,0 +1,17 @@
+# Custom partition table - see docs/decisions/ADR-0017-partition-table.md
+# for the full sizing rationale. 16MB flash (confirmed on the Tab5 K145
+# reference unit - see docs/architecture/hardware.md#application-processor).
+#
+# Name,     Type, SubType,  Offset,  Size,     Flags
+# nvs is 0x13000 (76KB), not a round number chosen for its own sake - it's
+# what lands the table on the 64KB boundary app-type partitions require
+# (ota_0 below), with zero padding wasted getting there. See
+# docs/decisions/ADR-0017-partition-table.md.
+nvs,        data, nvs,      ,        0x13000,
+nvs_keys,   data, nvs_keys, ,        0x1000,
+otadata,    data, ota,      ,        0x2000,
+phy_init,   data, phy,      ,        0x1000,
+ota_0,      app,  ota_0,    ,        4M,
+ota_1,      app,  ota_1,    ,        4M,
+coredump,   data, coredump, ,        0x40000,
+storage,    data, fat,      ,        0x7A0000,

@@ -38,16 +38,15 @@ CONFIG_SPIRAM_SPEED_200M=y
 # doesn't need it; this project does.
 CONFIG_COMPILER_CXX_RTTI=y
 
-# ESP-IDF's default single-app partition table (1024K) left only 1%
-# free once the real dashboard (EventBus/Clock/DashboardScreen, the
-# BSP, LVGL, RTTI) was actually linked in - a real near-term blocker,
-# not cosmetic. This is the built-in larger single-app table (1500K),
-# a pragmatic unblock, not the real OTA A/B partition table - that's
-# already documented as explicit M2 scope (see ADR-0012 and
-# docs/roadmap.md's OTA item), not something to improvise here as a
-# side effect of a flash-space warning. Expect to revisit this again -
-# 1500K is headroom, not a permanent ceiling.
-CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
+# Custom OTA A/B partition table (firmware/partitions.csv) - 4MB ota_0/
+# ota_1 app slots (real headroom past current usage), plus nvs_keys,
+# coredump, and storage (FAT + wear_levelling) partitions reserved for
+# not-yet-built M2 services. See
+# docs/decisions/ADR-0017-partition-table.md for the full sizing
+# rationale - this replaced the single-app table that unblocked M1/early
+# M2, which had dropped to 1% free once Wi-Fi was linked in.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
 # Wi-Fi runs through the ESP32-C6 co-processor over SDIO (via esp_hosted/
 # esp_wifi_remote - see docs/architecture/hardware.md#wireless). Confirmed
