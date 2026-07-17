@@ -98,6 +98,61 @@ narrowly to collecting Wi-Fi credentials only, not the Web UI's admin
 password — see [ADR-0007](ADR-0007-web-management-ui-policies.md#decision-when-the-admin-password-is-set)
 for that sequencing decision.
 
+**Update, M2 implementation:** `wifi_provisioning` itself turned out not to
+be usable on this hardware. Confirmed via a clean scratch build against
+ESP-IDF v5.4.3: the component only compiles its transport implementations
+(e.g. `wifi_prov_scheme_softap`) when `CONFIG_ESP_WIFI_ENABLED` (native
+Wi-Fi silicon) or the separate, unrelated `CONFIG_ESP_HOST_WIFI_ENABLED`
+(an older blob-based mechanism, not `esp_hosted`) is set — neither applies
+to this project's `esp_wifi_remote` + `esp_hosted` stack (see
+[hardware.md#wireless](../architecture/hardware.md#wireless)), and
+`CONFIG_ESP_WIFI_ENABLED` is a Kconfig-computed value with no prompt, not
+something a `sdkconfig.defaults` entry can force. Without it,
+`wifi_provisioning` registers headers only, with no linkable
+implementation — real for this exact ESP-IDF version, not a configuration
+mistake. Switching to `CONFIG_ESP_HOST_WIFI_ENABLED` was rejected: it's a
+different transport/firmware mechanism than `esp_hosted`, and would
+invalidate the SDIO pins, memory-pool fix, and power-enable sequencing
+already confirmed on real hardware (see
+[hardware.md#wi-fi-bring-up](../architecture/hardware.md#wi-fi-bring-up)).
+Upgrading past the `v5.4.3` pin on the chance a newer `wifi_provisioning`
+supports `esp_wifi_remote` was also rejected — that pin exists for a
+confirmed display DMA fix, and `v5.5.x` has its own confirmed DSI display
+bugs (ADR-0014); not worth reopening a settled hardware decision to chase
+provisioning convenience.
+
+The SoftAP + captive-portal *decision* stands; only the *mechanism*
+changes. Instead of `wifi_provisioning`/`protocomm`, the device runs a
+minimal, HomeDeck-owned SoftAP + HTTP server: plain `esp_wifi` AP+STA
+mode (confirmed to work under `esp_wifi_remote` — only `wifi_provisioning`
+itself is gated) plus ESP-IDF's `esp_http_server` serving a small
+SSID/password form, POSTing directly to a handler that calls
+`esp_wifi_set_config`/`esp_wifi_connect`. This also collapses what was
+going to be two separate steps (bring up the component's default page,
+then replace it with a real one) into one, since the default-page step
+was never actually reachable on this stack.
+
+Two consequences worth stating plainly rather than leaving implicit:
+- **No protocomm-level encryption of the credential exchange.** The
+  original design's payload security (`WIFI_PROV_SECURITY_1`'s X25519 +
+  proof-of-possession) came from `protocomm`, which this approach doesn't
+  use. The SoftAP itself is unauthenticated (open), matching the common
+  consumer-IoT pattern for a brief, physically-local setup window — an
+  attacker needs proximity and precise timing, and a leaked Wi-Fi
+  password only grants LAN access, not this device. Still a real,
+  deliberate reduction from the original design, not an oversight — a
+  WPA2-protected AP with a per-device password shown on the Tab5's own
+  screen is a natural follow-up once the Touch UI has a setup screen to
+  show it on.
+- **Credential storage is still `esp_wifi`'s own default persistence,
+  unencrypted** — confirmed on hardware to live on the C6 co-processor's
+  own flash, not the P4's, since `esp_wifi_remote` proxies
+  `esp_wifi_get_config`/`esp_wifi_set_config` to the C6 (see
+  [hardware.md#wi-fi-bring-up](../architecture/hardware.md#wi-fi-bring-up)).
+  This was already a documented gap before this update (wiring into
+  Core's real Configuration/Storage service is separate, not-yet-built
+  M2 scope), unaffected by the provisioning-mechanism change.
+
 ## Consequences
 
 - [networking.md](../architecture/networking.md) states the resulting

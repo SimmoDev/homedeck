@@ -214,18 +214,30 @@ features start landing and these paragraphs need rewriting anyway.
 
 ## M2 — Platform Services (current)
 
-- [ ] Wi-Fi connectivity, including initial provisioning (SoftAP + captive
-      portal via ESP-IDF's `wifi_provisioning` component, Touch UI keyboard
-      entry as fallback — see
+- [ ] Wi-Fi connectivity, including initial provisioning (SoftAP + a
+      minimal HTTP setup form — see
       [networking.md](architecture/networking.md#initial-wi-fi-provisioning)).
       **ESP-Hosted/SDIO bring-up done first, same pattern as M1's display/
-      touch bring-up** — a disposable Wi-Fi station test (not the real
-      provisioning flow) confirmed a real connection and real IP address
-      over the C6, after fixing an SDIO transport memory crash, wrong
-      SDIO pins, and the C6's power rail never being enabled — see
-      [hardware.md](architecture/hardware.md#wireless) for the full
-      account. The real SoftAP + captive portal flow is still ahead of
-      this item.
+      touch bring-up** — a disposable Wi-Fi station test confirmed a real
+      connection and real IP address over the C6, after fixing an SDIO
+      transport memory crash, wrong SDIO pins, and the C6's power rail
+      never being enabled — see [hardware.md](architecture/hardware.md#wireless)
+      for the full account. The real flow
+      (`firmware/main/wifi_setup.cpp`) — SoftAP + a hand-rolled HTTP form
+      rather than ESP-IDF's `wifi_provisioning` component, which turned
+      out to be incompatible with this project's `esp_wifi_remote` stack
+      (see [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)) —
+      is confirmed working end to end on real hardware: SoftAP up, a real
+      phone submitted credentials through the form, device connected and
+      got a real IP, SoftAP torn down afterward. Still open: Touch UI
+      keyboard entry as a fallback for users without a second device
+      (deferred, not yet built), and wiring credential storage into
+      Core's real Configuration/Storage service instead of `esp_wifi`'s
+      own default persistence on the C6 co-processor (see
+      [hardware.md](architecture/hardware.md#wi-fi-bring-up) for why that
+      matters here specifically). Flash headroom is now down to 1% free
+      on the current partition table with Wi-Fi linked in — worth
+      weighing against the OTA item below before adding much more.
 - [ ] LAN discovery (thin mDNS wrapper — see
       [networking.md](architecture/networking.md#lan-discovery))
 - [ ] Configuration service (storage-backed) across the three storage tiers

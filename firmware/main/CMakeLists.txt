@@ -11,6 +11,7 @@
 idf_component_register(
     SRCS
         "homedeck.cpp"
+        "wifi_setup.cpp"
         "../../src/core/event_bus.cpp"
         "../../src/core/clock.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
@@ -22,4 +23,10 @@ idf_component_register(
     INCLUDE_DIRS
         "."
         "../../src"
+    REQUIRES
+        esp_wifi
+        esp_netif
+        esp_event
+        esp_http_server
+        nvs_flash
 )

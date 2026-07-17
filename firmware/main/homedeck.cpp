@@ -2,17 +2,21 @@
 
 #include "bsp/m5stack_tab5.h"
 #include "esp_chip_info.h"
+#include "esp_event.h"
 #include "esp_heap_caps.h"
 #include "esp_idf_version.h"
+#include "esp_netif.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lvgl.h"
+#include "nvs_flash.h"
 
 #include "core/clock.h"
 #include "core/event_bus.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/time_source.h"
 #include "ui/screens/dashboard_screen.h"
+#include "wifi_setup.h"
 
 // The real HomeDeck dashboard, running on-device - see docs/roadmap.md's
 // M1 "Basic LVGL application running on-device" item. Display and touch
@@ -86,6 +90,25 @@ extern "C" void app_main(void) {
     // tick immediately at construction so the display doesn't sit on
     // LVGL's placeholder text until the first periodic tick.
     homedeck::Clock clock(time_source, event_bus);
+
+    // General system init required by Wi-Fi (and later, other Core
+    // services that need NVS/the event loop) - see
+    // docs/architecture/networking.md#initial-wi-fi-provisioning.
+    esp_err_t nvs_result = nvs_flash_init();
+    if (nvs_result == ESP_ERR_NVS_NO_FREE_PAGES || nvs_result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_result = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_result);
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    // Blocks until connected - either immediately (stored credentials) or
+    // until a phone/laptop completes SoftAP setup. The dashboard is
+    // already on-screen and live (RTC-backed Clock, not network-backed)
+    // by this point, so this doesn't delay first paint.
+    homedeck::ConnectToWifi();
+    printf("Wi-Fi connected\n");
 
     uint32_t heartbeat = 0;
     while (true) {

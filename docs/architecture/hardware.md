@@ -122,15 +122,54 @@ Basic Wi-Fi association and IP acquisition worked fine despite this
 warning, but RPC timeouts under heavier use are a real, deferred risk,
 not yet resolved.
 
-This was a small, disposable test (`RunWifiBringupTest()`, reading
-credentials from a gitignored local header, never committed) - it
+This was first proved with a small, disposable test (`RunWifiBringupTest()`,
+reading credentials from a gitignored local header, never committed) - it
 proved the link works, then was removed from `firmware/main/homedeck.cpp`
 rather than left in the tree, since it hard-required that local
 credentials file to even compile and would otherwise permanently break
 CI (which has no such file, by design). The confirmed Kconfig settings
-above are the durable result; the real SoftAP + `wifi_provisioning` +
-captive portal flow (ADR-0006) still needs building from here, along
-with `espressif/esp_wifi_remote` as a real dependency again.
+above carried forward into the real implementation
+(`firmware/main/wifi_setup.cpp`): a SoftAP + minimal HTTP setup form, not
+ESP-IDF's `wifi_provisioning` component - see
+[ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)
+for the real, build-verified incompatibility that caused that pivot.
+
+**The full SoftAP + setup-form flow is confirmed working end to end on
+hardware**, not just build-verified: SoftAP came up, a real phone joined
+it and loaded the setup page, submitted real credentials, the device
+connected and got a real IP, and the SoftAP/HTTP server were correctly
+torn down afterward. Two real issues surfaced getting there:
+
+- **Stored Wi-Fi credentials live on the C6 co-processor's own flash, not
+  the P4's `nvs` partition.** Erasing the P4's `nvs` region (where the
+  partition table says "WiFi data") had no effect on stored credentials -
+  `esp_wifi_get_config`/`esp_wifi_set_config` are RPC calls proxied to the
+  C6 via `esp_wifi_remote`, and the C6 persists them itself.
+  `esp_wifi_restore()` (also proxied) is the correct way to clear them.
+  Worth remembering for the Core Configuration/Storage work that's
+  already a known gap here (see
+  [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)) -
+  moving credential storage onto Core's own service will need
+  `esp_wifi`'s storage mode set to `WIFI_STORAGE_RAM` so the co-processor
+  stops persisting it a second time.
+- **`esp_http_server`'s default max request header size (512 bytes,
+  `CONFIG_HTTPD_MAX_REQ_HDR_LEN`) is too small for a real mobile
+  browser's POST** - the setup page loaded fine (a GET, smaller headers),
+  but submitting the form failed with `431 Request Header Fields Too
+  Large`. Fixed by raising `CONFIG_HTTPD_MAX_REQ_HDR_LEN=4096` in
+  `sdkconfig.defaults` - a RAM buffer, not flash, so it doesn't compete
+  with the headroom problem above.
+
+**Flash headroom dropped sharply with Wi-Fi linked in.** The M1 dashboard
+alone left 32% free on the 1500K partition table (see [On-device
+dashboard](#on-device-dashboard) below). With `esp_wifi_remote`,
+`esp_hosted`, `esp_http_server`, and their dependencies (`wpa_supplicant`,
+`mbedtls`, etc.) linked in, a real build drops that to **1% free**
+(`0x5170` bytes on a `0x177000` byte partition) - confirmed via the same
+Docker build used for CI. This is a real, near-term constraint on what
+else M2 can add before the real OTA A/B partition table (explicit scope
+per [ADR-0012](../decisions/ADR-0012-storage-tiers.md) and the roadmap's
+OTA item) has to happen - not a "someday" concern anymore.
 
 ## Display and touch
 

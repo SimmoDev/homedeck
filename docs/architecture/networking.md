@@ -34,16 +34,19 @@ Core's networking service and Core's HTTP server registration mechanism.
 
 The device has no Wi-Fi credentials out of the box, so it can't simply serve
 its own setup UI over the LAN the way the rest of the Web Management UI
-does. First-run setup uses ESP-IDF's `wifi_provisioning` component with the
-SoftAP transport — the device broadcasts its own temporary access point, a
-phone or laptop connects to it, and a captive portal page (a minimal setup
-form, not the full Svelte Web UI — see [web-ui.md](web-ui.md)) collects the
-Wi-Fi SSID and password. Touch UI on-screen keyboard entry remains
-available as a fallback for users without a second device handy, but SoftAP
-+ captive portal is the primary, documented path. See
+does. First-run setup uses a SoftAP: the device broadcasts its own
+temporary access point, a phone or laptop connects to it, and a minimal
+HTTP setup form (not the full Svelte Web UI — see [web-ui.md](web-ui.md))
+collects the Wi-Fi SSID and password, which the device applies via
+`esp_wifi_set_config`/`esp_wifi_connect`. Touch UI on-screen keyboard entry
+remains available as a fallback for users without a second device handy,
+but SoftAP + setup form is the primary, documented path. See
 [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)
 for why this was chosen over a Touch-UI-first flow or a camera-based
-QR-code alternative.
+QR-code alternative, and for why the setup form is a small HomeDeck-owned
+HTTP handler rather than ESP-IDF's `wifi_provisioning` component (a real
+incompatibility with this project's `esp_wifi_remote` stack, not a design
+preference).
 
 ## LAN discovery
 

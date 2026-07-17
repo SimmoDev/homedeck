@@ -1,0 +1,189 @@
+#include "wifi_setup.h"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstring>
+
+#include "bsp/m5stack_tab5.h"
+#include "esp_event.h"
+#include "esp_http_server.h"
+#include "esp_log.h"
+#include "esp_netif.h"
+#include "esp_wifi.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/event_groups.h"
+#include "freertos/task.h"
+
+namespace homedeck {
+
+namespace {
+
+constexpr char kTag[] = "wifi_setup";
+constexpr int kConnectedBit = BIT0;
+
+// Only enforced while g_setup_server is running (freshly-submitted, maybe
+// wrong, credentials) - not during normal reconnects to a network the
+// device already trusts, where giving up would strand it with no Wi-Fi
+// and no way back into setup mode. Resubmitting the setup form resets
+// the count, so a mistyped password is always recoverable.
+constexpr int kMaxSetupReconnectAttempts = 5;
+constexpr int kReconnectBackoffMs = 500;
+
+EventGroupHandle_t g_event_group = nullptr;
+httpd_handle_t g_setup_server = nullptr;
+int g_reconnect_attempts = 0;
+
+void GetApSsid(char* ssid, size_t max_len) {
+    uint8_t mac[6];
+    esp_wifi_get_mac(WIFI_IF_STA, mac);
+    std::snprintf(ssid, max_len, "HomeDeck-%02X%02X%02X", mac[3], mac[4], mac[5]);
+}
+
+esp_err_t HandleGetSetupPage(httpd_req_t* req) {
+    static const char kPage[] =
+        "<!DOCTYPE html><html><head>"
+        "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+        "<title>HomeDeck Wi-Fi setup</title></head>"
+        "<body style=\"font-family:sans-serif;max-width:400px;margin:40px auto;padding:0 16px\">"
+        "<h1>HomeDeck Wi-Fi setup</h1>"
+        "<form method=\"POST\" action=\"/connect\">"
+        "<label>Network name (SSID)<br>"
+        "<input name=\"ssid\" required style=\"width:100%\"></label><br><br>"
+        "<label>Password<br>"
+        "<input name=\"password\" type=\"password\" style=\"width:100%\"></label><br><br>"
+        "<button type=\"submit\">Connect</button>"
+        "</form></body></html>";
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, kPage, HTTPD_RESP_USE_STRLEN);
+}
+
+esp_err_t HandlePostConnect(httpd_req_t* req) {
+    char body[192] = {};
+    size_t to_read = std::min(static_cast<size_t>(req->content_len), sizeof(body) - 1);
+    int received = httpd_req_recv(req, body, to_read);
+    if (received <= 0) {
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    body[received] = '\0';
+
+    wifi_config_t sta_config = {};
+    httpd_query_key_value(body, "ssid", reinterpret_cast<char*>(sta_config.sta.ssid),
+                           sizeof(sta_config.sta.ssid));
+    httpd_query_key_value(body, "password", reinterpret_cast<char*>(sta_config.sta.password),
+                           sizeof(sta_config.sta.password));
+
+    ESP_LOGI(kTag, "Setup form submitted, SSID: %s", sta_config.sta.ssid);
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+    g_reconnect_attempts = 0;
+    esp_wifi_connect();
+
+    static const char kResponse[] =
+        "<!DOCTYPE html><html><body style=\"font-family:sans-serif;max-width:400px;"
+        "margin:40px auto;padding:0 16px\">"
+        "<p>Connecting to Wi-Fi&hellip; you can close this page.</p></body></html>";
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, kResponse, HTTPD_RESP_USE_STRLEN);
+}
+
+void StartSetupHttpServer() {
+    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    ESP_ERROR_CHECK(httpd_start(&g_setup_server, &config));
+
+    httpd_uri_t root_uri = {.uri = "/", .method = HTTP_GET, .handler = HandleGetSetupPage, .user_ctx = nullptr};
+    httpd_uri_t connect_uri = {
+        .uri = "/connect", .method = HTTP_POST, .handler = HandlePostConnect, .user_ctx = nullptr};
+    httpd_register_uri_handler(g_setup_server, &root_uri);
+    httpd_register_uri_handler(g_setup_server, &connect_uri);
+}
+
+void StartSetupAccessPoint() {
+    char ap_ssid[24];
+    GetApSsid(ap_ssid, sizeof(ap_ssid));
+
+    wifi_config_t ap_config = {};
+    std::snprintf(reinterpret_cast<char*>(ap_config.ap.ssid), sizeof(ap_config.ap.ssid), "%s", ap_ssid);
+    ap_config.ap.ssid_len = static_cast<uint8_t>(std::strlen(ap_ssid));
+    ap_config.ap.channel = 1;
+    ap_config.ap.authmode = WIFI_AUTH_OPEN;
+    ap_config.ap.max_connection = 4;
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    // esp_netif's default AP gateway - not currently derived from
+    // esp_netif_get_ip_info() since the default AP netif config is never
+    // overridden here.
+    ESP_LOGI(kTag, "Not provisioned - connect to Wi-Fi network '%s' (open) and visit "
+                    "http://192.168.4.1/ to set up HomeDeck",
+             ap_ssid);
+
+    StartSetupHttpServer();
+}
+
+void OnEvent(void* /*arg*/, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    if (event_base == WIFI_EVENT) {
+        switch (event_id) {
+            case WIFI_EVENT_STA_START:
+                esp_wifi_connect();
+                break;
+            case WIFI_EVENT_STA_DISCONNECTED:
+                if (g_setup_server != nullptr && g_reconnect_attempts >= kMaxSetupReconnectAttempts) {
+                    ESP_LOGW(kTag, "Giving up after %d failed attempts - submit the setup form again to retry",
+                             kMaxSetupReconnectAttempts);
+                    break;
+                }
+                ++g_reconnect_attempts;
+                ESP_LOGI(kTag, "Disconnected, retrying...");
+                vTaskDelay(pdMS_TO_TICKS(kReconnectBackoffMs));
+                esp_wifi_connect();
+                break;
+            default:
+                break;
+        }
+    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+        auto* event = static_cast<ip_event_got_ip_t*>(event_data);
+        ESP_LOGI(kTag, "Connected, IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        if (g_setup_server != nullptr) {
+            httpd_stop(g_setup_server);
+            g_setup_server = nullptr;
+            esp_wifi_set_mode(WIFI_MODE_STA);
+        }
+        xEventGroupSetBits(g_event_group, kConnectedBit);
+    }
+}
+
+}  // namespace
+
+void ConnectToWifi() {
+    // Powers on the C6 co-processor's rail via the PI4IOE5V6408 I2C GPIO
+    // expander - see docs/architecture/hardware.md#wireless. Without this
+    // the SDIO link to the C6 never comes up.
+    bsp_feature_enable(BSP_FEATURE_WIFI, true);
+
+    g_event_group = xEventGroupCreate();
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &OnEvent, nullptr));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &OnEvent, nullptr));
+
+    esp_netif_create_default_wifi_sta();
+    esp_netif_create_default_wifi_ap();
+
+    wifi_init_config_t wifi_config = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&wifi_config));
+
+    wifi_config_t sta_config = {};
+    ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &sta_config));
+
+    if (sta_config.sta.ssid[0] != '\0') {
+        ESP_LOGI(kTag, "Stored credentials found for '%s', connecting", sta_config.sta.ssid);
+        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+        ESP_ERROR_CHECK(esp_wifi_start());
+    } else {
+        StartSetupAccessPoint();
+    }
+
+    xEventGroupWaitBits(g_event_group, kConnectedBit, pdFALSE, pdTRUE, portMAX_DELAY);
+}
+
+}  // namespace homedeck
