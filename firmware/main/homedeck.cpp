@@ -14,11 +14,9 @@
 #include "platform/firmware/time_source.h"
 #include "ui/screens/dashboard_screen.h"
 
-// The real HomeDeck dashboard, running on-device for the first time -
-// see docs/roadmap.md's M1 "Basic LVGL application running on-device"
-// item. This replaces the earlier throwaway bring-up program (boot info
-// + solid color fill + a touch test) now that display and touch are
-// both confirmed working on this hardware - see
+// The real HomeDeck dashboard, running on-device - see docs/roadmap.md's
+// M1 "Basic LVGL application running on-device" item. Display and touch
+// are confirmed working on this hardware - see
 // docs/architecture/hardware.md#display-driver-strategy.
 //
 // Deliberately out of scope here: Navigation, the home affordance, and

@@ -7,9 +7,12 @@
 
 namespace homedeck {
 
-// Owns LVGL exclusively: the SDL2 window, the lv_timer_handler() loop,
-// and the lv_async_call() hand-off for EventBus's UI-facing subscribers
-// - see ADR-0011. No other code should call an lv_* function directly.
+// Owns LVGL's driving loop exclusively: the SDL2 window, the
+// lv_timer_handler() loop, and the lv_async_call() hand-off for
+// EventBus's UI-facing subscribers - see ADR-0011. Screen controllers
+// (DashboardScreen, Navigation, etc.) do call lv_* functions directly -
+// that's safe only because they run on this task's thread, the one
+// thread ever allowed to touch LVGL.
 class UiTask {
 public:
     // width/height are LVGL's logical render resolution - kept equal to

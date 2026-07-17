@@ -119,5 +119,5 @@ bottom.
 - [diagnostics.md](diagnostics.md) — cross-cutting diagnostics requirements
   and where each is addressed, including crash/reboot diagnostics
 - [ADR-0001](../decisions/ADR-0001-project-vision.md) through
-  [ADR-0015](../decisions/ADR-0015-display-orientation.md) — the
+  [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md) — the
   decisions behind this architecture

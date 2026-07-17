@@ -39,9 +39,10 @@ decisions, together with the alternatives considered for each.
   [architecture/overview.md](../architecture/overview.md); Core and modules
   must not call them directly (see [hardware abstraction](../architecture/overview.md#hardware-abstraction)).
   **Amended for display/touch specifically by
-  [ADR-0014](ADR-0014-hardware-support-library.md)**, based on concrete
-  M1 bring-up evidence rather than editing this decision in place per
-  this ADR's own Consequences note below.
+  [ADR-0014](ADR-0014-hardware-support-library.md), and for battery/RTC
+  specifically by [ADR-0016](ADR-0016-battery-rtc-library.md)**, both
+  based on concrete M1 bring-up evidence rather than editing this
+  decision in place per this ADR's own Consequences note below.
 
 ## Decision: Build System
 

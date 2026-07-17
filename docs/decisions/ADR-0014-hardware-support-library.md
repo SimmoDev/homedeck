@@ -97,12 +97,16 @@ out: it worked, after fixing an unrelated ESP-IDF version incompatibility
   relevant bullet.
 - **Not resolved by this decision:** ADR-0002's hardware-support-library
   line also named IMU, RTC, battery, speaker, and mic — this ADR only
-  covers display and touch. `espressif/m5stack_tab5` does appear to bundle
+  covers display and touch. **Battery and RTC are now resolved too, by
+  [ADR-0016](ADR-0016-battery-rtc-library.md)** — not by
+  `espressif/m5stack_tab5` (its capability table explicitly doesn't cover
+  either), but by a third, separate library (`espp`), following this same
+  evidence-first approach. `espressif/m5stack_tab5` does appear to bundle
   IMU and audio support (`bsp_sensors.c`, `bsp_audio.c` exist in the
   component and were part of the M1 build), which may mean the same
   reasoning extends to those peripherals too, but that's unconfirmed, not
-  assumed — resolve it when each is actually brought up, the same
-  evidence-first approach used here, not by extrapolation.
+  assumed — resolve it when each is actually brought up, not by
+  extrapolation.
 - **New dependency footprint accepted as a real cost, not overlooked:**
   `espressif/m5stack_tab5` unconditionally pulls in camera/USB-UVC support
   (`esp_video`, `esp_cam_sensor`, `usb`, `usb_host_uvc`) that this project

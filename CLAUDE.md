@@ -115,8 +115,16 @@ Use:
 - Modern C++
 - FreeRTOS
 - LVGL
-- M5Unified
-- M5GFX
+- ~~M5Unified~~
+- ~~M5GFX~~
+
+M5Unified/M5GFX are rejected project-wide — a confirmed crash on this
+chip, not specific to any one peripheral (see
+[ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md)).
+Display/touch and battery/RTC use different libraries instead
+([ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md),
+[ADR-0016](docs/decisions/ADR-0016-battery-rtc-library.md)); IMU,
+speaker, and mic remain open questions about which alternative to use.
 
 Do not use the Arduino framework.
 
@@ -152,7 +160,7 @@ Prefer abstractions that allow shared code between:
 
 # Architecture Overview
 
-HomeDeck consists of three major layers:
+HomeDeck consists of four major layers:
 
 ```
 UI
@@ -622,8 +630,9 @@ HomeDeck/
 
 ├── docs/
 │   ├── architecture/
-│   ├── decisions/
-│   └── guides/
+│   └── decisions/
+│
+├── src/
 │
 ├── firmware/
 │
@@ -637,6 +646,9 @@ HomeDeck/
 │
 └── tests/
 ```
+
+`src/` holds the portable Core/UI/module source shared by `firmware/` and
+`simulator/` — see [src/README.md](src/README.md).
 
 ---
 

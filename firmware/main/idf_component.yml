@@ -16,8 +16,8 @@ dependencies:
   idf: ">=5.4.3"
   # The BSP's own capability table explicitly marks battery as
   # unsupported and doesn't cover RTC at all - see
-  # hardware.md#display-driver-strategy. espp is a separate, actively
-  # maintained third-party ESP-IDF C++ component ecosystem (not
+  # docs/decisions/ADR-0016-battery-rtc-library.md. espp is a separate,
+  # actively maintained third-party ESP-IDF C++ component ecosystem (not
   # Espressif's own, unlike m5stack_tab5) - checked before depending on
   # it: real release cadence, MIT licensed, both components only require
   # idf >=5.0, comfortably satisfied by the v5.4.3 pin above.

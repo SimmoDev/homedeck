@@ -10,9 +10,10 @@ struct Task::Impl {
 };
 
 Task::Task(const char* name, Function function) : impl_(std::make_unique<Impl>()) {
-    // The name isn't used on the host backend today - kept in the
-    // constructor signature because the firmware/FreeRTOS backend will
-    // need it for xTaskCreate's required name parameter.
+    // The name isn't used on the host backend - kept in the constructor
+    // signature because the firmware/FreeRTOS backend
+    // (src/platform/firmware/task.cpp) uses it for xTaskCreate's
+    // required name parameter.
     (void)name;
     impl_->thread = std::jthread(
         [function = std::move(function)](std::stop_token token) { function(token); });

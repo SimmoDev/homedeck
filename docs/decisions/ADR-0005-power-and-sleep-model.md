@@ -84,7 +84,9 @@ possibly staying in a lower-power associated state on an independent power
 domain — isn't confirmed (see
 [hardware.md](../architecture/hardware.md#wireless)). This affects the
 cost *model* this wake cycle should be tuned against, not just the
-interval's tuned value, and must be resolved during M1.
+interval's tuned value; resolving it is M2 scope, tracked against this
+decision under M2's "Power management state model" item in
+[docs/roadmap.md](../roadmap.md).
 
 ## Decision: Error state scope
 

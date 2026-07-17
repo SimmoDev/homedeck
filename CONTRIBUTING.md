@@ -1,9 +1,10 @@
 # Contributing to HomeDeck
 
 HomeDeck is early-stage (see [docs/roadmap.md](docs/roadmap.md) for the
-current milestone) — most of what exists today is architecture and a
-platform scaffold, not yet a working device. Contributions are welcome,
-but check the roadmap first: per
+current milestone) — a real dashboard runs on Tab5 hardware and in the
+desktop simulator (M1), but no networking, modules, or web UI exist yet
+(M2 and later). Contributions are welcome, but check the roadmap first:
+per
 [CLAUDE.md](CLAUDE.md)'s scope-control philosophy, features get added in
 milestone order, not opportunistically.
 

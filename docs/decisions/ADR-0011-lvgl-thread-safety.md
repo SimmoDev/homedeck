@@ -156,4 +156,4 @@ a load that doesn't exist.
   while subscribed to an event published from another thread — which
   `Clock`'s `Timer` already does. Must be resolved before that becomes
   possible; see the widget framework item in
-  [roadmap.md](../roadmap.md#m2--platform-services).
+  [roadmap.md](../roadmap.md#m2--platform-services-current).

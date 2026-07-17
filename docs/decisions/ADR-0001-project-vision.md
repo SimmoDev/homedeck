@@ -54,8 +54,10 @@ CLAUDE.md establishes HomeDeck as open-source but did not specify a license.
 **Decided: MIT.** Simplicity and instant recognizability outweighed
 Apache-2.0's patent grant for a project with no near-term commercial or
 third-party hardware-contribution angle. It remains fully compatible with
-LVGL and M5Unified's own MIT licensing. See the root
-[LICENSE](../../LICENSE) file.
+LVGL's MIT licensing. The actual hardware BSP — `espressif/m5stack_tab5`
+(not M5Unified, for display/touch specifically; see
+[ADR-0014](ADR-0014-hardware-support-library.md)) — is permissively
+licensed too. See the root [LICENSE](../../LICENSE) file.
 
 ## Consequences
 

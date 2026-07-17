@@ -31,14 +31,16 @@ any implementation begins.
 [DEVELOPMENT.md](../DEVELOPMENT.md) to get a working build environment for
 both targets.
 
-## M1 — Platform (current)
+## M1 — Platform (complete)
 
-Functionally done: a Tab5 boots into the real dashboard (live clock,
-real battery reading), and the same UI runs in the desktop simulator —
-this milestone's exit criteria, below, are met. The one remaining
-unchecked item (the ESP32-C6 power/SDIO domain question) is a protocol
-question explicitly deferred to real testing during M2/M5's power work,
-not a blocker to closing this milestone out.
+Done: a Tab5 boots into the real dashboard (live clock, real battery
+reading), and the same UI runs in the desktop simulator — this
+milestone's exit criteria, below, are met, and every item below is
+checked. The ESP32-C6 power/SDIO domain question resolved into two
+parts: wiring independence, confirmed here; a separate protocol-level
+question (whether ESP-Hosted/SDIO can stay associated while the P4
+sleeps) that isn't a wiring question this milestone was ever scoped to
+answer, moved to M2's "Power management state model" item instead.
 
 - [x] **First action, before anything else in M1:** stand up the
       simulator's host-native CMake project with LVGL's SDL2 driver (see
@@ -71,9 +73,11 @@ not a blocker to closing this milestone out.
       integrated display+touch driver, read directly off the unit's
       physical sticker (see
       [hardware.md](architecture/hardware.md#display-and-touch)) — no I2C
-      probing needed for this specific fact, though the actual runtime
-      detection logic ADR-0009 requires is still unbuilt (M2 scope, not
-      this item).
+      probing needed for this specific fact. The runtime detection logic
+      ADR-0009 requires is now built too, via `espressif/m5stack_tab5`'s
+      BSP — see the "Display bring-up" item below and
+      [ADR-0009](decisions/ADR-0009-touch-display-detection.md)'s
+      Consequences.
 - [x] ESP-IDF project scaffolding — confirmed working: `idf.py set-target
       esp32p4 build` produces a real `homedeck.bin` (see
       [firmware/README.md](../firmware/README.md)).
@@ -89,17 +93,17 @@ not a blocker to closing this milestone out.
       flash size now correctly 16MB (was defaulting to 2MB), and the
       confirmed 32MB PSRAM now initializes correctly (was reporting 0
       free bytes with SPIRAM disabled by default).
-- [ ] Confirm whether the ESP32-C6 co-processor's power/SDIO domain is
-      independent of the P4's deep-sleep domain — **partially done:** the
-      C6's power rail is confirmed independently switchable (I2C GPIO
-      expander, no hardware coupling to P4 sleep state — see
-      [hardware.md](architecture/hardware.md#wireless)), but whether
+- [x] ESP32-C6 co-processor power/SDIO domain wiring — **confirmed
+      independent** of the P4's deep-sleep domain: the C6's power rail is
+      independently switchable (I2C GPIO expander, no hardware coupling
+      to P4 sleep state — see
+      [hardware.md](architecture/hardware.md#wireless)). Whether
       ESP-Hosted/SDIO can actually keep the C6 usefully associated while
-      the P4 itself is asleep is a separate, still-open protocol
-      question — determines whether the alert-priority wake cycle's cost
-      model is full re-association or modem-sleep resume, not just its
-      tuned interval (see
-      [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping))
+      the P4 itself is asleep is a separate protocol question, moved to
+      M2's "Power management state model" item below, since it
+      determines that item's alert-priority wake cycle cost model (full
+      re-association vs. modem-sleep resume), not a wiring question this
+      item was ever scoped to answer.
 - [x] Display bring-up — real pixels confirmed on the Tab5 panel (a solid
       color fill via `bsp_display_start()`, see
       [hardware.md](architecture/hardware.md#display-driver-strategy)),
@@ -152,7 +156,8 @@ not a blocker to closing this milestone out.
       `Timer`/`EventBus` all have real unit tests in
       [tests/](../tests/), not just the app exercising them. Portable
       source lives in the new [src/](../src/) directory (a repository
-      structure question CLAUDE.md's own diagram left open — see
+      structure question CLAUDE.md's own diagram originally left open,
+      since resolved by adding `src/` to that diagram — see
       [src/README.md](../src/README.md) for the layout and why).
 - [x] Initial dashboard shell — `DashboardScreen` (see
       [src/README.md](../src/README.md)), replacing the throwaway
@@ -196,7 +201,18 @@ not a blocker to closing this milestone out.
 live clock and battery status, and the same UI runs in the desktop
 simulator.
 
-## M2 — Platform Services
+**Known documentation debt, deliberately deferred, not forgotten:** the
+same M1 status facts (live clock, real battery, Navigation/home
+affordance/module code missing on hardware) are currently repeated
+near-verbatim across ~9 files (README.md, DEVELOPMENT.md, this file,
+hardware.md, ui.md, dashboard.md, simulator.md, firmware/README.md,
+src/README.md) — a real staleness-drift risk, since a fact repeated in
+many places only needs one missed update to go stale. Not a mechanical
+text fix: which files should stay self-contained versus become
+pointer-only is a real documentation-structure decision. Revisit when M2
+features start landing and these paragraphs need rewriting anyway.
+
+## M2 — Platform Services (current)
 
 - [ ] Wi-Fi connectivity, including initial provisioning (SoftAP + captive
       portal via ESP-IDF's `wifi_provisioning` component, Touch UI keyboard
@@ -243,7 +259,11 @@ simulator.
       symbolicated on-device — see
       [ADR-0013](decisions/ADR-0013-crash-and-reboot-diagnostics.md)) —
       the core dump partition must be planned into the partition table
-      alongside the existing OTA A/B scheme, not added later
+      alongside the OTA A/B scheme this milestone actually builds (the
+      current firmware is still on ESP-IDF's single-app table as a
+      pragmatic M1 unblock — see
+      [hardware.md](architecture/hardware.md#on-device-dashboard)), not
+      added later
 - [ ] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —
@@ -266,12 +286,20 @@ simulator.
       with the simulator's visual representation of power states (dimming,
       blackout, debug-triggered simulated wake sources) built alongside it,
       not as an afterthought — see
-      [simulator.md](architecture/simulator.md#how-it-works)
+      [simulator.md](architecture/simulator.md#how-it-works). Moved from
+      M1: whether ESP-Hosted/SDIO can keep the ESP32-C6 usefully
+      associated while the P4 is asleep — the C6's power rail is already
+      confirmed independently switchable (M1, see
+      [hardware.md](architecture/hardware.md#wireless)), but this
+      protocol-level question is what actually determines the alert-
+      priority wake cycle's cost model here (full re-association vs.
+      modem-sleep resume), not just its tuned interval (see
+      [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping))
 
 **Exit criteria:** the device can be provisioned onto Wi-Fi via SoftAP,
 administered over the Web UI (after setting an admin password on first
-login) once on the LAN, keep itself updated over OTA, and the dashboard/
-widget framework is ready for a real module to plug into.
+login) once on the LAN, kept updated over OTA, and the dashboard/widget
+framework is ready for a real module to plug into.
 
 ## M3 — Harmony
 
@@ -364,9 +392,11 @@ index — decision name, ADR, one-line outcome.
 | Admin password sequencing | [ADR-0007](decisions/ADR-0007-web-management-ui-policies.md#decision-when-the-admin-password-is-set) | First-login sets password, not part of SoftAP flow |
 | Dashboard layout model | [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-dashboard-layout-model) | Fixed grid |
 | Weather data source | [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-weather-data-source) | Pluggable `WeatherProvider`; Open-Meteo from M2, HA-sourced from M6 |
-| Touch/display controller detection | [ADR-0009](decisions/ADR-0009-touch-display-detection.md) | Runtime detection + persisted result, not a compile-time flag |
+| Status bar vs. dashboard widgets | [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets) | Persistent top status bar (date/time, battery), not dashboard-grid widgets |
+| Touch/display controller detection | [ADR-0009](decisions/ADR-0009-touch-display-detection.md) | Runtime detection via `espressif/m5stack_tab5`'s built-in probing — ADR-0009's own persisted-result/manual-override design is superseded, see ADR-0014 |
 | Hardware support library (display/touch) | [ADR-0014](decisions/ADR-0014-hardware-support-library.md) | `espressif/m5stack_tab5` (ESP-IDF-native), not M5Unified/M5GFX — confirmed crash on this chip via Arduino-as-Component |
 | Display orientation | [ADR-0015](decisions/ADR-0015-display-orientation.md) | Portrait, `720x1280`, no rotation — the panel's native scan direction; matches the battery pack's kickstand tilt |
+| Hardware support library (battery/RTC) | [ADR-0016](decisions/ADR-0016-battery-rtc-library.md) | `espp/ina226` + `espp/rx8130ce` — the BSP's own capability table doesn't cover either peripheral |
 | Secret storage | [ADR-0010](decisions/ADR-0010-secret-storage.md) | NVS encryption (HMAC-peripheral key scheme, confirmed independent of flash encryption on ESP32-P4) + hashed admin password |
 | OTA image signing | [security.md](architecture/security.md#ota-image-integrity) | Known gap, deliberately deferred — not yet in scope |
 | LVGL thread safety | [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md) | Dedicated UI task owns LVGL; event bus guarantees safe hand-off via `lv_async_call()` |

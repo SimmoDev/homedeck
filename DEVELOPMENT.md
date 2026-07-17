@@ -8,17 +8,19 @@ for current milestone status.
 
 ## Where to start
 
-The architecture documentation has grown large (12 architecture docs, 15
-ADRs) across M0's design work. Not all of it is relevant to starting M1 —
-most of it covers M2+ services and later modules. If you're implementing
-M1, this is the essential reading, in order:
+The architecture documentation has grown large (12 architecture docs, 16
+ADRs) across M0's design work and M1 so far (three of the ADRs, 0014,
+0015, and 0016, were written during M1 hardware bring-up, not M0). Not
+all of it is relevant to starting M1 — most of it covers M2+ services and
+later modules. If you're implementing M1, this is the essential reading,
+in order:
 
 1. [README.md](README.md) — what HomeDeck is, in brief.
 2. [docs/architecture/overview.md](docs/architecture/overview.md) — the
    four-layer mental model, event-driven design, hardware abstraction.
 3. [docs/architecture/hardware.md](docs/architecture/hardware.md) — what
-   you're actually building against (needs re-verification against real
-   units, per its own caveat).
+   you're actually building against, most of it re-verified against the
+   real reference unit during M1 bring-up.
 4. [ADR-0002](docs/decisions/ADR-0002-technology-stack.md) — the firmware
    stack, build system, and Core Concurrency Abstraction. Foundational;
    read the Build System and Core Concurrency Abstraction decisions
@@ -30,12 +32,13 @@ M1, this is the essential reading, in order:
    write.
 7. [ADR-0009](docs/decisions/ADR-0009-touch-display-detection.md),
    [ADR-0011](docs/decisions/ADR-0011-lvgl-thread-safety.md),
-   [ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md), and
+   [ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md),
+   [ADR-0016](docs/decisions/ADR-0016-battery-rtc-library.md), and
    [ADR-0015](docs/decisions/ADR-0015-display-orientation.md) — the
    M1-specific decisions with real implementation consequences: touch/
    display detection, LVGL thread safety, the hardware support library
-   actually used for display/touch (not CLAUDE.md's originally-named
-   one), and display orientation.
+   actually used for display/touch and for battery/RTC (not CLAUDE.md's
+   originally-named one), and display orientation.
 8. [docs/architecture/core.md](docs/architecture/core.md) — the Event bus
    and Time/date services sections describe `EventBus`/`Clock`, which
    already exist and run (`src/core/`); Navigation also has a minimal
@@ -51,10 +54,13 @@ M1, this is the essential reading, in order:
 
 Everything else — `modules.md`, `web-ui.md`, `networking.md`,
 `security.md`, `diagnostics.md`, `power-management.md`, and most of the
-ADRs (0001, 0003–0008, 0010, 0012, 0013) — covers M2 platform services or
-later milestones. Worth skimming for context, but nothing there blocks
-starting M1, and re-reading it in full when M2 actually starts will be
-more useful than trying to hold all of it in mind now.
+ADRs (0001, 0003, 0005–0008, 0010, 0012, 0013) — covers M2 platform
+services or later milestones. (ADR-0004 isn't in that list — its
+return-home-affordance decision is real M1 work, already covered via
+[ui.md](docs/architecture/ui.md)'s own pointers to it above.) Worth
+skimming the rest for context, but nothing there blocks starting M1, and
+re-reading it in full when M2 actually starts will be more useful than
+trying to hold all of it in mind now.
 
 ## Required tools
 
@@ -255,22 +261,22 @@ the three build/test commands above:
   the same Docker command documented in [ESP-IDF setup](#esp-idf-setup).
 
 All three were verified locally with [`act`](https://github.com/nektos/act)
-before being relied on, the same "run it, don't just read the YAML"
-standard applied to every other build command in this document.
+before being relied on.
 
 ## Status
 
-M0 is complete (see [docs/roadmap.md](docs/roadmap.md)). M1 is in
-progress: the simulator scaffold, CI, the Core Concurrency Abstraction +
+M0 and M1 are both complete (see [docs/roadmap.md](docs/roadmap.md)).
+The simulator scaffold, CI, the Core Concurrency Abstraction +
 `EventBus` + dedicated UI task, the initial dashboard shell (live
 clock/date, battery), Navigation, and the persistent home affordance
 (`src/`, exercised for real by the simulator and covered by unit tests)
 all build and run, per the sections above. On real Tab5 hardware, the
-real dashboard now runs live too — a live ticking clock and a real (not
+real dashboard runs live too — a live ticking clock and a real (not
 mocked) battery percentage, sourced from the actual RTC and power monitor
 (see
 [docs/architecture/hardware.md](docs/architecture/hardware.md#on-device-dashboard)
-and [firmware/README.md](firmware/README.md)) — but Navigation, the home
-affordance, a second on-device screen, and module code don't exist yet
-anywhere — this document will keep being revised as the rest of M1 makes
-it concrete.
+and [firmware/README.md](firmware/README.md)). M1 never scoped
+Navigation, the home affordance, or a second on-device screen onto real
+hardware — the dashboard loads directly as the only screen there, by
+design — and no module code exists yet anywhere; both are M2+ work. This
+document will keep being revised as M2 makes it concrete.

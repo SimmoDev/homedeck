@@ -8,8 +8,11 @@ are — decisions like JSON library choice (flash/RAM headroom) and
 wake-from-sleep design were being made against assumptions rather than
 verified facts.
 
-**This needs re-verification against the actual unit(s) in hand during M1
-bring-up**, and updated here if anything drifts — M5Stack has already
+Most of it has since been re-verified against the actual reference unit
+during M1 bring-up — most sections below note what's been checked for
+real (some with a bolded **Confirmed**/**Resolved** call-out, some in
+plain prose) versus spec-sheet or datasheet claims not yet exercised.
+Still worth updating here if anything drifts — M5Stack has already
 revised this hardware twice during its production life (see [Display and
 touch](#display-and-touch) below), so "confirmed 2026-07" is not a
 permanent guarantee.
@@ -83,23 +86,24 @@ permanent guarantee.
   with ST7121 (also 0x55) starting 2026-04-28. Units purchased at different
   times may run different silicon here, and testing on one unit does not
   validate behavior on all of them.
-- **Resolved:** the HAL detects which controller is present at runtime
-  (I2C address probing, `0x14` vs. `0x55`, with a chip-ID register read to
-  disambiguate ST7123 from ST7121 if one exists) and persists the result,
-  rather than assuming a single controller via a compile-time flag — see
+- **Resolved:** the controller must be detected at runtime (`0x14` vs.
+  `0x55`) rather than assumed via a compile-time flag — see
   [ADR-0009](../decisions/ADR-0009-touch-display-detection.md) for why a
   compile-time approach was rejected (it breaks the single-OTA-image
-  model) and what's still unconfirmed (the chip-ID register, and whether
-  ST7123/ST7121 need genuinely separate driver paths).
+  model). ADR-0009's original plan was a hand-written I2C probe with a
+  chip-ID register read to disambiguate ST7123 from ST7121 and a
+  persisted result; that plan is superseded, not built — see the
+  "Confirmed" bullet below and ADR-0009's own Consequences for why.
 - **Confirmed:** the project's reference unit uses the **ST7123**
   integrated display+touch driver (I2C address 0x55) — read directly off
   the physical unit's sticker, no probing needed for this fact. The
-  runtime I2C-probing detection logic itself is now built and confirmed
-  working — see [Display driver strategy](#display-driver-strategy)
-  below: `espressif/m5stack_tab5` provides exactly this detection, not
-  hand-written separately (a single reference unit knowing its own driver
-  doesn't remove the need for runtime detection across units in the
-  field; the BSP's built-in probing is what actually covers that).
+  runtime detection itself is built and confirmed working too, just not
+  via the hand-written design above — see [Display driver
+  strategy](#display-driver-strategy) below: `espressif/m5stack_tab5`
+  provides its own built-in probing between the two known hardware
+  revisions, which is what actually covers detection across units in the
+  field (a single reference unit knowing its own driver doesn't, by
+  itself).
 - **M5Stack's own I2C address map for Tab5** (SCL: GPIO32, SDA: GPIO31),
   confirming several facts elsewhere in this document at once: ES8388
   (0x10), GT911 (0x14, not present on this unit), RX8130CE (0x32), SC2356
@@ -229,8 +233,12 @@ percentage both actually sourced from hardware. This needed a real
   separate, ordinary (non-nested) context struct that `Impl` merely owns
   a pointer to, worked around rather than by loosening `Impl`'s access.
 - **`BatteryReader`** via the INA226 (`espp/ina226`) and **`TimeSource`**
-  via the RX8130CE RTC (`espp/rx8130ce`) - see [Power](#power) and
-  [RTC](#rtc) above for what those real reads actually showed. Both
+  via the RX8130CE RTC (`espp/rx8130ce`) - a third hardware support
+  library, distinct from `espressif/m5stack_tab5`, since its capability
+  table doesn't cover either peripheral - see
+  [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md) for why. See
+  [Power](#power) and [RTC](#rtc) above for what those real reads
+  actually showed. Both
   `espp` components communicate via function-pointer glue matching their
   `BasePeripheral` shape, not a bus handle directly - a small shared
   `I2cDevice` helper wraps ESP-IDF's `i2c_master` driver once and is
@@ -251,8 +259,11 @@ them display/logic bugs:
   larger single-app table (1500K,
   `CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y`) as a pragmatic unblock -
   not the real OTA A/B partition table, which stays explicit M2 scope
-  per ADR-0012 and the roadmap's OTA item. Expect to need more headroom
-  again as more gets built.
+  per ADR-0012 and the roadmap's OTA item. Confirmed via a real build:
+  32% free on the 1500K table with the full M1 dashboard linked in
+  (`espp/ina226`/`espp/rx8130ce` included, per
+  [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)). Expect to
+  need more headroom again as more gets built.
 - **The Docker build only had `firmware/` visible, not the repo root** -
   fine while firmware only contained its own template code, but this
   step needed `../../src` (the reused portable source), which lives
@@ -322,9 +333,8 @@ in this codebase uses it.
   hardware:** the simple linear approximation `Ina226BatteryReader`
   actually uses (see [On-device dashboard](#on-device-dashboard) below)
   reads ~90%, not 100%, on a pack that had been on USB power long enough
-  to be fully charged — a real, observed instance of exactly this
-  limitation, not a hypothetical one. A real state-of-charge estimate is
-  still M2 power-management scope, not fixed here.
+  to be fully charged. A real state-of-charge estimate is still M2
+  power-management scope, not fixed here.
 - **Wake-source aggregation:** a PMS150G-U06 interrupt controller aggregates
   wake interrupts (touch, IMU, RTC, power button) for the P4. This confirms
   the deep-sleep wake architecture described in

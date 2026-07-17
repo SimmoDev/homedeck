@@ -40,10 +40,10 @@ except the dashboard itself — not a gesture or a hardware button. See
 for why a persistent affordance was chosen over an edge-swipe gesture or a
 power-button long-press.
 
-A separate, independent piece of persistent chrome — a status bar showing
-date/time and battery on every screen, dashboard included — sits alongside
-the home affordance; it's not part of the navigation manager and doesn't
-route anywhere. See
+A separate, independent piece of persistent chrome is planned — a status
+bar showing date/time and battery on every screen, dashboard included,
+sitting alongside the home affordance; it's not part of the navigation
+manager and doesn't route anywhere. **Not yet built** — M2 scope. See
 [dashboard.md](dashboard.md#status-bar) and
 [ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)
 for why it exists and why it's kept separate from the home affordance for
@@ -140,4 +140,5 @@ Navigation (`src/ui/navigation.h`) and the persistent home affordance
 against a deliberately throwaway second screen
 (`simulator/screens/placeholder_screen.h`, replaced once a genuine second
 screen exists — an M2 settings screen, or the first M3 module screen).
-Confirmed working manually in both directions, not just compiling.
+Confirmed working manually in both directions, not just compiling. The
+status bar described above doesn't exist yet — M2 scope.

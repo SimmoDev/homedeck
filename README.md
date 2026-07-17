@@ -42,8 +42,7 @@ possible, but none is planned or committed to.
 
 ## Current status
 
-**Milestone M1 — Platform.** M0 (architecture documentation, ADRs, and a
-verified dev environment for both build targets) is complete. The Core
+**M0 and M1 are complete; M2 — Platform Services is current.** The Core
 Concurrency Abstraction (`Task`/`Queue`/`Timer`), the `EventBus`, a
 dedicated UI task, an initial dashboard shell (live clock/date, battery),
 Navigation, and the persistent home affordance all exist in [src/](src/)
@@ -53,11 +52,11 @@ hardware (see
 [docs/architecture/hardware.md](docs/architecture/hardware.md#on-device-dashboard)):
 the real dashboard runs live, not just a bring-up placeholder — a live
 ticking clock and a real (not mocked) battery percentage, both sourced
-from actual hardware — see [firmware/README.md](firmware/README.md).
-Navigation, the home affordance, and a second on-device screen don't
-exist there yet; no module code exists yet anywhere. See
-[docs/roadmap.md](docs/roadmap.md) for the full
-milestone plan and the architectural decisions index.
+from actual hardware — see [firmware/README.md](firmware/README.md). M1
+never scoped Navigation, the home affordance, or a second on-device
+screen onto real hardware; no module code exists yet anywhere — both are
+M2+ work. See [docs/roadmap.md](docs/roadmap.md) for the full milestone
+plan and the architectural decisions index.
 
 ## Architecture
 
