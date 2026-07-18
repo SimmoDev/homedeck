@@ -2,7 +2,10 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace homedeck {
 
@@ -12,12 +15,27 @@ struct HttpRequest {
     std::string path;
     std::string query;
     std::string body;
+    // Only the Cookie header is exposed, not a generic header map -
+    // AdminAuthService's session cookie (see core/admin_auth_service.h)
+    // is the only consumer so far, and esp_http_server has no "list all
+    // headers" API, only per-name lookup, so a generic enumerable map
+    // isn't implementable on firmware without accumulating header names
+    // it has no real use for yet. Raw Cookie-header format (RFC 6265),
+    // not parsed into individual cookies - the one caller that needs a
+    // specific cookie value parses it out itself.
+    std::optional<std::string> cookie_header;
 };
 
 struct HttpResponse {
     int status_code = 200;
     std::string content_type = "text/plain";
     std::string body;
+    // Extra headers beyond Content-Type/Content-Length, which both
+    // backends already send unconditionally - e.g. Set-Cookie for
+    // AdminAuthService's session cookie. (name, value) pairs rather than
+    // raw "Name: value" lines since esp_http_server's httpd_resp_set_hdr()
+    // wants them separately.
+    std::vector<std::pair<std::string, std::string>> extra_headers;
 };
 
 // The embedded HTTP server behind the Web Management UI

@@ -6,6 +6,37 @@
 
 namespace homedeck {
 
+namespace {
+
+// mg_send_http_ok() can't carry extra headers, so responses are written
+// by hand here instead - status line, Content-Type/Content-Length (which
+// mg_send_http_ok would otherwise generate), any extra headers, then the
+// body. Only the status codes this project's handlers actually return
+// need a reason phrase; anything else falls back to a generic one rather
+// than growing this list speculatively.
+const char* ReasonPhrase(int status_code) {
+    switch (status_code) {
+        case 200:
+            return "OK";
+        case 400:
+            return "Bad Request";
+        case 401:
+            return "Unauthorized";
+        case 403:
+            return "Forbidden";
+        case 404:
+            return "Not Found";
+        case 405:
+            return "Method Not Allowed";
+        case 500:
+            return "Internal Server Error";
+        default:
+            return "Unknown";
+    }
+}
+
+}  // namespace
+
 HostHttpServer::HostHttpServer() = default;
 
 HostHttpServer::~HostHttpServer() { Stop(); }
@@ -70,10 +101,20 @@ int HostHttpServer::Dispatch(mg_connection* conn) {
         request.body.resize(static_cast<size_t>(info->content_length));
         mg_read(conn, request.body.data(), request.body.size());
     }
+    const char* cookie_header = mg_get_header(conn, "Cookie");
+    if (cookie_header != nullptr) {
+        request.cookie_header = cookie_header;
+    }
 
     HttpResponse response = it->second(request);
 
-    mg_send_http_ok(conn, response.content_type.c_str(), static_cast<long long>(response.body.size()));
+    mg_printf(conn, "HTTP/1.1 %d %s\r\n", response.status_code, ReasonPhrase(response.status_code));
+    mg_printf(conn, "Content-Type: %s\r\n", response.content_type.c_str());
+    mg_printf(conn, "Content-Length: %zu\r\n", response.body.size());
+    for (const auto& [name, value] : response.extra_headers) {
+        mg_printf(conn, "%s: %s\r\n", name.c_str(), value.c_str());
+    }
+    mg_printf(conn, "\r\n");
     mg_write(conn, response.body.data(), response.body.size());
     return 1;
 }

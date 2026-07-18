@@ -112,10 +112,56 @@ automated test (a raw-socket HTTP client against `HostHttpServer` in
 `tests/http_server_test.cpp`) and manually against the running
 simulator.
 
-Still open, each its own future pass: the [authentication
-mechanism](#authentication-mechanism) described above, the Svelte + Vite
-frontend (see
+**The [authentication mechanism](#authentication-mechanism) is real** —
+`AdminAuthService` (`src/core/admin_auth_service.h`/`.cpp`) implements
+ADR-0007's single-admin-password/session-login design and its
+first-login-sets-the-password flow: `GET /api/auth/status`,
+`POST /api/auth/setup`, `POST /api/auth/login`, and
+`POST /api/auth/logout`, plus a `RequireAuth()` wrapper other endpoints
+will use once they exist. Passwords are PBKDF2-SHA256 hashed (salted,
+100,000 iterations) via mbedtls, the same library on both targets
+(vendored as a single header for the host build, ESP-IDF's own copy on
+firmware — see [src/README.md](../../src/README.md)); mbedtls also
+supplies the CSPRNG for salts and session tokens, so no separate
+random-source abstraction was needed. Sessions are an in-memory table
+(not persisted - a reboot requires re-login) with a 24-hour lifetime,
+guarded by a mutex since HTTP server worker threads can call into this
+service concurrently, unlike most of Core, which only the LVGL UI task
+touches. Session expiry uses a monotonic clock
+(`SteadyTimeSource`, `src/platform/steady_time_source.h`, wrapping
+`std::chrono::steady_clock`) on both targets rather than the wall-clock
+`TimeSource` — the correct mechanism for expiry comparisons regardless
+of target, and specifically necessary on firmware, where the wall-clock
+`Rx8130TimeSource` reads the RTC over I2C on every call and the RTC has
+a known, pre-existing never-calibrated gap (see
+[ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)).
+
+**Confirmed on real hardware** (Tab5 K145 reference unit), as well as
+end to end on the simulator (an automated raw-socket test,
+`tests/admin_auth_routes_test.cpp`, drives the actual setup → protected
+route → login → wrong-password → logout sequence over real HTTP against
+`HostHttpServer`) and via a clean Docker rebuild with host tests
+passing — `status`, `login` against a password that survives a reboot
+(it's in NVS), and the protected route all behave correctly on the
+Tab5. `esp_http_server`'s task stack is raised to 8KB
+(`FirmwareHttpServer::Start()`, `src/platform/firmware/http_server.cpp`)
+from its 4KB default, and ESP-IDF's hardware-accelerated SHA256 is
+disabled project-wide (`CONFIG_MBEDTLS_HARDWARE_SHA=n` in
+`firmware/sdkconfig.defaults`) in favor of software SHA256, which has no
+per-call DMA overhead.
+
+**NVS encryption is a known, deliberately separated gap, not an
+oversight** — the admin password hash is stored in the existing plain
+NVS tier, not (yet) the HMAC-peripheral-encrypted scheme ADR-0010
+requires; see that ADR's own implementation note for why enabling
+encryption stayed a separate follow-up rather than landing in the same
+pass as new, not-yet-hardware-verified auth logic. The password itself
+is still never stored reversibly regardless (PBKDF2-SHA256 hashed before
+it reaches Storage).
+
+Still open, each its own future pass: the Svelte + Vite frontend (see
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)),
-WebSockets for live updates, and the REST API surface for the [Scope](#scope)
-items above (module configuration, diagnostics, OTA, backups, settings) —
-none of that exists yet, only the server itself.
+WebSockets for live updates, the REST API surface for the [Scope](#scope)
+items above (module configuration, diagnostics, OTA, backups, settings —
+none of that exists yet, only auth and the placeholder route), and the
+NVS-encryption follow-up named above.

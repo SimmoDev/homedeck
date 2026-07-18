@@ -264,12 +264,13 @@ features start landing and these paragraphs need rewriting anyway.
       namespacing — unit-tested in `tests/`, confirmed on real hardware
       (the FAT partition mount, formatting cleanly on first boot, is the
       one part `ctest` can't exercise). Still open, deliberately deferred rather than dropped: NVS
-      encryption (plain storage for now — burning the HMAC eFuse key is
-      its own explicitly-confirmed follow-up, timed to when the Web
-      Management UI item below actually needs to store the admin
-      password hash, not required before that — see
-      [ADR-0010](decisions/ADR-0010-secret-storage.md#consequences)), and
-      the microSD tier (no consumer until Logging exists below)
+      encryption (plain storage for now — the Web Management UI item
+      below now does store the admin password hash, but burning the
+      HMAC eFuse key remains its own dedicated follow-up rather than
+      landing in that same pass, since it's an irreversible per-device
+      action — see
+      [ADR-0010](decisions/ADR-0010-secret-storage.md#implementation-note-nvs-encryption-split-from-the-web-ui-auth-pass)),
+      and the microSD tier (no consumer until Logging exists below)
 - [ ] Web Management UI (settings, module configuration, diagnostics,
       backups as a downloadable JSON export —
       *not* initial Wi-Fi setup, which is the SoftAP flow above; see
@@ -292,10 +293,21 @@ features start landing and these paragraphs need rewriting anyway.
       automated raw-socket test against the simulator's server, a manual
       `curl` against the running simulator, and on the Tab5 K145
       reference unit, reachable over the LAN from a browser once Wi-Fi
-      connects). Still open:
-      everything the item's own description above lists — auth, the
-      Svelte/Vite frontend, WebSockets, and the REST API surface for
-      settings/config/diagnostics/OTA/backups — none of that exists yet
+      connects). **The admin auth mechanism is also real, confirmed on
+      real hardware** (Tab5 K145 reference unit) —
+      `AdminAuthService` (`src/core/`) implements the first-login
+      setup/login/logout flow this item's own description calls for,
+      PBKDF2-SHA256 password hashing, session cookies, and a
+      `RequireAuth()` gate future protected endpoints will use.
+      Confirmed end to end (setup → protected route → login →
+      wrong-password → logout) via an automated real-HTTP test and
+      manual `curl` runs against both the simulator and the reference
+      unit, including the password surviving a device reboot. Its NVS
+      encryption is a known, deliberately separated gap - see
+      [ADR-0010](decisions/ADR-0010-secret-storage.md#implementation-note-nvs-encryption-split-from-the-web-ui-auth-pass).
+      Still open: the Svelte/Vite frontend, WebSockets, and the REST API
+      surface for settings/config/diagnostics/OTA/backups — none of that
+      exists yet
 - [ ] OTA update support, gated on battery threshold or external USB-C power
       (see [power-management.md](architecture/power-management.md#explicit-power-states)) —
       image signing is a known, deliberately deferred gap, not yet in scope

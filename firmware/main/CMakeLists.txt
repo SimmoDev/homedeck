@@ -17,6 +17,7 @@ idf_component_register(
         "../../src/core/clock.cpp"
         "../../src/core/storage.cpp"
         "../../src/core/low_battery_monitor.cpp"
+        "../../src/core/admin_auth_service.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"
@@ -42,4 +43,5 @@ idf_component_register(
         fatfs
         wear_levelling
         espcoredump
+        mbedtls
 )

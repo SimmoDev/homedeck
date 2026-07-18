@@ -22,6 +22,34 @@ set(CIVETWEB_ENABLE_CXX OFF CACHE BOOL "" FORCE)
 set(CIVETWEB_ENABLE_ASAN OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(civetweb)
 
+# AdminAuthService's password hashing/session-token randomness (see
+# core/admin_auth_service.h) - mbedtls is already vendored by ESP-IDF for
+# firmware (zero new firmware dependency), and is portable C, so it's
+# fetched here too rather than writing a second, independent
+# implementation of a security primitive for the host target. Only
+# mbedcrypto (the primitive library) is linked - mbedx509/mbedtls (the
+# X.509 and TLS stacks) build as part of the same CMake project but
+# nothing links them, since nothing here needs TLS. Confirmed via a real
+# scratch FetchContent build producing real PBKDF2/CTR_DRBG output,
+# matching this project's standing "verify, don't assume" discipline for
+# new dependencies.
+set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
+# mbedtls treats its own compiler warnings as errors by default -
+# confirmed via the same scratch build above that this repo's GCC
+# version trips some of them (mostly -Wunterminated-string-initialization
+# in its TLS 1.3 code, which nothing here uses), so this stays off rather
+# than gating an unrelated dependency's build on warnings in code paths
+# this project doesn't exercise.
+set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  mbedtls
+  GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
+  GIT_TAG v3.6.2
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(mbedtls)
+
 add_library(homedeck_platform_host
   platform/host/task.cpp
   platform/host/timer.cpp
@@ -39,8 +67,9 @@ add_library(homedeck_core
   core/clock.cpp
   core/storage.cpp
   core/low_battery_monitor.cpp
+  core/admin_auth_service.cpp
 )
-target_link_libraries(homedeck_core PUBLIC homedeck_platform_host)
+target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 
 # Only defined when a target named `lvgl` already exists in this
 # directory's scope - i.e. only for consumers (simulator/) that fetched

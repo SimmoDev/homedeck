@@ -1,6 +1,7 @@
 #include "platform/firmware/http_server.h"
 
 #include <algorithm>
+#include <vector>
 
 namespace homedeck {
 
@@ -33,6 +34,10 @@ bool FirmwareHttpServer::Start(uint16_t port) {
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.server_port = port;
     config.max_uri_handlers = std::max<size_t>(handlers_.size(), 1);
+    // HTTPD_DEFAULT_CONFIG()'s 4096-byte default overflows once a
+    // handler nests JSON parsing plus AdminAuthService's PBKDF2/mbedtls
+    // call stack inside it - see docs/architecture/web-ui.md#status.
+    config.stack_size = 8192;
 
     esp_err_t err = httpd_start(&server_, &config);
     if (err != ESP_OK) {
@@ -80,10 +85,25 @@ esp_err_t FirmwareHttpServer::DispatchTrampoline(httpd_req_t* req) {
         }
     }
 
+    size_t cookie_len = httpd_req_get_hdr_value_len(req, "Cookie");
+    if (cookie_len > 0) {
+        // httpd_req_get_hdr_value_str wants the buffer sized for the
+        // value plus its null terminator - a std::vector<char> here
+        // rather than std::string::data(), since writing a trailing
+        // null one past a string's declared size is undefined behavior.
+        std::vector<char> cookie_buffer(cookie_len + 1);
+        if (httpd_req_get_hdr_value_str(req, "Cookie", cookie_buffer.data(), cookie_buffer.size()) == ESP_OK) {
+            request.cookie_header = std::string(cookie_buffer.data());
+        }
+    }
+
     HttpResponse response = (*handler)(request);
 
     httpd_resp_set_status(req, StatusLine(response.status_code).c_str());
     httpd_resp_set_type(req, response.content_type.c_str());
+    for (const auto& [name, value] : response.extra_headers) {
+        httpd_resp_set_hdr(req, name.c_str(), value.c_str());
+    }
     httpd_resp_send(req, response.body.data(), response.body.size());
     return ESP_OK;
 }

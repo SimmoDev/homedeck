@@ -85,7 +85,21 @@ LAN, gated by admin auth" — not a default either way.
 
 ## Status
 
-Not yet implemented — this document describes required behavior for M2
-(NVS encryption, admin auth, input validation) and a recorded gap for later
-(OTA signing), consistent with [core.md](core.md) and
-[web-ui.md](web-ui.md).
+**Admin auth is real** — see [web-ui.md](web-ui.md#status) for
+`AdminAuthService`'s design and verification status, including its
+password hashing (satisfying the "avoid insecure secret storage"
+requirement's hashing half) and the `RequireAuth()` gate (satisfying
+"do not expose unauthenticated management controls by default" and
+"protect configuration changes" for whatever it wraps). Its two
+endpoints that take a request body (`setup`/`login`) validate input
+today — a minimum password length and well-formed JSON are both
+checked, satisfying "validate API input" for those two, though the
+mechanism decision that requirement calls out (centralized vs.
+per-endpoint) remains open for the rest of the API surface, which
+doesn't exist yet.
+
+**NVS encryption remains open** — see
+[ADR-0010](../decisions/ADR-0010-secret-storage.md#implementation-note-nvs-encryption-split-from-the-web-ui-auth-pass)
+for why it was deliberately split from the admin auth pass rather than
+delivered alongside it. Everything else this document describes (OTA
+signing) remains the recorded, deliberately deferred gap it already was.

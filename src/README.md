@@ -36,7 +36,19 @@ src/
 │                virtual interface; host/ implements it with civetweb
 │                (HostHttpServer), firmware/ wraps esp_http_server
 │                (FirmwareHttpServer, see
-│                ADR-0002#3-embedded-webwebsocket-server).
+│                ADR-0002#3-embedded-webwebsocket-server). Carries a
+│                Cookie request header and arbitrary extra response
+│                headers (not a generic header map - see
+│                http_server.h's own comment for why), needed for
+│                AdminAuthService's session cookie. Also
+│                SteadyTimeSource - a portable (no host/firmware split)
+│                TimeSource backed by std::chrono::steady_clock rather
+│                than a wall clock, for callers that need reliable
+│                elapsed-time comparisons rather than a calendar date
+│                (AdminAuthService's session expiry, since firmware's
+│                RTC-backed TimeSource has no guaranteed
+│                call-to-call consistency until ADR-0016's
+│                never-calibrated-RTC gap is fixed).
 ├── core/        EventBus - publish/subscribe with reference-counted
 │                payloads (see ADR-0011). Deliberately has no LVGL
 │                dependency, so it's fully unit-testable in tests/. Also
@@ -48,7 +60,17 @@ src/
 │                platform/'s SettingsStore/CacheStore, namespaced per
 │                module by requiring a module ID on every call. NVS
 │                encryption and the microSD tier are deliberately not
-│                built yet (see ADR-0010/ADR-0012).
+│                built yet (see ADR-0010/ADR-0012). Also
+│                notification.h/LowBatteryMonitor - the Notifications
+│                service's urgency-tagged event and its first real
+│                publisher (see core.md#status). Also AdminAuthService -
+│                the Web Management UI's admin authentication (see
+│                web-ui.md#status): PBKDF2-SHA256 password hashing and
+│                session-token generation via mbedtls (the same library
+│                on both targets - FetchContent'd for host, ESP-IDF's own
+│                vendored copy for firmware), mutex-guarded since it's
+│                called from HTTP server worker threads, not the LVGL UI
+│                task like most of Core.
 └── ui/          UiTask - owns LVGL exclusively via the SDL2 window on
                  the simulator; firmware has no equivalent class, since
                  `espressif/m5stack_tab5`'s `bsp_display_start()` already
@@ -61,11 +83,21 @@ src/
                  here since lv_scr_load() is a UI-layer implementation
                  detail, same reasoning as EventBus staying LVGL-free);
                  home_affordance.h - the reusable persistent home icon
-                 every non-dashboard screen includes; and ui/screens/ -
-                 DashboardScreen, the home screen (see
-                 docs/architecture/dashboard.md), reused directly by both
-                 the simulator and firmware.
+                 every non-dashboard screen includes; StatusBar - the
+                 persistent date/time/battery chrome every screen
+                 constructs its own copy of; Widget/DashboardGrid - the
+                 standard dashboard widget interface and its grid layout
+                 (see dashboard.md#widget-system); NotificationBanner -
+                 the screen-banner notification output, parented to
+                 LVGL's top layer so it renders above whatever screen is
+                 active; and ui/screens/ - DashboardScreen, the home
+                 screen (see docs/architecture/dashboard.md), reused
+                 directly by both the simulator and firmware.
 ```
+
+`third_party/` sits alongside these three - vendored header-only dependencies
+that need to be visible identically to both build systems (see
+[third_party/README.md](third_party/README.md)).
 
 `homedeck_ui` (the `ui/` target) is only defined when a target named
 `lvgl` already exists in the including project's scope — `simulator/`

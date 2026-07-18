@@ -12,13 +12,17 @@
 #include "mdns.h"
 #include "nvs_flash.h"
 
+#include "core/admin_auth_service.h"
 #include "core/clock.h"
 #include "core/event_bus.h"
 #include "core/low_battery_monitor.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/battery_reader.h"
+#include "platform/firmware/cache_store.h"
 #include "platform/firmware/http_server.h"
+#include "platform/firmware/settings_store.h"
 #include "platform/firmware/time_source.h"
+#include "platform/steady_time_source.h"
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/widget.h"
@@ -183,18 +187,45 @@ extern "C" void app_main(void) {
         printf("mDNS init failed: %s\n", esp_err_to_name(mdns_result));
     }
 
+    // AdminAuthService's password hash storage (see
+    // docs/architecture/web-ui.md#admin-password) - plain NVS/FAT for
+    // now, per ADR-0010's deliberately-deferred-not-dropped NVS
+    // encryption gap (see this file's own comment on that further down,
+    // and docs/decisions/ADR-0010-secret-storage.md's addendum).
+    // Declared here (not narrower) for the same reason web_server is
+    // below - it must stay alive for the rest of app_main's life.
+    homedeck::FirmwareSettingsStore settings_store;
+    homedeck::FirmwareCacheStore cache_store;
+    homedeck::Storage storage(settings_store, cache_store);
+    // A monotonic clock, not the shared wall-clock time_source above -
+    // see platform/steady_time_source.h for why session expiry can't
+    // trust Rx8130TimeSource yet.
+    homedeck::SteadyTimeSource auth_time_source;
+    homedeck::AdminAuthService admin_auth(storage, auth_time_source);
+
     // The Web Management UI's server primitive (see
-    // docs/architecture/web-ui.md#status) - just a placeholder route for
-    // now. Started after Wi-Fi connects, and after wifi_setup.cpp's own
-    // temporary SoftAP-setup server has already stopped, so there's no
-    // port/lifecycle overlap between the two. Auth, real settings/
-    // diagnostics pages, and the Svelte/Vite frontend are all future
-    // passes. Declared here (not in a narrower scope) so it stays alive
-    // for the rest of app_main's life, which never returns.
+    // docs/architecture/web-ui.md#status) - a placeholder route plus
+    // admin auth. Started after Wi-Fi connects, and after
+    // wifi_setup.cpp's own temporary SoftAP-setup server has already
+    // stopped, so there's no port/lifecycle overlap between the two.
+    // Real settings/diagnostics pages and the Svelte/Vite frontend are
+    // still future passes. Declared here (not in a narrower scope) so
+    // it stays alive for the rest of app_main's life, which never
+    // returns.
     homedeck::FirmwareHttpServer web_server;
     web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/", [](const homedeck::HttpRequest&) {
-        return homedeck::HttpResponse{200, "text/plain", "HomeDeck Web UI - coming soon"};
+        return homedeck::HttpResponse{200, "text/plain", "HomeDeck Web UI - coming soon", {}};
     });
+    homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
+    // Temporary test-only route proving RequireAuth() actually gates a
+    // real endpoint end to end on real hardware too, the same reasoning
+    // TestWidget above already follows for the widget framework -
+    // removed once a real protected endpoint (settings, diagnostics)
+    // exists to prove it instead.
+    web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/api/test/protected",
+                                admin_auth.RequireAuth([](const homedeck::HttpRequest&) {
+                                    return homedeck::HttpResponse{200, "text/plain", "authenticated content", {}};
+                                }));
     if (web_server.Start(80)) {
         printf("Web UI listening on port 80\n");
     } else {

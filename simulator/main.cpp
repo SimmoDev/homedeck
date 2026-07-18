@@ -1,9 +1,13 @@
+#include "core/admin_auth_service.h"
 #include "core/clock.h"
 #include "core/event_bus.h"
 #include "core/low_battery_monitor.h"
 #include "platform/host/battery_reader.h"
+#include "platform/host/cache_store.h"
 #include "platform/host/http_server.h"
+#include "platform/host/settings_store.h"
 #include "platform/host/time_source.h"
+#include "platform/steady_time_source.h"
 #include "screens/placeholder_screen.h"
 #include "ui/navigation.h"
 #include "ui/notification_banner.h"
@@ -13,6 +17,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 
 // Matches the Tab5's native panel resolution and orientation - portrait,
 // not the 1280x720 spec-sheet landscape figure (see
@@ -171,14 +176,42 @@ int main() {
     homedeck::HostTimeSource time_source;
     homedeck::Clock clock(time_source, event_bus);
 
+    // AdminAuthService's password hash storage (see
+    // docs/architecture/web-ui.md#admin-password) - a fixed location
+    // under the OS temp directory rather than a fresh one per run, so
+    // the simulator's admin password persists across restarts the same
+    // way NVS would on real hardware, instead of demanding first-login
+    // setup again every time the simulator relaunches.
+    std::filesystem::path storage_root = std::filesystem::temp_directory_path() / "homedeck_simulator";
+    homedeck::HostSettingsStore settings_store(storage_root);
+    homedeck::HostCacheStore cache_store(storage_root);
+    homedeck::Storage storage(settings_store, cache_store);
+    // A monotonic clock, not the shared wall-clock time_source above -
+    // matches firmware's identical choice (see
+    // platform/steady_time_source.h) so AdminAuthService behaves the
+    // same on both targets, rather than the simulator's forgiving host
+    // wall clock accidentally masking a real firmware-only issue.
+    homedeck::SteadyTimeSource auth_time_source;
+    homedeck::AdminAuthService admin_auth(storage, auth_time_source);
+
     // The Web Management UI's server primitive (see
-    // docs/architecture/web-ui.md#status) - just a placeholder route for
-    // now. Auth, real settings/diagnostics pages, and the Svelte/Vite
-    // frontend are all future passes.
+    // docs/architecture/web-ui.md#status) - a placeholder route plus
+    // admin auth. Real settings/diagnostics pages and the Svelte/Vite
+    // frontend are still future passes.
     homedeck::HostHttpServer web_server;
     web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/", [](const homedeck::HttpRequest&) {
-        return homedeck::HttpResponse{200, "text/plain", "HomeDeck Web UI - coming soon"};
+        return homedeck::HttpResponse{200, "text/plain", "HomeDeck Web UI - coming soon", {}};
     });
+    homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
+    // Temporary test-only route proving RequireAuth() actually gates a
+    // real endpoint end to end on this target, the same reasoning
+    // CreateTestNavButton/CreateTestLowBatteryButton above already
+    // follow for their own mechanisms - removed once a real protected
+    // endpoint (settings, diagnostics) exists to prove it instead.
+    web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/api/test/protected",
+                                admin_auth.RequireAuth([](const homedeck::HttpRequest&) {
+                                    return homedeck::HttpResponse{200, "text/plain", "authenticated content", {}};
+                                }));
     uint16_t web_port = ResolveWebPort();
     if (web_server.Start(web_port)) {
         std::printf("Web UI listening on http://localhost:%u/\n", web_port);

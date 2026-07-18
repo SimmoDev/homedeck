@@ -98,6 +98,17 @@ CONFIG_FATFS_LFN_HEAP=y
 #   (ESP_SYSTEM_PANIC_PRINT_REBOOT) - nothing here overrides it.
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 
+# mbedtls defaults to hardware-accelerated SHA (GDMA + the SHA
+# peripheral) - its own Kconfig help text already warns "faster than
+# software in some situations but slower in others, you should
+# benchmark." AdminAuthService's PBKDF2-SHA256 password hashing
+# (100,000 iterations, ~200,000 individual SHA256 block operations) is
+# the "slower" case: a fixed per-call DMA setup/teardown cost, paid on
+# every one of those operations, took a single login call past 30
+# seconds on real hardware - long enough to trip the task watchdog.
+# Software SHA256 has no such per-call overhead.
+CONFIG_MBEDTLS_HARDWARE_SHA=n
+
 # StatusBar (src/ui/status_bar.h) uses Montserrat 24, not LVGL's default
 # Montserrat 14, which is too small to read at a glance on the Tab5's
 # physical screen. On this panel's ~294 PPI (from its 5" 720x1280 spec -
