@@ -24,6 +24,7 @@ idf_component_register(
         "../../src/platform/firmware/time_source.cpp"
         "../../src/platform/firmware/settings_store.cpp"
         "../../src/platform/firmware/cache_store.cpp"
+        "../../src/platform/firmware/http_server.cpp"
     INCLUDE_DIRS
         "."
         "../../src"

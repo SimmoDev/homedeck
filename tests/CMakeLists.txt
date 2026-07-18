@@ -32,6 +32,7 @@ add_executable(homedeck_tests
   battery_reader_test.cpp
   clock_test.cpp
   storage_test.cpp
+  http_server_test.cpp
 )
 target_link_libraries(homedeck_tests PRIVATE homedeck_core GTest::gtest_main GTest::gmock)
 

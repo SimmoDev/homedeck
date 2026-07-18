@@ -1,12 +1,14 @@
 #include "core/clock.h"
 #include "core/event_bus.h"
 #include "platform/host/battery_reader.h"
+#include "platform/host/http_server.h"
 #include "platform/host/time_source.h"
 #include "screens/placeholder_screen.h"
 #include "ui/navigation.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/ui_task.h"
 
+#include <cstdio>
 #include <cstdlib>
 
 // Matches the Tab5's native panel resolution and orientation - portrait,
@@ -27,6 +29,12 @@ static constexpr int32_t kWindowHeight = 1280;
 // this default.
 static constexpr float kDefaultWindowZoom = 0.75f;
 
+// The Web Management UI's default port. Real hardware uses 80 (see
+// firmware/main/homedeck.cpp); a desktop dev machine typically can't
+// bind that without root, so the simulator defaults elsewhere, with the
+// same override convention as HOMEDECK_SIM_ZOOM above.
+static constexpr uint16_t kDefaultWebPort = 8080;
+
 namespace {
 
 float ResolveWindowZoom() {
@@ -40,6 +48,19 @@ float ResolveWindowZoom() {
         return kDefaultWindowZoom;
     }
     return value;
+}
+
+uint16_t ResolveWebPort() {
+    const char* override_str = std::getenv("HOMEDECK_SIM_WEB_PORT");
+    if (override_str == nullptr) {
+        return kDefaultWebPort;
+    }
+    char* end = nullptr;
+    long value = std::strtol(override_str, &end, 10);
+    if (end == override_str || value <= 0 || value > 65535) {
+        return kDefaultWebPort;
+    }
+    return static_cast<uint16_t>(value);
 }
 
 // Temporary test-only wiring proving Navigation/the persistent home
@@ -90,6 +111,21 @@ int main() {
 
     homedeck::HostTimeSource time_source;
     homedeck::Clock clock(time_source, event_bus);
+
+    // The Web Management UI's server primitive (see
+    // docs/architecture/web-ui.md#status) - just a placeholder route for
+    // now. Auth, real settings/diagnostics pages, and the Svelte/Vite
+    // frontend are all future passes.
+    homedeck::HostHttpServer web_server;
+    web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/", [](const homedeck::HttpRequest&) {
+        return homedeck::HttpResponse{200, "text/plain", "HomeDeck Web UI - coming soon"};
+    });
+    uint16_t web_port = ResolveWebPort();
+    if (web_server.Start(web_port)) {
+        std::printf("Web UI listening on http://localhost:%u/\n", web_port);
+    } else {
+        std::printf("Web UI failed to start on port %u\n", web_port);
+    }
 
     ui_task.Run();
 }

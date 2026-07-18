@@ -274,7 +274,19 @@ features start landing and these paragraphs need rewriting anyway.
       for the WebSocket relay before building live updates on the
       simulator — `esp_http_server`'s side is `httpd_queue_work()`,
       civetweb's equivalent is not yet confirmed (see
-      [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server))
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server)).
+      **The `HttpServer` primitive itself is real, confirmed on both
+      targets, including on real hardware** (`FirmwareHttpServer`/
+      `HostHttpServer` in `src/platform/`, see
+      [web-ui.md](architecture/web-ui.md#status)) — one placeholder
+      route, proven with a real request/response round trip (an
+      automated raw-socket test against the simulator's server, a manual
+      `curl` against the running simulator, and on the Tab5 K145
+      reference unit, reachable over the LAN from a browser once Wi-Fi
+      connects). Still open:
+      everything the item's own description above lists — auth, the
+      Svelte/Vite frontend, WebSockets, and the REST API surface for
+      settings/config/diagnostics/OTA/backups — none of that exists yet
 - [ ] OTA update support, gated on battery threshold or external USB-C power
       (see [power-management.md](architecture/power-management.md#explicit-power-states)) —
       image signing is a known, deliberately deferred gap, not yet in scope

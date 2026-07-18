@@ -30,7 +30,13 @@ src/
 │                core/ below); host/ implements both as real files under
 │                a caller-supplied scratch directory, firmware/ wraps NVS
 │                (SettingsStore) and the `storage` FAT partition
-│                (CacheStore, see ADR-0017).
+│                (CacheStore, see ADR-0017). Also HttpServer - the Web
+│                Management UI's server primitive (see
+│                docs/architecture/web-ui.md#status), another small
+│                virtual interface; host/ implements it with civetweb
+│                (HostHttpServer), firmware/ wraps esp_http_server
+│                (FirmwareHttpServer, see
+│                ADR-0002#3-embedded-webwebsocket-server).
 ├── core/        EventBus - publish/subscribe with reference-counted
 │                payloads (see ADR-0011). Deliberately has no LVGL
 │                dependency, so it's fully unit-testable in tests/. Also

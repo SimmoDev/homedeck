@@ -196,6 +196,27 @@ WebSocket-relay dispatch therefore needs its own safe hand-off, analogous
 to but implemented separately from the UI hand-off in
 [ADR-0011](ADR-0011-lvgl-thread-safety.md).
 
+**Implementation note (M2):** `HttpServer` is real on both targets —
+`FirmwareHttpServer`/`HostHttpServer` in `src/platform/`. civetweb v1.16
+was confirmed as a working dependency via a real scratch build before
+integrating it, surfacing three things not obvious from its docs: its own
+`CMakeLists.txt` predates CMake's removal of pre-3.5 compatibility, so
+`CMAKE_POLICY_VERSION_MINIMUM=3.5` must be set before fetching it; the
+real library target is `civetweb-c-library`, not `civetweb`; and its
+Debug-mode build enables ASan/UBSan by default
+(`CIVETWEB_ENABLE_ASAN`), which compiles civetweb's own objects with
+`-fsanitize=...` but never reaches this project's own link line since
+nothing else here builds with sanitizers — left on, it fails Debug
+builds with undefined `__ubsan_*`/`__asan_*` references, so it's turned
+off alongside the other civetweb CMake options in `src/CMakeLists.txt`.
+Only civetweb's plain C API is used (`mg_start`, `mg_set_request_handler`,
+`mg_get_request_info`, `mg_read`, `mg_send_http_ok`/`mg_write`,
+`mg_stop`) — its C++ wrapper (`CivetServer`, gated behind
+`CIVETWEB_ENABLE_CXX`) would just be a second abstraction layered under
+`HttpServer`, which already is the abstraction callers see.
+`WebSocketServer` remains unbuilt — nothing needs it yet, and the
+dispatch-safety question raised above is still open.
+
 ### 4. Web Management UI frontend approach
 
 **Options:**

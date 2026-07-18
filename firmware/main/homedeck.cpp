@@ -15,6 +15,7 @@
 #include "core/event_bus.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/battery_reader.h"
+#include "platform/firmware/http_server.h"
 #include "platform/firmware/time_source.h"
 #include "ui/screens/dashboard_screen.h"
 #include "wifi_setup.h"
@@ -112,6 +113,24 @@ extern "C" void app_main(void) {
     // by this point, so this doesn't delay first paint.
     homedeck::ConnectToWifi();
     printf("Wi-Fi connected\n");
+
+    // The Web Management UI's server primitive (see
+    // docs/architecture/web-ui.md#status) - just a placeholder route for
+    // now. Started after Wi-Fi connects, and after wifi_setup.cpp's own
+    // temporary SoftAP-setup server has already stopped, so there's no
+    // port/lifecycle overlap between the two. Auth, real settings/
+    // diagnostics pages, and the Svelte/Vite frontend are all future
+    // passes. Declared here (not in a narrower scope) so it stays alive
+    // for the rest of app_main's life, which never returns.
+    homedeck::FirmwareHttpServer web_server;
+    web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/", [](const homedeck::HttpRequest&) {
+        return homedeck::HttpResponse{200, "text/plain", "HomeDeck Web UI - coming soon"};
+    });
+    if (web_server.Start(80)) {
+        printf("Web UI listening on port 80\n");
+    } else {
+        printf("Web UI failed to start\n");
+    }
 
     uint32_t heartbeat = 0;
     while (true) {

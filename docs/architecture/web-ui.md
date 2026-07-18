@@ -99,6 +99,23 @@ or compromised network.
 
 ## Status
 
-Not yet implemented. The frontend is Svelte + Vite — see
-[ADR-0002](../decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach).
-Planned for M2.
+The `HttpServer` primitive is implemented and real on both targets —
+`FirmwareHttpServer` (`esp_http_server`) and `HostHttpServer` (civetweb),
+each serving one real route (`GET /`, a plain-text placeholder body) on
+their target's default port. On firmware, it starts after
+`ConnectToWifi()` returns, once `wifi_setup.cpp`'s own temporary SoftAP
+server has already stopped. **Confirmed on real hardware** (Tab5 K145
+reference unit) — the log shows `Web UI listening on port 80` right
+after Wi-Fi connects, and the route is reachable over the LAN from a
+browser. Also confirmed with a real request/response round trip in an
+automated test (a raw-socket HTTP client against `HostHttpServer` in
+`tests/http_server_test.cpp`) and manually against the running
+simulator.
+
+Still open, each its own future pass: the [authentication
+mechanism](#authentication-mechanism) described above, the Svelte + Vite
+frontend (see
+[ADR-0002](../decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)),
+WebSockets for live updates, and the REST API surface for the [Scope](#scope)
+items above (module configuration, diagnostics, OTA, backups, settings) —
+none of that exists yet, only the server itself.
