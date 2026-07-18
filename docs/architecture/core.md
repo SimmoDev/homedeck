@@ -129,11 +129,30 @@ rotating logs — rotation policy and file format are still open, unlike
 crash diagnostics) remain unbuilt — see
 [diagnostics.md](diagnostics.md#status) for the full breakdown.
 
+**The widget system** is real: `Widget` and `DashboardGrid` (`src/ui/`)
+are the standard interface modules contribute dashboard content through
+— see [dashboard.md](dashboard.md#status) for what's built and what
+(weather, the first real widget) is still a follow-up.
+
+**Notifications** are partly real: the urgency concept ADR-0005 requires
+(`NotificationSeverity`, `src/core/notification.h`) and the `EventBus`-based
+publish path exist, with `LowBatteryMonitor` (`src/core/`) as the first
+real publisher and `NotificationBanner` (`src/ui/`) as the first real
+presentation output — see [ui.md](ui.md#notification-presentation) for
+what's still open (sound, the dashboard indicator, and the alert-priority
+wake cycle itself, which is Power Management scope).
+
+**Networking** is partly real: Wi-Fi provisioning and mDNS
+self-advertisement both work on hardware (see
+[networking.md](networking.md#status)); the mDNS *browsing* wrapper for
+modules to discover Home Assistant/Kodi remains unbuilt, with no real
+consumer until one of those modules exists.
+
 Everything else in the Responsibilities list above — Application
-lifecycle, Dashboard's general widget-registration system,
-Notifications, Networking, OTA updates, Power management, Weather
-services — is still just the required responsibility, not a finalized
-API; that design happens starting at M2 (Platform Services), informed by
-the concrete needs of the Harmony module in M3 rather than designed
-speculatively ahead of a real
-consumer.
+lifecycle, OTA updates (the A/B partition table exists, per
+[ADR-0017](../decisions/ADR-0017-partition-table.md), but not the update
+flow itself), Power management, Weather services — is still just the
+required responsibility, not a finalized API; that design happens
+starting at M2 (Platform Services), informed by the concrete needs of
+the Harmony module in M3 rather than designed speculatively ahead of a
+real consumer.

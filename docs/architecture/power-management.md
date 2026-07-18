@@ -166,4 +166,8 @@ measurements rather than decided abstractly:**
 ## Status
 
 Not yet implemented. Planned for M2 (Platform Services), building on the
-Tab5 boot/display/battery work done in M1.
+Tab5 boot/display/battery work done in M1. One piece named above is real
+ahead of the rest: the urgency concept this section requires of Core's
+notification service (`NotificationSeverity`, `src/core/notification.h`)
+exists, since a low-battery notification needed it — but the wake cycle
+itself, and everything else in this document, remain unbuilt.

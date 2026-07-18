@@ -38,6 +38,7 @@ add_library(homedeck_core
   core/event_bus.cpp
   core/clock.cpp
   core/storage.cpp
+  core/low_battery_monitor.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host)
 
@@ -52,6 +53,7 @@ if(TARGET lvgl)
     ui/home_affordance.cpp
     ui/status_bar.cpp
     ui/dashboard_grid.cpp
+    ui/notification_banner.cpp
     ui/screens/dashboard_screen.cpp
   )
   target_link_libraries(homedeck_ui PUBLIC homedeck_core lvgl)

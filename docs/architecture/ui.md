@@ -142,4 +142,16 @@ against a deliberately throwaway second screen
 (`simulator/screens/placeholder_screen.h`, replaced once a genuine second
 screen exists — an M2 settings screen, or the first M3 module screen).
 Confirmed working manually in both directions, not just compiling. The
-status bar described above doesn't exist yet — M2 scope.
+status bar described above is real, confirmed on hardware (see
+[dashboard.md](dashboard.md#status)).
+
+Notification presentation is partly real: `NotificationBanner`
+(`src/ui/notification_banner.h`/`.cpp`) is the screen-banner output —
+parented to LVGL's own top layer (`lv_layer_top()`), not any particular
+screen, since it renders above whatever screen Navigation currently has
+loaded; a single instance covers every screen, unlike `StatusBar`, which
+each screen constructs its own copy of. Auto-dismisses a few seconds
+after showing. Sound and the dashboard-indicator output are not built —
+sound needs audio hardware bring-up that hasn't happened yet, and the
+indicator is a real `DashboardGrid` widget that's a separate follow-up,
+the same as weather (see [dashboard.md](dashboard.md#status)).

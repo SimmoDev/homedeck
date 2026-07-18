@@ -1,10 +1,12 @@
 #include "core/clock.h"
 #include "core/event_bus.h"
+#include "core/low_battery_monitor.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/http_server.h"
 #include "platform/host/time_source.h"
 #include "screens/placeholder_screen.h"
 #include "ui/navigation.h"
+#include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/ui_task.h"
 #include "widgets/placeholder_widget.h"
@@ -84,6 +86,29 @@ void CreateTestNavButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
     lv_label_set_text(label, "Test: go to placeholder screen");
 }
 
+// Temporary test-only wiring proving LowBatteryMonitor/NotificationBanner
+// end to end - HostBatteryReader is a fixed-then-adjustable mock (see
+// platform/host/battery_reader.h) that never naturally crosses the low-
+// battery threshold on its own, so there's no other way to see the real
+// notification flow run in the simulator. Removed once a real widget
+// (weather) or some other real trigger exists to exercise this
+// naturally; kept out of LowBatteryMonitor itself so real product code
+// stays free of throwaway test scaffolding, the same reasoning
+// CreateTestNavButton above already follows.
+void OnTestLowBatteryClicked(lv_event_t* e) {
+    auto* battery_reader = static_cast<homedeck::HostBatteryReader*>(lv_event_get_user_data(e));
+    battery_reader->SetPercent(10);
+}
+
+void CreateTestLowBatteryButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -64);
+    lv_obj_add_event_cb(button, OnTestLowBatteryClicked, LV_EVENT_CLICKED, &battery_reader);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: trigger low battery");
+}
+
 }  // namespace
 
 // The dashboard shell, StatusBar, and DashboardGrid widget framework -
@@ -132,6 +157,16 @@ int main() {
     navigation.Register("placeholder", placeholder.Root());
 
     CreateTestNavButton(dashboard.Root(), navigation);
+    CreateTestLowBatteryButton(dashboard.Root(), battery_reader);
+
+    // NotificationBanner must exist before LowBatteryMonitor, which must
+    // exist before Clock (the ClockTickEvent publisher) - the same
+    // "subscriber before publisher" ordering StatusBar's own comment
+    // above already explains, extended one step further: LowBatteryMonitor
+    // itself publishes NotificationEvent, so NotificationBanner needs to
+    // already be subscribed before that first tick could fire one.
+    homedeck::NotificationBanner notification_banner(event_bus);
+    homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
 
     homedeck::HostTimeSource time_source;
     homedeck::Clock clock(time_source, event_bus);

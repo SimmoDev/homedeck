@@ -322,7 +322,29 @@ features start landing and these paragraphs need rewriting anyway.
 - [ ] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —
-      vibration is out of scope, no motor exists on the confirmed BOM
+      vibration is out of scope, no motor exists on the confirmed BOM.
+      **The core service and screen-banner output are real** —
+      `NotificationEvent`/`NotificationSeverity`
+      (`src/core/notification.h`, carrying the alert-priority/deferred
+      urgency [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
+      requires) published via `EventBus`, `LowBatteryMonitor`
+      (`src/core/`) as the first real publisher (latched so a sustained
+      low-battery state notifies once, not once a second, guarded by a
+      regression test), and `NotificationBanner` (`src/ui/`, parented to
+      LVGL's top layer so it renders over whatever screen is active) as
+      the first real presentation output. Confirmed via the simulator (a
+      temporary test trigger, since the simulator's mock battery never
+      naturally drops low) and confirmed on hardware for the parts that
+      don't need a genuinely low pack to exercise: the new wiring boots
+      and runs the dashboard normally, no regression. The actual
+      notification firing and rendering on the real panel is
+      unconfirmed - `Ina226BatteryReader` has no equivalent manual
+      trigger, so this specifically needs the pack to actually drop below
+      15% to verify, not something forced for this pass. Still open:
+      sound (needs unbuilt audio hardware bring-up), the dashboard
+      indicator (a real widget, separate follow-up like weather), and the
+      alert-priority wake cycle itself (Power Management scope, still
+      unbuilt)
 - [ ] Widget framework (general dashboard widget interface), including the
       weather widget (Core `WeatherProvider` interface, Open-Meteo as the
       direct provider — see [dashboard.md](architecture/dashboard.md#weather-source)).

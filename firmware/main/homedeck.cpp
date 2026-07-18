@@ -14,10 +14,12 @@
 
 #include "core/clock.h"
 #include "core/event_bus.h"
+#include "core/low_battery_monitor.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/http_server.h"
 #include "platform/firmware/time_source.h"
+#include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/widget.h"
 #include "wifi_setup.h"
@@ -124,6 +126,13 @@ extern "C" void app_main(void) {
     dashboard.Grid().AddWidget(widget_b);
     dashboard.Grid().AddWidget(widget_c);
     dashboard.Grid().AddWidget(widget_d);
+    // NotificationBanner must exist before LowBatteryMonitor, which must
+    // exist before Clock (the ClockTickEvent publisher) - see
+    // simulator/main.cpp's identical ordering note. Unlike the
+    // simulator, there's no manual trigger here - Ina226BatteryReader is
+    // real, so this only actually fires once the pack genuinely runs low.
+    homedeck::NotificationBanner notification_banner(event_bus);
+    homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
     lv_scr_load(dashboard.Root());
     bsp_display_unlock();
     printf("Dashboard loaded\n");
