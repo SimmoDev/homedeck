@@ -31,5 +31,5 @@ target_link_libraries(lvgl PUBLIC PkgConfig::SDL2)
 # so its homedeck_ui target (conditional on `lvgl` existing) is defined.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_BINARY_DIR}/src)
 
-add_executable(homedeck_simulator main.cpp screens/placeholder_screen.cpp)
+add_executable(homedeck_simulator main.cpp screens/placeholder_screen.cpp widgets/placeholder_widget.cpp)
 target_link_libraries(homedeck_simulator PRIVATE homedeck_ui PkgConfig::SDL2)

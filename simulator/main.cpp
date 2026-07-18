@@ -7,6 +7,7 @@
 #include "ui/navigation.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/ui_task.h"
+#include "widgets/placeholder_widget.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -85,11 +86,10 @@ void CreateTestNavButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
 
 }  // namespace
 
-// The initial dashboard shell per docs/roadmap.md's M1 items - Core-only
-// widgets (clock/date, battery), no pluggable widget framework or grid
-// layout yet (both M2 scope, per dashboard.md's Status). Plus a minimal
-// Navigation manager and persistent home affordance, proven via a
-// deliberately throwaway second screen (see screens/placeholder_screen.h).
+// The dashboard shell, StatusBar, and DashboardGrid widget framework -
+// see dashboard.md's Status for what's real. Plus a minimal Navigation
+// manager and persistent home affordance, proven via a deliberately
+// throwaway second screen (see screens/placeholder_screen.h).
 int main() {
     homedeck::EventBus event_bus;
     homedeck::UiTask ui_task(kWindowWidth, kWindowHeight, event_bus, ResolveWindowZoom());
@@ -102,6 +102,29 @@ int main() {
     // already exists when it happens.
     homedeck::HostBatteryReader battery_reader;
     homedeck::DashboardScreen dashboard(event_bus, battery_reader);
+
+    // Temporary test-only wiring proving DashboardGrid hosts multiple
+    // widgets of varying spans, without knowing their concrete type (see
+    // docs/architecture/dashboard.md#widget-system) - there's no real
+    // widget yet (weather is a separate follow-up pass). Removed once one
+    // exists; kept out of DashboardScreen itself so real product code
+    // stays free of throwaway test scaffolding, the same reasoning
+    // CreateTestNavButton below already follows. Deliberately exercises
+    // column span, row span, first-fit packing around an
+    // already-occupied cell, and row growth together, not just the
+    // simplest case: A (2x1) and B (2x2, tall) fill row 0's 4 columns;
+    // C and D (1x1 each) then have to skip B's row-1 footprint to land
+    // in row 1's remaining free cells, which only exist because
+    // DashboardGrid grew a new row to fit B in the first place.
+    PlaceholderWidget widget_a(dashboard.Grid().Container(), "Widget A", /*column_span=*/2);
+    PlaceholderWidget widget_b(dashboard.Grid().Container(), "Widget B", /*column_span=*/2,
+                                /*row_span=*/2);
+    PlaceholderWidget widget_c(dashboard.Grid().Container(), "Widget C");
+    PlaceholderWidget widget_d(dashboard.Grid().Container(), "Widget D");
+    dashboard.Grid().AddWidget(widget_a);
+    dashboard.Grid().AddWidget(widget_b);
+    dashboard.Grid().AddWidget(widget_c);
+    dashboard.Grid().AddWidget(widget_d);
 
     homedeck::Navigation navigation("dashboard", dashboard.Root());
 

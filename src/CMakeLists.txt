@@ -51,6 +51,7 @@ if(TARGET lvgl)
     ui/navigation.cpp
     ui/home_affordance.cpp
     ui/status_bar.cpp
+    ui/dashboard_grid.cpp
     ui/screens/dashboard_screen.cpp
   )
   target_link_libraries(homedeck_ui PUBLIC homedeck_core lvgl)

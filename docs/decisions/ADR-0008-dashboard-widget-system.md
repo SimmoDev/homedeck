@@ -32,6 +32,23 @@ unrelated modules, and more design work up front than justified before a
 real widget catalog exists. Exact grid dimensions and cell-span rules are
 implementation details for M2, not part of this decision.
 
+**Implementation note (M2):** `DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`)
+is that grid, built on LVGL's native grid layout
+(`lv_obj_set_grid_dsc_array`/`lv_obj_set_grid_cell`, already enabled on
+both targets). `DashboardGrid::kColumns` (4) — the exact dimension this
+decision left open — was picked with no real widget catalog to size
+against yet, so treat it as provisional rather than settled; rows have
+no fixed count at all, growing on demand as widgets are added. Cell-span
+is real: widgets can occupy more than one column and/or row
+(`Widget::ColumnSpan()`/`RowSpan()`, `src/ui/widget.h`, both defaulting
+to 1), placed by first-fit scanning against a per-row occupancy bitset,
+not just a plain left-to-right cursor (multi-row spans need to know
+which cells further down are already taken). `Widget` otherwise stays
+the minimal contribution interface this decision and CLAUDE.md both call
+for: no live/cached/offline freshness reporting yet (see
+[dashboard.md](../architecture/dashboard.md#data-freshness)) — left out
+for the same reason cell-span originally was, not forgotten.
+
 ## Decision: Weather data source
 
 **Context:** CLAUDE.md lists weather as a Core-provided widget, but weather

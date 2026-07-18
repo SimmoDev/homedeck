@@ -7,8 +7,6 @@ namespace homedeck {
 
 namespace {
 
-constexpr int32_t kBarHeight = 48;
-
 // localtime_r is POSIX; matches Linux being the only currently-verified
 // simulator platform (see DEVELOPMENT.md) - same caveat as
 // DashboardScreen's now-removed clock formatting had.
@@ -30,7 +28,7 @@ void RefreshBatteryLabel(lv_obj_t* label, BatteryReader& battery_reader) {
 StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader)
     : battery_reader_(battery_reader) {
     lv_obj_t* bar = lv_obj_create(parent);
-    lv_obj_set_size(bar, LV_PCT(100), kBarHeight);
+    lv_obj_set_size(bar, LV_PCT(100), kHeight);
     lv_obj_align(bar, LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_style_pad_all(bar, 0, 0);
     lv_obj_set_style_radius(bar, 0, 0);

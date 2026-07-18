@@ -17,6 +17,10 @@ namespace homedeck {
 // it (see ui.md's Navigation model).
 class StatusBar {
 public:
+    // Exposed so other screen chrome (e.g. DashboardGrid) can position
+    // itself below the bar without duplicating this as a magic number.
+    static constexpr int32_t kHeight = 48;
+
     StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader);
 
 private:

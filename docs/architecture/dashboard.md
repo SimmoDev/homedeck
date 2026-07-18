@@ -133,5 +133,38 @@ reading the INA226 power monitor; the known gap in that reading (no
 charging state, no "no battery installed" detection, and an approximation
 confirmed slightly inaccurate — see [hardware.md](hardware.md#power)) is
 unchanged by this — it's Power Management scope, not the status bar's.
-No pluggable widget-registration system or grid layout exists yet; those
-stay M2. See `docs/roadmap.md` for what's next.
+
+The widget framework's interface and layout half is real: `Widget`
+(`src/ui/widget.h`) is the standard contribution interface — a `Root()`
+accessor plus a `ColumnSpan()`/`RowSpan()` footprint (both default to 1,
+override to occupy more); no live/cached/offline freshness reporting
+yet, left out as ADR-0008 says it should be until a real widget exists
+to design against. `DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`)
+hosts widgets on a fixed grid — `DashboardGrid::kColumns` (4) columns,
+genuinely arbitrary pending real content to size against, not a
+considered choice — with rows growing on demand as widgets are added (no
+paging concept exists, so the grid stays scrollable for when content
+exceeds the visible screen, unlike the deliberately non-scrolling status
+bar). Rows are a fixed height matched to column width, so a 1×1 cell is
+square rather than sized to its own content. Placement is first-fit:
+scan cells top-to-bottom, left-to-right, and use the first position a
+widget's full footprint fits without overlapping an already-placed
+widget, tracked via a real per-row occupancy bitset, not just a simple
+left-to-right cursor (multi-row spans need to know which cells further
+down are already taken), including the 8px gap between cells (folded
+into the same row-height calculation, not applied separately, since it
+eats into the same available width the column size comes from). Built
+into `DashboardScreen` on both targets, confirmed on hardware (Tab5 K145
+reference unit): first-fit placement of mixed spans, square 1×1 cells,
+and cell spacing all render correctly on the real panel.
+
+No real widget exists yet; weather (see [Weather source](#weather-source)
+above) is a separate follow-up pass. The mechanism — that `DashboardGrid`
+hosts multiple widgets of varying spans without knowing their concrete
+type, correctly packing around each other and growing new rows as
+needed — is proven via four throwaway widgets at mixed spans (2×1, 2×2,
+1×1, 1×1) on both targets: `PlaceholderWidget` (`simulator/widgets/`) on
+the simulator, and an identical inline `TestWidget` in
+`firmware/main/homedeck.cpp` on firmware, the same role `PlaceholderScreen`
+played for Navigation before real screens existed. Both are removed once
+a real widget (weather) exists to replace them.

@@ -327,11 +327,25 @@ features start landing and these paragraphs need rewriting anyway.
       weather widget (Core `WeatherProvider` interface, Open-Meteo as the
       direct provider — see [dashboard.md](architecture/dashboard.md#weather-source)).
       Its prerequisite is done: `EventBus`'s cross-thread subscriber-lifetime
-      gap is resolved (see [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#consequences)),
-      simulator and firmware builds unaffected. This will still be the
-      first real case of a screen/widget being destroyed at runtime while
-      subscribed to Core
-      events, so worth a real-hardware pass of its own once built
+      gap is resolved (see [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#consequences)).
+      **The interface and grid layout are real, confirmed on hardware**
+      (Tab5 K145 reference unit) — `Widget` (`src/ui/widget.h`, with
+      `ColumnSpan()`/`RowSpan()` footprint) and `DashboardGrid`
+      (`src/ui/dashboard_grid.h`/`.cpp`, LVGL's native grid layout, 4
+      fixed columns each a fixed square-sized row tall, unbounded
+      scrollable rows, first-fit placement against a real per-row
+      occupancy bitset) are built into `DashboardScreen` on both targets.
+      Multi-widget hosting, first-fit placement at mixed spans (2×1,
+      2×2, 1×1, 1×1), square cells, and cell spacing all render correctly
+      on the real panel, via throwaway widgets on both targets (see
+      [dashboard.md](architecture/dashboard.md#status)). Still open: the
+      weather widget itself, the first real widget built against this
+      framework, worth its own real-hardware pass once built. The
+      screen/widget-destroyed-at-runtime scenario ADR-0011's fix targets
+      doesn't arrive with weather specifically — it needs the
+      enable/disable or reorder customization named in
+      [dashboard.md](architecture/dashboard.md#customization-future),
+      which is separate, later M7 scope
 - [x] Status bar (persistent date/time and battery, shown on every screen —
       not a dashboard widget, see
       [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)).

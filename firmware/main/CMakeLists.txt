@@ -18,6 +18,7 @@ idf_component_register(
         "../../src/core/storage.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
         "../../src/ui/status_bar.cpp"
+        "../../src/ui/dashboard_grid.cpp"
         "../../src/platform/firmware/task.cpp"
         "../../src/platform/firmware/timer.cpp"
         "../../src/platform/firmware/i2c_device.cpp"
