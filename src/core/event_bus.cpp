@@ -55,6 +55,17 @@ void EventBus::Unsubscribe(std::type_index type, std::uint64_t id) {
                list.end());
 }
 
+std::function<void(std::shared_ptr<void>)> EventBus::FindCallback(std::type_index type,
+                                                                    std::uint64_t id) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = subscribers_.find(type);
+    if (it == subscribers_.end()) return nullptr;
+    auto sub_it = std::find_if(it->second.begin(), it->second.end(),
+                                [id](const Subscriber& s) { return s.id == id; });
+    if (sub_it == it->second.end()) return nullptr;
+    return sub_it->callback;
+}
+
 void EventBus::PublishImpl(std::type_index type, std::shared_ptr<void> payload) {
     // Copy the relevant subscriber list (and dispatcher) out from under
     // the lock before invoking callbacks, so a subscriber that calls
@@ -74,7 +85,18 @@ void EventBus::PublishImpl(std::type_index type, std::shared_ptr<void> payload) 
     for (const auto& subscriber : subscribers_to_notify) {
         if (subscriber.is_ui) {
             if (!dispatcher) continue;  // no UI task registered yet; drop.
-            dispatcher([callback = subscriber.callback, payload]() { callback(payload); });
+            // Captures id, not the callback itself - lv_async_call() (or
+            // whatever the registered dispatcher defers through) may run
+            // this well after the subscriber unsubscribed, so liveness is
+            // re-checked by looking the callback up again at the point it
+            // actually executes, not at the point it was queued. See
+            // ADR-0011's "Resolved (M2)" note: capturing the callback
+            // directly here would let a deferred call fire against an
+            // already-destroyed subscriber.
+            dispatcher([this, type, id = subscriber.id, payload]() {
+                auto callback = FindCallback(type, id);
+                if (callback) callback(payload);
+            });
         } else {
             subscriber.callback(payload);
         }

@@ -57,3 +57,55 @@ TEST(EventBus, DifferentEventTypesDoNotCrossDeliver) {
     bus.Publish(OtherEvent{99});
     EXPECT_EQ(test_event_received, 0);
 }
+
+// A dispatcher that queues instead of running inline, standing in for
+// lv_async_call()'s real "runs on the next tick, not now" behavior - the
+// existing SubscribeUiRoutesThroughTheRegisteredDispatcher test above
+// runs its dispatcher inline, which can never exercise the gap ADR-0011
+// describes (Unsubscribe racing a still-queued deferred call).
+struct QueuingDispatcher {
+    std::vector<std::function<void()>> queued;
+
+    void operator()(std::function<void()> fn) { queued.push_back(std::move(fn)); }
+
+    void RunAllQueued() {
+        auto to_run = std::move(queued);
+        queued.clear();
+        for (auto& fn : to_run) fn();
+    }
+};
+
+TEST(EventBus, DeferredUiCallbackStillFiresWhenSubscriberOutlivesTheTick) {
+    homedeck::EventBus bus;
+    QueuingDispatcher dispatcher;
+    bus.SetUiDispatcher([&dispatcher](std::function<void()> fn) { dispatcher(std::move(fn)); });
+
+    int received = 0;
+    auto sub =
+        bus.SubscribeUi<TestEvent>([&received](const TestEvent& e) { received = e.value; });
+    bus.Publish(TestEvent{7});
+    ASSERT_EQ(received, 0);  // not yet delivered - still queued, matching the real async gap
+
+    dispatcher.RunAllQueued();
+    EXPECT_EQ(received, 7);
+}
+
+TEST(EventBus, DeferredUiCallbackIsSkippedIfUnsubscribedBeforeTheTickRuns) {
+    homedeck::EventBus bus;
+    QueuingDispatcher dispatcher;
+    bus.SetUiDispatcher([&dispatcher](std::function<void()> fn) { dispatcher(std::move(fn)); });
+
+    int received = 0;
+    auto sub =
+        bus.SubscribeUi<TestEvent>([&received](const TestEvent& e) { received = e.value; });
+    bus.Publish(TestEvent{7});  // queues a deferred call, not yet run
+
+    sub.Reset();  // unsubscribes - the subscriber may now be destroyed in real use
+
+    // Simulates the LVGL tick that runs the deferred call firing only
+    // after Unsubscribe already completed (see ADR-0011's "Resolved
+    // (M2)" note) - liveness is re-checked at this point, so the stale
+    // callback must not run.
+    dispatcher.RunAllQueued();
+    EXPECT_EQ(received, 0);
+}

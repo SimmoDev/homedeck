@@ -325,11 +325,13 @@ features start landing and these paragraphs need rewriting anyway.
       vibration is out of scope, no motor exists on the confirmed BOM
 - [ ] Widget framework (general dashboard widget interface), including the
       weather widget (Core `WeatherProvider` interface, Open-Meteo as the
-      direct provider — see [dashboard.md](architecture/dashboard.md#weather-source)) —
+      direct provider — see [dashboard.md](architecture/dashboard.md#weather-source)).
+      Its prerequisite is done: `EventBus`'s cross-thread subscriber-lifetime
+      gap is resolved (see [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#consequences)),
+      simulator and firmware builds unaffected. This will still be the
       first real case of a screen/widget being destroyed at runtime while
-      subscribed to Core events, so resolve `EventBus`'s known
-      cross-thread subscriber-lifetime gap (see [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#consequences))
-      before or alongside this, not after
+      subscribed to Core
+      events, so worth a real-hardware pass of its own once built
 - [x] Status bar (persistent date/time and battery, shown on every screen —
       not a dashboard widget, see
       [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)).

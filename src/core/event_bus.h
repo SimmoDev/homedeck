@@ -28,13 +28,13 @@ public:
     // just "let this member go out of scope," not a call site to
     // remember.
     //
-    // This only stops *future* publishes from reaching the callback. A
-    // SubscribeUi callback dispatched from a publish that already
-    // happened on another thread (e.g. Clock's Timer) may still be
-    // queued and fire after this handle is destroyed - safe today only
-    // because nothing yet destroys a screen at runtime. See ADR-0011's
-    // "Known gap, not yet solved" before relying on this for a
-    // subscriber that can be destroyed while live.
+    // Safe even against a SubscribeUi callback already dispatched from a
+    // publish on another thread (e.g. Clock's Timer) before this handle
+    // is destroyed: PublishImpl re-checks whether the subscriber is still
+    // registered at the point the deferred call actually executes, not
+    // at the point it was queued, so a callback belonging to an
+    // already-destroyed subscriber is never invoked (see ADR-0011's
+    // "Resolved (M2)" note).
     class ScopedSubscription {
     public:
         ScopedSubscription() = default;
@@ -90,6 +90,12 @@ private:
     ScopedSubscription SubscribeImpl(std::type_index type, bool is_ui,
                                       std::function<void(std::shared_ptr<void>)> callback);
     void Unsubscribe(std::type_index type, std::uint64_t id);
+    // Re-looks-up a subscriber's callback by id at the time it's called,
+    // rather than assuming a copy taken earlier is still valid - see
+    // PublishImpl's UI dispatch path and ADR-0011's "Resolved (M2)" note.
+    // Returns nullptr if the subscriber has since unsubscribed.
+    std::function<void(std::shared_ptr<void>)> FindCallback(std::type_index type,
+                                                              std::uint64_t id);
     void PublishImpl(std::type_index type, std::shared_ptr<void> payload);
 
     std::mutex mutex_;
