@@ -87,4 +87,25 @@ for why.
 
 ## Status
 
-Not yet implemented. Planned for M2 (Platform Services).
+Wi-Fi provisioning and the embedded HTTP server (see [web-ui.md](web-ui.md#status))
+are real and confirmed on hardware. Self-advertisement is also real,
+**confirmed on hardware** — firmware calls ESP-IDF's `mdns` component
+directly (`mdns_init`/`mdns_hostname_set`/`mdns_service_add` in
+`firmware/main/homedeck.cpp`) to advertise the device as `homedeck.local`
+with an `_http._tcp` service record for the Web UI, once Wi-Fi connects.
+Verified from a phone's browser, reaching `http://homedeck.local/`
+successfully over the LAN (a desktop Linux client without `nss-mdns`/
+Avahi resolution configured won't resolve `.local` names at all — a
+client-side gap, not something this device's advertisement can fix). No
+Core abstraction wraps this — it's a handful of direct calls with no
+simulator-side equivalent needed (the simulator is already reachable at
+`localhost`, and desktop OSes run their own mDNS responder for the
+machine itself).
+
+Still not implemented: the mDNS *browsing* wrapper this document
+describes above, for modules to discover Home Assistant/Kodi. That has no
+real consumer until one of those modules exists (M4 for Kodi, M6 for Home
+Assistant) — building it now would be exactly the kind of speculative
+Core abstraction [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape)
+itself rejects. LAN discovery (browsing) remains planned for whichever of
+those milestones lands first.

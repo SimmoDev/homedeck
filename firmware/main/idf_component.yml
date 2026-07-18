@@ -32,3 +32,8 @@ dependencies:
   # needs idf >=5.5 and would conflict with the v5.4.3 pin above (ADR-0014).
   # See docs/architecture/hardware.md#wireless.
   espressif/esp_wifi_remote: "*"
+  # mdns moved out of ESP-IDF's own tree into the component registry as of
+  # IDF 5.x (confirmed absent from /opt/esp/idf/components in the
+  # espressif/idf:v5.4.3 image) - needed for self-advertising the device
+  # as homedeck.local (see docs/architecture/networking.md#lan-discovery).
+  espressif/mdns: "*"

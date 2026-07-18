@@ -58,6 +58,15 @@ it means genuine duplicated mDNS-browsing code between at least two modules
 that would otherwise want identical logic. Harmony's discovery logic stays
 entirely inside the Harmony module either way.
 
+**Implementation note (M2):** this decision covers mDNS *browsing*, which
+remains unbuilt — it still has no real consumer until Kodi (M4) or Home
+Assistant (M6) exists. A separate, smaller thing shipped in the meantime:
+firmware self-advertises as `homedeck.local` via the same `espressif/mdns`
+component, so the device is reachable by name instead of only via a
+serial-logged IP. That's direct calls in `firmware/main/homedeck.cpp`, not
+a Core abstraction — see
+[networking.md](../architecture/networking.md#status).
+
 ## Decision: Initial Wi-Fi provisioning flow
 
 **Context:** the device has no Wi-Fi credentials out of the box, so it

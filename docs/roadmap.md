@@ -240,7 +240,16 @@ features start landing and these paragraphs need rewriting anyway.
       real OTA A/B partition table (see
       [ADR-0017](decisions/ADR-0017-partition-table.md)).
 - [ ] LAN discovery (thin mDNS wrapper — see
-      [networking.md](architecture/networking.md#lan-discovery))
+      [networking.md](architecture/networking.md#lan-discovery)).
+      **Self-advertisement is real, confirmed on hardware** — the device
+      advertises as `homedeck.local` once Wi-Fi connects (ESP-IDF's
+      `mdns` component, called directly from `firmware/main/homedeck.cpp`,
+      no Core abstraction — see [networking.md](architecture/networking.md#status)),
+      verified reachable at `http://homedeck.local/` from a phone's
+      browser over the LAN. Still open:
+      the mDNS *browsing* wrapper itself (for modules to discover Home
+      Assistant/Kodi) — deliberately deferred until one of those modules
+      is real (M4/M6), not built speculatively ahead of a consumer
 - [ ] Configuration service (storage-backed) across the three storage tiers
       (NVS encrypted using the HMAC-peripheral key scheme, internal flash
       filesystem, optional microSD — see

@@ -9,6 +9,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lvgl.h"
+#include "mdns.h"
 #include "nvs_flash.h"
 
 #include "core/clock.h"
@@ -113,6 +114,24 @@ extern "C" void app_main(void) {
     // by this point, so this doesn't delay first paint.
     homedeck::ConnectToWifi();
     printf("Wi-Fi connected\n");
+
+    // Self-advertisement only - see
+    // docs/architecture/networking.md#lan-discovery. Not the Core mDNS
+    // *browsing* wrapper that doc also names (for modules discovering
+    // Kodi/Home Assistant) - that has no real consumer until one of
+    // those modules exists (M4/M6 respectively), so building it now
+    // would be exactly the kind of speculative Core abstraction
+    // ADR-0006 itself rejects. This just makes the device reachable as
+    // homedeck.local instead of requiring the serial-logged IP.
+    esp_err_t mdns_result = mdns_init();
+    if (mdns_result == ESP_OK) {
+        mdns_hostname_set("homedeck");
+        mdns_instance_name_set("HomeDeck");
+        mdns_service_add(nullptr, "_http", "_tcp", 80, nullptr, 0);
+        printf("mDNS advertising as homedeck.local\n");
+    } else {
+        printf("mDNS init failed: %s\n", esp_err_to_name(mdns_result));
+    }
 
     // The Web Management UI's server primitive (see
     // docs/architecture/web-ui.md#status) - just a placeholder route for
