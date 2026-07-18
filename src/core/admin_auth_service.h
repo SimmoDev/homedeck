@@ -25,8 +25,10 @@ using SessionToken = std::string;
 // first-login sets the password, not the SoftAP flow). Portable and
 // HTTP-agnostic on purpose - HttpServer::Handler/HttpRequest/HttpResponse
 // are the only platform-layer types this touches, the same boundary
-// Storage already crosses for its own SettingsStore/CacheStore
-// dependencies.
+// Storage already crosses for its own SettingsStore/CacheStore/
+// SecretStore dependencies. The password hash is stored via
+// Storage::SetSecret/GetSecret, not SetSetting - see
+// docs/decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface.
 //
 // Unlike most of Core, this is called from HTTP server worker threads,
 // not the LVGL UI task - civetweb and esp_http_server can both dispatch

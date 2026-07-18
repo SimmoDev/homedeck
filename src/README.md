@@ -23,15 +23,21 @@ src/
 │                docs/architecture/hardware.md#on-device-dashboard).
 │                Queue<T>'s firmware backend stays deferred - still
 │                nothing uses it. BatteryReader/TimeSource/SettingsStore/
-│                CacheStore are small virtual interfaces (not pImpl'd
-│                like Task/Timer - simple, infrequently-called, and
-│                directly mockable matters more than dispatch cost).
-│                SettingsStore/CacheStore back Storage's two tiers (see
-│                core/ below); host/ implements both as real files under
-│                a caller-supplied scratch directory, firmware/ wraps NVS
-│                (SettingsStore) and the `storage` FAT partition
-│                (CacheStore, see ADR-0017). Also HttpServer - the Web
-│                Management UI's server primitive (see
+│                SecretStore/CacheStore are small virtual interfaces (not
+│                pImpl'd like Task/Timer - simple, infrequently-called,
+│                and directly mockable matters more than dispatch cost).
+│                SettingsStore/SecretStore/CacheStore back Storage's
+│                tiers (see core/ below); host/ implements all three as
+│                real files under a caller-supplied scratch directory
+│                (SecretStore under a separate `secrets/` subdirectory
+│                from SettingsStore's `settings/`, so the two never
+│                collide on disk), firmware/ wraps NVS (SettingsStore,
+│                SecretStore - same partition and per-`ns` namespace as
+│                each other, a documented caller constraint rather than a
+│                structural guarantee, see
+│                platform/firmware/secret_store.h) and the `storage` FAT
+│                partition (CacheStore, see ADR-0017). Also HttpServer -
+│                the Web Management UI's server primitive (see
 │                docs/architecture/web-ui.md#status), another small
 │                virtual interface; host/ implements it with civetweb
 │                (HostHttpServer), firmware/ wraps esp_http_server
@@ -56,11 +62,11 @@ src/
 │                once a second (and once immediately at construction).
 │                Also Storage - Core's Configuration and Storage
 │                responsibilities in one class (see core.md#status):
-│                schema-versioned settings/cache read-write over
-│                platform/'s SettingsStore/CacheStore, namespaced per
-│                module by requiring a module ID on every call. NVS
-│                encryption and the microSD tier are deliberately not
-│                built yet (see ADR-0010/ADR-0012). Also
+│                schema-versioned settings/secret/cache read-write over
+│                platform/'s SettingsStore/SecretStore/CacheStore,
+│                namespaced per module by requiring a module ID on every
+│                call. NVS encryption and the microSD tier are
+│                deliberately not built yet (see ADR-0018/ADR-0012). Also
 │                notification.h/LowBatteryMonitor - the Notifications
 │                service's urgency-tagged event and its first real
 │                publisher (see core.md#status). Also AdminAuthService -

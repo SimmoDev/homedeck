@@ -1,6 +1,7 @@
 #include "core/admin_auth_service.h"
 
 #include "platform/host/cache_store.h"
+#include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
 
 #include <gtest/gtest.h>
@@ -27,7 +28,8 @@ protected:
         std::filesystem::remove_all(root_dir_);
         settings_store_ = std::make_unique<homedeck::HostSettingsStore>(root_dir_);
         cache_store_ = std::make_unique<homedeck::HostCacheStore>(root_dir_);
-        storage_ = std::make_unique<homedeck::Storage>(*settings_store_, *cache_store_);
+        secret_store_ = std::make_unique<homedeck::HostSecretStore>(root_dir_);
+        storage_ = std::make_unique<homedeck::Storage>(*settings_store_, *cache_store_, *secret_store_);
     }
 
     void TearDown() override { std::filesystem::remove_all(root_dir_); }
@@ -35,6 +37,7 @@ protected:
     std::filesystem::path root_dir_;
     std::unique_ptr<homedeck::HostSettingsStore> settings_store_;
     std::unique_ptr<homedeck::HostCacheStore> cache_store_;
+    std::unique_ptr<homedeck::HostSecretStore> secret_store_;
     std::unique_ptr<homedeck::Storage> storage_;
     FakeTimeSource time_source_;
 };

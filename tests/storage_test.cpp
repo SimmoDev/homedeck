@@ -1,5 +1,6 @@
 #include "core/storage.h"
 #include "platform/host/cache_store.h"
+#include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
 
 #include <gtest/gtest.h>
@@ -27,7 +28,8 @@ protected:
 TEST_F(StorageTest, SettingRoundTrips) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     ASSERT_TRUE(storage.SetSetting("harmony", "hub_ip", 1, "10.0.0.5"));
 
@@ -40,7 +42,8 @@ TEST_F(StorageTest, SettingRoundTrips) {
 TEST_F(StorageTest, GetSettingOnMissingKeyReturnsNullopt) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     EXPECT_FALSE(storage.GetSetting("harmony", "never_written").has_value());
 }
@@ -48,7 +51,8 @@ TEST_F(StorageTest, GetSettingOnMissingKeyReturnsNullopt) {
 TEST_F(StorageTest, SettingsAreNamespacedPerModule) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     ASSERT_TRUE(storage.SetSetting("harmony", "hub_ip", 1, "10.0.0.5"));
     ASSERT_TRUE(storage.SetSetting("kodi", "hub_ip", 1, "10.0.0.9"));
@@ -60,7 +64,8 @@ TEST_F(StorageTest, SettingsAreNamespacedPerModule) {
 TEST_F(StorageTest, OverwritingASettingUpdatesBothVersionAndValue) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     ASSERT_TRUE(storage.SetSetting("harmony", "hub_ip", 1, "10.0.0.5"));
     ASSERT_TRUE(storage.SetSetting("harmony", "hub_ip", 2, "10.0.0.6"));
@@ -74,7 +79,8 @@ TEST_F(StorageTest, OverwritingASettingUpdatesBothVersionAndValue) {
 TEST_F(StorageTest, EraseSettingRemovesIt) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     ASSERT_TRUE(storage.SetSetting("harmony", "hub_ip", 1, "10.0.0.5"));
     ASSERT_TRUE(storage.EraseSetting("harmony", "hub_ip"));
@@ -82,10 +88,36 @@ TEST_F(StorageTest, EraseSettingRemovesIt) {
     EXPECT_FALSE(storage.GetSetting("harmony", "hub_ip").has_value());
 }
 
+TEST_F(StorageTest, SecretRoundTripsAndIsSeparateFromSettings) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    ASSERT_TRUE(storage.SetSetting("core", "admin_pw_hash", 1, "settings-value"));
+    ASSERT_TRUE(storage.SetSecret("core", "admin_pw_hash", 1, "secret-value"));
+
+    EXPECT_EQ(storage.GetSetting("core", "admin_pw_hash")->value, "settings-value");
+    EXPECT_EQ(storage.GetSecret("core", "admin_pw_hash")->value, "secret-value");
+}
+
+TEST_F(StorageTest, EraseSecretRemovesIt) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    ASSERT_TRUE(storage.SetSecret("core", "admin_pw_hash", 1, "secret-value"));
+    ASSERT_TRUE(storage.EraseSecret("core", "admin_pw_hash"));
+
+    EXPECT_FALSE(storage.GetSecret("core", "admin_pw_hash").has_value());
+}
+
 TEST_F(StorageTest, CacheRoundTripsAndIsSeparateFromSettings) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     ASSERT_TRUE(storage.SetSetting("harmony", "device_list", 1, "settings-value"));
     ASSERT_TRUE(storage.WriteCache("harmony", "device_list", 1, "cache-value"));
@@ -97,7 +129,8 @@ TEST_F(StorageTest, CacheRoundTripsAndIsSeparateFromSettings) {
 TEST_F(StorageTest, EraseCacheRemovesIt) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     ASSERT_TRUE(storage.WriteCache("harmony", "device_list", 1, "cache-value"));
     ASSERT_TRUE(storage.EraseCache("harmony", "device_list"));

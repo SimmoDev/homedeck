@@ -1,6 +1,7 @@
 #pragma once
 
 #include "platform/cache_store.h"
+#include "platform/secret_store.h"
 #include "platform/settings_store.h"
 
 #include <optional>
@@ -22,12 +23,16 @@ struct VersionedValue {
 // Fulfils both of core.md's named-but-unimplemented "Configuration" and
 // "Storage" responsibilities: reading/writing settings, backed by the
 // three-tier physical split from ADR-0012
-// (docs/decisions/ADR-0012-storage-tiers.md). Only two tiers are wired up
-// here - NVS-backed Settings (small, frequently-read) and FAT-backed
-// Cache (larger, structured) - microSD is deferred entirely; ADR-0012
-// scopes it to extended log archival, which has no consumer yet. Encryption
-// is deferred too (see docs/decisions/ADR-0010-secret-storage.md and the
-// M2 Configuration-service roadmap item) - both tiers are currently plain.
+// (docs/decisions/ADR-0012-storage-tiers.md). Three stores are wired up
+// here - NVS-backed Settings and Secrets (small, frequently-read; kept
+// as physically-separate call paths so secrets are structurally distinct
+// from general config, see
+// docs/decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface)
+// and FAT-backed Cache (larger, structured) - microSD is deferred
+// entirely; ADR-0012 scopes it to extended log archival, which has no
+// consumer yet. NVS encryption itself is deferred (see
+// docs/decisions/ADR-0018-staged-security-hardening.md) - all tiers are
+// currently plain.
 //
 // Per-module namespacing (ADR-0012's "enforced by the service itself, not
 // by convention") comes from requiring module_id on every call and
@@ -35,12 +40,23 @@ struct VersionedValue {
 // trusting callers to prefix their own keys.
 class Storage {
 public:
-    Storage(SettingsStore& settings_store, CacheStore& cache_store);
+    Storage(SettingsStore& settings_store, CacheStore& cache_store, SecretStore& secret_store);
 
     bool SetSetting(const std::string& module_id, const std::string& key, int schema_version,
                      const std::string& value);
     std::optional<VersionedValue> GetSetting(const std::string& module_id, const std::string& key);
     bool EraseSetting(const std::string& module_id, const std::string& key);
+
+    // Secrets excluded from config export/backups - see
+    // docs/decisions/ADR-0012-storage-tiers.md#decision-backup-delivery.
+    // Callers must not reuse a (module_id, key) pair already used through
+    // SetSetting/WriteCache for the same module - see
+    // FirmwareSecretStore's own comment for why that's not structurally
+    // prevented on firmware.
+    bool SetSecret(const std::string& module_id, const std::string& key, int schema_version,
+                    const std::string& value);
+    std::optional<VersionedValue> GetSecret(const std::string& module_id, const std::string& key);
+    bool EraseSecret(const std::string& module_id, const std::string& key);
 
     bool WriteCache(const std::string& module_id, const std::string& key, int schema_version,
                      const std::string& value);
@@ -50,6 +66,7 @@ public:
 private:
     SettingsStore& settings_store_;
     CacheStore& cache_store_;
+    SecretStore& secret_store_;
 };
 
 }  // namespace homedeck

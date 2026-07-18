@@ -104,9 +104,16 @@ Standard tier activates NVS encryption, `SecretStore`'s backing
 implementation is the one place that changes; callers (`AdminAuthService`
 today, module credential storage from M3 on) don't.
 
-This is a design decision, not yet implemented — `AdminAuthService` still
-calls `Storage::SetSetting()` as of this ADR. Introducing the interface
-and rerouting existing callers is its own implementation pass.
+**Implemented.** `SecretStore` (`src/platform/secret_store.h`), backed by
+`HostSecretStore`/`FirmwareSecretStore`, is real on both targets, with
+`Storage::SetSecret`/`GetSecret`/`EraseSecret` as the corresponding
+`Storage`-level methods. `AdminAuthService` routes the admin password
+hash through it. `HostSecretStore` stores under a separate `secrets/`
+directory from `HostSettingsStore`'s `settings/`, so the two never
+collide on disk; `FirmwareSecretStore` shares NVS's per-`ns` namespace
+with `FirmwareSettingsStore` (see `FirmwareSecretStore`'s own comment for
+why that's a documented constraint on callers, not structurally
+prevented).
 
 ## Consequences
 
@@ -127,11 +134,11 @@ and rerouting existing callers is its own implementation pass.
   [hardware.md](../architecture/hardware.md#wi-fi-bring-up)) — this ADR's
   scheme covers NVS-resident secrets (currently, the admin password hash),
   not Wi-Fi credentials.
-- `AdminAuthService` and any future module credential storage route
-  through `SecretStore` (see [Decision: secret storage
+- `AdminAuthService` routes the admin password hash through `SecretStore`
+  (see [Decision: secret storage
   interface](#decision-secret-storage-interface) above), not
-  `Storage::SetSetting()` directly — a concrete interface requirement for
-  whichever implementation pass introduces it.
+  `Storage::SetSetting()` — any future module credential storage does the
+  same.
 
 ## Implementation note: NVS encryption timing
 

@@ -108,20 +108,21 @@ same reasoning applied to `EventBus` staying LVGL-free).
 
 **Configuration and Storage** are also real now (`Storage` in
 `src/core/`, unit-tested in `tests/`) — the two named responsibilities
-above map onto one class: schema-versioned settings/cache read-write
-(Configuration) backed by the NVS and internal-flash-FAT tiers of
-[ADR-0012](../decisions/ADR-0012-storage-tiers.md)'s three-tier split
+above map onto one class: schema-versioned settings/cache/secret
+read-write (Configuration) backed by the NVS and internal-flash-FAT tiers
+of [ADR-0012](../decisions/ADR-0012-storage-tiers.md)'s three-tier split
 (Storage), namespaced per module by requiring a module ID on every call
-rather than trusting callers to prefix their own keys. Several things
-named in that ADR are deliberately not built yet, not silently dropped:
-NVS encryption (plain storage for now by design — see
+rather than trusting callers to prefix their own keys. Secrets route
+through a distinct `SecretStore`/`SetSecret`/`GetSecret` call path from
+general settings, per
+[ADR-0010](../decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface)
+— `AdminAuthService`'s admin password hash uses it. NVS encryption
+itself is deliberately not built yet, not silently dropped: it's plain
+storage for now by design — see
 [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for the
-staged security model that decides when it activates), the `SecretStore`
-interface ADR-0010 decides on for routing secrets separately from general
-settings (not yet introduced — `AdminAuthService` still calls
-`Storage::SetSetting()` directly), and the microSD tier (scoped to
-extended log archival, which has no consumer until general structured
-logging exists — see below).
+staged security model that decides when it activates. The microSD tier
+is also deferred, scoped to extended log archival, which has no consumer
+until general structured logging exists — see below.
 
 **Crash and reboot diagnostics** — one specific, fully-specified slice of
 Diagnostics — are also real (`firmware/main/crash_diagnostics.cpp`):

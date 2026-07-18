@@ -16,9 +16,9 @@ namespace {
 
 constexpr const char* kModuleId = "core";
 // 13 chars - NVS keys are capped at 15 (NVS_KEY_NAME_MAX_SIZE - 1, see
-// platform/firmware/settings_store.h). A longer key silently fails
+// platform/firmware/secret_store.h). A longer key silently fails
 // every read/write on firmware (ESP_ERR_NVS_INVALID_NAME surfaced as a
-// normal false/nullopt, not a crash); HostSettingsStore's file-per-key
+// normal false/nullopt, not a crash); HostSecretStore's file-per-key
 // storage has no equivalent limit, so this class of bug is invisible on
 // the simulator.
 constexpr const char* kPasswordKey = "admin_pw_hash";
@@ -164,19 +164,19 @@ std::string AdminAuthService::HashPasswordHex(const std::string& password,
 
 bool AdminAuthService::IsPasswordSet() {
     std::lock_guard<std::mutex> lock(mutex_);
-    return storage_.GetSetting(kModuleId, kPasswordKey).has_value();
+    return storage_.GetSecret(kModuleId, kPasswordKey).has_value();
 }
 
 std::optional<SessionToken> AdminAuthService::SetInitialPassword(const std::string& password) {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (storage_.GetSetting(kModuleId, kPasswordKey).has_value()) {
+    if (storage_.GetSecret(kModuleId, kPasswordKey).has_value()) {
         return std::nullopt;  // already set - see web-ui.md, this isn't a password-change flow
     }
     std::vector<unsigned char> salt = GenerateSalt();
     std::string hash_hex = HashPasswordHex(password, salt);
     std::string encoded =
         "pbkdf2-sha256$" + std::to_string(kPbkdf2Iterations) + "$" + ToHex(salt.data(), salt.size()) + "$" + hash_hex;
-    if (!storage_.SetSetting(kModuleId, kPasswordKey, kPasswordSchemaVersion, encoded)) {
+    if (!storage_.SetSecret(kModuleId, kPasswordKey, kPasswordSchemaVersion, encoded)) {
         return std::nullopt;
     }
     SessionToken token = GenerateSessionToken();
@@ -186,7 +186,7 @@ std::optional<SessionToken> AdminAuthService::SetInitialPassword(const std::stri
 
 std::optional<SessionToken> AdminAuthService::Login(const std::string& password) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto stored = storage_.GetSetting(kModuleId, kPasswordKey);
+    auto stored = storage_.GetSecret(kModuleId, kPasswordKey);
     if (!stored.has_value()) {
         return std::nullopt;
     }

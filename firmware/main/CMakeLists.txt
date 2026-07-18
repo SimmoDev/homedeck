@@ -28,6 +28,7 @@ idf_component_register(
         "../../src/platform/firmware/battery_reader.cpp"
         "../../src/platform/firmware/time_source.cpp"
         "../../src/platform/firmware/settings_store.cpp"
+        "../../src/platform/firmware/secret_store.cpp"
         "../../src/platform/firmware/cache_store.cpp"
         "../../src/platform/firmware/http_server.cpp"
     INCLUDE_DIRS

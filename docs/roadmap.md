@@ -169,11 +169,12 @@ simulator.
       internal-flash-FAT tiers, schema versioning, and per-module
       namespacing — unit-tested in `tests/`, confirmed on real hardware
       (the FAT partition mount, formatting cleanly on first boot, is the
-      one part `ctest` can't exercise). Still open, deliberately deferred
-      rather than dropped: the `SecretStore` interface ADR-0010 decides on
-      for routing secrets separately from general settings, and the
-      microSD tier (no consumer until Logging exists below). NVS
-      encryption itself is not M2 scope at all — see
+      one part `ctest` can't exercise). The `SecretStore` interface
+      ADR-0010 decides on for routing secrets separately from general
+      settings is also real (`AdminAuthService`'s password hash uses it).
+      Still open, deliberately deferred rather than dropped: the microSD
+      tier (no consumer until Logging exists below). NVS encryption
+      itself is not M2 scope at all — see
       [ADR-0018](decisions/ADR-0018-staged-security-hardening.md)'s
       staged security model and the M7 item below
 - [ ] Web Management UI (settings, module configuration, diagnostics,
@@ -420,7 +421,7 @@ index — decision name, ADR, one-line outcome.
 | Hardware support library (display/touch) | [ADR-0014](decisions/ADR-0014-hardware-support-library.md) | `espressif/m5stack_tab5` (ESP-IDF-native), not M5Unified/M5GFX — confirmed crash on this chip via Arduino-as-Component |
 | Display orientation | [ADR-0015](decisions/ADR-0015-display-orientation.md) | Portrait, `720x1280`, no rotation — the panel's native scan direction; matches the battery pack's kickstand tilt |
 | Hardware support library (battery/RTC) | [ADR-0016](decisions/ADR-0016-battery-rtc-library.md) | `espp/ina226` + `espp/rx8130ce` — the BSP's own capability table doesn't cover either peripheral |
-| Secret storage | [ADR-0010](decisions/ADR-0010-secret-storage.md) | HMAC-peripheral NVS encryption scheme (confirmed independent of flash encryption on ESP32-P4) chosen but not yet active + hashed admin password (active now) + `SecretStore` interface (decided, not yet implemented) |
+| Secret storage | [ADR-0010](decisions/ADR-0010-secret-storage.md) | HMAC-peripheral NVS encryption scheme (confirmed independent of flash encryption on ESP32-P4) chosen but not yet active + hashed admin password (active now) + `SecretStore` interface (real, backs the admin password hash) |
 | Staged security hardening | [ADR-0018](decisions/ADR-0018-staged-security-hardening.md) | Development (now) → Standard (NVS encryption, once a real module credential exists) → Hardened (Secure Boot + flash encryption, only if HomeDeck is ever manufactured) |
 | OTA image signing | [security.md](architecture/security.md#ota-image-integrity) | Known gap, deliberately deferred — not yet in scope |
 | LVGL thread safety | [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md) | Dedicated UI task owns LVGL; event bus guarantees safe hand-off via `lv_async_call()` |

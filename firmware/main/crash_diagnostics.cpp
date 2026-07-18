@@ -2,6 +2,7 @@
 
 #include "core/storage.h"
 #include "platform/firmware/cache_store.h"
+#include "platform/firmware/secret_store.h"
 #include "platform/firmware/settings_store.h"
 
 #include "esp_core_dump.h"
@@ -59,9 +60,13 @@ void LogCrashDiagnostics() {
     const char* reason = ResetReasonToString(esp_reset_reason());
     ESP_LOGI(kTag, "Last reset reason: %s", reason);
 
+    // Only SetSetting is used here - secret_store is unused, but
+    // Storage's constructor requires all three stores (see
+    // core/storage.h).
     FirmwareSettingsStore settings_store;
     FirmwareCacheStore cache_store;
-    Storage storage(settings_store, cache_store);
+    FirmwareSecretStore secret_store;
+    Storage storage(settings_store, cache_store, secret_store);
     storage.SetSetting("core", "reset_reason", 1, reason);
 
     bool has_core_dump = esp_core_dump_image_check() == ESP_OK;

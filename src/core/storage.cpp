@@ -35,8 +35,8 @@ std::optional<VersionedValue> Decode(const std::string& raw) {
 
 }  // namespace
 
-Storage::Storage(SettingsStore& settings_store, CacheStore& cache_store)
-    : settings_store_(settings_store), cache_store_(cache_store) {}
+Storage::Storage(SettingsStore& settings_store, CacheStore& cache_store, SecretStore& secret_store)
+    : settings_store_(settings_store), cache_store_(cache_store), secret_store_(secret_store) {}
 
 bool Storage::SetSetting(const std::string& module_id, const std::string& key, int schema_version,
                           const std::string& value) {
@@ -53,6 +53,23 @@ std::optional<VersionedValue> Storage::GetSetting(const std::string& module_id, 
 
 bool Storage::EraseSetting(const std::string& module_id, const std::string& key) {
     return settings_store_.Erase(module_id, key);
+}
+
+bool Storage::SetSecret(const std::string& module_id, const std::string& key, int schema_version,
+                         const std::string& value) {
+    return secret_store_.Set(module_id, key, Encode(schema_version, value));
+}
+
+std::optional<VersionedValue> Storage::GetSecret(const std::string& module_id, const std::string& key) {
+    std::optional<std::string> raw = secret_store_.Get(module_id, key);
+    if (!raw.has_value()) {
+        return std::nullopt;
+    }
+    return Decode(*raw);
+}
+
+bool Storage::EraseSecret(const std::string& module_id, const std::string& key) {
+    return secret_store_.Erase(module_id, key);
 }
 
 bool Storage::WriteCache(const std::string& module_id, const std::string& key, int schema_version,

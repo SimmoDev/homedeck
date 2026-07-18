@@ -5,6 +5,7 @@
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/http_server.h"
+#include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
 #include "platform/host/time_source.h"
 #include "platform/steady_time_source.h"
@@ -185,7 +186,8 @@ int main() {
     std::filesystem::path storage_root = std::filesystem::temp_directory_path() / "homedeck_simulator";
     homedeck::HostSettingsStore settings_store(storage_root);
     homedeck::HostCacheStore cache_store(storage_root);
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::HostSecretStore secret_store(storage_root);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
     // A monotonic clock, not the shared wall-clock time_source above -
     // matches firmware's identical choice (see
     // platform/steady_time_source.h) so AdminAuthService behaves the

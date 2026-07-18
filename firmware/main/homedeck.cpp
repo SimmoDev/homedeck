@@ -20,6 +20,7 @@
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/cache_store.h"
 #include "platform/firmware/http_server.h"
+#include "platform/firmware/secret_store.h"
 #include "platform/firmware/settings_store.h"
 #include "platform/firmware/time_source.h"
 #include "platform/steady_time_source.h"
@@ -188,14 +189,17 @@ extern "C" void app_main(void) {
 
     // AdminAuthService's password hash storage (see
     // docs/architecture/web-ui.md#admin-password) - plain NVS/FAT for
-    // now, per ADR-0010's deliberately-deferred-not-dropped NVS
-    // encryption gap (see this file's own comment on that further down,
-    // and docs/decisions/ADR-0010-secret-storage.md's addendum).
+    // now, per ADR-0018's staged security model
+    // (docs/decisions/ADR-0018-staged-security-hardening.md). The
+    // password hash itself goes through secret_store, not
+    // settings_store - see
+    // docs/decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface.
     // Declared here (not narrower) for the same reason web_server is
     // below - it must stay alive for the rest of app_main's life.
     homedeck::FirmwareSettingsStore settings_store;
     homedeck::FirmwareCacheStore cache_store;
-    homedeck::Storage storage(settings_store, cache_store);
+    homedeck::FirmwareSecretStore secret_store;
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
     // A monotonic clock, not the shared wall-clock time_source above -
     // see platform/steady_time_source.h for why session expiry can't
     // trust Rx8130TimeSource yet.

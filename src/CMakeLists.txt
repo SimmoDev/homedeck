@@ -55,6 +55,7 @@ add_library(homedeck_platform_host
   platform/host/timer.cpp
   platform/host/file_backed_store.cpp
   platform/host/settings_store.cpp
+  platform/host/secret_store.cpp
   platform/host/cache_store.cpp
   platform/host/http_server.cpp
 )
