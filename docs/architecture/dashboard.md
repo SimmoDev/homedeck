@@ -106,15 +106,32 @@ enough real widgets to make customization meaningful.
 
 The initial dashboard shell exists and runs for real on both targets: the
 simulator, and real Tab5 hardware (see
-[hardware.md](hardware.md#on-device-dashboard)). A live clock/date
-(`Clock` in `src/core/`, publishing once a second — and once immediately
-at startup, so the display never shows a placeholder before the first
-tick — through the `EventBus`) and a battery percentage (`BatteryReader`)
-are both hardcoded directly on `DashboardScreen`, standing in for what M2
-turns into shared status-bar chrome present on every screen (see [Status
-bar](#status-bar) above) — not dashboard-grid widgets. `BatteryReader` is
-mocked in the simulator (a fixed value — see
+[hardware.md](hardware.md#on-device-dashboard)). The status bar is real,
+confirmed on hardware — `StatusBar` (`src/ui/status_bar.h`/`.cpp`) is
+fixed, non-scrolling chrome, constructed by every screen
+(`DashboardScreen` and, proving the "every screen" mechanism, the
+simulator-only `PlaceholderScreen`), rendered as a solid black bar with
+white text: compact date/time (subscribed to `Clock`'s existing
+`ClockTickEvent`, publishing once a second and once immediately at
+startup) and battery percentage, both refreshed on that same tick rather
+than a second timer. This replaced `DashboardScreen`'s own hardcoded
+clock/battery labels from M1, per
+[ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)'s
+"relocate, don't rebuild" framing, and its black/white styling matches
+the Android/iOS convention that ADR already referenced.
+
+Font size is Montserrat 24: on the panel's ~294 PPI (from its 5"
+720×1280 spec, see [hardware.md](hardware.md#display-and-touch)), that's
+the closest match among LVGL's available discrete sizes to Android's
+typical status bar text by physical glyph height (~2.1mm vs. ~2.2mm) —
+enabled identically on both targets (see `simulator/lv_conf.h` and
+`firmware/sdkconfig.defaults`).
+
+`BatteryReader` is mocked in the simulator (a fixed value — see
 [simulator.md](simulator.md#how-it-works) for why) but real on firmware,
-reading the INA226 power monitor. No pluggable widget-registration
-system, grid layout, or status bar exists yet; those stay M2. See
-`docs/roadmap.md` for what's next.
+reading the INA226 power monitor; the known gap in that reading (no
+charging state, no "no battery installed" detection, and an approximation
+confirmed slightly inaccurate — see [hardware.md](hardware.md#power)) is
+unchanged by this — it's Power Management scope, not the status bar's.
+No pluggable widget-registration system or grid layout exists yet; those
+stay M2. See `docs/roadmap.md` for what's next.

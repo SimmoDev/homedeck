@@ -1,16 +1,18 @@
 #pragma once
 
-#include "core/clock.h"
 #include "core/event_bus.h"
 #include "lvgl.h"
 #include "platform/battery_reader.h"
+#include "ui/status_bar.h"
 
 namespace homedeck {
 
 // The persistent home screen - see ADR-0004's dashboard-as-home
-// decision. Hosts Core-only widgets directly for now (clock/date,
-// battery); the general pluggable widget interface modules will use is
-// M2 scope, not this - see docs/architecture/dashboard.md.
+// decision. Compact date/time and battery live in the shared StatusBar
+// chrome (see ADR-0008's "Status bar vs. dashboard-only widgets"
+// decision), not as dashboard-specific labels. The general pluggable
+// widget interface modules will use is separate, still-unbuilt M2 scope
+// - see docs/architecture/dashboard.md.
 class DashboardScreen {
 public:
     DashboardScreen(EventBus& event_bus, BatteryReader& battery_reader);
@@ -22,9 +24,7 @@ public:
 
 private:
     lv_obj_t* root_;
-    lv_obj_t* clock_label_;
-    lv_obj_t* battery_label_;
-    EventBus::ScopedSubscription clock_subscription_;
+    StatusBar status_bar_;
 };
 
 }  // namespace homedeck

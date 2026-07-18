@@ -94,17 +94,18 @@ int main() {
     homedeck::EventBus event_bus;
     homedeck::UiTask ui_task(kWindowWidth, kWindowHeight, event_bus, ResolveWindowZoom());
 
-    // DashboardScreen (the ClockTickEvent subscriber) must exist before
-    // Clock (the publisher) - Clock publishes one tick immediately at
-    // construction (see clock.cpp) so the display doesn't show LVGL's
-    // placeholder text until the first periodic tick; that only reaches
-    // anyone if the subscription already exists when it happens.
+    // DashboardScreen (whose StatusBar member is the ClockTickEvent
+    // subscriber) must exist before Clock (the publisher) - Clock
+    // publishes one tick immediately at construction (see clock.cpp) so
+    // the display doesn't show LVGL's placeholder text until the first
+    // periodic tick; that only reaches anyone if the subscription
+    // already exists when it happens.
     homedeck::HostBatteryReader battery_reader;
     homedeck::DashboardScreen dashboard(event_bus, battery_reader);
 
     homedeck::Navigation navigation("dashboard", dashboard.Root());
 
-    PlaceholderScreen placeholder(navigation);
+    PlaceholderScreen placeholder(navigation, event_bus, battery_reader);
     navigation.Register("placeholder", placeholder.Root());
 
     CreateTestNavButton(dashboard.Root(), navigation);

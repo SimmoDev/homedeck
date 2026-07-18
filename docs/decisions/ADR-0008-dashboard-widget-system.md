@@ -152,3 +152,18 @@ where date/time and battery live.
   show roughly the right information; M2's actual work is relocating them
   into shared status-bar chrome present on every screen, not building a
   grid cell for them.
+
+**Implementation note (M2):** `StatusBar` (`src/ui/status_bar.h`/`.cpp`)
+is that relocation — each screen constructs its own instance, the same
+"each screen includes it" pattern `home_affordance.h` already used,
+except present on the dashboard too. Battery refreshes on `Clock`'s
+existing tick rather than a dedicated timer, since a 1Hz read is more
+than enough for a percentage display and reuses scheduling already
+flowing through the screen (see [dashboard.md](../architecture/dashboard.md#status)
+for full status). Styled as solid black chrome with white text,
+deliberately matching Android/iOS's status-bar convention this ADR's
+"closer to how Android, iOS...treat a status bar" framing already
+pointed at, rather than blending into LVGL's default light theme. Which
+widgets beyond date/time/battery belong on the bar (network status was
+the natural candidate this ADR named) remains undecided — not addressed
+by this pass.

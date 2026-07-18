@@ -97,3 +97,15 @@ CONFIG_FATFS_LFN_HEAP=y
 #   already this IDF version's own default panic behavior
 #   (ESP_SYSTEM_PANIC_PRINT_REBOOT) - nothing here overrides it.
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
+
+# StatusBar (src/ui/status_bar.h) uses Montserrat 24, not LVGL's default
+# Montserrat 14, which is too small to read at a glance on the Tab5's
+# physical screen. On this panel's ~294 PPI (from its 5" 720x1280 spec -
+# see hardware.md's Display and touch section), Montserrat 24 measures
+# ~2.1mm tall, the closest match among LVGL's available discrete sizes to
+# Android's typical status bar text (~2.2mm, approximating AOSP's ~14sp
+# at a representative ~440 PPI phone density). Must be enabled on both
+# targets identically (see simulator/lv_conf.h) since each target
+# compiles its own LVGL font table; a font enabled on only one side would
+# build fine there and fail to link on the other.
+CONFIG_LV_FONT_MONTSERRAT_24=y

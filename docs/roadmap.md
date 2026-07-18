@@ -330,10 +330,20 @@ features start landing and these paragraphs need rewriting anyway.
       subscribed to Core events, so resolve `EventBus`'s known
       cross-thread subscriber-lifetime gap (see [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#consequences))
       before or alongside this, not after
-- [ ] Status bar (persistent date/time and battery, shown on every screen —
+- [x] Status bar (persistent date/time and battery, shown on every screen —
       not a dashboard widget, see
-      [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)),
-      replacing `DashboardScreen`'s current hardcoded clock/battery labels
+      [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)).
+      **Real, confirmed on hardware** (Tab5 K145 reference unit) —
+      `StatusBar` (`src/ui/status_bar.h`/`.cpp`) replaced
+      `DashboardScreen`'s hardcoded clock/battery labels, and the
+      simulator-only `PlaceholderScreen` also builds one, proving the
+      "every screen" mechanism across more than one screen. Fixed
+      non-scrolling chrome, solid black with white Montserrat 24 text —
+      the closest available match to Android's status bar text by
+      physical glyph size (see [dashboard.md](architecture/dashboard.md#status)
+      for the math). No charging/no-battery detection (see
+      [dashboard.md](architecture/dashboard.md#status)) — that's Power
+      Management scope below, not this item's
 - [ ] Power management state model, including the alert-priority wake-check
       cycle during Sleeping (interval tuned against real reconnect-cost/
       battery measurements on hardware — see
