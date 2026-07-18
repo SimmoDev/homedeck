@@ -37,16 +37,15 @@ LVGL's own anti-aliasing untouched, at native resolution, with no
 scaling step. LVGL is pinned via CMake `FetchContent` to release
 `v9.5.0`.
 
-Links against the portable Core/UI source in [../src/](../src/) — `main.cpp`
-is now just wiring: `Clock`, `HostBatteryReader`, `DashboardScreen` (the
-real home screen — see
-[docs/architecture/dashboard.md](../docs/architecture/dashboard.md)), and
-`Navigation`. `screens/placeholder_screen.h` is this milestone's version
-of the earlier throwaway heartbeat screen — deliberately minimal,
-existing only to prove Navigation and the persistent home affordance
-(`src/ui/home_affordance.h`) actually work, until a genuine second screen
-replaces it. See
-[docs/architecture/simulator.md](../docs/architecture/simulator.md) for
-the design, and
+Links against the portable Core/UI source in [../src/](../src/) —
+`main.cpp` is wiring: `DashboardScreen` (the real home screen — see
+[docs/architecture/dashboard.md](../docs/architecture/dashboard.md)) and
+Core/platform services, host-backed where firmware would use real
+hardware. See [docs/roadmap.md](../docs/roadmap.md) for what's currently
+wired in, [docs/architecture/simulator.md](../docs/architecture/simulator.md)
+for the design, and
 [ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#1-simulator-rendering-backend)
-for the backend decision.
+for the backend decision. `screens/placeholder_screen.h` is a
+deliberately minimal second screen proving Navigation and the persistent
+home affordance (`src/ui/home_affordance.h`) work, until a genuine
+second screen replaces it.

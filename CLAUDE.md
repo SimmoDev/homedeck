@@ -118,13 +118,11 @@ Use:
 - ~~M5Unified~~
 - ~~M5GFX~~
 
-M5Unified/M5GFX are rejected project-wide — a confirmed crash on this
-chip, not specific to any one peripheral (see
-[ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md)).
-Display/touch and battery/RTC use different libraries instead
-([ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md),
-[ADR-0016](docs/decisions/ADR-0016-battery-rtc-library.md)); IMU,
-speaker, and mic remain open questions about which alternative to use.
+Do not use M5Unified/M5GFX — rejected project-wide (see
+[ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md)). Which
+library backs which peripheral is recorded in
+[docs/decisions/](docs/decisions/) and [docs/architecture/hardware.md](docs/architecture/hardware.md),
+not here.
 
 Do not use the Arduino framework.
 
@@ -784,17 +782,72 @@ Avoid introducing code that cannot reasonably be tested.
 
 # Documentation
 
-Documentation is part of implementation.
+Documentation is part of implementation — a change is not done until the
+docs describing it are accurate.
 
-Maintain:
+## Where information belongs
 
-- Architecture documentation
-- Module documentation
-- API documentation
-- Power management documentation
-- UI design documentation
-- ADRs
-- Roadmap
+- **Architecture docs** (`docs/architecture/`) describe how the system
+  works now: components, responsibilities, data flow, current status.
+  Written for whoever extends or debugs this next, including yourself
+  in six months.
+- **ADRs** (`docs/decisions/`) record an architectural decision and why
+  it was made, as of when it was made. An ADR is not a running log —
+  once accepted, it doesn't get rewritten to match what happened later.
+  A decision that supersedes it gets its own ADR, referencing the one
+  it replaces.
+- **Git history** (commit messages, PR descriptions) records how and
+  why a specific change was made: what broke, what was tried and
+  dropped, the path to the fix. This is where that detail belongs, not
+  in a doc that outlives the commit.
+- **Issues** track open problems and planned work, not resolved ones.
+
+If a piece of information only matters to someone reading this one
+commit or PR, it belongs in the commit or PR, not in a doc.
+
+## Describe the system, not its history
+
+A doc answers "how does this work today," never "how did we get here."
+Once a change lands, the path taken to reach it is no longer part of
+the system's description.
+
+Never document, in any persistent doc or code comment:
+
+- Bugs found during development, once fixed
+- Temporary implementations, once replaced
+- Approaches that were tried and abandoned
+- Refactoring or implementation history
+- Debugging narrative or diagnostic detail
+- Development commentary or in-progress reasoning
+- Intermediate states that no longer exist
+
+A bug worth remembering is worth remembering as the constraint that
+caused it ("NVS keys are capped at 15 characters"), not as the story of
+how it was found. The commit that fixed it keeps the story.
+
+## When to update docs
+
+Update a doc when:
+
+- Externally observable behaviour changes
+- A public API changes
+- The architecture changes
+- User-visible behaviour changes
+
+Don't touch docs for:
+
+- Refactoring
+- Internal implementation changes
+- Renaming
+- Bug fixes that don't change behaviour
+- Test-only changes
+
+## Keep it short
+
+State each fact once, in the doc that owns it, and link to it from
+everywhere else it's relevant. Two docs describing the same thing will
+drift out of sync eventually — a link costs nothing and can't go stale
+the same way.
 
 Significant architectural decisions require an ADR.
 

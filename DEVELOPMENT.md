@@ -1,10 +1,7 @@
 # Development Guide
 
-This document describes the development workflow for HomeDeck. Most of
-what M0 originally flagged as "needing verification at the start of M1"
-(exact ESP-IDF version, exact simulator dependencies, real hardware
-flash/monitor) is now confirmed — see [docs/roadmap.md](docs/roadmap.md)
-for current milestone status.
+This document describes the development workflow for HomeDeck. See
+[docs/roadmap.md](docs/roadmap.md) for current milestone status.
 
 ## Where to start
 
@@ -265,18 +262,5 @@ before being relied on.
 
 ## Status
 
-M0 and M1 are both complete (see [docs/roadmap.md](docs/roadmap.md)).
-The simulator scaffold, CI, the Core Concurrency Abstraction +
-`EventBus` + dedicated UI task, the initial dashboard shell (live
-clock/date, battery), Navigation, and the persistent home affordance
-(`src/`, exercised for real by the simulator and covered by unit tests)
-all build and run, per the sections above. On real Tab5 hardware, the
-real dashboard runs live too — a live ticking clock and a real (not
-mocked) battery percentage, sourced from the actual RTC and power monitor
-(see
-[docs/architecture/hardware.md](docs/architecture/hardware.md#on-device-dashboard)
-and [firmware/README.md](firmware/README.md)). M1 never scoped
-Navigation, the home affordance, or a second on-device screen onto real
-hardware — the dashboard loads directly as the only screen there, by
-design — and no module code exists yet anywhere; both are M2+ work. This
-document will keep being revised as M2 makes it concrete.
+See [docs/roadmap.md](docs/roadmap.md) for what's built and what's still
+open. The build/test workflows above apply regardless of milestone.

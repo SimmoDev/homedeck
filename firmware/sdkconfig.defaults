@@ -23,11 +23,10 @@ CONFIG_SPIRAM=y
 # ESP32-P4's PSRAM Kconfig only offers two speeds: 20MHz (the default,
 # gated behind nothing) or 200MHz (gated behind IDF_EXPERIMENTAL_FEATURES
 # - no 100MHz option exists despite what the Kconfig help text implies).
-# 20MHz caused a continuous DMA underrun feeding the display's PSRAM-
-# backed framebuffer - confirmed fixed on hardware by raising to 200MHz
-# (see hardware.md#display-and-touch). This is explicitly marked
-# experimental by ESP-IDF itself, not just an arbitrary faster number -
-# flag if this destabilizes anything else later, not just the underrun.
+# 20MHz causes a continuous DMA underrun in the display's PSRAM-backed
+# framebuffer path (see hardware.md#display-and-touch). 200MHz is
+# explicitly marked experimental by ESP-IDF itself, not just an arbitrary
+# faster number - flag if this destabilizes anything else later.
 CONFIG_IDF_EXPERIMENTAL_FEATURES=y
 CONFIG_SPIRAM_SPEED_200M=y
 
@@ -43,8 +42,7 @@ CONFIG_COMPILER_CXX_RTTI=y
 # coredump, and storage (FAT + wear_levelling) partitions reserved for
 # not-yet-built M2 services. See
 # docs/decisions/ADR-0017-partition-table.md for the full sizing
-# rationale - this replaced the single-app table that unblocked M1/early
-# M2, which had dropped to 1% free once Wi-Fi was linked in.
+# rationale.
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
@@ -69,10 +67,9 @@ CONFIG_ESP_HOSTED_PRIV_SDIO_PIN_D3_4BIT_BUS_SLOT_1=8
 CONFIG_ESP_HOSTED_SDIO_GPIO_RESET_SLAVE=15
 
 # esp_http_server's default max request header size (512 bytes) is too
-# small for real mobile browsers - confirmed on hardware: a real phone's
-# POST to the Wi-Fi setup form failed with 431 Request Header Fields Too
-# Large (Sec-Ch-Ua/Accept-*/Origin headers alone exceed 512 bytes on a
-# modern browser). This is a RAM buffer, not flash - no cost against the
+# small for real mobile browsers - a modern browser's Sec-Ch-Ua/Accept-*/
+# Origin headers alone can exceed 512 bytes, causing 431 Request Header
+# Fields Too Large. This is a RAM buffer, not flash - no cost against the
 # tight flash budget above.
 CONFIG_HTTPD_MAX_REQ_HDR_LEN=4096
 

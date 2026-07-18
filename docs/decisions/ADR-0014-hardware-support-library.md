@@ -79,12 +79,10 @@ in [hardware.md](../architecture/hardware.md#display-driver-strategy) as
 the source of truth; this ADR is the decision record, not a duplicate of
 that detail.
 
-**Self-flagged "Medium Risk" by its own author at merge time, with
-limited field validation** — accepted anyway, since every alternative
-carried equal or worse risk (a confirmed crash, or a hand-rolled driver
-with no working reference to build from). Real hardware testing bore this
-out: it worked, after fixing an unrelated ESP-IDF version incompatibility
-(see [Consequences](#consequences) below), not a display-specific bug.
+Self-flagged "Medium Risk" by its own author at merge time, with limited
+field validation — accepted anyway, since every alternative carried equal
+or worse risk (a confirmed crash, or a hand-rolled driver with no working
+reference to build from).
 
 ## Consequences
 

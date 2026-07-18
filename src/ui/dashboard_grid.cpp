@@ -105,12 +105,13 @@ void DashboardGrid::AddWidget(Widget& widget) {
     MarkOccupied(row, col, col_span, row_span);
     lv_obj_set_grid_cell(widget.Root(), LV_GRID_ALIGN_STRETCH, col, col_span, LV_GRID_ALIGN_STRETCH,
                           row, row_span);
-    // lv_obj_create() is scrollable by default - StatusBar hit a real
-    // scrollbar/drag-scroll bug from this exact default (see
-    // status_bar.cpp). Cleared centrally here, on the widget's own root,
-    // rather than requiring every Widget implementation to remember it -
-    // an internally-scrollable widget can still nest its own scrollable
-    // child inside Root(), since this only affects Root() itself.
+    // lv_obj_create() is scrollable by default, which produces an
+    // unwanted scrollbar/drag-scroll on fixed chrome (see
+    // status_bar.cpp's identical fix). Cleared centrally here, on the
+    // widget's own root, rather than requiring every Widget
+    // implementation to remember it - an internally-scrollable widget can
+    // still nest its own scrollable child inside Root(), since this only
+    // affects Root() itself.
     lv_obj_clear_flag(widget.Root(), LV_OBJ_FLAG_SCROLLABLE);
 }
 

@@ -114,11 +114,10 @@ simulator-only `PlaceholderScreen`), rendered as a solid black bar with
 white text: compact date/time (subscribed to `Clock`'s existing
 `ClockTickEvent`, publishing once a second and once immediately at
 startup) and battery percentage, both refreshed on that same tick rather
-than a second timer. This replaced `DashboardScreen`'s own hardcoded
-clock/battery labels from M1, per
+than a second timer, per
 [ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)'s
-"relocate, don't rebuild" framing, and its black/white styling matches
-the Android/iOS convention that ADR already referenced.
+"relocate, don't rebuild" framing. Black/white styling matches the
+Android/iOS convention that ADR already referenced.
 
 Font size is Montserrat 24: on the panel's ~294 PPI (from its 5"
 720×1280 spec, see [hardware.md](hardware.md#display-and-touch)), that's
@@ -165,6 +164,5 @@ type, correctly packing around each other and growing new rows as
 needed — is proven via four throwaway widgets at mixed spans (2×1, 2×2,
 1×1, 1×1) on both targets: `PlaceholderWidget` (`simulator/widgets/`) on
 the simulator, and an identical inline `TestWidget` in
-`firmware/main/homedeck.cpp` on firmware, the same role `PlaceholderScreen`
-played for Navigation before real screens existed. Both are removed once
-a real widget (weather) exists to replace them.
+`firmware/main/homedeck.cpp` on firmware. Both are removed once a real
+widget (weather) exists to replace them.

@@ -1,31 +1,25 @@
 # Tab5 Hardware Reference
 
 Concrete hardware facts about the M5Stack Tab5, compiled from M5Stack's
-official documentation and product pages (2026-07). This exists because
-several earlier architecture docs referenced "the Tab5's IMU," "the Tab5's
-touch controller," etc. in the abstract without recording what they actually
-are — decisions like JSON library choice (flash/RAM headroom) and
-wake-from-sleep design were being made against assumptions rather than
-verified facts.
+official documentation and product pages plus the project's own reference
+unit (2026-07). Sections below distinguish what's been checked against
+the physical reference unit (marked **Confirmed**) from spec-sheet or
+datasheet claims not yet exercised.
 
-Most of it has since been re-verified against the actual reference unit
-during M1 bring-up — most sections below note what's been checked for
-real (some with a bolded **Confirmed**/**Resolved** call-out, some in
-plain prose) versus spec-sheet or datasheet claims not yet exercised.
-Still worth updating here if anything drifts — M5Stack has already
-revised this hardware twice during its production life (see [Display and
-touch](#display-and-touch) below), so "confirmed 2026-07" is not a
-permanent guarantee.
+M5Stack has revised this hardware twice during its production life (see
+[Display and touch](#display-and-touch) below) — treat "confirmed
+2026-07" as a snapshot, not a permanent guarantee, and update this file
+if a fact drifts.
 
 ## Application processor
 
 - **ESP32-P4**, dual-core RISC-V, 400MHz. No integrated radio (Wi-Fi/BT) —
   see [Wireless](#wireless) below.
-- 16MB Flash, 32MB PSRAM. **Correction:** not Octal — the ESP32-P4 has no
-  Quad/Octal PSRAM choice at all (unlike other Espressif chips); its only
-  mode is what ESP-IDF's own Kconfig and boot log both call "Hex"
-  (16-line), a P4-specific memory controller mode. `firmware/sdkconfig.defaults`
-  reflects this (just `CONFIG_SPIRAM=y`, no mode override needed).
+- 16MB Flash, 32MB PSRAM. The ESP32-P4 has no Quad/Octal PSRAM choice
+  (unlike other Espressif chips) — its only mode is what ESP-IDF's own
+  Kconfig and boot log both call "Hex" (16-line), a P4-specific memory
+  controller mode. `firmware/sdkconfig.defaults` reflects this (just
+  `CONFIG_SPIRAM=y`, no mode override needed).
 - **Confirmed via first real boot** (minimal `app_main()`, no display/UI —
   see [roadmap.md](../roadmap.md)'s M1 Tab5 boot item, and
   `firmware/sdkconfig.defaults`): chip revision v1.3, 16MB flash
@@ -34,17 +28,16 @@ permanent guarantee.
   (400MHz is the rated max, not necessarily the default without explicit
   clock config — not changed, since nothing currently needs the higher
   clock).
-- **PSRAM speed raised from 20MHz to 200MHz** (`sdkconfig.defaults`) —
-  20MHz is Kconfig's unmodified default, and caused a continuous DMA
-  underrun once display bring-up actually drove the panel (see
-  [Display and touch](#display-and-touch) below), confirmed fixed by this
-  change. These are the *only* two speeds ESP-IDF exposes for this chip's
-  PSRAM controller — no 100MHz or other intermediate option exists
-  despite what the Kconfig help text implies. 200MHz requires
+- **PSRAM runs at 200MHz** (`sdkconfig.defaults`), not Kconfig's 20MHz
+  default — 20MHz causes a continuous DMA underrun in the display's
+  PSRAM-backed framebuffer path (see
+  [Display and touch](#display-and-touch) below). These are the *only*
+  two speeds ESP-IDF exposes for this chip's PSRAM controller — no
+  100MHz or other intermediate option exists despite what the Kconfig
+  help text implies. 200MHz requires
   `CONFIG_IDF_EXPERIMENTAL_FEATURES=y`, ESP-IDF's own marker that this
-  isn't a fully hardened path — confirmed working on this unit, but worth
-  remembering it's explicitly experimental if anything unrelated gets
-  flaky later.
+  isn't a fully hardened path — worth remembering if anything unrelated
+  gets flaky later.
 
 ## Wireless
 
@@ -55,20 +48,16 @@ permanent guarantee.
   link. See [networking.md](networking.md) and
   [power-management.md](power-management.md) for the consequences (reconnect
   cost on wake, OTA scope question for the co-processor's own firmware).
-- **Link confirmed: SDIO, real pins confirmed on hardware:** `SDIO2_CLK`
-  = GPIO 12, `SDIO2_CMD` = GPIO 13, `SDIO2_D0`–`D3` = GPIO 11/10/9/8,
-  slave reset = GPIO 15. ESP-Hosted's Kconfig defaults assume Espressif's
-  P4 eval board wiring, which doesn't match this hardware. Note:
+- **Link: SDIO**, pins `SDIO2_CLK` = GPIO 12, `SDIO2_CMD` = GPIO 13,
+  `SDIO2_D0`–`D3` = GPIO 11/10/9/8, slave reset = GPIO 15 — set via
+  `CONFIG_ESP_HOSTED_SDIO_SLOT_1=y`, the individual
+  `CONFIG_ESP_HOSTED_PRIV_SDIO_PIN_*_SLOT_1` options, and
+  `CONFIG_ESP_HOSTED_SDIO_GPIO_RESET_SLAVE` in `sdkconfig.defaults`.
+  ESP-Hosted's Kconfig defaults assume Espressif's P4 eval board wiring,
+  which doesn't match this hardware. Note:
   `m5stack_tab5.c`'s `GPIO_SDMMC_*` constants (43/44/39/40/41/42) look
   similar but are the *microSD card slot's* separate SDMMC host instance,
   not the C6 — that source doesn't contain the C6's SDIO wiring at all.
-  These values aren't currently set anywhere in `sdkconfig.defaults` —
-  the bring-up test that needed them has been removed (see
-  [Wi-Fi bring-up](#wi-fi-bring-up) below); re-apply them via
-  `CONFIG_ESP_HOSTED_SDIO_SLOT_1=y` plus the individual
-  `CONFIG_ESP_HOSTED_PRIV_SDIO_PIN_*_SLOT_1` and
-  `CONFIG_ESP_HOSTED_SDIO_GPIO_RESET_SLAVE` options when the real Wi-Fi
-  feature is built.
 - **Power domain confirmed.** The C6's power enable (`WLAN_PWR_EN`) is
   bit 0 of a dedicated I2C GPIO expander output (PI4IOE5V6408, I2C
   address `0x44` — see the address map above), toggled via
@@ -93,82 +82,53 @@ permanent guarantee.
 
 ### Wi-Fi bring-up
 
-Confirmed end to end on hardware: a real Wi-Fi connection over the C6,
-via ESP-Hosted, getting a real IP address from a real access point - not
-just "the SDIO link came up." Three distinct fixes were needed, two
-already covered above (SDIO pins, power enable) plus:
+A real Wi-Fi connection over the C6, via ESP-Hosted, is confirmed working
+end to end on hardware — a real IP address from a real access point, not
+just the SDIO link coming up. Required configuration beyond the SDIO
+pins and power enable above:
 
-- **ESP-Hosted's SDIO transport crashed before even reaching the pin
-  problem** - `assert failed: sdio_mempool_create` - requesting a
-  ~48KB single contiguous block of internal DMA-capable RAM that wasn't
-  available as one piece that early in boot (fragmentation, not real
-  exhaustion). Fixed via `CONFIG_ESP_HOSTED_MEMPOOL_PREFER_SPIRAM=y`,
-  redirecting those buffers into PSRAM instead - the same GDMA-through-
-  PSRAM-cache path this project's display already relies on. Not
-  currently set in `sdkconfig.defaults` - re-apply alongside the SDIO
-  pin settings above when the real Wi-Fi feature is built.
-- **`esp_wifi_remote`'s dependency resolution was a real, checked risk,
-  not assumed safe:** it depends on `esp_hosted >=2.11`, but that
-  component's newest line (`3.0.0`) requires `idf >=5.5`, which conflicts
-  with this project's `v5.4.3` pin (ADR-0014, needed for the display fix).
-  Confirmed via a real build, not the version numbers alone: the resolver
-  correctly picked a compatible `2.12.11` release, not `3.0.0`.
+- `CONFIG_ESP_HOSTED_MEMPOOL_PREFER_SPIRAM=y` — ESP-Hosted's SDIO
+  transport needs a ~48KB contiguous block of internal DMA-capable RAM
+  that isn't reliably available that early in boot; this redirects those
+  buffers into PSRAM, the same GDMA-through-PSRAM-cache path the display
+  already relies on.
+- The `esp_wifi_remote`/`esp_hosted` dependency resolves to the
+  `esp_hosted` `2.12.x` line, not `3.0.0`, which requires `idf >=5.5` and
+  would conflict with this project's `v5.4.3` pin (ADR-0014).
 
-**Known follow-up, not blocking:** the connection log includes
-`Version mismatch: Host [2.12.0] > Co-proc [0.0.0] ==> Upgrade co-proc to
-avoid RPC timeouts` - the C6's own ESP-Hosted slave firmware reports
-version `0.0.0`, suggesting it may be running old or unflashed firmware.
-Basic Wi-Fi association and IP acquisition worked fine despite this
-warning, but RPC timeouts under heavier use are a real, deferred risk,
-not yet resolved.
+**Known follow-up, not blocking:** the connection log includes `Version
+mismatch: Host [2.12.0] > Co-proc [0.0.0] ==> Upgrade co-proc to avoid RPC
+timeouts` — the C6's own ESP-Hosted slave firmware reports version
+`0.0.0`. Basic Wi-Fi association and IP acquisition work regardless, but
+RPC timeouts under heavier use remain a real, deferred risk.
 
-This was first proved with a small, disposable test (`RunWifiBringupTest()`,
-reading credentials from a gitignored local header, never committed) - it
-proved the link works, then was removed from `firmware/main/homedeck.cpp`
-rather than left in the tree, since it hard-required that local
-credentials file to even compile and would otherwise permanently break
-CI (which has no such file, by design). The confirmed Kconfig settings
-above carried forward into the real implementation
-(`firmware/main/wifi_setup.cpp`): a SoftAP + minimal HTTP setup form, not
-ESP-IDF's `wifi_provisioning` component - see
-[ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)
-for the real, build-verified incompatibility that caused that pivot.
+The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
+minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
+see [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)
+for why. Confirmed working end to end on hardware: SoftAP up, a real
+phone submitting credentials through the form, the device connecting and
+getting a real IP, SoftAP torn down afterward.
 
-**The full SoftAP + setup-form flow is confirmed working end to end on
-hardware**, not just build-verified: SoftAP came up, a real phone joined
-it and loaded the setup page, submitted real credentials, the device
-connected and got a real IP, and the SoftAP/HTTP server were correctly
-torn down afterward. Two real issues surfaced getting there:
+Two standing facts about this flow:
+- **Wi-Fi credentials live on the C6 co-processor's own flash, not the
+  P4's `nvs` partition** — `esp_wifi_get_config`/`esp_wifi_set_config`
+  are RPC calls proxied to the C6 via `esp_wifi_remote`, and the C6
+  persists them itself. `esp_wifi_restore()` (also proxied), not erasing
+  the P4's `nvs` region, is the correct way to clear them. Moving
+  credential storage onto Core's own service (a known gap, see
+  [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow))
+  will need `esp_wifi`'s storage mode set to `WIFI_STORAGE_RAM` so the
+  co-processor stops persisting it a second time.
+- **`esp_http_server`'s max request header size is raised to 4096 bytes**
+  (`CONFIG_HTTPD_MAX_REQ_HDR_LEN`) — the 512-byte default is too small
+  for a real mobile browser's POST to the setup form. A RAM buffer, not
+  flash, so it doesn't compete with the headroom below.
 
-- **Stored Wi-Fi credentials live on the C6 co-processor's own flash, not
-  the P4's `nvs` partition.** Erasing the P4's `nvs` region (where the
-  partition table says "WiFi data") had no effect on stored credentials -
-  `esp_wifi_get_config`/`esp_wifi_set_config` are RPC calls proxied to the
-  C6 via `esp_wifi_remote`, and the C6 persists them itself.
-  `esp_wifi_restore()` (also proxied) is the correct way to clear them.
-  Worth remembering for the Core Configuration/Storage work that's
-  already a known gap here (see
-  [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)) -
-  moving credential storage onto Core's own service will need
-  `esp_wifi`'s storage mode set to `WIFI_STORAGE_RAM` so the co-processor
-  stops persisting it a second time.
-- **`esp_http_server`'s default max request header size (512 bytes,
-  `CONFIG_HTTPD_MAX_REQ_HDR_LEN`) is too small for a real mobile
-  browser's POST** - the setup page loaded fine (a GET, smaller headers),
-  but submitting the form failed with `431 Request Header Fields Too
-  Large`. Fixed by raising `CONFIG_HTTPD_MAX_REQ_HDR_LEN=4096` in
-  `sdkconfig.defaults` - a RAM buffer, not flash, so it doesn't compete
-  with the headroom problem above.
-
-**Flash headroom dropped sharply with Wi-Fi linked in.** The M1 dashboard
-alone left 32% free on the 1500K partition table (see [On-device
-dashboard](#on-device-dashboard) below). With `esp_wifi_remote`,
-`esp_hosted`, `esp_http_server`, and their dependencies (`wpa_supplicant`,
-`mbedtls`, etc.) linked in, a real build drops that to **1% free**
-(`0x5170` bytes on a `0x177000` byte partition) - confirmed via the same
-Docker build used for CI. **Resolved by the real partition table** (see
-[ADR-0017](../decisions/ADR-0017-partition-table.md)): `ota_0`/`ota_1`
-are now 4MB each, real headroom past this point.
+Flash headroom with `esp_wifi_remote`, `esp_hosted`, `esp_http_server`,
+and their dependencies (`wpa_supplicant`, `mbedtls`, etc.) linked in is
+tight on a single-app partition table — the real OTA A/B table (see
+[ADR-0017](../decisions/ADR-0017-partition-table.md)) provides real
+headroom instead, 4MB each for `ota_0`/`ota_1`.
 
 ## Display and touch
 
@@ -180,14 +140,12 @@ are now 4MB each, real headroom past this point.
   with ST7121 (also 0x55) starting 2026-04-28. Units purchased at different
   times may run different silicon here, and testing on one unit does not
   validate behavior on all of them.
-- **Resolved:** the controller must be detected at runtime (`0x14` vs.
-  `0x55`) rather than assumed via a compile-time flag — see
+- The controller is detected at runtime (`0x14` vs. `0x55`) rather than
+  assumed via a compile-time flag — see
   [ADR-0009](../decisions/ADR-0009-touch-display-detection.md) for why a
   compile-time approach was rejected (it breaks the single-OTA-image
-  model). ADR-0009's original plan was a hand-written I2C probe with a
-  chip-ID register read to disambiguate ST7123 from ST7121 and a
-  persisted result; that plan is superseded, not built — see the
-  "Confirmed" bullet below and ADR-0009's own Consequences for why.
+  model), and the "Confirmed" bullet below for how detection is
+  actually implemented.
 - **Confirmed:** the project's reference unit uses the **ST7123**
   integrated display+touch driver (I2C address 0x55) — read directly off
   the physical unit's sticker, no probing needed for this fact. The
@@ -230,8 +188,7 @@ for, effectively provided by this dependency rather than hand-written.
 Uses its LVGL-integrated API (`bsp_display_start()`) directly, matching
 this project's own LVGL commitment, rather than bypassing it with
 lower-level panel APIs. Self-flagged "Medium Risk" by its own author at
-merge time with limited field validation — expect this may need real
-debugging on first hardware test, not just a config tweak.
+merge time, with limited field validation.
 
 **ESP-IDF pinned to v5.4.3, not v5.4.2 or v5.5.x.** `m5stack_tab5`
 unconditionally pulls in `usb` (for camera/UVC support this project
@@ -246,24 +203,13 @@ empty screen / horizontal stripe artifacts, working on v5.4.2 and broken
 on v5.5.x). See [DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for
 the current pinned version and setup instructions.
 
-**First real result, confirmed on hardware:** a solid color fill
-displays correctly on the physical panel. `espressif/m5stack_tab5`'s
-runtime probing independently detected "board version 2 (LCD ST7123,
-Touch ST7123)" — matching the sticker-confirmed controller above without
-being told. Touch also initialized successfully in the same pass
-(10-point multitouch), ahead of the roadmap's separate touch bring-up
-item.
-
-**DMA underrun — resolved.** The first test hit a continuous
-`lcd.dsi.dpi: can't fetch data from external memory fast enough, underrun
-happens`, logged every frame, not a one-off. Fixed by raising PSRAM speed
-from Kconfig's default 20MHz to 200MHz — see
-[Application processor](#application-processor) above for the exact
-`sdkconfig.defaults` change. Confirmed clean on hardware: no more
-underrun logs, and the solid-color fill's actual color rendered correctly
-for the first time (it had visibly appeared wrong — cyan instead of the
-configured blue — on the underrun-affected first test, consistent with
-the underrun corrupting pixel data, not just a coincidental color choice).
+**Confirmed on hardware:** a solid color fill displays correctly on the
+physical panel, with no PSRAM-DMA underrun (see [Application
+processor](#application-processor) above for the required PSRAM speed).
+`espressif/m5stack_tab5`'s runtime probing independently detected "board
+version 2 (LCD ST7123, Touch ST7123)" — matching the sticker-confirmed
+controller above without being told. Touch also initialized successfully
+in the same pass (10-point multitouch).
 
 **Resolved: portrait, no rotation.** Reported resolution is `720x1280`
 (portrait), not the `1280x720` spec-sheet figure — and this is genuinely
@@ -340,34 +286,19 @@ percentage both actually sourced from hardware. This needed a real
   shared I2C bus (`bsp_i2c_get_handle()`) instead of creating a second,
   conflicting one on the same physical pins.
 
-Three real gaps surfaced getting this to actually build and run, none of
-them display/logic bugs:
+Two standing build requirements this layer needs:
 
 - **ESP-IDF disables C++ RTTI by default.** `EventBus` uses
   `typeid()`/`std::type_index` for its per-event-type dispatch - a real,
-  load-bearing design choice, not something to work around. Fixed via
+  load-bearing design choice, not something to work around. Enabled via
   `CONFIG_COMPILER_CXX_RTTI=y` in `firmware/sdkconfig.defaults`.
-- **The default single-app partition table (1024K) left only 1% free**
-  once the real dashboard was actually linked in (RTTI, the BSP, LVGL,
-  and the new platform code all add up). Fixed with ESP-IDF's built-in
-  larger single-app table (1500K,
-  `CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y`) as a pragmatic M1 unblock,
-  not the real OTA A/B partition table. Confirmed via a real build: 32%
-  free on the 1500K table with the full M1 dashboard linked in
-  (`espp/ina226`/`espp/rx8130ce` included, per
-  [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)). As expected,
-  M2's Wi-Fi stack needed more headroom again - the real OTA A/B table
-  (see [ADR-0017](../decisions/ADR-0017-partition-table.md)) replaces
-  this single-app table entirely.
-- **The Docker build only had `firmware/` visible, not the repo root** -
-  fine while firmware only contained its own template code, but this
-  step needed `../../src` (the reused portable source), which lives
-  outside that mount entirely. Fixed by mounting the whole repo root and
-  adjusting the working directory instead (`-v "$(pwd):/project" -w
-  /project/firmware`) - see
-  [DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for the current
-  commands; every previously-documented flash/monitor command changed
-  because of this.
+- **The Docker build mounts the whole repo root, not just `firmware/`** -
+  the firmware component reuses portable source directly from
+  `../../src` (see `firmware/main/CMakeLists.txt`), which needs to be
+  visible inside the container. See
+  [DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for the exact
+  commands. Flash headroom is provided by the real OTA A/B partition
+  table (see [ADR-0017](../decisions/ADR-0017-partition-table.md)).
 
 `firmware/main/CMakeLists.txt` lists the reused `src/` files directly by
 relative path rather than nesting `src/CMakeLists.txt`'s plain-CMake
@@ -399,11 +330,10 @@ in this codebase uses it.
   [power-management.md](power-management.md#notifications-during-sleeping))
   wants a lightweight periodic check-in without full reconnect cost.
 - **Never been set:** the reference unit's RTC reads a meaningless
-  factory/power-on date (confirmed on hardware via
-  [On-device dashboard](#on-device-dashboard) below reading real RTC
-  time for the first time) - expected, not a fault. No time-setting
-  mechanism exists yet; needs either SNTP over Wi-Fi or a manual
-  set-time affordance, both M2 scope (networking and Web/Touch UI
+  factory/power-on date (see [On-device
+  dashboard](#on-device-dashboard) below) - expected, not a fault. No
+  time-setting mechanism exists yet; needs either SNTP over Wi-Fi or a
+  manual set-time affordance, both M2 scope (networking and Web/Touch UI
   respectively).
 
 ## Power
@@ -479,8 +409,7 @@ Confirmed against the project's own reference unit:
   flat, screen-up, on a surface, the device doesn't sit level — it tilts
   up at the battery end. In this orientation that's the top edge, so the
   tilt works as a passive kickstand: an easel angle facing the viewer,
-  not a sideways lean — real physical input that fed the portrait
-  decision, not just a coincidence noted after the fact.
+  not a sideways lean.
 - The camera (see [Camera](#camera-out-of-current-scope) below, not used
   by HomeDeck) sits on the same top edge as the battery in this
   orientation.

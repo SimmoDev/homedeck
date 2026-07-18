@@ -8,8 +8,7 @@ namespace homedeck {
 namespace {
 
 // localtime_r is POSIX; matches Linux being the only currently-verified
-// simulator platform (see DEVELOPMENT.md) - same caveat as
-// DashboardScreen's now-removed clock formatting had.
+// simulator platform (see DEVELOPMENT.md).
 void FormatCompactTime(std::chrono::system_clock::time_point time, char* buffer, size_t size) {
     std::time_t t = std::chrono::system_clock::to_time_t(time);
     std::tm tm{};
@@ -38,10 +37,9 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     lv_obj_set_style_bg_color(bar, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
     // lv_obj_create() is scrollable by default (for arbitrary content
-    // containers); a fixed-height status bar should never itself scroll
-    // - confirmed on hardware that leaving this on produces a visible
-    // scrollbar and drag-to-scroll behavior on what's meant to be static
-    // chrome.
+    // containers); a fixed-height status bar should never itself scroll -
+    // leaving it enabled produces a visible scrollbar and drag-to-scroll
+    // on what's meant to be static chrome.
     lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
 
     clock_label_ = lv_label_create(bar);

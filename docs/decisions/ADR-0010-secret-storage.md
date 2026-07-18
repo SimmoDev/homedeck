@@ -93,22 +93,12 @@ Sources: [ESP-IDF NVS Encryption docs (ESP32-P4)](https://docs.espressif.com/pro
 
 ## Implementation note: NVS encryption split from the Web UI auth pass
 
-The first Consequence above ties NVS encryption's timing to "the point
-Wi-Fi provisioning and Web UI auth are implemented" — both now true as of
-`AdminAuthService` (see [web-ui.md](../architecture/web-ui.md#status)). In
-practice, that pass shipped the admin password hash into the existing
-*plain* NVS tier rather than also burning the HMAC eFuse key in the same
-change. Burning the key is a one-time, irreversible, per-device action
-that also changes how the already-working Wi-Fi credentials are stored —
-bundling it into the same pass as new, not-yet-hardware-verified auth
-logic would mean the first real-hardware test of both an irreversible
-provisioning step and a new authentication mechanism happens at once,
-with no way to isolate which one is at fault if something goes wrong.
-Enabling the HMAC-peripheral scheme is still required before this ADR is
-fully satisfied — it just remains its own dedicated, separately-verified
-follow-up rather than a delivered fact of the auth pass. The admin
-password itself is still never stored reversibly regardless of this gap
-— it's PBKDF2-SHA256 hashed (satisfying the "any standard salted hash"
-line above) before it ever reaches Storage, so the plaintext password
-isn't newly at risk while this remains open, only the confidentiality of
-the stored hash and the Wi-Fi credentials against physical flash extraction.
+The admin password hash (`AdminAuthService`, see
+[web-ui.md](../architecture/web-ui.md#status)) is PBKDF2-SHA256 hashed
+before it reaches Storage, but stored in the plain, unencrypted NVS tier
+— the HMAC-peripheral encryption scheme this ADR decides on, including
+the one-time, irreversible eFuse key burn it requires, is not yet
+enabled. This is an outstanding requirement, not a reversal of the
+decision above, and applies equally to the Wi-Fi credentials
+([ADR-0006](ADR-0006-networking-discovery-provisioning.md)). Enabling it
+is tracked as its own dedicated, separately-verified follow-up.

@@ -32,22 +32,18 @@ unrelated modules, and more design work up front than justified before a
 real widget catalog exists. Exact grid dimensions and cell-span rules are
 implementation details for M2, not part of this decision.
 
-**Implementation note (M2):** `DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`)
-is that grid, built on LVGL's native grid layout
-(`lv_obj_set_grid_dsc_array`/`lv_obj_set_grid_cell`, already enabled on
-both targets). `DashboardGrid::kColumns` (4) — the exact dimension this
-decision left open — was picked with no real widget catalog to size
-against yet, so treat it as provisional rather than settled; rows have
-no fixed count at all, growing on demand as widgets are added. Cell-span
-is real: widgets can occupy more than one column and/or row
-(`Widget::ColumnSpan()`/`RowSpan()`, `src/ui/widget.h`, both defaulting
-to 1), placed by first-fit scanning against a per-row occupancy bitset,
-not just a plain left-to-right cursor (multi-row spans need to know
-which cells further down are already taken). `Widget` otherwise stays
-the minimal contribution interface this decision and CLAUDE.md both call
-for: no live/cached/offline freshness reporting yet (see
-[dashboard.md](../architecture/dashboard.md#data-freshness)) — left out
-for the same reason cell-span originally was, not forgotten.
+`DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`) is that grid, built on
+LVGL's native grid layout (`lv_obj_set_grid_dsc_array`/
+`lv_obj_set_grid_cell`). `DashboardGrid::kColumns` (4) — the exact
+dimension this decision left open — is provisional, sized with no real
+widget catalog to size against yet; rows have no fixed count, growing on
+demand as widgets are added. Cell-span is real: widgets can occupy more
+than one column and/or row (`Widget::ColumnSpan()`/`RowSpan()`,
+`src/ui/widget.h`, both defaulting to 1), placed by first-fit scanning
+against a per-row occupancy bitset, since multi-row spans need to know
+which cells further down are already taken. `Widget` has no live/cached/
+offline freshness reporting yet (see
+[dashboard.md](../architecture/dashboard.md#data-freshness)).
 
 ## Decision: Weather data source
 
@@ -170,17 +166,14 @@ where date/time and battery live.
   into shared status-bar chrome present on every screen, not building a
   grid cell for them.
 
-**Implementation note (M2):** `StatusBar` (`src/ui/status_bar.h`/`.cpp`)
-is that relocation — each screen constructs its own instance, the same
-"each screen includes it" pattern `home_affordance.h` already used,
-except present on the dashboard too. Battery refreshes on `Clock`'s
-existing tick rather than a dedicated timer, since a 1Hz read is more
-than enough for a percentage display and reuses scheduling already
-flowing through the screen (see [dashboard.md](../architecture/dashboard.md#status)
-for full status). Styled as solid black chrome with white text,
-deliberately matching Android/iOS's status-bar convention this ADR's
-"closer to how Android, iOS...treat a status bar" framing already
-pointed at, rather than blending into LVGL's default light theme. Which
-widgets beyond date/time/battery belong on the bar (network status was
-the natural candidate this ADR named) remains undecided — not addressed
-by this pass.
+`StatusBar` (`src/ui/status_bar.h`/`.cpp`) is that relocation — each
+screen constructs its own instance, the same "each screen includes it"
+pattern `home_affordance.h` uses, present on the dashboard too. Battery
+refreshes on `Clock`'s existing tick rather than a dedicated timer, since
+a 1Hz read is enough for a percentage display and reuses scheduling
+already flowing through the screen (see
+[dashboard.md](../architecture/dashboard.md#status) for full status).
+Styled as solid black chrome with white text, matching Android/iOS's
+status-bar convention rather than blending into LVGL's default light
+theme. Which widgets beyond date/time/battery belong on the bar (network
+status is the natural candidate) remains undecided.

@@ -18,14 +18,14 @@ any implementation begins.
       below) — all resolved except the Harmony local-control investigation
       (in progress, scoped) and the module interface (intentionally
       deferred to M3 by design)
-- [x] Development environment set up and verified — ESP-IDF v5.4.2 via the
-      `espressif/idf` Docker image (confirmed `esp32p4` target support with
-      a real `idf.py build` producing a flashable `.bin`; later bumped to
-      v5.4.3 during M1 display bring-up — see
-      [hardware.md](architecture/hardware.md#display-and-touch)), and
-      simulator build prerequisites (CMake, Ninja, SDL2, C++20 — confirmed
-      by actually building and running the [simulator
-      scaffold](../simulator/README.md)). See [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup).
+- [x] Development environment set up and verified — the
+      `espressif/idf:v5.4.3` Docker image (`esp32p4` target support, a
+      real `idf.py build` producing a flashable `.bin` — see
+      [hardware.md](architecture/hardware.md#display-and-touch) for why
+      this specific version is pinned), and simulator build prerequisites
+      (CMake, Ninja, SDL2, C++20 — see the [simulator
+      scaffold](../simulator/README.md)). See
+      [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup).
 
 **Exit criteria met:** a developer can follow
 [DEVELOPMENT.md](../DEVELOPMENT.md) to get a working build environment for
@@ -33,212 +33,119 @@ both targets.
 
 ## M1 — Platform (complete)
 
-Done: a Tab5 boots into the real dashboard (live clock, real battery
-reading), and the same UI runs in the desktop simulator — this
-milestone's exit criteria, below, are met, and every item below is
-checked. The ESP32-C6 power/SDIO domain question resolved into two
-parts: wiring independence, confirmed here; a separate protocol-level
-question (whether ESP-Hosted/SDIO can stay associated while the P4
-sleeps) that isn't a wiring question this milestone was ever scoped to
-answer, moved to M2's "Power management state model" item instead.
+A Tab5 boots into the real dashboard (live clock, real battery reading),
+and the same UI runs in the desktop simulator. The ESP32-C6 power/SDIO
+domain question resolved into two parts: wiring independence, confirmed
+here; a separate protocol-level question (whether ESP-Hosted/SDIO can
+stay associated while the P4 sleeps), tracked under M2's "Power
+management state model" item instead.
 
-- [x] **First action, before anything else in M1:** stand up the
-      simulator's host-native CMake project with LVGL's SDL2 driver (see
+- [x] Simulator scaffold — a host-native CMake project with LVGL's SDL2
+      driver, LVGL pinned to `v9.5.0` via `FetchContent` (see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system)
-      and [simulator.md](architecture/simulator.md#status)). Confirmed
-      working: builds via CMake/Ninja, LVGL pinned to `v9.5.0` via
-      `FetchContent`, renders a real SDL2 window. Still just a scaffold —
-      no Core/UI/module source yet, see
-      [simulator/README.md](../simulator/README.md).
-- [x] CI and unit test framework, set up early rather than retrofitted once
-      more code exists to protect. Confirmed working (built and verified
-      locally with `act` before ever pushing — see
-      [DEVELOPMENT.md](../DEVELOPMENT.md#continuous-integration)):
-      three independent GitHub Actions workflows, one per job (separate
-      files rather than one shared workflow, so each gets its own status
-      badge — see [README.md](../README.md)): `simulator` (builds the
-      existing scaffold), `tests` (GoogleTest+GoogleMock, its own
-      host-native CMake project per [tests/README.md](../tests/README.md),
-      not nested inside `simulator/` as this bullet originally said — see
+      and [simulator/README.md](../simulator/README.md)).
+- [x] CI and unit test framework — three independent GitHub Actions
+      workflows, one per job (separate files, each with its own status
+      badge — see [README.md](../README.md)): `simulator`, `tests`
+      (GoogleTest+GoogleMock, its own host-native CMake project per
+      [tests/README.md](../tests/README.md) — see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework)),
-      and `firmware` (builds via the `espressif/idf:v5.4.3` Docker image —
-      initially skipped cleanly until "ESP-IDF project scaffolding" below
-      landed, now a real build). The tests workflow runs a real smoke
-      test (one plain assertion, one GoogleMock-based test) proving the
-      framework runs, not just declared — real Core/module tests arrive
-      alongside the code they test, not before it exists.
-- [x] Confirm reference hardware SKU/kit and touch/display controller
-      revision — the reference unit is the K145 kit (see
+      and `firmware` (the `espressif/idf:v5.4.3` Docker image). See
+      [DEVELOPMENT.md](../DEVELOPMENT.md#continuous-integration).
+- [x] Reference hardware confirmed — the K145 kit (see
       [hardware.md](architecture/hardware.md#power)) with the **ST7123**
-      integrated display+touch driver, read directly off the unit's
-      physical sticker (see
-      [hardware.md](architecture/hardware.md#display-and-touch)) — no I2C
-      probing needed for this specific fact. The runtime detection logic
-      ADR-0009 requires is now built too, via `espressif/m5stack_tab5`'s
-      BSP — see the "Display bring-up" item below and
-      [ADR-0009](decisions/ADR-0009-touch-display-detection.md)'s
-      Consequences.
-- [x] ESP-IDF project scaffolding — confirmed working: `idf.py set-target
-      esp32p4 build` produces a real `homedeck.bin` (see
+      integrated display+touch driver, detected at runtime per
+      [ADR-0009](decisions/ADR-0009-touch-display-detection.md).
+- [x] ESP-IDF project scaffolding — `idf.py set-target esp32p4 build`
+      produces a real `homedeck.bin` (see
       [firmware/README.md](../firmware/README.md)).
-- [x] Tab5 boot — confirmed on real hardware: flashed and booted cleanly
-      over USB (`idf.py -p /dev/ttyACM0 flash monitor` via the Docker
-      workflow, `--device` passthrough — see
-      [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup) for the confirmed
-      procedure, including manual download-mode entry), heartbeat loop
-      confirmed over the serial console. Fixed two sdkconfig gaps found
-      against the real chip via `firmware/sdkconfig.defaults` (both
-      expected, not hardware faults — see
-      [hardware.md](architecture/hardware.md#application-processor)):
-      flash size now correctly 16MB (was defaulting to 2MB), and the
-      confirmed 32MB PSRAM now initializes correctly (was reporting 0
-      free bytes with SPIRAM disabled by default).
+- [x] Tab5 boot — confirmed on real hardware over USB (see
+      [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup) for the
+      flash/monitor procedure, including manual download-mode entry).
 - [x] ESP32-C6 co-processor power/SDIO domain wiring — **confirmed
       independent** of the P4's deep-sleep domain: the C6's power rail is
       independently switchable (I2C GPIO expander, no hardware coupling
       to P4 sleep state — see
       [hardware.md](architecture/hardware.md#wireless)). Whether
       ESP-Hosted/SDIO can actually keep the C6 usefully associated while
-      the P4 itself is asleep is a separate protocol question, moved to
-      M2's "Power management state model" item below, since it
-      determines that item's alert-priority wake cycle cost model (full
-      re-association vs. modem-sleep resume), not a wiring question this
-      item was ever scoped to answer.
-- [x] Display bring-up — real pixels confirmed on the Tab5 panel (a solid
-      color fill via `bsp_display_start()`, see
-      [hardware.md](architecture/hardware.md#display-driver-strategy)),
-      using `espressif/m5stack_tab5` rather than M5GFX/M5Unified (avoids a
-      confirmed crash — see hardware.md), which independently confirmed
-      the same ST7123 controller read off the unit's sticker. A DMA/PSRAM
-      underrun on the first test (PSRAM at Kconfig's default 20MHz) is
-      fixed — raised to 200MHz (the only other option ESP-IDF exposes for
-      this chip, gated behind `IDF_EXPERIMENTAL_FEATURES`), confirmed
-      clean on hardware with no more underrun logs. Also surfaced: the
-      panel reports `720x1280` (portrait) by default, not `1280x720` —
-      relevant input for the orientation decision, later resolved as
-      [ADR-0015](decisions/ADR-0015-display-orientation.md), not a
-      blocker to bring-up itself.
-- [x] Touch input bring-up — confirmed fully working end to end on
-      hardware, not just controller init: `bsp_display_start()` already
-      wires touch into LVGL as a real input device
-      (`lvgl_port_add_touch()`, called internally, no extra plumbing
-      needed), and a real on-screen touch handler proved it — tapping
-      the panel logs real coordinates (within the confirmed `720x1280`
-      bounds) and visibly toggles the screen color. `espressif/m5stack_tab5`
-      also confirmed the same ST7123 touch controller as display
-      (`Touch panel create success`, 10-point multitouch).
+      the P4 itself is asleep is a separate protocol question, tracked
+      under M2's "Power management state model" item below.
+- [x] Display and touch bring-up — real pixels and working touch input
+      confirmed on the Tab5 panel via `espressif/m5stack_tab5`, not
+      M5GFX/M5Unified (see
+      [hardware.md](architecture/hardware.md#display-driver-strategy)).
+      Panel orientation resolved as portrait, no rotation — see
+      [ADR-0015](decisions/ADR-0015-display-orientation.md).
 - [x] Basic LVGL application running **on-device** — the real dashboard
       (`EventBus`, `Clock`, `DashboardScreen`, reused directly from
-      `src/`, not reimplemented) confirmed running live on the Tab5, with
-      real sensor data: a live ticking clock and a real (not mocked)
-      battery percentage, both sourced from actual hardware, not
-      simulator stand-ins. Required building `src/platform/firmware/` —
-      FreeRTOS-backed `Task`/`Timer` (per ADR-0002, deferred until
-      genuinely needed, which this is), `BatteryReader` via the INA226
+      `src/`, not reimplemented) runs live on the Tab5, with real sensor
+      data: a live ticking clock and a real (not mocked) battery
+      percentage. Built on `src/platform/firmware/` — FreeRTOS-backed
+      `Task`/`Timer` (per ADR-0002), `BatteryReader` via the INA226
       (`espp/ina226`), and `TimeSource` via the RX8130CE RTC
       (`espp/rx8130ce`) — see
-      [hardware.md](architecture/hardware.md#on-device-dashboard) for the
-      full details, including two real gaps this surfaced (a simple
-      linear battery-percentage approximation reading ~90% on a charged
-      pack, and the RTC never having been set). `Queue<T>`'s firmware
-      backend stays deferred — still nothing uses it. Navigation, the
-      home affordance, and a second screen remain out of scope for this
-      item specifically.
-- [x] Desktop simulator target running the same application (separate
+      [hardware.md](architecture/hardware.md#on-device-dashboard).
+      `Queue<T>`'s firmware backend stays deferred — nothing uses it yet.
+      Navigation, the home affordance, and a second screen are out of
+      scope for this item specifically.
+- [x] Desktop simulator target running the same application — a separate
       host-native CMake project, Core Concurrency Abstraction backed by
-      the C++ standard library — see
+      the C++ standard library (see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system)).
-      Confirmed working end to end, not just compiling: a background
-      `Timer` publishes a reference-counted `HeartbeatEvent` once a
-      second, delivered safely to the dedicated UI task via `EventBus`'s
-      `lv_async_call()` hand-off, and rendered on screen — verified by
-      screenshot, the counter visibly incrementing. `Task`/`Queue`/
-      `Timer`/`EventBus` all have real unit tests in
-      [tests/](../tests/), not just the app exercising them. Portable
-      source lives in the new [src/](../src/) directory (a repository
-      structure question CLAUDE.md's own diagram originally left open,
-      since resolved by adding `src/` to that diagram — see
-      [src/README.md](../src/README.md) for the layout and why).
+      `Task`/`Queue`/`Timer`/`EventBus` all have real unit tests in
+      [tests/](../tests/). Portable source lives in
+      [src/](../src/) — see [src/README.md](../src/README.md) for the
+      layout.
 - [x] Initial dashboard shell — `DashboardScreen` (see
-      [src/README.md](../src/README.md)), replacing the throwaway
-      heartbeat proof-of-mechanism screen. Confirmed working by
-      screenshot, not just compiling. Core-only widgets, hardcoded
-      directly (no pluggable widget-registration system, no grid layout)
-      — both explicitly M2 scope per
+      [src/README.md](../src/README.md)). Core-only widgets, hardcoded
+      directly — the pluggable widget-registration system and grid
+      layout are M2 scope (see
       [dashboard.md](architecture/dashboard.md#status) and
-      [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-dashboard-layout-model).
+      [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-dashboard-layout-model)).
 - [x] Persistent home affordance included in the base screen layout from
       the first non-dashboard screen onward (see
       [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance)).
       A minimal real Navigation manager (`src/ui/navigation.h` -
-      `Register`/`GoTo`/`GoHome`, not a hardcoded two-screen switch) and
-      a reusable `LV_SYMBOL_HOME` affordance
-      (`src/ui/home_affordance.h`), proven against a deliberately
-      throwaway second screen
-      (`simulator/screens/placeholder_screen.h`, mirroring the earlier
-      heartbeat screen's role) — confirmed working in both directions by
-      manually running the simulator and tapping both buttons, not just
-      compiling. Replaced once a genuine second screen exists (an M2
-      settings screen, or the first M3 module screen).
+      `Register`/`GoTo`/`GoHome`) and a reusable `LV_SYMBOL_HOME`
+      affordance (`src/ui/home_affordance.h`), proven against a
+      deliberately throwaway second screen
+      (`simulator/screens/placeholder_screen.h`) — replaced once a
+      genuine second screen exists (an M2 settings screen, or the first
+      M3 module screen).
 - [x] Clock/date display — `Clock` (`src/core/`) publishes a
       `ClockTickEvent` once a second via the `EventBus`, plus once
       immediately at construction so the display never shows LVGL's
-      placeholder text before the first periodic tick (a real bug caught
-      by screenshot, fixed, and covered by a dedicated test — see
+      placeholder text before the first periodic tick (see
       `tests/clock_test.cpp`). `TimeSource`'s host backend wraps
       `std::chrono::system_clock`.
 - [x] Battery status display — the simulator's `HostBatteryReader`
-      returns a fixed mock value.
-      [simulator.md](architecture/simulator.md#how-it-works) documents
-      battery as adjustable via a debug control; that control isn't built
-      here — there's no real consumer for *adjustable* mock battery yet
-      (power-management testing, M2 scope), just a widget that needs to
-      render a number. On real hardware this isn't mocked at all — see
-      the "Basic LVGL application running on-device" item above for the
-      real INA226-backed reading.
+      returns a mock value; real hardware reads the actual INA226 (see
+      the on-device dashboard item above).
 
 **Exit criteria:** a Tab5 boots into a minimal but real HomeDeck UI showing
 live clock and battery status, and the same UI runs in the desktop
 simulator.
-
-**Known documentation debt, deliberately deferred, not forgotten:** the
-same M1 status facts (live clock, real battery, Navigation/home
-affordance/module code missing on hardware) are currently repeated
-near-verbatim across ~9 files (README.md, DEVELOPMENT.md, this file,
-hardware.md, ui.md, dashboard.md, simulator.md, firmware/README.md,
-src/README.md) — a real staleness-drift risk, since a fact repeated in
-many places only needs one missed update to go stale. Not a mechanical
-text fix: which files should stay self-contained versus become
-pointer-only is a real documentation-structure decision. Revisit when M2
-features start landing and these paragraphs need rewriting anyway.
 
 ## M2 — Platform Services (current)
 
 - [ ] Wi-Fi connectivity, including initial provisioning (SoftAP + a
       minimal HTTP setup form — see
       [networking.md](architecture/networking.md#initial-wi-fi-provisioning)).
-      **ESP-Hosted/SDIO bring-up done first, same pattern as M1's display/
-      touch bring-up** — a disposable Wi-Fi station test confirmed a real
-      connection and real IP address over the C6, after fixing an SDIO
-      transport memory crash, wrong SDIO pins, and the C6's power rail
-      never being enabled — see [hardware.md](architecture/hardware.md#wireless)
-      for the full account. The real flow
-      (`firmware/main/wifi_setup.cpp`) — SoftAP + a hand-rolled HTTP form
-      rather than ESP-IDF's `wifi_provisioning` component, which turned
-      out to be incompatible with this project's `esp_wifi_remote` stack
-      (see [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)) —
-      is confirmed working end to end on real hardware: SoftAP up, a real
-      phone submitted credentials through the form, device connected and
-      got a real IP, SoftAP torn down afterward. Still open: Touch UI
-      keyboard entry as a fallback for users without a second device
-      (deferred, not yet built), and wiring credential storage into
-      Core's real Configuration/Storage service instead of `esp_wifi`'s
-      own default persistence on the C6 co-processor (see
+      **Real and confirmed on hardware** — ESP-Hosted/SDIO bring-up (see
+      [hardware.md](architecture/hardware.md#wireless)) and the real
+      provisioning flow (`firmware/main/wifi_setup.cpp`): a SoftAP + a
+      hand-rolled HTTP form rather than ESP-IDF's `wifi_provisioning`
+      component, which doesn't support this project's `esp_wifi_remote`
+      stack (see [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)).
+      Confirmed working end to end: SoftAP up, a real phone submitting
+      credentials through the form, the device connecting and getting a
+      real IP, SoftAP torn down afterward. Still open: Touch UI keyboard
+      entry as a fallback for users without a second device, and wiring
+      credential storage into Core's real Configuration/Storage service
+      instead of `esp_wifi`'s own default persistence on the C6
+      co-processor (see
       [hardware.md](architecture/hardware.md#wi-fi-bring-up) for why that
-      matters here specifically). Flash headroom dropped to 1% free on
-      the old single-app table with Wi-Fi linked in — resolved by the
-      real OTA A/B partition table (see
-      [ADR-0017](decisions/ADR-0017-partition-table.md)).
+      matters here specifically).
 - [ ] LAN discovery (thin mDNS wrapper — see
       [networking.md](architecture/networking.md#lan-discovery)).
       **Self-advertisement is real, confirmed on hardware** — the device
@@ -384,15 +291,12 @@ features start landing and these paragraphs need rewriting anyway.
       not a dashboard widget, see
       [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)).
       **Real, confirmed on hardware** (Tab5 K145 reference unit) —
-      `StatusBar` (`src/ui/status_bar.h`/`.cpp`) replaced
-      `DashboardScreen`'s hardcoded clock/battery labels, and the
-      simulator-only `PlaceholderScreen` also builds one, proving the
-      "every screen" mechanism across more than one screen. Fixed
+      `StatusBar` (`src/ui/status_bar.h`/`.cpp`), constructed by every
+      screen (see [dashboard.md](architecture/dashboard.md#status)). Fixed
       non-scrolling chrome, solid black with white Montserrat 24 text —
       the closest available match to Android's status bar text by
       physical glyph size (see [dashboard.md](architecture/dashboard.md#status)
-      for the math). No charging/no-battery detection (see
-      [dashboard.md](architecture/dashboard.md#status)) — that's Power
+      for the math). No charging/no-battery detection yet — that's Power
       Management scope below, not this item's
 - [ ] Power management state model, including the alert-priority wake-check
       cycle during Sleeping (interval tuned against real reconnect-cost/

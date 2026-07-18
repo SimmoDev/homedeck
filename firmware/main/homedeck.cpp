@@ -35,10 +35,9 @@
 //
 // Deliberately out of scope here: Navigation, the home affordance, and
 // any second screen - the dashboard is loaded directly as the only
-// screen, matching this step's scope in docs/roadmap.md. No
-// firmware/platform/ Task/Queue/Timer backend existed before this
-// change; task.cpp and timer.cpp (FreeRTOS-backed, per ADR-0002) are
-// added alongside this specifically because Clock needs a working Timer.
+// screen, matching this step's scope in docs/roadmap.md.
+// firmware/platform/task.cpp and timer.cpp (FreeRTOS-backed, per
+// ADR-0002) exist because Clock needs a working Timer.
 namespace {
 
 // Mirrors the exact lv_async_call()-based hand-off UiTask uses for the
@@ -53,10 +52,10 @@ void RunAndDelete(void* user_data) {
 
 // Temporary, throwaway - proves DashboardGrid's mixed-span placement
 // (see docs/architecture/dashboard.md#widget-system) renders correctly
-// on the real panel, not just the simulator; the status bar's own font
-// size/scrollbar bugs were invisible in the simulator and only surfaced
-// on hardware, so this framework's actual rendering deserves the same
-// real check. Mirrors simulator/widgets/placeholder_widget.h's role
+// on the real panel, not just the simulator - simulator and real-hardware
+// rendering can differ (font legibility, scroll behavior), so this
+// framework's actual rendering deserves its own real check. Mirrors
+// simulator/widgets/placeholder_widget.h's role
 // exactly, kept inline here rather than as a shared file since both
 // copies are removed once a real widget (weather) exists.
 class TestWidget : public homedeck::Widget {

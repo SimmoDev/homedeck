@@ -42,21 +42,9 @@ possible, but none is planned or committed to.
 
 ## Current status
 
-**M0 and M1 are complete; M2 — Platform Services is current.** The Core
-Concurrency Abstraction (`Task`/`Queue`/`Timer`), the `EventBus`, a
-dedicated UI task, an initial dashboard shell (live clock/date, battery),
-Navigation, and the persistent home affordance all exist in [src/](src/)
-and run for real in the [desktop simulator](simulator/README.md). CI plus
-the [unit test framework](tests/README.md) cover all of it. On real Tab5
-hardware (see
-[docs/architecture/hardware.md](docs/architecture/hardware.md#on-device-dashboard)):
-the real dashboard runs live, not just a bring-up placeholder — a live
-ticking clock and a real (not mocked) battery percentage, both sourced
-from actual hardware — see [firmware/README.md](firmware/README.md). M1
-never scoped Navigation, the home affordance, or a second on-device
-screen onto real hardware; no module code exists yet anywhere — both are
-M2+ work. See [docs/roadmap.md](docs/roadmap.md) for the full milestone
-plan and the architectural decisions index.
+M2 (Platform Services) is the current milestone. See
+[docs/roadmap.md](docs/roadmap.md) for what's built, what's in progress,
+and what's still open, and the architectural decisions index.
 
 ## Architecture
 

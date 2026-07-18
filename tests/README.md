@@ -11,16 +11,18 @@ No separate on-target test framework is used — see
 for why.
 
 Covers the Core Concurrency Abstraction (`task_test.cpp`,
-`queue_test.cpp`, `timer_test.cpp`), `EventBus`
-(`event_bus_test.cpp`), `Clock` (`clock_test.cpp` — including the
-immediate-tick-at-construction behavior, a real bug this test caught),
-and the host `BatteryReader` (`battery_reader_test.cpp`) for real — a
-queue actually blocking and delivering in FIFO order, a timer actually
-firing on schedule and stopping promptly on destruction, `SubscribeUi`
-actually routing through an injected dispatcher — plus the original
-`smoke_test.cpp` proving the framework itself builds, links, and runs.
-Real module tests arrive alongside the modules they test, not before
-they exist.
+`queue_test.cpp`, `timer_test.cpp`), `EventBus` (`event_bus_test.cpp`),
+`Clock` (`clock_test.cpp`, including the immediate-tick-at-construction
+behavior), `Storage` (`storage_test.cpp`), `HostHttpServer`
+(`http_server_test.cpp`, a real request/response round trip over a raw
+socket), `LowBatteryMonitor` (`low_battery_monitor_test.cpp`), and
+`AdminAuthService` (`admin_auth_service_test.cpp`,
+`admin_auth_routes_test.cpp`) for real — a queue actually blocking and
+delivering in FIFO order, a timer actually firing on schedule and
+stopping promptly on destruction, `SubscribeUi` actually routing through
+an injected dispatcher — plus `smoke_test.cpp` proving the framework
+itself builds, links, and runs. Real module tests arrive alongside the
+modules they test, not before they exist.
 
 Build and run locally:
 
