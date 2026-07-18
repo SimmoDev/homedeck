@@ -13,6 +13,7 @@
 
 #include "core/clock.h"
 #include "core/event_bus.h"
+#include "crash_diagnostics.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/time_source.h"
 #include "ui/screens/dashboard_screen.h"
@@ -102,6 +103,8 @@ extern "C" void app_main(void) {
     ESP_ERROR_CHECK(nvs_result);
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    homedeck::LogCrashDiagnostics();
 
     // Blocks until connected - either immediately (stored credentials) or
     // until a phone/laptop completes SoftAP setup. The dashboard is

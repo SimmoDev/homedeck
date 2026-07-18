@@ -12,6 +12,7 @@ idf_component_register(
     SRCS
         "homedeck.cpp"
         "wifi_setup.cpp"
+        "crash_diagnostics.cpp"
         "../../src/core/event_bus.cpp"
         "../../src/core/clock.cpp"
         "../../src/core/storage.cpp"
@@ -34,4 +35,5 @@ idf_component_register(
         nvs_flash
         fatfs
         wear_levelling
+        espcoredump
 )

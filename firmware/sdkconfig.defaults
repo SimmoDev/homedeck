@@ -82,3 +82,18 @@ CONFIG_HTTPD_MAX_REQ_HDR_LEN=4096
 # heap, not flash, which is why it's not part of the flash-headroom
 # tradeoffs above.
 CONFIG_FATFS_LFN_HEAP=y
+
+# Crash/reboot diagnostics (ADR-0013) - capture a core dump to the
+# `coredump` partition (already reserved, see ADR-0017) on panic. ELF
+# format and CRC32 checksum are already the defaults once this is
+# enabled - not set explicitly here. Two things confirmed already
+# handled without further config, not left to chance:
+# - espcoredump's Kconfig warns core dumps to flash aren't available
+#   when task stacks are in PSRAM, but ESP_COREDUMP_USE_STACK_SIZE
+#   already defaults to y whenever this is combined with
+#   FREERTOS_TASK_CREATE_ALLOW_EXT_MEM, auto-allocating the dedicated
+#   internal-DRAM stack the coredump handler needs in that case.
+# - ADR-0013's "must not halt-and-wait-for-debugger" requirement is
+#   already this IDF version's own default panic behavior
+#   (ESP_SYSTEM_PANIC_PRINT_REBOOT) - nothing here overrides it.
+CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y

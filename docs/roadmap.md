@@ -286,12 +286,18 @@ features start landing and these paragraphs need rewriting anyway.
 - [ ] Logging, including reset-reason tracking and core dump capture on
       panic (dedicated flash partition, downloadable raw via Web UI, not
       symbolicated on-device — see
-      [ADR-0013](decisions/ADR-0013-crash-and-reboot-diagnostics.md)) —
-      the `coredump` partition already exists in the real OTA A/B
-      partition table (see
-      [ADR-0017](decisions/ADR-0017-partition-table.md)); this item is
-      capture/reporting logic against that reserved space, not partition
-      planning
+      [ADR-0013](decisions/ADR-0013-crash-and-reboot-diagnostics.md)).
+      **Crash/reboot diagnostics are real, confirmed on hardware including
+      a real triggered panic** (`firmware/main/crash_diagnostics.cpp`) —
+      reset reason and core-dump presence/summary are logged and
+      persisted through `Storage` every boot; a deliberate `abort()`
+      confirmed a clean reboot (not halted) and correct detection on the
+      next boot. Still open, deliberately scoped out rather than dropped: the
+      general structured/leveled logging facility `core.md`'s Logging
+      responsibility also names (rotation policy and file format aren't
+      decided anywhere yet, unlike crash diagnostics), and downloading a
+      captured core dump via the Web UI (the Web UI itself doesn't exist
+      yet)
 - [ ] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —

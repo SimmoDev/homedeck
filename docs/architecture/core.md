@@ -116,13 +116,24 @@ encryption (plain storage for now — see
 [ADR-0010](../decisions/ADR-0010-secret-storage.md) for why activating
 the HMAC-secured scheme is its own follow-up, not blocked on anything
 here) and the microSD tier (scoped to extended log archival, which has no
-consumer until Logging exists).
+consumer until general structured logging exists — see below).
+
+**Crash and reboot diagnostics** — one specific, fully-specified slice of
+Diagnostics — are also real (`firmware/main/crash_diagnostics.cpp`):
+reset reason and core-dump presence are read every boot and persisted
+through `Storage`, per
+[ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md). The
+rest of Diagnostics (module status, connection state, error reporting)
+and all of the general Logging responsibility (structured, leveled,
+rotating logs — rotation policy and file format are still open, unlike
+crash diagnostics) remain unbuilt — see
+[diagnostics.md](diagnostics.md#status) for the full breakdown.
 
 Everything else in the Responsibilities list above — Application
 lifecycle, Dashboard's general widget-registration system,
-Notifications, Networking, Logging, Diagnostics, OTA updates, Power
-management, Weather services — is still just the required
-responsibility, not a finalized API; that design happens starting at M2
-(Platform Services), informed by the concrete needs of the Harmony
-module in M3 rather than designed speculatively ahead of a real
+Notifications, Networking, OTA updates, Power management, Weather
+services — is still just the required responsibility, not a finalized
+API; that design happens starting at M2 (Platform Services), informed by
+the concrete needs of the Harmony module in M3 rather than designed
+speculatively ahead of a real
 consumer.

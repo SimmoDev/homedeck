@@ -84,5 +84,21 @@ with no way to be exercised before real hardware exists.
 
 ## Status
 
-Not yet implemented. Planned for M2 (Platform Services) alongside Logging
-and the Web Management UI — see [roadmap.md](../roadmap.md).
+**Crash and reboot diagnostics are real**, confirmed on real hardware
+including a real triggered panic (`firmware/main/crash_diagnostics.cpp`):
+a deliberate `abort()` produced a real panic printout, the device
+rebooted cleanly rather than halting (repeatedly, across several cycles),
+and the next boot correctly logged `Last reset reason: panic` and
+detected the core dump (valid checksum, correct crashing task name and
+program counter). Every boot reads
+`esp_reset_reason()` and checks for a core dump from a preceding panic,
+logging and persisting both via [Storage](core.md#responsibilities) (see
+[ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md)).
+Everything else is not yet implemented: structured logs (a general
+logging facility — rotation policy and file format are still open
+questions, not designed yet), module status and connection state (no
+modules exist to report on), error reporting (routes through
+Notifications, a separate not-yet-built item), and all Web UI
+presentation of any of this (the Web Management UI itself doesn't exist
+yet). Planned for M2 (Platform Services) alongside the Web Management UI
+— see [roadmap.md](../roadmap.md).
