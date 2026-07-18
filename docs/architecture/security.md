@@ -24,14 +24,24 @@ distinct question of validating *what* an authenticated request contains.
 
 ## Requirement: avoid insecure secret storage
 
-Wi-Fi credentials and settings are protected via NVS encryption using the
-HMAC-peripheral-based key scheme (not ESP-IDF's default flash-encryption-
-based scheme, which was considered and found to reintroduce the exact
-development cost this decision avoids); the admin password is hashed
-(never stored reversibly) as defense in depth on top of that. See
-[ADR-0010](../decisions/ADR-0010-secret-storage.md) for the confirmed
-scheme choice and the eFuse provisioning step it requires during
-manufacturing/first-flash.
+The admin password is hashed (never stored reversibly) regardless of the
+storage tier — this holds from the start, not staged. NVS encryption
+itself follows a staged security model
+([ADR-0018](../decisions/ADR-0018-staged-security-hardening.md)): the
+current (Development) tier stores NVS-resident secrets in plaintext, by
+design, since flashing/debugging convenience outweighs a threat this
+project's current secret surface doesn't yet justify hardening against.
+The Standard tier activates NVS encryption via the HMAC-peripheral key
+scheme ADR-0010 already chose (not ESP-IDF's default flash-encryption-
+based scheme, which was considered and rejected for reintroducing real
+re-flashing development cost) once a real module credential exists to
+justify its one-time, irreversible eFuse provisioning step. See
+[ADR-0010](../decisions/ADR-0010-secret-storage.md) for the scheme choice
+and [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for
+the staging decision. Wi-Fi credentials are outside this requirement's
+scope entirely — they live on the C6 co-processor's own flash, not this
+project's NVS partition (see
+[hardware.md](hardware.md#wi-fi-bring-up)).
 
 ## Requirement: validate API input
 
@@ -98,8 +108,8 @@ mechanism decision that requirement calls out (centralized vs.
 per-endpoint) remains open for the rest of the API surface, which
 doesn't exist yet.
 
-**NVS encryption remains open** — see
-[ADR-0010](../decisions/ADR-0010-secret-storage.md#implementation-note-nvs-encryption-split-from-the-web-ui-auth-pass)
-for why it was deliberately split from the admin auth pass rather than
-delivered alongside it. Everything else this document describes (OTA
+**NVS encryption is deliberately deferred, not open** — see
+[ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for the
+staged model that places it in a future Standard tier rather than the
+current Development tier. Everything else this document describes (OTA
 signing) remains the recorded, deliberately deferred gap it already was.

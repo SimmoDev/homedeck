@@ -35,9 +35,13 @@ this ADR.
 **Decided:** three tiers, chosen by data characteristics rather than
 convenience:
 
-- **NVS (encrypted, per ADR-0010):** small, sensitive, frequently-read
-  data — Wi-Fi credentials, admin password hash, small settings/
-  preferences. What NVS is actually designed for.
+- **NVS:** small, sensitive, frequently-read data — the admin password
+  hash, small settings/preferences, and (from M3 onward) module
+  credentials. What NVS is actually designed for. Encryption for this
+  tier is staged by [ADR-0018](ADR-0018-staged-security-hardening.md),
+  not activated from the start — see that ADR for why. Wi-Fi credentials
+  are not part of this tier: they live on the C6 co-processor's own flash
+  (see [hardware.md](../architecture/hardware.md#wi-fi-bring-up)).
 - **Internal flash filesystem** (see [Decision: filesystem
   choice](#decision-internal-flash-filesystem-choice) below for which one):
   structured data that needs to survive reboots but isn't large or
@@ -126,6 +130,16 @@ write failures, a different UI flow) for a case that doesn't clearly need
 it. Restore is the same JSON file re-uploaded through the Web UI. This can
 be revisited if backup scope ever grows to include something genuinely
 too large for a convenient download (not currently the case).
+
+**Secrets are excluded from this export.** The admin password hash and
+any future module credential are not "config" in the sense this export
+covers — a backup file is handled far more casually than the device
+itself (emailed, dropped in cloud storage), so it must not become a
+lower-friction way to exfiltrate what NVS encryption is eventually meant
+to protect. This is enforced structurally by routing secrets through
+`SecretStore`, not `SettingsStore` — see
+[ADR-0010](ADR-0010-secret-storage.md#decision-secret-storage-interface)
+— rather than left to the export code's discretion.
 
 ## Decision: Storage namespacing
 

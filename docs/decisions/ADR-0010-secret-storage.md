@@ -7,13 +7,19 @@ Accepted
 ## Context
 
 CLAUDE.md's Security section requires HomeDeck to "avoid insecure secret
-storage." Two secrets exist from M2 onward: the Wi-Fi credentials collected
-during SoftAP provisioning (see
-[ADR-0006](ADR-0006-networking-discovery-provisioning.md)) and the Web UI
-admin password (see [ADR-0007](ADR-0007-web-management-ui-policies.md)).
-Neither [core.md](../architecture/core.md)'s Storage responsibility nor any
-other document specified how these are protected at rest before this ADR —
-they were being persisted the same way as any other configuration value.
+storage." The Web UI admin password (see
+[ADR-0007](ADR-0007-web-management-ui-policies.md)) is the first secret
+this project stores; module credentials (Harmony hub auth, a Home
+Assistant long-lived token, and similar) follow from M3 onward. Wi-Fi
+credentials, collected during SoftAP provisioning (see
+[ADR-0006](ADR-0006-networking-discovery-provisioning.md)), are not in
+scope here — they're persisted by `esp_wifi_remote` on the C6
+co-processor's own flash, outside this project's NVS partition entirely
+(see [hardware.md](../architecture/hardware.md#wi-fi-bring-up)). Neither
+[core.md](../architecture/core.md)'s Storage responsibility nor any other
+document specified how NVS-resident secrets are protected at rest before
+this ADR — they were being persisted the same way as any other
+configuration value.
 
 ## Decision
 
@@ -21,13 +27,13 @@ they were being persisted the same way as any other configuration value.
 - Full flash encryption — encrypts the entire flash contents, including
   application code, not just secrets.
 - NVS encryption — ESP-IDF's targeted feature for encrypting the NVS
-  partition specifically, where Wi-Fi credentials and settings are stored.
+  partition specifically, where secrets are stored.
 - No encryption — plaintext NVS, deferred to a later milestone.
 
-**Decided:** NVS encryption for Wi-Fi credentials and settings, plus
-hashing (salted) the admin password before storage regardless of
-encryption — the password itself is never stored reversibly, as defense in
-depth on top of the encryption.
+**Decided:** NVS encryption for NVS-resident secrets, plus hashing
+(salted) the admin password before storage regardless of encryption — the
+password itself is never stored reversibly, as defense in depth on top of
+the encryption.
 
 Full flash encryption was rejected for now specifically because of its
 development cost: once enabled it complicates the re-flashing workflow
@@ -63,23 +69,47 @@ means for this ADR's purposes without depending on flash encryption: the
 key is never flash-resident even in encrypted form, derived at runtime
 from silicon rather than read from storage.
 
-**New concrete implementation requirement this surfaces:** the HMAC key
-must be programmed into eFuse during manufacturing/first-flash. eFuses are
+**Concrete implementation requirement this surfaces:** the HMAC key must
+be programmed into eFuse before this scheme is active. eFuses are
 one-time-programmable — this is an irreversible, per-device provisioning
-step, not a config flag flipped at will. This needs to be a defined step
-in the M1/M2 flashing/provisioning process, not an afterthought discovered
-when someone tries to enable NVS encryption on a unit that was never
-provisioned for it.
+step, not a config flag flipped at will. See
+[ADR-0018](ADR-0018-staged-security-hardening.md) for when that step
+happens.
 
 Sources: [ESP-IDF NVS Encryption docs (ESP32-P4)](https://docs.espressif.com/projects/esp-idf/en/stable/esp32p4/api-reference/storage/nvs_encryption.html).
 
+## Decision: secret storage interface
+
+**Context:** `AdminAuthService` currently stores the password hash
+through `Storage::SetSetting()` — the same call path any module uses for
+ordinary configuration, distinguished only by which key string is passed.
+Nothing structurally marks that value as a secret. [ADR-0012](ADR-0012-storage-tiers.md#decision-backup-delivery)
+already commits to a Web UI backup export sweeping "config + module
+settings" — without a structural distinction, backup code has no signal
+telling it to exclude the password hash, or any future module credential,
+from that export. This is the same problem
+[ADR-0012](ADR-0012-storage-tiers.md#decision-storage-namespacing)
+already solved for per-module namespacing: a correctness requirement that
+depends on every call site remembering a convention is exactly what
+should be structurally enforced instead.
+
+**Decided:** a `SecretStore` interface, distinct from `SettingsStore`,
+mirroring its shape (`Set`/`Get`/`Erase`) but semantically marking
+anything routed through it as excluded from config export and any future
+diagnostics dump. In the current (Development) security tier it's backed
+by the same plain NVS storage `SettingsStore` uses — this decision is
+about creating the seam, not about encrypting anything, which stays
+governed by [ADR-0018](ADR-0018-staged-security-hardening.md). When the
+Standard tier activates NVS encryption, `SecretStore`'s backing
+implementation is the one place that changes; callers (`AdminAuthService`
+today, module credential storage from M3 on) don't.
+
+This is a design decision, not yet implemented — `AdminAuthService` still
+calls `Storage::SetSetting()` as of this ADR. Introducing the interface
+and rerouting existing callers is its own implementation pass.
+
 ## Consequences
 
-- Core's Storage service (see
-  [core.md](../architecture/core.md#responsibilities)) must use NVS
-  encryption for the credential-bearing partition from the point Wi-Fi
-  provisioning and Web UI auth are implemented in M2 — this is not
-  optional or deferrable the way exact power thresholds are.
 - The admin password hashing scheme (algorithm, salt handling) is an
   implementation detail for M2, not fixed by this ADR — any standard salted
   hash (e.g. bcrypt-family) satisfies the requirement.
@@ -88,17 +118,27 @@ Sources: [ESP-IDF NVS Encryption docs (ESP32-P4)](https://docs.espressif.com/pro
   this ADR does not rule it out permanently, only for now.
 - This ADR does not cover OTA image signing/verification, a related but
   distinct gap — see [security.md](../architecture/security.md#ota-image-integrity).
-- The eFuse provisioning requirement above is a hard M1/M2 process
-  dependency, not an implementation detail to discover later.
+- **When** the HMAC scheme activates, and the eFuse provisioning step that
+  requires, is decided by [ADR-0018](ADR-0018-staged-security-hardening.md),
+  not by this ADR — this ADR fixes the scheme choice, ADR-0018 fixes the
+  timing.
+- Wi-Fi credentials live on the C6 co-processor's own flash, outside this
+  project's NVS partition entirely (see
+  [hardware.md](../architecture/hardware.md#wi-fi-bring-up)) — this ADR's
+  scheme covers NVS-resident secrets (currently, the admin password hash),
+  not Wi-Fi credentials.
+- `AdminAuthService` and any future module credential storage route
+  through `SecretStore` (see [Decision: secret storage
+  interface](#decision-secret-storage-interface) above), not
+  `Storage::SetSetting()` directly — a concrete interface requirement for
+  whichever implementation pass introduces it.
 
-## Implementation note: NVS encryption split from the Web UI auth pass
+## Implementation note: NVS encryption timing
 
 The admin password hash (`AdminAuthService`, see
 [web-ui.md](../architecture/web-ui.md#status)) is PBKDF2-SHA256 hashed
-before it reaches Storage, but stored in the plain, unencrypted NVS tier
-— the HMAC-peripheral encryption scheme this ADR decides on, including
-the one-time, irreversible eFuse key burn it requires, is not yet
-enabled. This is an outstanding requirement, not a reversal of the
-decision above, and applies equally to the Wi-Fi credentials
-([ADR-0006](ADR-0006-networking-discovery-provisioning.md)). Enabling it
-is tracked as its own dedicated, separately-verified follow-up.
+before it reaches Storage, but stored in the plain, unencrypted NVS tier.
+This is deliberate, not outstanding: [ADR-0018](ADR-0018-staged-security-hardening.md)
+places NVS encryption in a Standard security tier, activated once a real
+module credential exists to justify the one-time, irreversible eFuse
+burn the HMAC scheme requires — not in the current (Development) tier.

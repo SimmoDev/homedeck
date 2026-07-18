@@ -158,8 +158,7 @@ simulator.
       Assistant/Kodi) — deliberately deferred until one of those modules
       is real (M4/M6), not built speculatively ahead of a consumer
 - [ ] Configuration service (storage-backed) across the three storage tiers
-      (NVS encrypted using the HMAC-peripheral key scheme, internal flash
-      filesystem, optional microSD — see
+      (NVS, internal flash filesystem, optional microSD — see
       [ADR-0012](decisions/ADR-0012-storage-tiers.md)), with a schema
       version field on every persisted blob (see
       [security.md](architecture/security.md#requirement-avoid-insecure-secret-storage)
@@ -170,14 +169,13 @@ simulator.
       internal-flash-FAT tiers, schema versioning, and per-module
       namespacing — unit-tested in `tests/`, confirmed on real hardware
       (the FAT partition mount, formatting cleanly on first boot, is the
-      one part `ctest` can't exercise). Still open, deliberately deferred rather than dropped: NVS
-      encryption (plain storage for now — the Web Management UI item
-      below now does store the admin password hash, but burning the
-      HMAC eFuse key remains its own dedicated follow-up rather than
-      landing in that same pass, since it's an irreversible per-device
-      action — see
-      [ADR-0010](decisions/ADR-0010-secret-storage.md#implementation-note-nvs-encryption-split-from-the-web-ui-auth-pass)),
-      and the microSD tier (no consumer until Logging exists below)
+      one part `ctest` can't exercise). Still open, deliberately deferred
+      rather than dropped: the `SecretStore` interface ADR-0010 decides on
+      for routing secrets separately from general settings, and the
+      microSD tier (no consumer until Logging exists below). NVS
+      encryption itself is not M2 scope at all — see
+      [ADR-0018](decisions/ADR-0018-staged-security-hardening.md)'s
+      staged security model and the M7 item below
 - [ ] Web Management UI (settings, module configuration, diagnostics,
       backups as a downloadable JSON export —
       *not* initial Wi-Fi setup, which is the SoftAP flow above; see
@@ -209,9 +207,9 @@ simulator.
       Confirmed end to end (setup → protected route → login →
       wrong-password → logout) via an automated real-HTTP test and
       manual `curl` runs against both the simulator and the reference
-      unit, including the password surviving a device reboot. Its NVS
-      encryption is a known, deliberately separated gap - see
-      [ADR-0010](decisions/ADR-0010-secret-storage.md#implementation-note-nvs-encryption-split-from-the-web-ui-auth-pass).
+      unit, including the password surviving a device reboot. The
+      password hash is stored plaintext by design at this project stage
+      - see [ADR-0018](decisions/ADR-0018-staged-security-hardening.md).
       Still open: the Svelte/Vite frontend, WebSockets, and the REST API
       surface for settings/config/diagnostics/OTA/backups — none of that
       exists yet
@@ -378,6 +376,12 @@ day-to-day usage with HomeDeck.
 - [ ] Battery optimisation
 - [ ] User customisation (dashboard widget/layout customization — see
       [dashboard.md](architecture/dashboard.md#customization-future))
+- [ ] Standard-tier security hardening: activate NVS encryption via the
+      HMAC-peripheral scheme, including its one-time eFuse provisioning
+      step — see [ADR-0018](decisions/ADR-0018-staged-security-hardening.md).
+      Timing within M7 is a placeholder, not fixed: the actual trigger is
+      a real module credential existing to protect (see ADR-0018), which
+      may land earlier once M3+ modules are built
 
 ## Architectural Decisions Index
 
@@ -416,7 +420,8 @@ index — decision name, ADR, one-line outcome.
 | Hardware support library (display/touch) | [ADR-0014](decisions/ADR-0014-hardware-support-library.md) | `espressif/m5stack_tab5` (ESP-IDF-native), not M5Unified/M5GFX — confirmed crash on this chip via Arduino-as-Component |
 | Display orientation | [ADR-0015](decisions/ADR-0015-display-orientation.md) | Portrait, `720x1280`, no rotation — the panel's native scan direction; matches the battery pack's kickstand tilt |
 | Hardware support library (battery/RTC) | [ADR-0016](decisions/ADR-0016-battery-rtc-library.md) | `espp/ina226` + `espp/rx8130ce` — the BSP's own capability table doesn't cover either peripheral |
-| Secret storage | [ADR-0010](decisions/ADR-0010-secret-storage.md) | NVS encryption (HMAC-peripheral key scheme, confirmed independent of flash encryption on ESP32-P4) + hashed admin password |
+| Secret storage | [ADR-0010](decisions/ADR-0010-secret-storage.md) | HMAC-peripheral NVS encryption scheme (confirmed independent of flash encryption on ESP32-P4) chosen but not yet active + hashed admin password (active now) + `SecretStore` interface (decided, not yet implemented) |
+| Staged security hardening | [ADR-0018](decisions/ADR-0018-staged-security-hardening.md) | Development (now) → Standard (NVS encryption, once a real module credential exists) → Hardened (Secure Boot + flash encryption, only if HomeDeck is ever manufactured) |
 | OTA image signing | [security.md](architecture/security.md#ota-image-integrity) | Known gap, deliberately deferred — not yet in scope |
 | LVGL thread safety | [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md) | Dedicated UI task owns LVGL; event bus guarantees safe hand-off via `lv_async_call()` |
 | Event payload lifetime | [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#decision-event-payload-lifetime-across-the-dispatch-boundary) | Reference-counted copy at publish time, not a raw pointer into publisher state |

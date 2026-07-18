@@ -6,9 +6,9 @@ namespace homedeck {
 
 // Wraps ESP-IDF's NVS API directly against the `nvs` partition - see
 // docs/decisions/ADR-0017-partition-table.md. Plain (unencrypted) storage
-// for now - see docs/decisions/ADR-0010-secret-storage.md and the M2
-// Configuration-service roadmap item for why activating the HMAC-secured
-// scheme is a separate, deliberately deferred step, not done here.
+// by design at this project stage - see
+// docs/decisions/ADR-0018-staged-security-hardening.md for the staged
+// security model that decides when NVS encryption activates.
 // `ns`/`key` map directly onto NVS's own namespace/key strings, which are
 // capped at 15 characters (NVS_KEY_NAME_MAX_SIZE - 1) - callers exceeding
 // that get an ESP_ERR_NVS_INVALID_NAME failure surfaced as a normal
