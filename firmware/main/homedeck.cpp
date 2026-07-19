@@ -23,6 +23,7 @@
 #include "platform/firmware/secret_store.h"
 #include "platform/firmware/settings_store.h"
 #include "platform/firmware/time_source.h"
+#include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
@@ -40,6 +41,14 @@
 // firmware/platform/task.cpp and timer.cpp (FreeRTOS-backed, per
 // ADR-0002) exist because Clock needs a working Timer.
 namespace {
+
+// webui/index.html, linked into the app image via EMBED_FILES (see
+// CMakeLists.txt) - not the storage FAT partition, see
+// docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage
+// for why. Symbol names are derived from the embedded file's basename by
+// ESP-IDF's build system (dots become underscores), not chosen here.
+extern const uint8_t webui_index_html_start[] asm("_binary_index_html_start");
+extern const uint8_t webui_index_html_end[] asm("_binary_index_html_end");
 
 // Mirrors the exact lv_async_call()-based hand-off UiTask uses for the
 // simulator (src/ui/ui_task.cpp) - this is core LVGL API, not backend-
@@ -207,8 +216,8 @@ extern "C" void app_main(void) {
     homedeck::AdminAuthService admin_auth(storage, auth_time_source);
 
     // The Web Management UI's server primitive (see
-    // docs/architecture/web-ui.md#status) - a placeholder route plus
-    // admin auth. Started after Wi-Fi connects, and after
+    // docs/architecture/web-ui.md#status) - the static placeholder page
+    // plus admin auth. Started after Wi-Fi connects, and after
     // wifi_setup.cpp's own temporary SoftAP-setup server has already
     // stopped, so there's no port/lifecycle overlap between the two.
     // Real settings/diagnostics pages and the Svelte/Vite frontend are
@@ -216,9 +225,11 @@ extern "C" void app_main(void) {
     // it stays alive for the rest of app_main's life, which never
     // returns.
     homedeck::FirmwareHttpServer web_server;
-    web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/", [](const homedeck::HttpRequest&) {
-        return homedeck::HttpResponse{200, "text/plain", "HomeDeck Web UI - coming soon", {}};
-    });
+    homedeck::ServeStaticFiles(
+        web_server,
+        {{"/", "text/html",
+          std::string(reinterpret_cast<const char*>(webui_index_html_start),
+                       webui_index_html_end - webui_index_html_start)}});
     homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
     // Temporary test-only route proving RequireAuth() actually gates a
     // real endpoint end to end on real hardware too, the same reasoning

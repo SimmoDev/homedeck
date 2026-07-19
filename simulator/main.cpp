@@ -4,10 +4,12 @@
 #include "core/low_battery_monitor.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
+#include "platform/host/file_backed_store.h"
 #include "platform/host/http_server.h"
 #include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
 #include "platform/host/time_source.h"
+#include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
 #include "screens/placeholder_screen.h"
 #include "ui/navigation.h"
@@ -197,13 +199,23 @@ int main() {
     homedeck::AdminAuthService admin_auth(storage, auth_time_source);
 
     // The Web Management UI's server primitive (see
-    // docs/architecture/web-ui.md#status) - a placeholder route plus
-    // admin auth. Real settings/diagnostics pages and the Svelte/Vite
-    // frontend are still future passes.
+    // docs/architecture/web-ui.md#status) - the static placeholder page
+    // plus admin auth. Real settings/diagnostics pages and the
+    // Svelte/Vite frontend are still future passes.
     homedeck::HostHttpServer web_server;
-    web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/", [](const homedeck::HttpRequest&) {
-        return homedeck::HttpResponse{200, "text/plain", "HomeDeck Web UI - coming soon", {}};
-    });
+    // Read once at startup, not per-request - matches firmware's
+    // EMBED_FILES approach (data available for the process's lifetime),
+    // see homedeck.cpp's identical wiring and
+    // docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage.
+    // HOMEDECK_WEBUI_DIR is a source-tree-relative path baked in by
+    // CMakeLists.txt, so this works regardless of the simulator's
+    // current working directory when launched.
+    auto index_html = homedeck::ReadFile(std::filesystem::path(HOMEDECK_WEBUI_DIR) / "index.html");
+    if (index_html.has_value()) {
+        homedeck::ServeStaticFiles(web_server, {{"/", "text/html", *index_html}});
+    } else {
+        std::printf("Warning: could not read %s/index.html\n", HOMEDECK_WEBUI_DIR);
+    }
     homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
     // Temporary test-only route proving RequireAuth() actually gates a
     // real endpoint end to end on this target, the same reasoning

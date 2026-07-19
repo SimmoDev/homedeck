@@ -21,11 +21,10 @@ table doesn't reserve: OTA's real A/B scheme itself; a dedicated core
 dump partition, which ADR-0013 already says must be "planned alongside
 the OTA A/B scheme... not added later"; an `nvs_keys` partition for NVS
 encryption ([ADR-0010](ADR-0010-secret-storage.md)); and a FAT +
-`wear_levelling` partition for cached data, rotating logs, and the Web
-Management UI's compiled Svelte bundle
-([ADR-0012](ADR-0012-storage-tiers.md),
-[ADR-0002](ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach) —
-one partition serves all three, not separate technology choices).
+`wear_levelling` partition for cached data and rotating logs
+([ADR-0012](ADR-0012-storage-tiers.md)) — the Web Management UI's
+compiled Svelte bundle does not live here, see
+[ADR-0002](ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage).
 Repartitioning once now, with real headroom reserved for each, avoids
 revisiting the layout piecemeal as each of those features actually gets
 built.
@@ -48,8 +47,8 @@ built-in single-app table, on the confirmed 16MB flash:
 | `phy_init` | data/phy         | 4KB       | RF calibration data (unchanged) |
 | `ota_0`    | app/ota_0        | 4MB       | OTA slot A |
 | `ota_1`    | app/ota_1        | 4MB       | OTA slot B |
-| `coredump` | data/coredump    | 256KB     | Panic core dumps (ADR-0013) — reserved, not yet activated |
-| `storage`  | data/fat         | 7.625MB   | Cached data, rotating logs, Web UI static bundle (ADR-0012, ADR-0002) — reserved, not yet mounted |
+| `coredump` | data/coredump    | 256KB     | Panic core dumps (ADR-0013) — real, written to by `firmware/main/crash_diagnostics.cpp` |
+| `storage`  | data/fat         | 7.625MB   | Cached data, rotating logs (ADR-0012) — mounted and in real use by `FirmwareCacheStore`. The Web UI static bundle is embedded in the app image instead, not stored here (see [ADR-0002](ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)) |
 
 **`ota_0`/`ota_1` sized at 4MB each — options considered:**
 - 2MB (~1.35x current ~1.48MB usage) — tighter; the largest planned M3-M6
@@ -72,12 +71,12 @@ implemented*, not as a reason to keep a `factory` slot; this table
 doesn't block adding rollback support later.
 
 **`storage` sized to the remainder (7.625MB) rather than a fixed smaller
-number** — its three consumers (cache, logs, Web UI bundle) don't have
-measured sizes yet, and ADR-0012 already defers exact cache-retention
-rules to implementation time. There's no other use for the remaining
-budget on a 16MB chip; if `ota_0`/`ota_1` ever need to grow past 4MB,
-that's a future repartition against this same file, not blocked by
-allocating the remainder now.
+number** — its two consumers (cache, logs) don't have measured sizes
+yet, and ADR-0012 already defers exact cache-retention rules to
+implementation time. There's no other use for the remaining budget on a
+16MB chip; if `ota_0`/`ota_1` ever need to grow past 4MB, that's a future
+repartition against this same file, not blocked by allocating the
+remainder now.
 
 ## Decision: partition ordering and alignment
 
@@ -113,9 +112,10 @@ reintroduce silently otherwise.
 
 - [hardware.md](../architecture/hardware.md#on-device-dashboard) and
   [docs/roadmap.md](../roadmap.md) no longer describe the OTA A/B scheme
-  as pending — the table exists; the OTA client, core dump capture, NVS
-  encryption, and FAT filesystem mount are still separate implementation
-  work against the space reserved here.
+  as pending — the table exists. Core dump capture and the FAT filesystem
+  mount are real, built against this table's `coredump`/`storage`
+  partitions; the OTA client itself and NVS encryption remain separate,
+  not-yet-built work against the space reserved here.
 - Flashing this table changes partition offsets (new partitions
   interspersed before `nvs`), so existing on-device NVS content doesn't
   carry over from the previous single-app table — a one-time,
@@ -124,6 +124,8 @@ reintroduce silently otherwise.
   co-processor's own flash, not this table (see
   [hardware.md#wi-fi-bring-up](../architecture/hardware.md#wi-fi-bring-up)).
 - `ota_0`/`ota_1` sizing is a judgment call against currently-unbuilt
-  modules, not a measurement — worth revisiting if a future module (or
-  the Web UI's own compiled backend, if that ever needs to move off
-  `storage`) turns out to need meaningfully more than 4MB.
+  modules, not a measurement — worth revisiting if a future module turns
+  out to need meaningfully more than 4MB, or if the Web UI's embedded
+  static bundle (see
+  [ADR-0002](ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage))
+  grows large enough to matter against the app-partition budget.

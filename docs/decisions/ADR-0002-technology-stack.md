@@ -217,18 +217,70 @@ dispatch-safety question raised above is still open.
   ecosystem, largest bundle size, arguably disproportionate for an admin UI
   on an embedded device.
 
-**Decided: Svelte + Vite**, producing a static bundle served from the
-internal flash filesystem (the same FAT + `wear_levelling` partition
-[ADR-0012](ADR-0012-storage-tiers.md#decision-internal-flash-filesystem-choice)
-decided for cached data and logs — not a separate technology choice, and
-not microSD, which ADR-0012 scopes to extended log archival, not static
-assets). This keeps runtime footprint close to vanilla JS while giving a
-maintainable component-based DX for what will eventually be a non-trivial
-admin UI (module configuration, diagnostics, OTA, settings — not initial
-Wi-Fi setup, which is a separate SoftAP captive-portal flow, see
+**Decided: Svelte + Vite**, producing a static bundle. This keeps runtime
+footprint close to vanilla JS while giving a maintainable component-based
+DX for what will eventually be a non-trivial admin UI (module
+configuration, diagnostics, OTA, settings — not initial Wi-Fi setup,
+which is a separate SoftAP captive-portal flow, see
 [networking.md](../architecture/networking.md#initial-wi-fi-provisioning)).
 Vanilla JS remains the fallback if bundle size proves problematic in
-practice.
+practice. See [6. Web Management UI static asset
+storage](#6-web-management-ui-static-asset-storage) below for where the
+built bundle actually lives — a later, separate decision from the
+framework choice here.
+
+### 6. Web Management UI static asset storage
+
+**Context:** the framework decision above originally assumed the built
+bundle would be served from the internal flash filesystem — the same FAT
++ `wear_levelling` partition
+[ADR-0012](ADR-0012-storage-tiers.md#decision-internal-flash-filesystem-choice)
+uses for cached data and logs. Implementing static file serving surfaced
+two real problems with that, confirmed against ESP-IDF's actual build
+tooling (`fatfs_create_spiflash_image`/`fatfs_create_partition_image` in
+`components/fatfs/project_include.cmake`), not assumed:
+
+- The standard way to get files onto that partition writes the *entire*
+  partition image on every `idf.py flash`, not just the web-asset files —
+  a routine dev reflash would silently wipe whatever else lives on
+  `storage` (cache, logs) alongside the bundle.
+- ESP-IDF's OTA mechanism only ever updates the app partition
+  (`ota_0`/`ota_1`), never `storage` — an OTA'd firmware update wouldn't
+  bring a new frontend bundle with it, so backend and frontend could
+  drift out of sync after an OTA update with nothing to prevent or detect
+  it.
+
+**Options:**
+- Keep the `storage` FAT partition, but flash the web-asset image only as
+  an explicit separate step (not `FLASH_IN_PROJECT`) rather than on every
+  `idf.py flash` — avoids the routine-reflash wipe, but doesn't solve the
+  OTA drift problem, which is inherent to assets living on a partition
+  the OTA mechanism doesn't touch.
+- Embed the bundle directly into the firmware app image via ESP-IDF's
+  `EMBED_FILES` (`idf_component_register(... EMBED_FILES ...)`), served
+  from flash-mapped memory - no filesystem or partition involved.
+
+**Decided: embed in the app image.** Frontend and backend are then always
+the same OTA-versioned image and can't drift apart, and there's no
+partition-wipe risk since nothing writes to `storage` as a side effect of
+flashing. This supersedes
+[ADR-0017](ADR-0017-partition-table.md)'s description of the `storage`
+partition as covering the Web UI bundle — its scope narrows to cached
+data and logs only; [ADR-0012](ADR-0012-storage-tiers.md)'s own tier
+description never named the bundle specifically, so nothing there needs
+correcting. The tradeoff: `EMBED_FILES`
+suits a small, fixed set of files well but not Vite's default
+content-hashed many-chunk output; the Svelte build is expected to stay
+configured for a small, fixed output file set (matching the "small
+footprint" framework decision above), not Vite's default.
+
+`ServeStaticFiles` (`src/platform/static_assets.h`/`.cpp`) is the
+portable serving mechanism both targets use — firmware supplies
+`EMBED_FILES`-linked flash data copied once at startup, the simulator
+reads `webui/` off disk once at startup (a real dev-convenience
+divergence, consistent with the backend-implementation divergence this
+ADR's [Embedded web/WebSocket server](#3-embedded-webwebsocket-server)
+decision already accepts).
 
 ### 5. Test framework
 

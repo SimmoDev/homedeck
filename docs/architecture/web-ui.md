@@ -159,9 +159,24 @@ pass as new, not-yet-hardware-verified auth logic. The password itself
 is still never stored reversibly regardless (PBKDF2-SHA256 hashed before
 it reaches Storage).
 
-Still open, each its own future pass: the Svelte + Vite frontend (see
-[ADR-0002](../decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)),
-WebSockets for live updates, the REST API surface for the [Scope](#scope)
-items above (module configuration, diagnostics, OTA, backups, settings —
-none of that exists yet, only auth and the placeholder route), and the
-NVS-encryption follow-up named above.
+**Static asset serving is real on both targets** — `ServeStaticFiles`
+(`src/platform/static_assets.h`/`.cpp`) registers one exact-path GET
+handler per asset. Firmware embeds assets directly into the app image
+via ESP-IDF's `EMBED_FILES` (see
+[ADR-0002](../decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
+for why, not the `storage` FAT partition); the simulator reads the same
+files from `webui/` on disk once at startup. `webui/index.html`, a
+hand-authored placeholder, is served at `/` on both targets — **confirmed
+on real hardware** (Tab5 K145 reference unit), reachable over the LAN at
+`http://homedeck.local/` once Wi-Fi connects, as well as via a real HTTP
+request against the simulator and a clean Docker firmware build with the
+embedded symbol linking correctly.
+
+Still open, each its own future pass: the Svelte + Vite frontend itself
+(see
+[ADR-0002](../decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach) —
+`webui/index.html` is a placeholder it replaces, not a first draft of
+it), WebSockets for live updates, the REST API surface for the
+[Scope](#scope) items above (module configuration, diagnostics, OTA,
+backups, settings — none of that exists yet, only auth and static
+assets), and the NVS-encryption follow-up named above.

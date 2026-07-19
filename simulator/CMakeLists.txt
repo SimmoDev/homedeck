@@ -33,3 +33,8 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_BINARY_DIR}/
 
 add_executable(homedeck_simulator main.cpp screens/placeholder_screen.cpp widgets/placeholder_widget.cpp)
 target_link_libraries(homedeck_simulator PRIVATE homedeck_ui PkgConfig::SDL2)
+
+# Source-tree-relative, not a relative path resolved at runtime against
+# the simulator's working directory - see main.cpp's Web UI wiring.
+target_compile_definitions(homedeck_simulator PRIVATE
+  HOMEDECK_WEBUI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../webui")

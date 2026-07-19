@@ -47,6 +47,15 @@ src/
 │                headers (not a generic header map - see
 │                http_server.h's own comment for why), needed for
 │                AdminAuthService's session cookie. Also
+│                static_assets.h/.cpp - ServeStaticFiles(), a portable
+│                (no host/firmware split) helper registering one exact-
+│                path GET handler per Web UI static asset via
+│                RegisterHandler(); firmware/main/homedeck.cpp builds the
+│                asset list from EMBED_FILES-linked flash data,
+│                simulator/main.cpp reads webui/ off disk once at startup
+│                (see
+│                ADR-0002#6-web-management-ui-static-asset-storage for
+│                why assets live in the app image, not a partition). Also
 │                SteadyTimeSource - a portable (no host/firmware split)
 │                TimeSource backed by std::chrono::steady_clock rather
 │                than a wall clock, for callers that need reliable

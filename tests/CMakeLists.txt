@@ -33,6 +33,7 @@ add_executable(homedeck_tests
   clock_test.cpp
   storage_test.cpp
   http_server_test.cpp
+  static_assets_test.cpp
   low_battery_monitor_test.cpp
   admin_auth_service_test.cpp
   admin_auth_routes_test.cpp

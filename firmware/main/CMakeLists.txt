@@ -31,6 +31,7 @@ idf_component_register(
         "../../src/platform/firmware/secret_store.cpp"
         "../../src/platform/firmware/cache_store.cpp"
         "../../src/platform/firmware/http_server.cpp"
+        "../../src/platform/static_assets.cpp"
     INCLUDE_DIRS
         "."
         "../../src"
@@ -45,4 +46,6 @@ idf_component_register(
         wear_levelling
         espcoredump
         mbedtls
+    EMBED_FILES
+        "../../webui/index.html"
 )

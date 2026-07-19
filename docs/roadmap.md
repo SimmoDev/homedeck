@@ -194,14 +194,13 @@ simulator.
       **The `HttpServer` primitive itself is real, confirmed on both
       targets, including on real hardware** (`FirmwareHttpServer`/
       `HostHttpServer` in `src/platform/`, see
-      [web-ui.md](architecture/web-ui.md#status)) — one placeholder
-      route, proven with a real request/response round trip (an
-      automated raw-socket test against the simulator's server, a manual
-      `curl` against the running simulator, and on the Tab5 K145
-      reference unit, reachable over the LAN from a browser once Wi-Fi
-      connects). **The admin auth mechanism is also real, confirmed on
-      real hardware** (Tab5 K145 reference unit) —
-      `AdminAuthService` (`src/core/`) implements the first-login
+      [web-ui.md](architecture/web-ui.md#status)), proven with a real
+      request/response round trip (an automated raw-socket test against
+      the simulator's server, a manual `curl` against the running
+      simulator, and on the Tab5 K145 reference unit, reachable over the
+      LAN from a browser once Wi-Fi connects). **The admin auth mechanism
+      is also real, confirmed on real hardware** (Tab5 K145 reference
+      unit) — `AdminAuthService` (`src/core/`) implements the first-login
       setup/login/logout flow this item's own description calls for,
       PBKDF2-SHA256 password hashing, session cookies, and a
       `RequireAuth()` gate future protected endpoints will use.
@@ -211,9 +210,18 @@ simulator.
       unit, including the password surviving a device reboot. The
       password hash is stored plaintext by design at this project stage
       - see [ADR-0018](decisions/ADR-0018-staged-security-hardening.md).
-      Still open: the Svelte/Vite frontend, WebSockets, and the REST API
-      surface for settings/config/diagnostics/OTA/backups — none of that
-      exists yet
+      **Static asset serving is real on both targets** (`ServeStaticFiles`,
+      `src/platform/static_assets.h`/`.cpp`, see
+      [web-ui.md](architecture/web-ui.md#status)) — assets embedded into
+      the firmware app image rather than a partition (see
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)),
+      a hand-authored `webui/index.html` served at `/` on both targets,
+      confirmed on the Tab5 K145 reference unit over the LAN at
+      `http://homedeck.local/`, as well as via a real HTTP request against
+      the simulator and a clean Docker firmware build. Still open: the
+      Svelte/Vite frontend itself, WebSockets, and the REST API surface
+      for settings/config/diagnostics/OTA/backups
+      — none of that exists yet
 - [ ] OTA update support, gated on battery threshold or external USB-C power
       (see [power-management.md](architecture/power-management.md#explicit-power-states)) —
       image signing is a known, deliberately deferred gap, not yet in scope
@@ -401,6 +409,7 @@ index — decision name, ADR, one-line outcome.
 | Embedded HTTP/WebSocket server | [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server) | `esp_http_server` (firmware) + civetweb (simulator) |
 | WebSocket relay dispatch safety | [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server) | `httpd_queue_work()` on firmware; civetweb's equivalent **unconfirmed**, needs M2 verification |
 | Web UI frontend | [ADR-0002](decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach) | Svelte + Vite |
+| Web UI static asset storage | [ADR-0002](decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage) | Embedded in the firmware app image (`EMBED_FILES`), not the `storage` partition — avoids partition-wipe-on-reflash and frontend/backend OTA drift |
 | Test framework | [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework) | GoogleTest/GoogleMock against the simulator; no on-target suite |
 | Module architecture, Core/module boundary | [ADR-0003](decisions/ADR-0003-module-architecture.md) | Event bus only; Core stays generic; Harmony is the reference module |
 | UI philosophy, state-management pattern | [ADR-0004](decisions/ADR-0004-ui-philosophy.md) | Touch UI vs. Web UI split; dashboard-as-home; lightweight per-screen controllers |
