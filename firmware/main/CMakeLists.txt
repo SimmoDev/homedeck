@@ -16,7 +16,9 @@
 # so a stale/missing build here is a real, easy-to-hit case, not a
 # hypothetical - fail with a clear message rather than EMBED_FILES'
 # own opaque "file not found" error.
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../webui/dist/index.html")
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../webui/dist/index.html" OR
+   NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../webui/dist/app.js" OR
+   NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../webui/dist/app.css")
     message(FATAL_ERROR
         "webui/dist/ is missing or incomplete - run 'npm ci && npm run build' "
         "in webui/ before building firmware (see DEVELOPMENT.md).")
@@ -63,4 +65,5 @@ idf_component_register(
     EMBED_FILES
         "../../webui/dist/index.html"
         "../../webui/dist/app.js"
+        "../../webui/dist/app.css"
 )

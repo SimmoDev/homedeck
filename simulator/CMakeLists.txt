@@ -37,7 +37,9 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_BINARY_DIR}/
 # so a stale/missing build here is a real, easy-to-hit case, not a
 # hypothetical - fail at configure time with a clear message rather than
 # main.cpp's ReadFile() silently warning and serving nothing at runtime.
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../webui/dist/index.html")
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../webui/dist/index.html" OR
+   NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../webui/dist/app.js" OR
+   NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../webui/dist/app.css")
   message(FATAL_ERROR
     "webui/dist/ is missing or incomplete - run 'npm ci && npm run build' "
     "in webui/ before building the simulator (see DEVELOPMENT.md).")

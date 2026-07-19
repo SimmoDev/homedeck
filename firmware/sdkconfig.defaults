@@ -106,6 +106,18 @@ CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 # Software SHA256 has no such per-call overhead.
 CONFIG_MBEDTLS_HARDWARE_SHA=n
 
+# app_main() never returns - every Core service (Storage, AdminAuthService,
+# FirmwareHttpServer, EventBus, Clock, dashboard/widget objects, and more
+# as the app grows) is a direct stack-local in its body, not heap-allocated,
+# for the whole program's lifetime. ESP-IDF's default main task stack
+# (3584 bytes) is sized for a minimal app_main, not one holding this many
+# service objects directly, and causes a stack-protection-fault panic in
+# task "main". Raised generously, not just past the current requirement,
+# since more Core services land here over time and PSRAM/RAM headroom
+# makes a generous static stack cheap (see hardware.md's Application
+# processor section).
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
+
 # StatusBar (src/ui/status_bar.h) uses Montserrat 24, not LVGL's default
 # Montserrat 14, which is too small to read at a glance on the Tab5's
 # physical screen. On this panel's ~294 PPI (from its 5" 720x1280 spec -

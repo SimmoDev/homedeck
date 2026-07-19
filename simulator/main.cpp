@@ -214,7 +214,8 @@ int main() {
     // simulator's current working directory when launched.
     std::vector<homedeck::StaticAsset> webui_assets;
     for (const auto& [path, filename, content_type] :
-         {std::tuple{"/", "index.html", "text/html"}, std::tuple{"/app.js", "app.js", "text/javascript"}}) {
+         {std::tuple{"/", "index.html", "text/html"}, std::tuple{"/app.js", "app.js", "text/javascript"},
+          std::tuple{"/app.css", "app.css", "text/css"}}) {
         auto content = homedeck::ReadFile(std::filesystem::path(HOMEDECK_WEBUI_DIR) / filename);
         if (content.has_value()) {
             webui_assets.push_back({path, content_type, *content});

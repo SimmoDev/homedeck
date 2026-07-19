@@ -171,20 +171,35 @@ real hardware** (Tab5 K145 reference unit), reachable over the LAN at
 request against the simulator and a clean Docker firmware build with the
 embedded symbols linking correctly.
 
-**The Svelte + Vite frontend scaffold is also real** (`webui/`, see
+**The Svelte + Vite frontend is real, and the first-login/session flow
+is now real UI, not scaffolding** (`webui/`, see
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)
-for the framework decision) — a single component that fetches
-`/api/auth/status` on mount and renders the real response, proving the
-whole pipeline end to end: Svelte component → Vite build (fixed
-`index.html`/`app.js` output, no hashing, no code splitting) →
-embedded/served static assets → a real browser executing the fetched
-JS → the actual `AdminAuthService` endpoint. **Confirmed on real
-hardware** (Tab5 K145 reference unit) via a headless Chromium render
-against `http://homedeck.local/` over the LAN, showing the real fetched
-auth status — not just that the files transfer correctly — as well as
-against the simulator the same way. This is scaffolding proving the
-mechanism, not real UI — the actual admin/settings/
-diagnostics screens are still ahead.
+for the framework decision). `App.svelte` drives three states directly
+off `GET /api/auth/status` — password setup (`PasswordForm.svelte` in
+`setup` mode, with a confirm-password field since there's no recovery
+path for a setup typo yet), login (the same component in `login` mode,
+single field), and an authenticated view with a working logout button —
+matching ADR-0007's first-login-sets-password design exactly, including
+its accepted race-condition handling (an `already_set` response from a
+losing setup request re-checks status rather than treating it as this
+form's own error). Confirmed on both targets: the setup and login form
+renders confirmed via headless Chromium against the real running
+server (correct fields, `autocomplete` attributes, button text per
+mode); the full session lifecycle (wrong password → 401, correct
+password → session cookie → `authenticated: true`, logout → cookie
+cleared → `authenticated: false`) confirmed against the actual
+`AdminAuthService` endpoints on the simulator, matching exactly what
+the form code depends on. **Confirmed on real hardware** (Tab5 K145
+reference unit) too — the full three-file bundle
+(`index.html`/`app.js`/`app.css`) served correctly over the LAN at
+`http://homedeck.local/`, and the wrong-password path specifically
+(401/`invalid_credentials`, the same response `PasswordForm.svelte`
+maps to "Incorrect password."). Basic layout/spacing styling exists
+(Svelte component-scoped `<style>` blocks plus a small global reset in
+`index.html`) — a plain, functional look for the one real screen that
+exists, not a design system built ahead of having more screens to
+standardize across. The actual settings/diagnostics/OTA/backups
+screens are still ahead.
 
 Still open, each its own future pass: WebSockets for live updates, the
 REST API surface for the [Scope](#scope) items above (module

@@ -217,16 +217,18 @@ simulator.
       [ADR-0002](decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)),
       confirmed on the Tab5 K145 reference unit over the LAN at
       `http://homedeck.local/`, as well as via a real HTTP request against
-      the simulator and a clean Docker firmware build. **The Svelte + Vite
-      frontend scaffold is also real** (`webui/`, see
+      the simulator and a clean Docker firmware build. **The first-login/
+      session flow is real UI** (`webui/`, see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)) —
-      one component fetching `/api/auth/status` and rendering the real
-      response, confirmed on the Tab5 K145 reference unit via a headless-
-      browser render against `http://homedeck.local/` showing the actual
-      fetched values, as well as against the simulator the same way.
-      Still scaffolding, not real UI. Still open: WebSockets and the REST
-      API surface for settings/config/diagnostics/OTA/backups — none of
-      that exists yet
+      password setup, login, and an authenticated view with working
+      logout, matching ADR-0007's design including its accepted
+      first-login race handling. Setup/login form renders and the full
+      session lifecycle (wrong password, correct password, logout)
+      confirmed against the simulator; the full bundle including basic
+      layout styling and the wrong-password path confirmed on the Tab5
+      K145 reference unit too. Still open: WebSockets and the REST API
+      surface for settings/config/diagnostics/OTA/backups — none of that
+      exists yet
 - [ ] OTA update support, gated on battery threshold or external USB-C power
       (see [power-management.md](architecture/power-management.md#explicit-power-states)) —
       image signing is a known, deliberately deferred gap, not yet in scope

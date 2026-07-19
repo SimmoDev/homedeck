@@ -42,9 +42,9 @@
 // ADR-0002) exist because Clock needs a working Timer.
 namespace {
 
-// webui/dist/{index.html,app.js} - the built Svelte/Vite bundle, linked
-// into the app image via EMBED_FILES (see CMakeLists.txt), not the
-// storage FAT partition - see
+// webui/dist/{index.html,app.js,app.css} - the built Svelte/Vite bundle,
+// linked into the app image via EMBED_FILES (see CMakeLists.txt), not
+// the storage FAT partition - see
 // docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage
 // for why. Symbol names are derived from each embedded file's basename by
 // ESP-IDF's build system (dots become underscores), not chosen here.
@@ -52,6 +52,8 @@ extern const uint8_t webui_index_html_start[] asm("_binary_index_html_start");
 extern const uint8_t webui_index_html_end[] asm("_binary_index_html_end");
 extern const uint8_t webui_app_js_start[] asm("_binary_app_js_start");
 extern const uint8_t webui_app_js_end[] asm("_binary_app_js_end");
+extern const uint8_t webui_app_css_start[] asm("_binary_app_css_start");
+extern const uint8_t webui_app_css_end[] asm("_binary_app_css_end");
 
 // Mirrors the exact lv_async_call()-based hand-off UiTask uses for the
 // simulator (src/ui/ui_task.cpp) - this is core LVGL API, not backend-
@@ -234,7 +236,10 @@ extern "C" void app_main(void) {
                        webui_index_html_end - webui_index_html_start)},
          {"/app.js", "text/javascript",
           std::string(reinterpret_cast<const char*>(webui_app_js_start),
-                       webui_app_js_end - webui_app_js_start)}});
+                       webui_app_js_end - webui_app_js_start)},
+         {"/app.css", "text/css",
+          std::string(reinterpret_cast<const char*>(webui_app_css_start),
+                       webui_app_css_end - webui_app_css_start)}});
     homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
     // Temporary test-only route proving RequireAuth() actually gates a
     // real endpoint end to end on real hardware too, the same reasoning

@@ -2,7 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HomeDeck</title>
+<style>
+  /* Global reset/page background - component-level layout lives in
+     App.svelte's own scoped styles, not here. */
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f3f4f6;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: #1f2937;
+  }
+</style>
 </head>
 <body>
 <div id="app"></div>

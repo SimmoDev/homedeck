@@ -8,11 +8,13 @@ see [docs/architecture/networking.md](../docs/architecture/networking.md#initial
 Svelte 5 + TypeScript + Vite (see
 [ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)),
 plain client-side - no SvelteKit, no routing/SSR need exists for a
-single-page admin UI. `src/App.svelte` is currently a scaffold, not real
-UI: it fetches `/api/auth/status` and renders the response, proving the
-whole pipeline (Vite build → `dist/` → embedded in the firmware app image
-or read by the simulator → served → fetched by a real browser). The real
-admin/settings/diagnostics screens replace it - see
+single-page admin UI. `src/App.svelte` drives the real first-login/
+session flow - password setup, login, and an authenticated view with
+logout - off `GET /api/auth/status`, per ADR-0007's design.
+`src/lib/PasswordForm.svelte` is shared by both setup and login (same
+field, same submit mechanics; setup adds a confirm-password field, a
+real safeguard since there's no password-recovery flow yet). The real
+settings/diagnostics/OTA/backups screens are still ahead - see
 [docs/architecture/web-ui.md](../docs/architecture/web-ui.md) for the
 full scope.
 
