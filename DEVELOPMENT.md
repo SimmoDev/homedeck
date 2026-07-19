@@ -95,10 +95,17 @@ trying to hold all of it in mind now.
 - **Python 3** — only needed on the host if using a native ESP-IDF install
   instead of Docker; the `espressif/idf:v5.4.3` image bundles its own
   (Python 3.12.3, verified working).
-- **Node.js + a package manager** — required once the Web Management UI
-  frontend build exists (M2). Exact tooling depends on the frontend
-  framework decision in
-  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach).
+- **Node.js + npm** — builds the Web Management UI's Svelte/Vite frontend
+  (`webui/`). Required before building firmware or the simulator, not
+  optional: both depend on `webui/dist/` existing (see [Build/test
+  workflow](#buildtest-workflow) below) — CMake/`idf.py` fail with a
+  clear error at configure time if it's missing, rather than an obscure
+  downstream one. See
+  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)
+  for the framework choice and
+  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
+  for why this is a separate, explicit build step rather than
+  auto-invoked from CMake.
 
 ## ESP-IDF setup
 
@@ -115,7 +122,11 @@ included (see [docs/roadmap.md](docs/roadmap.md)'s M1 items).
 
 1. `docker pull espressif/idf:v5.4.3` (not yet pulled on every machine —
    run this before the first build/flash after upgrading from v5.4.2).
-2. From the repository root:
+2. Build the Web UI bundle first if you haven't (`cd webui && npm ci &&
+   npm run build` — see [Build/test workflow](#buildtest-workflow)
+   below). `idf.py build` fails at CMake configure time with a clear
+   message if `webui/dist/` doesn't exist yet.
+3. From the repository root:
    ```
    docker run --rm -v "$(pwd):/project" -w /project/firmware \
      espressif/idf:v5.4.3 idf.py set-target esp32p4 build
@@ -151,7 +162,7 @@ included (see [docs/roadmap.md](docs/roadmap.md)'s M1 items).
    (flash size, PSRAM speed, RTTI, partition table size, etc. were all
    learned this way) — an existing `sdkconfig` silently ignores updated
    defaults; only deleting it and reconfiguring picks them up.
-3. **Flashing and monitoring — confirmed working** against the real Tab5
+4. **Flashing and monitoring — confirmed working** against the real Tab5
    K145 reference unit:
    ```
    docker run --rm -it -v "$(pwd):/project" -w /project/firmware \
@@ -199,14 +210,17 @@ avoids a flash/reboot cycle on real hardware for every change.
 
 Once the simulator target exists (M1):
 
-1. Configure and build the simulator's own CMake project (a separate build
+1. Build the Web UI bundle first if you haven't (see [Build/test
+   workflow](#buildtest-workflow) below) — the simulator's CMake
+   configure fails with a clear message if `webui/dist/` doesn't exist.
+2. Configure and build the simulator's own CMake project (a separate build
    directory from the firmware target — a genuinely different build
    system, not just a different `idf.py set-target`; see
    [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system)
    for why).
-2. Run the resulting binary directly on your development machine; it opens
+3. Run the resulting binary directly on your development machine; it opens
    an SDL2 window rendering the same LVGL UI that runs on-device.
-3. Iterate on Core/UI/module source directly — since this is the same
+4. Iterate on Core/UI/module source directly — since this is the same
    code that firmware builds, with Core's tasks/queues/timers compiled
    against the [Core Concurrency
    Abstraction](docs/decisions/ADR-0002-technology-stack.md#decision-core-concurrency-abstraction)
@@ -218,6 +232,16 @@ Once the simulator target exists (M1):
 
 ## Build/test workflow
 
+- **Web UI bundle (build this first):**
+  ```
+  cd webui && npm ci && npm run build
+  ```
+  Produces `webui/dist/` (`index.html` + `app.js`, fixed non-hashed
+  names — see
+  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)),
+  which both the firmware and simulator builds below embed/read.
+  `npm run check` runs `svelte-check` for type errors independently of
+  the build. Rebuild after any change under `webui/src/`.
 - **Firmware build:** `idf.py build` against the `firmware/` ESP-IDF
   project — see [ESP-IDF setup](#esp-idf-setup) above for the verified
   Docker-based command, including `flash`/`monitor` against real Tab5
@@ -250,12 +274,15 @@ independent workflows (separate files, not jobs within one workflow, so
 each gets its own status badge — see [README.md](README.md)) mirroring
 the three build/test commands above:
 
-- [`simulator.yml`](.github/workflows/simulator.yml) — builds the
-  simulator.
+- [`simulator.yml`](.github/workflows/simulator.yml) — builds the Web UI
+  bundle (including the `svelte-check` type-check gate — see
+  [Build/test workflow](#buildtest-workflow) above), then the simulator.
 - [`tests.yml`](.github/workflows/tests.yml) — builds and runs the unit
   test suite; a failing test fails the job, not just a failing compile.
-- [`firmware.yml`](.github/workflows/firmware.yml) — builds firmware via
-  the same Docker command documented in [ESP-IDF setup](#esp-idf-setup).
+- [`firmware.yml`](.github/workflows/firmware.yml) — builds the Web UI
+  bundle, then firmware via the same Docker command documented in
+  [ESP-IDF setup](#esp-idf-setup). The type-check gate isn't repeated
+  here — one CI job running it is enough.
 
 All three were verified locally with [`act`](https://github.com/nektos/act)
 before being relied on.

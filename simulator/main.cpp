@@ -21,6 +21,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <tuple>
+#include <vector>
 
 // Matches the Tab5's native panel resolution and orientation - portrait,
 // not the 1280x720 spec-sheet landscape figure (see
@@ -199,23 +201,28 @@ int main() {
     homedeck::AdminAuthService admin_auth(storage, auth_time_source);
 
     // The Web Management UI's server primitive (see
-    // docs/architecture/web-ui.md#status) - the static placeholder page
-    // plus admin auth. Real settings/diagnostics pages and the
-    // Svelte/Vite frontend are still future passes.
+    // docs/architecture/web-ui.md#status) - the built Svelte/Vite
+    // scaffold plus admin auth. Real settings/diagnostics pages are
+    // still future passes.
     homedeck::HostHttpServer web_server;
     // Read once at startup, not per-request - matches firmware's
     // EMBED_FILES approach (data available for the process's lifetime),
     // see homedeck.cpp's identical wiring and
     // docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage.
-    // HOMEDECK_WEBUI_DIR is a source-tree-relative path baked in by
-    // CMakeLists.txt, so this works regardless of the simulator's
-    // current working directory when launched.
-    auto index_html = homedeck::ReadFile(std::filesystem::path(HOMEDECK_WEBUI_DIR) / "index.html");
-    if (index_html.has_value()) {
-        homedeck::ServeStaticFiles(web_server, {{"/", "text/html", *index_html}});
-    } else {
-        std::printf("Warning: could not read %s/index.html\n", HOMEDECK_WEBUI_DIR);
+    // HOMEDECK_WEBUI_DIR is a source-tree-relative path (webui/dist)
+    // baked in by CMakeLists.txt, so this works regardless of the
+    // simulator's current working directory when launched.
+    std::vector<homedeck::StaticAsset> webui_assets;
+    for (const auto& [path, filename, content_type] :
+         {std::tuple{"/", "index.html", "text/html"}, std::tuple{"/app.js", "app.js", "text/javascript"}}) {
+        auto content = homedeck::ReadFile(std::filesystem::path(HOMEDECK_WEBUI_DIR) / filename);
+        if (content.has_value()) {
+            webui_assets.push_back({path, content_type, *content});
+        } else {
+            std::printf("Warning: could not read %s/%s\n", HOMEDECK_WEBUI_DIR, filename);
+        }
     }
+    homedeck::ServeStaticFiles(web_server, std::move(webui_assets));
     homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
     // Temporary test-only route proving RequireAuth() actually gates a
     // real endpoint end to end on this target, the same reasoning

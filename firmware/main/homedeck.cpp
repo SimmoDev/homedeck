@@ -42,13 +42,16 @@
 // ADR-0002) exist because Clock needs a working Timer.
 namespace {
 
-// webui/index.html, linked into the app image via EMBED_FILES (see
-// CMakeLists.txt) - not the storage FAT partition, see
+// webui/dist/{index.html,app.js} - the built Svelte/Vite bundle, linked
+// into the app image via EMBED_FILES (see CMakeLists.txt), not the
+// storage FAT partition - see
 // docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage
-// for why. Symbol names are derived from the embedded file's basename by
+// for why. Symbol names are derived from each embedded file's basename by
 // ESP-IDF's build system (dots become underscores), not chosen here.
 extern const uint8_t webui_index_html_start[] asm("_binary_index_html_start");
 extern const uint8_t webui_index_html_end[] asm("_binary_index_html_end");
+extern const uint8_t webui_app_js_start[] asm("_binary_app_js_start");
+extern const uint8_t webui_app_js_end[] asm("_binary_app_js_end");
 
 // Mirrors the exact lv_async_call()-based hand-off UiTask uses for the
 // simulator (src/ui/ui_task.cpp) - this is core LVGL API, not backend-
@@ -216,20 +219,22 @@ extern "C" void app_main(void) {
     homedeck::AdminAuthService admin_auth(storage, auth_time_source);
 
     // The Web Management UI's server primitive (see
-    // docs/architecture/web-ui.md#status) - the static placeholder page
-    // plus admin auth. Started after Wi-Fi connects, and after
+    // docs/architecture/web-ui.md#status) - the built Svelte/Vite
+    // scaffold plus admin auth. Started after Wi-Fi connects, and after
     // wifi_setup.cpp's own temporary SoftAP-setup server has already
     // stopped, so there's no port/lifecycle overlap between the two.
-    // Real settings/diagnostics pages and the Svelte/Vite frontend are
-    // still future passes. Declared here (not in a narrower scope) so
-    // it stays alive for the rest of app_main's life, which never
-    // returns.
+    // Real settings/diagnostics pages are still future passes. Declared
+    // here (not in a narrower scope) so it stays alive for the rest of
+    // app_main's life, which never returns.
     homedeck::FirmwareHttpServer web_server;
     homedeck::ServeStaticFiles(
         web_server,
         {{"/", "text/html",
           std::string(reinterpret_cast<const char*>(webui_index_html_start),
-                       webui_index_html_end - webui_index_html_start)}});
+                       webui_index_html_end - webui_index_html_start)},
+         {"/app.js", "text/javascript",
+          std::string(reinterpret_cast<const char*>(webui_app_js_start),
+                       webui_app_js_end - webui_app_js_start)}});
     homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
     // Temporary test-only route proving RequireAuth() actually gates a
     // real endpoint end to end on real hardware too, the same reasoning

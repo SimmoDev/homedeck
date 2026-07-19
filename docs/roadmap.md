@@ -215,13 +215,18 @@ simulator.
       [web-ui.md](architecture/web-ui.md#status)) — assets embedded into
       the firmware app image rather than a partition (see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)),
-      a hand-authored `webui/index.html` served at `/` on both targets,
       confirmed on the Tab5 K145 reference unit over the LAN at
       `http://homedeck.local/`, as well as via a real HTTP request against
-      the simulator and a clean Docker firmware build. Still open: the
-      Svelte/Vite frontend itself, WebSockets, and the REST API surface
-      for settings/config/diagnostics/OTA/backups
-      — none of that exists yet
+      the simulator and a clean Docker firmware build. **The Svelte + Vite
+      frontend scaffold is also real** (`webui/`, see
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)) —
+      one component fetching `/api/auth/status` and rendering the real
+      response, confirmed on the Tab5 K145 reference unit via a headless-
+      browser render against `http://homedeck.local/` showing the actual
+      fetched values, as well as against the simulator the same way.
+      Still scaffolding, not real UI. Still open: WebSockets and the REST
+      API surface for settings/config/diagnostics/OTA/backups — none of
+      that exists yet
 - [ ] OTA update support, gated on battery threshold or external USB-C power
       (see [power-management.md](architecture/power-management.md#explicit-power-states)) —
       image signing is a known, deliberately deferred gap, not yet in scope
@@ -408,7 +413,7 @@ index — decision name, ADR, one-line outcome.
 | JSON library | [ADR-0002](decisions/ADR-0002-technology-stack.md#2-json-library) | nlohmann::json |
 | Embedded HTTP/WebSocket server | [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server) | `esp_http_server` (firmware) + civetweb (simulator) |
 | WebSocket relay dispatch safety | [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server) | `httpd_queue_work()` on firmware; civetweb's equivalent **unconfirmed**, needs M2 verification |
-| Web UI frontend | [ADR-0002](decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach) | Svelte + Vite |
+| Web UI frontend | [ADR-0002](decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach) | Svelte 5 + TypeScript + Vite, plain client-side (no SvelteKit) |
 | Web UI static asset storage | [ADR-0002](decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage) | Embedded in the firmware app image (`EMBED_FILES`), not the `storage` partition — avoids partition-wipe-on-reflash and frontend/backend OTA drift |
 | Test framework | [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework) | GoogleTest/GoogleMock against the simulator; no on-target suite |
 | Module architecture, Core/module boundary | [ADR-0003](decisions/ADR-0003-module-architecture.md) | Event bus only; Core stays generic; Harmony is the reference module |

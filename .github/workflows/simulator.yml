@@ -16,6 +16,27 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libsdl2-dev
 
+      # The Web UI's Svelte/Vite bundle is a build prerequisite, not
+      # auto-invoked from CMake (see
+      # docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
+      # - the simulator's CMakeLists.txt fails at configure time if
+      # webui/dist/ doesn't exist yet.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+
+      # svelte-check runs here, not duplicated in firmware.yml's identical
+      # build step - one CI job is enough for a pure type-check gate with
+      # no target-specific behavior.
+      - name: Build Web UI bundle
+        working-directory: webui
+        run: |
+          npm ci
+          npm run check
+          npm run build
+
       - name: Cache FetchContent dependencies
         uses: actions/cache@v4
         with:

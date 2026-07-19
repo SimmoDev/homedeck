@@ -8,6 +8,20 @@
 # component) is real, unverified risk not worth taking on for this
 # step. This does mean these paths need updating by hand if src/'s own
 # file list changes - a known tradeoff, not an oversight.
+
+# EMBED_FILES needs these to exist at CMake configure time, and the Vite
+# build is a deliberately separate, explicit step (not auto-invoked from
+# CMake - see
+# docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage),
+# so a stale/missing build here is a real, easy-to-hit case, not a
+# hypothetical - fail with a clear message rather than EMBED_FILES'
+# own opaque "file not found" error.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../webui/dist/index.html")
+    message(FATAL_ERROR
+        "webui/dist/ is missing or incomplete - run 'npm ci && npm run build' "
+        "in webui/ before building firmware (see DEVELOPMENT.md).")
+endif()
+
 idf_component_register(
     SRCS
         "homedeck.cpp"
@@ -47,5 +61,6 @@ idf_component_register(
         espcoredump
         mbedtls
     EMBED_FILES
-        "../../webui/index.html"
+        "../../webui/dist/index.html"
+        "../../webui/dist/app.js"
 )

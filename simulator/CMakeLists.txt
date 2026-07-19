@@ -31,10 +31,22 @@ target_link_libraries(lvgl PUBLIC PkgConfig::SDL2)
 # so its homedeck_ui target (conditional on `lvgl` existing) is defined.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_BINARY_DIR}/src)
 
+# The Vite build is a deliberately separate, explicit step (not
+# auto-invoked from CMake - see
+# docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage),
+# so a stale/missing build here is a real, easy-to-hit case, not a
+# hypothetical - fail at configure time with a clear message rather than
+# main.cpp's ReadFile() silently warning and serving nothing at runtime.
+if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../webui/dist/index.html")
+  message(FATAL_ERROR
+    "webui/dist/ is missing or incomplete - run 'npm ci && npm run build' "
+    "in webui/ before building the simulator (see DEVELOPMENT.md).")
+endif()
+
 add_executable(homedeck_simulator main.cpp screens/placeholder_screen.cpp widgets/placeholder_widget.cpp)
 target_link_libraries(homedeck_simulator PRIVATE homedeck_ui PkgConfig::SDL2)
 
 # Source-tree-relative, not a relative path resolved at runtime against
 # the simulator's working directory - see main.cpp's Web UI wiring.
 target_compile_definitions(homedeck_simulator PRIVATE
-  HOMEDECK_WEBUI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../webui")
+  HOMEDECK_WEBUI_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../webui/dist")

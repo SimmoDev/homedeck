@@ -229,6 +229,16 @@ storage](#6-web-management-ui-static-asset-storage) below for where the
 built bundle actually lives — a later, separate decision from the
 framework choice here.
 
+**Implemented as a scaffold** (`webui/`) — Svelte 5, TypeScript
+(`svelte-check` as the type-check gate, wired into CI), plain client-side
+Vite (no SvelteKit — no routing/SSR need exists for a single-page admin
+UI). One component proving the pipeline end to end, not real UI yet. The
+Vite build is a separate, explicit step (`npm ci && npm run build` in
+`webui/`), not auto-invoked from the C++ build — see
+[6](#6-web-management-ui-static-asset-storage) below for why, and
+[DEVELOPMENT.md](../../DEVELOPMENT.md#buildtest-workflow) for the
+command.
+
 ### 6. Web Management UI static asset storage
 
 **Context:** the framework decision above originally assumed the built
@@ -270,14 +280,17 @@ data and logs only; [ADR-0012](ADR-0012-storage-tiers.md)'s own tier
 description never named the bundle specifically, so nothing there needs
 correcting. The tradeoff: `EMBED_FILES`
 suits a small, fixed set of files well but not Vite's default
-content-hashed many-chunk output; the Svelte build is expected to stay
-configured for a small, fixed output file set (matching the "small
-footprint" framework decision above), not Vite's default.
+content-hashed many-chunk output; the Svelte build's `vite.config.ts`
+overrides Rollup's output naming (`entryFileNames`/`assetFileNames`) and
+relies on Vite's default single-chunk output for an app this small, so
+the real build produces exactly two fixed-named files
+(`index.html`, `app.js`), not Vite's default many-chunk, content-hashed
+naming.
 
 `ServeStaticFiles` (`src/platform/static_assets.h`/`.cpp`) is the
 portable serving mechanism both targets use — firmware supplies
 `EMBED_FILES`-linked flash data copied once at startup, the simulator
-reads `webui/` off disk once at startup (a real dev-convenience
+reads `webui/dist/` off disk once at startup (a real dev-convenience
 divergence, consistent with the backend-implementation divergence this
 ADR's [Embedded web/WebSocket server](#3-embedded-webwebsocket-server)
 decision already accepts).

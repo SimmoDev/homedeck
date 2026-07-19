@@ -13,6 +13,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The Web UI's Svelte/Vite bundle is a build prerequisite, not
+      # auto-invoked from CMake/idf.py (see
+      # docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
+      # - EMBED_FILES needs webui/dist/ to exist before idf.py build runs.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+
+      - name: Build Web UI bundle
+        working-directory: webui
+        run: |
+          npm ci
+          npm run build
+
       # Runs as root inside the container - simplest option, and fine here
       # since the runner VM is thrown away after the job, unlike a local
       # dev machine where root-owned build output would be a real

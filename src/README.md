@@ -52,8 +52,8 @@ src/
 │                path GET handler per Web UI static asset via
 │                RegisterHandler(); firmware/main/homedeck.cpp builds the
 │                asset list from EMBED_FILES-linked flash data,
-│                simulator/main.cpp reads webui/ off disk once at startup
-│                (see
+│                simulator/main.cpp reads webui/dist/ off disk once at
+│                startup (see
 │                ADR-0002#6-web-management-ui-static-asset-storage for
 │                why assets live in the app image, not a partition). Also
 │                SteadyTimeSource - a portable (no host/firmware split)
