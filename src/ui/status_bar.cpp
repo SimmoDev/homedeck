@@ -1,5 +1,7 @@
 #include "ui/status_bar.h"
 
+#include "core/low_battery_monitor.h"
+
 #include <cstdio>
 #include <ctime>
 
@@ -16,9 +18,52 @@ void FormatCompactTime(std::chrono::system_clock::time_point time, char* buffer,
     std::strftime(buffer, size, "%H:%M  %a %d %b", &tm);
 }
 
+// Breakpoints for the four non-empty levels are even round numbers, not
+// tied to anything else. The empty breakpoint isn't independent - it
+// reuses LowBatteryMonitor::kThresholdPercent so the icon reads "empty"
+// at exactly the same point the low-battery notification fires, rather
+// than two separate magic numbers drifting apart.
+const char* BatteryLevelIcon(int percent) {
+    if (percent < LowBatteryMonitor::kThresholdPercent) return LV_SYMBOL_BATTERY_EMPTY;
+    if (percent < 40) return LV_SYMBOL_BATTERY_1;
+    if (percent < 65) return LV_SYMBOL_BATTERY_2;
+    if (percent < 90) return LV_SYMBOL_BATTERY_3;
+    return LV_SYMBOL_BATTERY_FULL;
+}
+
+// See docs/architecture/hardware.md#power for how
+// IsBatteryPresent()/IsExternalPowerConnected() are derived.
+//   - Battery, no external power: level icon + percent - the common
+//     case.
+//   - Battery, external power, still charging (percent < 100): charge
+//     symbol + percent, not the level icon - LVGL's symbol font has no
+//     single glyph combining "charging" with a specific fill level, and
+//     the charge symbol alone is the clearer signal while it's actively
+//     rising.
+//   - Battery, external power, percent == 100: level icon (always
+//     full) + percent, same as the no-external-power case - full, so
+//     nothing's actually being charged; showing the charge symbol here
+//     would be misleading.
+//   - No battery (always with external power - nothing would be
+//     running otherwise): USB symbol alone, not the charge symbol -
+//     there's no battery to charge, this is just "running on USB
+//     power." ReadPercent() is not meaningful without a battery to
+//     report a percentage of (its underlying voltage reading swings
+//     unpredictably with nothing connected to charge - see
+//     Ina226BatteryReader::IsBatteryPresent()), so it's never shown in
+//     this state, not even a stale/misleading number.
 void RefreshBatteryLabel(lv_obj_t* label, BatteryReader& battery_reader) {
-    char text[8];
-    std::snprintf(text, sizeof(text), "%d%%", battery_reader.ReadPercent());
+    char text[16];
+    bool battery_present = battery_reader.IsBatteryPresent();
+    int percent = battery_reader.ReadPercent();
+    bool charging = battery_present && battery_reader.IsExternalPowerConnected() && percent < 100;
+    if (!battery_present) {
+        std::snprintf(text, sizeof(text), LV_SYMBOL_USB);
+    } else if (charging) {
+        std::snprintf(text, sizeof(text), LV_SYMBOL_CHARGE "  %d%%", percent);
+    } else {
+        std::snprintf(text, sizeof(text), "%s  %d%%", BatteryLevelIcon(percent), percent);
+    }
     lv_label_set_text(label, text);
 }
 

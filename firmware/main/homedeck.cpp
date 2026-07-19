@@ -248,7 +248,8 @@ extern "C" void app_main(void) {
     // docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md) - mirrors
     // crash_diagnostics.cpp's own esp_core_dump_image_check() gate rather
     // than trusting esp_core_dump_image_get() alone to signal absence.
-    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, []() -> std::optional<std::string> {
+    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader,
+                                         []() -> std::optional<std::string> {
         if (esp_core_dump_image_check() != ESP_OK) {
             return std::nullopt;
         }

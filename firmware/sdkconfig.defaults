@@ -118,6 +118,21 @@ CONFIG_MBEDTLS_HARDWARE_SHA=n
 # processor section).
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 
+# Clock (src/core/clock.h) is built on FreeRTOS software timers (see
+# platform/firmware/timer.cpp) - its periodic tick runs on FreeRTOS's
+# single shared "Tmr Svc" task, not app_main's. LowBatteryMonitor
+# subscribes to that tick as a plain (non-UI) EventBus subscriber (see
+# core/event_bus.cpp's PublishImpl), so its callback - which reads the
+# INA226 over I2C via Ina226BatteryReader::ReadPercent() - runs
+# synchronously on "Tmr Svc" too, not marshaled onto the LVGL task the
+# way UI subscribers are. ESP-IDF's default timer-service stack (2048
+# bytes) isn't sized for a real I2C transaction's mutex/driver call
+# depth on top of it, and causes a stack-protection-fault panic in task
+# "Tmr Svc". Raised generously for the same reason as the main task
+# stack above - more Core services may end up in this same call path
+# over time.
+CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=8192
+
 # StatusBar (src/ui/status_bar.h) uses Montserrat 24, not LVGL's default
 # Montserrat 14, which is too small to read at a glance on the Tab5's
 # physical screen. On this panel's ~294 PPI (from its 5" 720x1280 spec -

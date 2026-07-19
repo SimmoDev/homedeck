@@ -1,6 +1,7 @@
 #include "core/diagnostics_routes.h"
 
 #include "core/admin_auth_service.h"
+#include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/http_server.h"
 #include "platform/host/secret_store.h"
@@ -109,6 +110,7 @@ protected:
     std::unique_ptr<homedeck::Storage> storage_;
     homedeck::HostTimeSource time_source_;
     std::unique_ptr<homedeck::AdminAuthService> auth_;
+    homedeck::HostBatteryReader battery_reader_;
 };
 
 }  // namespace
@@ -116,11 +118,14 @@ protected:
 TEST_F(DiagnosticsRoutesTest, RequiresAuthenticationAndReflectsStoredValues) {
     storage_->SetSetting("core", "reset_reason", 1, "panic");
     storage_->SetSetting("core", "has_core_dump", 1, "true");
+    battery_reader_.SetPercent(42);
+    battery_reader_.SetExternalPowerConnected(true);
 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_,
-                                         []() -> std::optional<std::string> { return std::string("dump bytes"); });
+    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, []() -> std::optional<std::string> {
+        return std::string("dump bytes");
+    });
     ASSERT_TRUE(server.Start(18191));
 
     // Unauthenticated, no password set yet - 403 setup_required.
@@ -139,13 +144,17 @@ TEST_F(DiagnosticsRoutesTest, RequiresAuthenticationAndReflectsStoredValues) {
     EXPECT_EQ(authenticated.status_code, 200);
     EXPECT_NE(authenticated.body.find("\"resetReason\":\"panic\""), std::string::npos);
     EXPECT_NE(authenticated.body.find("\"hasCoreDump\":true"), std::string::npos);
+    EXPECT_NE(authenticated.body.find("\"batteryPercent\":42"), std::string::npos);
+    EXPECT_NE(authenticated.body.find("\"externalPowerConnected\":true"), std::string::npos);
+    EXPECT_NE(authenticated.body.find("\"batteryPresent\":true"), std::string::npos);
 }
 
 TEST_F(DiagnosticsRoutesTest, CoreDumpDownloadsRawBytesWithCorrectHeadersWhenPresent) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_,
-                                         []() -> std::optional<std::string> { return std::string("dump bytes"); });
+    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, []() -> std::optional<std::string> {
+        return std::string("dump bytes");
+    });
     ASSERT_TRUE(server.Start(18192));
 
     auto setup = HttpRequestRaw(18192, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
@@ -162,7 +171,7 @@ TEST_F(DiagnosticsRoutesTest, CoreDumpDownloadsRawBytesWithCorrectHeadersWhenPre
 TEST_F(DiagnosticsRoutesTest, CoreDumpReturns404WhenAbsent) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_,
+    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_,
                                          []() -> std::optional<std::string> { return std::nullopt; });
     ASSERT_TRUE(server.Start(18193));
 

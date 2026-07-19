@@ -11,17 +11,21 @@ constexpr const char* kModuleId = "core";
 }  // namespace
 
 void RegisterDiagnosticsRoutes(HttpServer& server, Storage& storage, AdminAuthService& auth,
-                                CoreDumpReader read_core_dump) {
-    server.RegisterHandler(HttpMethod::kGet, "/api/diagnostics",
-                            auth.RequireAuth([&storage](const HttpRequest&) {
-                                auto reset_reason = storage.GetSetting(kModuleId, "reset_reason");
-                                auto has_core_dump = storage.GetSetting(kModuleId, "has_core_dump");
-                                nlohmann::json body = {
-                                    {"resetReason", reset_reason.has_value() ? reset_reason->value : "unknown"},
-                                    {"hasCoreDump", has_core_dump.has_value() && has_core_dump->value == "true"},
-                                };
-                                return HttpResponse{200, "application/json", body.dump(), {}};
-                            }));
+                                BatteryReader& battery_reader, CoreDumpReader read_core_dump) {
+    server.RegisterHandler(
+        HttpMethod::kGet, "/api/diagnostics",
+        auth.RequireAuth([&storage, &battery_reader](const HttpRequest&) {
+            auto reset_reason = storage.GetSetting(kModuleId, "reset_reason");
+            auto has_core_dump = storage.GetSetting(kModuleId, "has_core_dump");
+            nlohmann::json body = {
+                {"resetReason", reset_reason.has_value() ? reset_reason->value : "unknown"},
+                {"hasCoreDump", has_core_dump.has_value() && has_core_dump->value == "true"},
+                {"batteryPercent", battery_reader.ReadPercent()},
+                {"externalPowerConnected", battery_reader.IsExternalPowerConnected()},
+                {"batteryPresent", battery_reader.IsBatteryPresent()},
+            };
+            return HttpResponse{200, "application/json", body.dump(), {}};
+        }));
 
     server.RegisterHandler(
         HttpMethod::kGet, "/api/diagnostics/coredump",

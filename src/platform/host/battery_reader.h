@@ -17,8 +17,16 @@ public:
     int ReadPercent() const override { return percent_; }
     void SetPercent(int percent) { percent_ = percent; }
 
+    bool IsExternalPowerConnected() const override { return external_power_connected_; }
+    void SetExternalPowerConnected(bool connected) { external_power_connected_ = connected; }
+
+    bool IsBatteryPresent() const override { return battery_present_; }
+    void SetBatteryPresent(bool present) { battery_present_ = present; }
+
 private:
     int percent_ = 76;
+    bool external_power_connected_ = false;
+    bool battery_present_ = true;
 };
 
 }  // namespace homedeck

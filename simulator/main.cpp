@@ -120,6 +120,44 @@ void CreateTestLowBatteryButton(lv_obj_t* parent, homedeck::HostBatteryReader& b
     lv_label_set_text(label, "Test: trigger low battery");
 }
 
+// Temporary test-only wiring proving GET /api/diagnostics' external-power
+// field end to end - HostBatteryReader's external-power flag never
+// changes on its own, the same reasoning CreateTestLowBatteryButton
+// above already follows. Removed once a real Power Management screen
+// exists to exercise this.
+void OnTestExternalPowerClicked(lv_event_t* e) {
+    auto* battery_reader = static_cast<homedeck::HostBatteryReader*>(lv_event_get_user_data(e));
+    battery_reader->SetExternalPowerConnected(!battery_reader->IsExternalPowerConnected());
+}
+
+void CreateTestExternalPowerButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -112);
+    lv_obj_add_event_cb(button, OnTestExternalPowerClicked, LV_EVENT_CLICKED, &battery_reader);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: toggle external power");
+}
+
+// Temporary test-only wiring proving LowBatteryMonitor doesn't fire
+// (and GET /api/diagnostics' batteryPresent field reflects reality)
+// when no battery is installed - the same reasoning
+// CreateTestExternalPowerButton above already follows. Removed once a
+// real Power Management screen exists to exercise this.
+void OnTestBatteryPresentClicked(lv_event_t* e) {
+    auto* battery_reader = static_cast<homedeck::HostBatteryReader*>(lv_event_get_user_data(e));
+    battery_reader->SetBatteryPresent(!battery_reader->IsBatteryPresent());
+}
+
+void CreateTestBatteryPresentButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -160);
+    lv_obj_add_event_cb(button, OnTestBatteryPresentClicked, LV_EVENT_CLICKED, &battery_reader);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: toggle battery present");
+}
+
 }  // namespace
 
 // The dashboard shell, StatusBar, and DashboardGrid widget framework -
@@ -169,6 +207,8 @@ int main() {
 
     CreateTestNavButton(dashboard.Root(), navigation);
     CreateTestLowBatteryButton(dashboard.Root(), battery_reader);
+    CreateTestExternalPowerButton(dashboard.Root(), battery_reader);
+    CreateTestBatteryPresentButton(dashboard.Root(), battery_reader);
 
     // NotificationBanner must exist before LowBatteryMonitor, which must
     // exist before Clock (the ClockTickEvent publisher) - the same
@@ -233,7 +273,8 @@ int main() {
     // docs/architecture/diagnostics.md's "Firmware-only mechanism" note.
     storage.SetSetting("core", "reset_reason", 1, "power-on");
     storage.SetSetting("core", "has_core_dump", 1, "true");
-    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, []() -> std::optional<std::string> {
+    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader,
+                                         []() -> std::optional<std::string> {
         return std::string(
             "This is a simulator-only stub core dump for Web UI development - "
             "see docs/architecture/diagnostics.md.");

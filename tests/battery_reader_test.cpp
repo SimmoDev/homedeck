@@ -14,3 +14,19 @@ TEST(HostBatteryReader, SetPercentChangesTheReadValue) {
     reader.SetPercent(10);
     EXPECT_EQ(reader.ReadPercent(), 10);
 }
+
+TEST(HostBatteryReader, ExternalPowerConnectedDefaultsToFalseAndIsSettable) {
+    homedeck::HostBatteryReader reader;
+    EXPECT_FALSE(reader.IsExternalPowerConnected());
+
+    reader.SetExternalPowerConnected(true);
+    EXPECT_TRUE(reader.IsExternalPowerConnected());
+}
+
+TEST(HostBatteryReader, BatteryPresentDefaultsToTrueAndIsSettable) {
+    homedeck::HostBatteryReader reader;
+    EXPECT_TRUE(reader.IsBatteryPresent());
+
+    reader.SetBatteryPresent(false);
+    EXPECT_FALSE(reader.IsBatteryPresent());
+}

@@ -23,6 +23,13 @@ class I2cDevice;
 // already flags this as a known simplification - an accurate
 // state-of-charge estimate needs more than this, deferred to M2 power
 // management work.
+//
+// Also owns two things unrelated to the INA226 itself, both via the
+// same PI4IOE5V6408 IO expander (I2C 0x44) HomeDeck already talks to
+// for Wi-Fi power enable - see hardware.md#power: enabling the IP2326
+// charge IC (never automatic; the constructor sets this once) and
+// reading USB-C connection presence (a direct digital status bit, not
+// inferred from current draw).
 class Ina226BatteryReader : public BatteryReader {
 public:
     explicit Ina226BatteryReader(i2c_master_bus_handle_t i2c_bus);
@@ -32,6 +39,8 @@ public:
     Ina226BatteryReader& operator=(const Ina226BatteryReader&) = delete;
 
     int ReadPercent() const override;
+    bool IsExternalPowerConnected() const override;
+    bool IsBatteryPresent() const override;
 
 private:
     std::unique_ptr<I2cDevice> device_;

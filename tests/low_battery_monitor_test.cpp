@@ -10,9 +10,13 @@ class FakeBatteryReader : public homedeck::BatteryReader {
 public:
     void SetPercent(int percent) { percent_ = percent; }
     int ReadPercent() const override { return percent_; }
+    bool IsExternalPowerConnected() const override { return false; }
+    bool IsBatteryPresent() const override { return present_; }
+    void SetBatteryPresent(bool present) { present_ = present; }
 
 private:
     int percent_ = 100;
+    bool present_ = true;
 };
 
 }  // namespace
@@ -71,4 +75,41 @@ TEST(LowBatteryMonitor, NotifiesAgainAfterRecoveringThenDroppingLowAgain) {
     bus.Publish(homedeck::ClockTickEvent{});
 
     EXPECT_EQ(notifications, 2);
+}
+
+TEST(LowBatteryMonitor, DoesNotNotifyWhenNoBatteryPresentEvenAtZeroPercent) {
+    homedeck::EventBus bus;
+    FakeBatteryReader battery;
+    battery.SetPercent(0);
+    battery.SetBatteryPresent(false);
+    homedeck::LowBatteryMonitor monitor(bus, battery);
+
+    int notifications = 0;
+    auto sub = bus.Subscribe<homedeck::NotificationEvent>(
+        [&notifications](const homedeck::NotificationEvent&) { notifications++; });
+
+    bus.Publish(homedeck::ClockTickEvent{});
+    EXPECT_EQ(notifications, 0);
+}
+
+TEST(LowBatteryMonitor, StillNotifiesOnceBatteryIsInsertedAndGenuinelyLow) {
+    homedeck::EventBus bus;
+    FakeBatteryReader battery;
+    battery.SetPercent(0);
+    battery.SetBatteryPresent(false);
+    homedeck::LowBatteryMonitor monitor(bus, battery);
+
+    int notifications = 0;
+    auto sub = bus.Subscribe<homedeck::NotificationEvent>(
+        [&notifications](const homedeck::NotificationEvent&) { notifications++; });
+
+    bus.Publish(homedeck::ClockTickEvent{});
+    EXPECT_EQ(notifications, 0);
+
+    // A battery gets inserted, already low - the earlier "absent" ticks
+    // must not have latched the notified flag shut.
+    battery.SetBatteryPresent(true);
+    battery.SetPercent(10);
+    bus.Publish(homedeck::ClockTickEvent{});
+    EXPECT_EQ(notifications, 1);
 }

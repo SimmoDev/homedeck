@@ -7,6 +7,14 @@ namespace homedeck {
 LowBatteryMonitor::LowBatteryMonitor(EventBus& event_bus, BatteryReader& battery_reader)
     : event_bus_(event_bus), battery_reader_(battery_reader) {
     clock_subscription_ = event_bus_.Subscribe<ClockTickEvent>([this](const ClockTickEvent&) {
+        if (!battery_reader_.IsBatteryPresent()) {
+            // Not low - there's nothing to be low. Reset the latch too,
+            // so a battery inserted later while genuinely low still
+            // notifies, rather than staying suppressed from before it
+            // was removed.
+            already_notified_ = false;
+            return;
+        }
         int percent = battery_reader_.ReadPercent();
         if (percent < kThresholdPercent) {
             if (!already_notified_) {

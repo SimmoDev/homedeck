@@ -347,7 +347,34 @@ in this codebase uses it.
   alone, just without portability. See [Battery-optional
   operation](#battery-optional-operation) below for what that means for
   the power state model.
-- **Charging:** IP2326 charging management chip.
+- **Charging:** IP2326 charging management chip. Its enable line is not
+  automatic - it's gated by bit 7 of the PI4IOE5V6408 IO expander's
+  output register at I2C `0x44` (the same expander instance used for
+  Wi-Fi power enable, see [Wireless](#wireless) above), and that pin
+  also needs its high-Z (open-drain) bit cleared - setting the output
+  level alone leaves it electrically floating, never actually driving
+  the enable line. **Confirmed on hardware** that battery percentage
+  climbs normally under USB-C power once both are set. Register-level
+  detail (this exact bit, plus the high-Z gotcha) isn't exposed by this
+  project's vendored `espressif/m5stack_tab5` BSP component -
+  cross-checked against M5Stack's own reference firmware,
+  [M5Tab5-UserDemo](https://github.com/m5stack/M5Tab5-UserDemo).
+- **USB-C connection presence:** a direct digital status bit, not
+  inferred from current draw - bit 6 of the same IO expander's input
+  status register. **Confirmed on hardware** by physically
+  plugging/unplugging USB-C and comparing readings.
+- **Battery presence:** current, not voltage, is the reliable signal
+  for whether a battery is physically installed. **Confirmed on
+  hardware** that bus voltage cannot tell "no battery" apart from
+  "battery present": with charging enabled (see above) and nothing
+  connected to charge, the IP2326 hunts for its regulation target on
+  the unloaded output, swinging between roughly 4V and the
+  100%-mapped voltage (8.4V, see below) every tick rather than settling -
+  a reading in that whole range is as likely to mean "empty charge
+  path" as "real battery." Current doesn't have this problem: it reads
+  a flat 0.000000A with no battery (nothing to source/sink current),
+  and settles to a small but clearly nonzero, stable value (~0.02A on
+  the reference unit) within one tick of a real pack being connected.
 - **Conversion:** MP4560 buck-boost converter.
 - **Power monitoring:** INA226 (I2C), providing real-time voltage *and*
   current monitoring. This is meaningfully better than raw ADC voltage
@@ -355,10 +382,10 @@ in this codebase uses it.
   accurate state-of-charge estimate still needs coulomb-counting or a
   voltage/current curve model implemented in firmware, not just reading
   INA226's instantaneous values directly as a percentage. **Confirmed on
-  hardware:** the simple linear approximation `Ina226BatteryReader`
-  actually uses (see [On-device dashboard](#on-device-dashboard) below)
-  reads ~90%, not 100%, on a pack that had been on USB power long enough
-  to be fully charged. A real state-of-charge estimate is still M2
+  hardware:** the simple linear approximation this project uses today
+  (see [On-device dashboard](#on-device-dashboard) below) reads ~90%,
+  not 100%, on a pack that had been on USB power long enough to be
+  fully charged. A real state-of-charge estimate is still M2
   power-management scope, not fixed here.
 - **Wake-source aggregation:** a PMS150G-U06 interrupt controller aggregates
   wake interrupts (touch, IMU, RTC, power button) for the P4. This confirms
@@ -373,26 +400,18 @@ alone — CLAUDE.md's "work fully using stock Tab5 hardware" requirement,
 applied to both SKUs, not just the K145 reference unit. This is a real,
 not hypothetical, gap in what's currently verified:
 
-- **Unconfirmed:** what the INA226 power monitor (see [Power
-  monitoring](#power) above) reports when no battery is physically
-  attached — zero, a floating/garbage reading, or a dedicated
-  presence-detection signal elsewhere in the charge circuit. `BatteryReader`
-  needs to distinguish "no battery installed" from "battery installed,
-  reading temporarily unavailable," not just report a raw percentage —
-  otherwise a battery-less unit would show a permanently wrong or
-  nonsensical battery indicator instead of correctly showing "no battery."
+- **Confirmed:** bus-voltage readings are not meaningful with no battery
+  attached - they swing unpredictably (see [Power](#power)'s Battery
+  presence bullet), never settling. Current-based detection is the real
+  "no battery installed" vs. "battery installed" signal - confirmed on
+  hardware by removing the battery on the K145 reference unit. See
+  [dashboard.md](dashboard.md#status) for how the Web/Touch UI uses this.
 - **Not yet reflected in the design:** [power-management.md](power-management.md)'s
   explicit power states currently assume a battery is present and track
   its charge level; a "no battery, wired only" configuration isn't
   explicitly designed for yet — e.g. the Sleeping state's deep-sleep
   wake-cycle cost model exists specifically to conserve battery, which is
   moot with no battery to conserve.
-- **Directly testable on the existing reference unit:** the battery is
-  removable (NP-F550, clips onto the M-Bus connector — see
-  [Physical form factor](#physical-form-factor) below), so this doesn't
-  need separate base-Tab5 hardware to verify — unclip it from the K145 kit
-  already in hand and confirm `BatteryReader`/the power state model behave
-  correctly with it absent.
 
 ## Physical form factor
 

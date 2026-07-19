@@ -126,12 +126,17 @@ typical status bar text by physical glyph height (~2.1mm vs. ~2.2mm) —
 enabled identically on both targets (see `simulator/lv_conf.h` and
 `firmware/sdkconfig.defaults`).
 
-`BatteryReader` is mocked in the simulator (a fixed value — see
-[simulator.md](simulator.md#how-it-works) for why) but real on firmware,
-reading the INA226 power monitor; the known gap in that reading (no
-charging state, no "no battery installed" detection, and an approximation
-confirmed slightly inaccurate — see [hardware.md](hardware.md#power)) is
-unchanged by this — it's Power Management scope, not the status bar's.
+`BatteryReader` is mocked in the simulator (a fixed value, adjustable via
+debug buttons — see [simulator.md](simulator.md#how-it-works)) but real on
+firmware, reading the INA226 power monitor. The status bar reflects three
+real states, confirmed on hardware (see [hardware.md](hardware.md#power)
+for how each is derived): battery percentage alone; a charge icon plus
+percentage while a present battery is actually charging; and a USB icon
+with no percentage when no battery is installed, since the percentage
+reading isn't meaningful in that state. `ReadPercent()`'s own approximation
+accuracy (confirmed slightly inaccurate, e.g. reading ~90% on a pack
+already fully charged) is unchanged by this — a real state-of-charge
+estimate is still Power Management scope, not the status bar's.
 
 The widget framework's interface and layout half is real: `Widget`
 (`src/ui/widget.h`) is the standard contribution interface — a `Root()`

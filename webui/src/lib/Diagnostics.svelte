@@ -1,12 +1,16 @@
 <script lang="ts">
   // Crash/reboot diagnostics (see docs/architecture/diagnostics.md and
-  // ADR-0013) - the only diagnostic data that's real today. Structured
-  // logs, module status, connection state, and error reporting are all
-  // still unbuilt (no modules, no general logging facility yet), so
-  // there's nothing else to show here yet.
+  // ADR-0013), plus live battery/power state (see
+  // docs/architecture/hardware.md#power) - real diagnostic data today.
+  // Structured logs, module status, connection state, and error
+  // reporting are all still unbuilt (no modules, no general logging
+  // facility yet), so there's nothing else to show here yet.
   interface DiagnosticsStatus {
     resetReason: string;
     hasCoreDump: boolean;
+    batteryPercent: number;
+    externalPowerConnected: boolean;
+    batteryPresent: boolean;
   }
 
   let status: DiagnosticsStatus | undefined = $state(undefined);
@@ -36,6 +40,17 @@
   {:else if !status}
     <p class="hint">Loading...</p>
   {:else}
+    {#if status.batteryPresent}
+      <p>
+        Battery: <strong>{status.batteryPercent}%</strong>
+        ({status.externalPowerConnected ? "external power connected" : "on battery"})
+      </p>
+    {:else}
+      <p>
+        No battery installed
+        ({status.externalPowerConnected ? "running on external power" : "no power source detected"})
+      </p>
+    {/if}
     <p>Last reset reason: <strong>{status.resetReason}</strong></p>
     {#if status.hasCoreDump}
       <p>
