@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { describeAuthError, validateSetupPassword } from "./passwordValidation";
+
   // Shared by both first-login setup and ordinary login - same field,
   // same submit mechanics, differing only in endpoint/copy and setup's
   // extra confirm-password field (a real safeguard, not decoration:
@@ -11,39 +13,19 @@
   }
   let { mode, onStateChange }: Props = $props();
 
-  const kMinPasswordLength = 8; // matches AdminAuthService's kMinPasswordLength
-
   let password = $state("");
   let confirmPassword = $state("");
   let error: string | undefined = $state(undefined);
   let submitting = $state(false);
-
-  function DescribeError(code: unknown, status: number): string {
-    switch (code) {
-      case "password_too_short":
-        return `Password must be at least ${kMinPasswordLength} characters.`;
-      case "invalid_credentials":
-        return "Incorrect password.";
-      case "invalid_request":
-        return "Invalid request.";
-      case "storage_write_failed":
-        return "Could not save the password - try again.";
-      default:
-        return `Request failed (${status}).`;
-    }
-  }
 
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
     error = undefined;
 
     if (mode === "setup") {
-      if (password.length < kMinPasswordLength) {
-        error = `Password must be at least ${kMinPasswordLength} characters.`;
-        return;
-      }
-      if (password !== confirmPassword) {
-        error = "Passwords do not match.";
+      const validationError = validateSetupPassword(password, confirmPassword);
+      if (validationError) {
+        error = validationError;
         return;
       }
     }
@@ -64,7 +46,7 @@
         onStateChange();
         return;
       }
-      error = DescribeError(body.error, response.status);
+      error = describeAuthError(body.error, response.status);
     } catch (err) {
       error = String(err);
     } finally {

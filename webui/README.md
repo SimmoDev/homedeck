@@ -9,12 +9,17 @@ Svelte 5 + TypeScript + Vite (see
 [ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)),
 plain client-side - no SvelteKit, no routing/SSR need exists for a
 single-page admin UI. `src/App.svelte` drives the real first-login/
-session flow - password setup, login, and an authenticated view with
-logout - off `GET /api/auth/status`, per ADR-0007's design.
+session flow - password setup, login, and an authenticated view - off
+`GET /api/auth/status`, per ADR-0007's design.
 `src/lib/PasswordForm.svelte` is shared by both setup and login (same
 field, same submit mechanics; setup adds a confirm-password field, a
-real safeguard since there's no password-recovery flow yet). The real
-settings/diagnostics/OTA/backups screens are still ahead - see
+real safeguard since there's no password-recovery flow yet), with its
+validation/error-mapping logic pulled out into
+`src/lib/passwordValidation.ts` so it's unit-testable without a
+component-testing stack (see `npm run test` below).
+`src/lib/Diagnostics.svelte` shows the authenticated view's crash/
+reboot diagnostics (reset reason, downloadable core dump). The real
+settings/OTA/backups screens are still ahead - see
 [docs/architecture/web-ui.md](../docs/architecture/web-ui.md) for the
 full scope.
 
@@ -22,8 +27,9 @@ Build:
 
 ```sh
 npm ci
-npm run build   # -> dist/index.html, dist/app.js
+npm run build   # -> dist/index.html, dist/app.js, dist/app.css
 npm run check   # svelte-check, also runs in CI
+npm run test    # vitest, also runs in CI
 ```
 
 `npm run build` is a required, separate step before building firmware or
@@ -33,5 +39,5 @@ the simulator - both fail at configure time with a clear error if
 build order and
 [ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
 for why this isn't auto-invoked from CMake/`idf.py`, and why `vite.config.ts`
-forces fixed, non-hashed output filenames (`index.html`/`app.js`)
+forces fixed, non-hashed output filenames (`index.html`/`app.js`/`app.css`)
 instead of Vite's default.

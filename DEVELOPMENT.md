@@ -236,12 +236,16 @@ Once the simulator target exists (M1):
   ```
   cd webui && npm ci && npm run build
   ```
-  Produces `webui/dist/` (`index.html` + `app.js`, fixed non-hashed
-  names — see
+  Produces `webui/dist/` (`index.html`/`app.js`/`app.css`, fixed
+  non-hashed names — see
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)),
   which both the firmware and simulator builds below embed/read.
-  `npm run check` runs `svelte-check` for type errors independently of
-  the build. Rebuild after any change under `webui/src/`.
+  `npm run check` runs `svelte-check` for type errors and `npm run test`
+  runs Vitest unit tests (currently just `passwordValidation.ts`'s pure
+  logic - not a full component-testing stack, see
+  [web-ui.md](docs/architecture/web-ui.md#status) for why), both
+  independently of the build. Rebuild after any change under
+  `webui/src/`.
 - **Firmware build:** `idf.py build` against the `firmware/` ESP-IDF
   project — see [ESP-IDF setup](#esp-idf-setup) above for the verified
   Docker-based command, including `flash`/`monitor` against real Tab5
