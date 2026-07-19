@@ -1,5 +1,6 @@
 #include "core/admin_auth_service.h"
 #include "core/clock.h"
+#include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
 #include "core/low_battery_monitor.h"
 #include "platform/host/battery_reader.h"
@@ -225,15 +226,18 @@ int main() {
     }
     homedeck::ServeStaticFiles(web_server, std::move(webui_assets));
     homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
-    // Temporary test-only route proving RequireAuth() actually gates a
-    // real endpoint end to end on this target, the same reasoning
-    // CreateTestNavButton/CreateTestLowBatteryButton above already
-    // follow for their own mechanisms - removed once a real protected
-    // endpoint (settings, diagnostics) exists to prove it instead.
-    web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/api/test/protected",
-                                admin_auth.RequireAuth([](const homedeck::HttpRequest&) {
-                                    return homedeck::HttpResponse{200, "text/plain", "authenticated content", {}};
-                                }));
+    // Diagnostics needs real Storage-resident data to read (see
+    // firmware/main/crash_diagnostics.cpp for the real, firmware-only
+    // equivalent) - mock values here so the Web UI's diagnostics page is
+    // exercisable in dev without real hardware, per
+    // docs/architecture/diagnostics.md's "Firmware-only mechanism" note.
+    storage.SetSetting("core", "reset_reason", 1, "power-on");
+    storage.SetSetting("core", "has_core_dump", 1, "true");
+    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, []() -> std::optional<std::string> {
+        return std::string(
+            "This is a simulator-only stub core dump for Web UI development - "
+            "see docs/architecture/diagnostics.md.");
+    });
     uint16_t web_port = ResolveWebPort();
     if (web_server.Start(web_port)) {
         std::printf("Web UI listening on http://localhost:%u/\n", web_port);

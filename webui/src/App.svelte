@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Diagnostics from "./lib/Diagnostics.svelte";
   import PasswordForm from "./lib/PasswordForm.svelte";
 
   // The real first-login-sets-password / session-login flow (see
@@ -52,6 +53,7 @@
   {:else}
     <p class="hint">Logged in.</p>
     <button class="secondary" onclick={logout}>Log out</button>
+    <Diagnostics />
   {/if}
 </div>
 

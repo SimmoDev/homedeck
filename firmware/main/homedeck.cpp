@@ -2,7 +2,9 @@
 
 #include "bsp/m5stack_tab5.h"
 #include "esp_chip_info.h"
+#include "esp_core_dump.h"
 #include "esp_event.h"
+#include "esp_flash.h"
 #include "esp_heap_caps.h"
 #include "esp_idf_version.h"
 #include "esp_netif.h"
@@ -14,6 +16,7 @@
 
 #include "core/admin_auth_service.h"
 #include "core/clock.h"
+#include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
 #include "core/low_battery_monitor.h"
 #include "crash_diagnostics.h"
@@ -241,15 +244,24 @@ extern "C" void app_main(void) {
           std::string(reinterpret_cast<const char*>(webui_app_css_start),
                        webui_app_css_end - webui_app_css_start)}});
     homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
-    // Temporary test-only route proving RequireAuth() actually gates a
-    // real endpoint end to end on real hardware too, the same reasoning
-    // TestWidget above already follows for the widget framework -
-    // removed once a real protected endpoint (settings, diagnostics)
-    // exists to prove it instead.
-    web_server.RegisterHandler(homedeck::HttpMethod::kGet, "/api/test/protected",
-                                admin_auth.RequireAuth([](const homedeck::HttpRequest&) {
-                                    return homedeck::HttpResponse{200, "text/plain", "authenticated content", {}};
-                                }));
+    // Real flash read against the coredump partition (see
+    // docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md) - mirrors
+    // crash_diagnostics.cpp's own esp_core_dump_image_check() gate rather
+    // than trusting esp_core_dump_image_get() alone to signal absence.
+    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, []() -> std::optional<std::string> {
+        if (esp_core_dump_image_check() != ESP_OK) {
+            return std::nullopt;
+        }
+        size_t addr = 0, size = 0;
+        if (esp_core_dump_image_get(&addr, &size) != ESP_OK || size == 0) {
+            return std::nullopt;
+        }
+        std::string buffer(size, '\0');
+        if (esp_flash_read(esp_flash_default_chip, buffer.data(), addr, size) != ESP_OK) {
+            return std::nullopt;
+        }
+        return buffer;
+    });
     if (web_server.Start(80)) {
         printf("Web UI listening on port 80\n");
     } else {

@@ -226,9 +226,12 @@ simulator.
       session lifecycle (wrong password, correct password, logout)
       confirmed against the simulator; the full bundle including basic
       layout styling and the wrong-password path confirmed on the Tab5
-      K145 reference unit too. Still open: WebSockets and the REST API
-      surface for settings/config/diagnostics/OTA/backups — none of that
-      exists yet
+      K145 reference unit too. **The diagnostics screen is also real**
+      (reset reason + downloadable core dump - see
+      [diagnostics.md#status](architecture/diagnostics.md#status)),
+      confirmed on both targets including a real core dump download on
+      the reference unit. Still open: WebSockets and the REST API
+      surface for settings/config/OTA/backups — none of that exists yet
 - [ ] OTA update support, gated on battery threshold or external USB-C power
       (see [power-management.md](architecture/power-management.md#explicit-power-states)) —
       image signing is a known, deliberately deferred gap, not yet in scope
@@ -246,12 +249,16 @@ simulator.
       reset reason and core-dump presence/summary are logged and
       persisted through `Storage` every boot; a deliberate `abort()`
       confirmed a clean reboot (not halted) and correct detection on the
-      next boot. Still open, deliberately scoped out rather than dropped: the
-      general structured/leveled logging facility `core.md`'s Logging
+      next boot. **Web UI presentation is also real** (see
+      [diagnostics.md#status](architecture/diagnostics.md#status)) —
+      reset reason and a downloadable raw core dump, confirmed on both
+      the simulator (a real click-driven browser session, not just the
+      API) and the Tab5 K145 reference unit over the LAN, including a
+      real core dump downloading as genuine ELF bytes. Still open,
+      deliberately scoped out rather than dropped: the general
+      structured/leveled logging facility `core.md`'s Logging
       responsibility also names (rotation policy and file format aren't
-      decided anywhere yet, unlike crash diagnostics), and downloading a
-      captured core dump via the Web UI (the Web UI itself doesn't exist
-      yet)
+      decided anywhere yet, unlike crash diagnostics)
 - [ ] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —

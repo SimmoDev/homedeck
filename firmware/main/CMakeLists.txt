@@ -34,6 +34,7 @@ idf_component_register(
         "../../src/core/storage.cpp"
         "../../src/core/low_battery_monitor.cpp"
         "../../src/core/admin_auth_service.cpp"
+        "../../src/core/diagnostics_routes.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"
@@ -61,6 +62,7 @@ idf_component_register(
         fatfs
         wear_levelling
         espcoredump
+        spi_flash
         mbedtls
     EMBED_FILES
         "../../webui/dist/index.html"

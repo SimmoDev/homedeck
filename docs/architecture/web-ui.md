@@ -196,12 +196,17 @@ reference unit) too — the full three-file bundle
 (401/`invalid_credentials`, the same response `PasswordForm.svelte`
 maps to "Incorrect password."). Basic layout/spacing styling exists
 (Svelte component-scoped `<style>` blocks plus a small global reset in
-`index.html`) — a plain, functional look for the one real screen that
-exists, not a design system built ahead of having more screens to
-standardize across. The actual settings/diagnostics/OTA/backups
+`index.html`) — a plain, functional look for the real screens that
+exist, not a design system built ahead of having more screens to
+standardize across.
+
+**The diagnostics screen is real too** — see
+[diagnostics.md#status](diagnostics.md#status) for the full detail
+(crash/reboot reset reason and a downloadable core dump; the only
+diagnostic data that exists yet). The actual settings/OTA/backups
 screens are still ahead.
 
 Still open, each its own future pass: WebSockets for live updates, the
-REST API surface for the [Scope](#scope) items above (module
-configuration, diagnostics, OTA, backups, settings — none of that exists
-yet, only auth), and the NVS-encryption follow-up named above.
+rest of the REST API surface for the [Scope](#scope) items above
+(module configuration, OTA, backups, settings — none of that exists
+yet), and the NVS-encryption follow-up named above.

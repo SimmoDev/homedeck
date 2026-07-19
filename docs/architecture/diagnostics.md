@@ -70,6 +70,15 @@ off-device analysis. See
 [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md) for why
 this shape was chosen over reset-reason-only or no crash handling at all.
 
+**Downloading the core dump may trigger a browser "insecure download"
+warning** — plain-HTTP downloads from a local-network admin interface
+trip some browsers' download-protection heuristics regardless of file
+type or headers; there's no server-side header or config that
+suppresses it. Expected, not a bug: fixing it means HTTPS, which reopens
+[ADR-0007](../decisions/ADR-0007-web-management-ui-policies.md)'s
+already-settled plain-HTTP-on-the-LAN decision for a rare, admin-only
+action - not judged worth it. Click through ("Keep") to download.
+
 **Firmware-only mechanism, not something the simulator implements.**
 `esp_reset_reason()` and ESP-IDF's core dump partition don't exist outside
 ESP-IDF — a simulator process crashing is an ordinary host crash (segfault,
@@ -94,11 +103,29 @@ program counter). Every boot reads
 `esp_reset_reason()` and checks for a core dump from a preceding panic,
 logging and persisting both via [Storage](core.md#responsibilities) (see
 [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md)).
-Everything else is not yet implemented: structured logs (a general
-logging facility — rotation policy and file format are still open
-questions, not designed yet), module status and connection state (no
-modules exist to report on), error reporting (routes through
-Notifications, a separate not-yet-built item), and all Web UI
-presentation of any of this (the Web Management UI itself doesn't exist
-yet). Planned for M2 (Platform Services) alongside the Web Management UI
-— see [roadmap.md](../roadmap.md).
+
+**Web UI presentation of crash/reboot diagnostics is also real**
+(`src/core/diagnostics_routes.h`/`.cpp`, `webui/src/lib/Diagnostics.svelte`)
+— `GET /api/diagnostics` (reset reason, core dump presence) and
+`GET /api/diagnostics/coredump` (the raw file, downloadable, not decoded
+in-browser per [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md)),
+both admin-only via `AdminAuthService::RequireAuth()`. The simulator
+writes mock values (`reset_reason: "power-on"`, a stub downloadable
+blob) into `Storage` at startup exactly as this document's own
+"Firmware-only mechanism" note above calls for, so the same request-
+handling code path is exercised identically on both targets — only the
+mock-vs-real data source differs. Confirmed end to end on the simulator,
+including a real click-driven browser session (Chrome DevTools Protocol)
+proving the actual page transitions from login to the rendered
+diagnostics view, not just that the API returns correct JSON.
+**Confirmed on real hardware too** (Tab5 K145 reference unit, over the
+LAN) — `resetReason` reflecting the device's actual last reset, and a
+real core dump downloading as genuine ELF-format bytes via
+`esp_core_dump_image_get()` + `esp_flash_read()` against the `coredump`
+partition.
+
+Still not implemented: structured logs (a general logging facility —
+rotation policy and file format are still open questions, not designed
+yet), module status and connection state (no modules exist to report
+on), and error reporting (routes through Notifications, a separate
+not-yet-built item).
