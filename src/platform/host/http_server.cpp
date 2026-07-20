@@ -99,7 +99,23 @@ int HostHttpServer::Dispatch(mg_connection* conn) {
     request.query = info->query_string != nullptr ? info->query_string : "";
     if (info->content_length > 0) {
         request.body.resize(static_cast<size_t>(info->content_length));
-        mg_read(conn, request.body.data(), request.body.size());
+        // A single mg_read() call is not guaranteed to return the full
+        // body - fine for the small JSON bodies used so far, a real bug
+        // for anything larger (e.g. an OTA image upload), which arrives
+        // across multiple underlying reads. Loop until the whole body is
+        // read; per mg_read()'s documented contract, 0 means the peer
+        // closed the connection and negative means a read error - both
+        // are unrecoverable here.
+        size_t total_received = 0;
+        while (total_received < request.body.size()) {
+            int received = mg_read(conn, request.body.data() + total_received,
+                                    request.body.size() - total_received);
+            if (received <= 0) {
+                mg_send_http_error(conn, 500, "Internal Server Error");
+                return 1;
+            }
+            total_received += static_cast<size_t>(received);
+        }
     }
     const char* cookie_header = mg_get_header(conn, "Cookie");
     if (cookie_header != nullptr) {

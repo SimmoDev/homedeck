@@ -71,6 +71,7 @@ add_library(homedeck_core
   core/low_battery_monitor.cpp
   core/admin_auth_service.cpp
   core/diagnostics_routes.cpp
+  core/ota_routes.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 

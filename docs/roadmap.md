@@ -231,14 +231,31 @@ simulator.
       [diagnostics.md#status](architecture/diagnostics.md#status)),
       confirmed on both targets including a real core dump download on
       the reference unit. Still open: WebSockets and the REST API
-      surface for settings/config/OTA/backups — none of that exists yet
-- [ ] OTA update support, gated on battery threshold or external USB-C power
-      (see [power-management.md](architecture/power-management.md#explicit-power-states)) —
-      image signing is a known, deliberately deferred gap, not yet in scope
-      (see [security.md](architecture/security.md#ota-image-integrity)) —
-      simulated on the simulator (upload/progress/gating against mocked
-      battery, no real partition writes) so the Web UI's OTA page doesn't
-      need real hardware to build and test (see
+      surface for settings/config/backups — none of that exists yet
+- [x] OTA update support, gated on battery threshold or external USB-C
+      power (see
+      [power-management.md](architecture/power-management.md#explicit-power-states)).
+      **Real, confirmed on hardware** — `GET /api/ota/status`,
+      `POST /api/ota/upload`, `POST /api/ota/reboot`
+      (`src/core/ota_routes.h`/`.cpp`), gated by `EvaluateOtaGate()`
+      (`src/core/ota_gate.h`) per
+      [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-ota-batterypower-gate),
+      admin-only via `RequireAuth()`. `webui/src/lib/Ota.svelte` shows
+      current version, the gate's reason if closed, a real-progress
+      upload, and an explicit reboot step. Confirmed end to end on the
+      K145 reference unit: a real ~1.9MB image uploaded and booted into
+      over the LAN, and app-rollback
+      (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) automatically reverting
+      to the previous slot after a deliberately-bad image was uploaded
+      and rebooted into. Both HTTP backends read the full request body
+      in a loop, not a single call (`src/platform/firmware/http_server.cpp`,
+      `src/platform/host/http_server.cpp`), needed for a multi-MB image
+      to arrive intact. Image signing remains a
+      known, deliberately deferred gap, not yet in scope (see
+      [security.md](architecture/security.md#ota-image-integrity)).
+      Simulated on the simulator (upload/progress/gating against mocked
+      battery, no real partition writes) so the Web UI's OTA page
+      doesn't need real hardware to build and test (see
       [simulator.md](architecture/simulator.md#how-it-works))
 - [ ] Logging, including reset-reason tracking and core dump capture on
       panic (dedicated flash partition, downloadable raw via Web UI, not

@@ -166,8 +166,13 @@ measurements rather than decided abstractly:**
 ## Status
 
 Not yet implemented. Planned for M2 (Platform Services), building on the
-Tab5 boot/display/battery work done in M1. One piece named above is real
-ahead of the rest: the urgency concept this section requires of Core's
-notification service (`NotificationSeverity`, `src/core/notification.h`)
-exists, since a low-battery notification needed it — but the wake cycle
-itself, and everything else in this document, remain unbuilt.
+Tab5 boot/display/battery work done in M1. Two pieces named above are
+real ahead of the rest: the urgency concept this section requires of
+Core's notification service (`NotificationSeverity`,
+`src/core/notification.h`) exists, since a low-battery notification
+needed it; and the Updating state's own gate check (`src/core/ota_gate.h`,
+`EvaluateOtaGate()`) is real and confirmed on hardware — the 30%/external-
+power condition itself, not the full Updating state (background-task
+suppression, entry/exit transitions), which doesn't exist yet since
+there's barely any background-task activity today to suppress. The wake
+cycle, and everything else in this document, remain unbuilt.

@@ -203,10 +203,26 @@ standardize across.
 **The diagnostics screen is real too** — see
 [diagnostics.md#status](diagnostics.md#status) for the full detail
 (crash/reboot reset reason and a downloadable core dump; the only
-diagnostic data that exists yet). The actual settings/OTA/backups
-screens are still ahead.
+diagnostic data that exists yet).
 
-Still open, each its own future pass: WebSockets for live updates, the
-rest of the REST API surface for the [Scope](#scope) items above
-(module configuration, OTA, backups, settings — none of that exists
-yet), and the NVS-encryption follow-up named above.
+**OTA update support is real, confirmed on hardware** — see
+[hardware.md#power](hardware.md#power) for the battery/external-power
+gate it's built on. `GET /api/ota/status`, `POST /api/ota/upload`, and
+`POST /api/ota/reboot` (`src/core/ota_routes.h`/`.cpp`), gated by
+`EvaluateOtaGate()` (`src/core/ota_gate.h`) per
+[ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-ota-batterypower-gate),
+all admin-only via `RequireAuth()`. `webui/src/lib/Ota.svelte` shows
+current version, the gate's reason if closed, an upload with real
+progress (`XMLHttpRequest`, not `fetch` - see the component's own
+comment for why), and an explicit "Reboot now" step, not an automatic
+reboot after upload. Confirmed end to end on the K145 reference unit: a
+real multi-MB image uploaded and booted into over the LAN, and
+app-rollback (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) automatically
+reverting to the previous slot after a deliberately-bad image was
+uploaded and rebooted into.
+
+The actual settings/backups screens are still ahead. Still open, each
+its own future pass: WebSockets for live updates, the rest of the REST
+API surface for the [Scope](#scope) items above (module configuration,
+backups, settings — none of that exists yet), and the NVS-encryption
+follow-up named above.

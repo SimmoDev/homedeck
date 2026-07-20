@@ -1,6 +1,7 @@
 #include <cstdio>
 
 #include "bsp/m5stack_tab5.h"
+#include "esp_app_desc.h"
 #include "esp_chip_info.h"
 #include "esp_core_dump.h"
 #include "esp_event.h"
@@ -8,6 +9,8 @@
 #include "esp_heap_caps.h"
 #include "esp_idf_version.h"
 #include "esp_netif.h"
+#include "esp_ota_ops.h"
+#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lvgl.h"
@@ -19,6 +22,7 @@
 #include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
 #include "core/low_battery_monitor.h"
+#include "core/ota_routes.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/cache_store.h"
@@ -66,6 +70,20 @@ void RunAndDelete(void* user_data) {
     auto* fn = static_cast<std::function<void()>*>(user_data);
     (*fn)();
     delete fn;
+}
+
+// Passed to RegisterOtaRoutes as its OtaRebootFn - esp_restart() can't
+// be called directly from the /api/ota/reboot handler, since the
+// handler still has to return so its 200 response is actually sent
+// first. The delay just needs to clear that write; it isn't otherwise
+// meaningful.
+void ScheduleReboot() {
+    esp_timer_handle_t timer = nullptr;
+    esp_timer_create_args_t args = {};
+    args.callback = [](void*) { esp_restart(); };
+    args.name = "ota_reboot";
+    esp_timer_create(&args, &timer);
+    esp_timer_start_once(timer, 500 * 1000);
 }
 
 // Temporary, throwaway - proves DashboardGrid's mixed-span placement
@@ -263,11 +281,54 @@ extern "C" void app_main(void) {
         }
         return buffer;
     });
+    // See docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
+    // decision and core/ota_gate.h - battery_reader is the same
+    // Ina226BatteryReader instance the dashboard already reads.
+    homedeck::OtaWriter ota_writer{
+        .max_image_size =
+            []() -> size_t {
+                const esp_partition_t* partition = esp_ota_get_next_update_partition(nullptr);
+                return partition != nullptr ? partition->size : 0;
+            },
+        .write_image =
+            [](const std::string& image) -> bool {
+                const esp_partition_t* partition = esp_ota_get_next_update_partition(nullptr);
+                if (partition == nullptr) {
+                    return false;
+                }
+                esp_ota_handle_t handle;
+                if (esp_ota_begin(partition, image.size(), &handle) != ESP_OK) {
+                    return false;
+                }
+                if (esp_ota_write(handle, image.data(), image.size()) != ESP_OK) {
+                    esp_ota_end(handle);
+                    return false;
+                }
+                // esp_ota_set_boot_partition() only runs once esp_ota_end()
+                // has validated the image - a bad image must never become
+                // bootable.
+                if (esp_ota_end(handle) != ESP_OK) {
+                    return false;
+                }
+                return esp_ota_set_boot_partition(partition) == ESP_OK;
+            },
+        .running_version =
+            []() -> std::string {
+                const esp_app_desc_t* desc = esp_app_get_description();
+                return desc != nullptr ? std::string(desc->version) : std::string("unknown");
+            },
+    };
+    homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer, ScheduleReboot);
     if (web_server.Start(80)) {
         printf("Web UI listening on port 80\n");
     } else {
         printf("Web UI failed to start\n");
     }
+    // A real, meaningful "this boot actually worked" checkpoint - see
+    // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.
+    // No-op when rollback is disabled or this isn't a pending-verify
+    // boot.
+    esp_ota_mark_app_valid_cancel_rollback();
 
     uint32_t heartbeat = 0;
     while (true) {

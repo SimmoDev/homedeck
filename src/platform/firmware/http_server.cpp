@@ -78,10 +78,25 @@ esp_err_t FirmwareHttpServer::DispatchTrampoline(httpd_req_t* req) {
 
     if (req->content_len > 0) {
         request.body.resize(req->content_len);
-        int received = httpd_req_recv(req, request.body.data(), request.body.size());
-        if (received <= 0) {
-            httpd_resp_send_500(req);
-            return ESP_FAIL;
+        // A single httpd_req_recv() call is not guaranteed to return the
+        // full body - fine for the small JSON bodies used so far, a real
+        // bug for anything larger (e.g. an OTA image upload), which
+        // arrives across multiple underlying reads. Loop until the whole
+        // body is read; HTTPD_SOCK_ERR_TIMEOUT is retryable per
+        // esp_http_server's own documented recv() contract, any other
+        // negative result is a real failure.
+        size_t total_received = 0;
+        while (total_received < request.body.size()) {
+            int received = httpd_req_recv(req, request.body.data() + total_received,
+                                           request.body.size() - total_received);
+            if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                continue;
+            }
+            if (received <= 0) {
+                httpd_resp_send_500(req);
+                return ESP_FAIL;
+            }
+            total_received += static_cast<size_t>(received);
         }
     }
 

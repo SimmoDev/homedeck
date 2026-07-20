@@ -35,6 +35,7 @@ idf_component_register(
         "../../src/core/low_battery_monitor.cpp"
         "../../src/core/admin_auth_service.cpp"
         "../../src/core/diagnostics_routes.cpp"
+        "../../src/core/ota_routes.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"
@@ -64,6 +65,7 @@ idf_component_register(
         espcoredump
         spi_flash
         mbedtls
+        app_update
     EMBED_FILES
         "../../webui/dist/index.html"
         "../../webui/dist/app.js"

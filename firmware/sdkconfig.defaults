@@ -133,6 +133,13 @@ CONFIG_ESP_MAIN_TASK_STACK_SIZE=16384
 # over time.
 CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=8192
 
+# OTA app-rollback (docs/architecture/web-ui.md#ota) - the bootloader
+# boots a freshly-updated image in a "pending verify" state; if
+# esp_ota_mark_app_valid_cancel_rollback() (firmware/main/homedeck.cpp,
+# called once real boot success is confirmed) is never reached, the
+# device is meant to revert to the previous OTA slot on the next boot.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
 # StatusBar (src/ui/status_bar.h) uses Montserrat 24, not LVGL's default
 # Montserrat 14, which is too small to read at a glance on the Tab5's
 # physical screen. On this panel's ~294 PPI (from its 5" 720x1280 spec -

@@ -3,6 +3,7 @@
 #include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
 #include "core/low_battery_monitor.h"
+#include "core/ota_routes.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/file_backed_store.h"
@@ -158,6 +159,24 @@ void CreateTestBatteryPresentButton(lv_obj_t* parent, homedeck::HostBatteryReade
     lv_label_set_text(label, "Test: toggle battery present");
 }
 
+// Temporary test-only wiring proving the Web UI's OTA page surfaces a
+// real upload failure, not just the success path - see
+// docs/architecture/simulator.md's OTA mock description. Removed once a
+// real Power Management screen (or similar) exists to exercise this.
+void OnTestForceOtaFailureClicked(lv_event_t* e) {
+    auto* force_failure = static_cast<bool*>(lv_event_get_user_data(e));
+    *force_failure = !*force_failure;
+}
+
+void CreateTestForceOtaFailureButton(lv_obj_t* parent, bool& force_failure) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -208);
+    lv_obj_add_event_cb(button, OnTestForceOtaFailureClicked, LV_EVENT_CLICKED, &force_failure);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: toggle force OTA failure");
+}
+
 }  // namespace
 
 // The dashboard shell, StatusBar, and DashboardGrid widget framework -
@@ -209,6 +228,11 @@ int main() {
     CreateTestLowBatteryButton(dashboard.Root(), battery_reader);
     CreateTestExternalPowerButton(dashboard.Root(), battery_reader);
     CreateTestBatteryPresentButton(dashboard.Root(), battery_reader);
+    // Declared here, not narrower - captured by reference into
+    // ota_writer.write_image below, which must stay valid for the
+    // server's lifetime.
+    bool force_ota_failure = false;
+    CreateTestForceOtaFailureButton(dashboard.Root(), force_ota_failure);
 
     // NotificationBanner must exist before LowBatteryMonitor, which must
     // exist before Clock (the ClockTickEvent publisher) - the same
@@ -279,6 +303,20 @@ int main() {
             "This is a simulator-only stub core dump for Web UI development - "
             "see docs/architecture/diagnostics.md.");
     });
+    // No real OTA partition here - matches firmware's 4MB ota_0/ota_1
+    // sizing (see docs/decisions/ADR-0017-partition-table.md) so an
+    // oversized-upload rejection is exercisable identically on both
+    // targets. write_image reads the body (exercising the same read
+    // path as firmware) and discards it - no real partition writes, per
+    // docs/architecture/simulator.md's OTA mock description.
+    homedeck::OtaWriter ota_writer{
+        .max_image_size = []() -> size_t { return 4 * 1024 * 1024; },
+        .write_image =
+            [&force_ota_failure](const std::string& /*image*/) -> bool { return !force_ota_failure; },
+        .running_version = []() -> std::string { return "simulator-dev"; },
+    };
+    homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer,
+                                 []() { std::printf("OTA reboot requested (no-op in simulator)\n"); });
     uint16_t web_port = ResolveWebPort();
     if (web_server.Start(web_port)) {
         std::printf("Web UI listening on http://localhost:%u/\n", web_port);
