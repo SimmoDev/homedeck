@@ -28,8 +28,9 @@ class I2cDevice;
 // same PI4IOE5V6408 IO expander (I2C 0x44) HomeDeck already talks to
 // for Wi-Fi power enable - see hardware.md#power: enabling the IP2326
 // charge IC (never automatic; the constructor sets this once) and
-// reading USB-C connection presence (a direct digital status bit, not
-// inferred from current draw).
+// reading its charge-status output, which IsExternalPowerConnected()
+// combines with IsBatteryPresent() rather than using directly - see
+// that method's own comment for why.
 class Ina226BatteryReader : public BatteryReader {
 public:
     explicit Ina226BatteryReader(i2c_master_bus_handle_t i2c_bus);
@@ -45,6 +46,12 @@ public:
 private:
     std::unique_ptr<I2cDevice> device_;
     std::unique_ptr<espp::Ina226> sensor_;
+    // IsBatteryPresent()'s voltage-stability fallback needs the previous
+    // sample to compute a delta against - see that method's own comment.
+    // Mutable since the reading itself stays a const, side-effect-free
+    // query from callers' perspective.
+    mutable float last_voltage_volts_ = 0.0f;
+    mutable bool has_last_voltage_ = false;
 };
 
 }  // namespace homedeck

@@ -33,17 +33,19 @@ const char* BatteryLevelIcon(int percent) {
 
 // See docs/architecture/hardware.md#power for how
 // IsBatteryPresent()/IsExternalPowerConnected() are derived.
-//   - Battery, no external power: level icon + percent - the common
-//     case.
-//   - Battery, external power, still charging (percent < 100): charge
-//     symbol + percent, not the level icon - LVGL's symbol font has no
-//     single glyph combining "charging" with a specific fill level, and
-//     the charge symbol alone is the clearer signal while it's actively
+//   - Battery, not actively charging: level icon + percent - the common
+//     discharging case, and also what a plugged-in battery that's
+//     stopped drawing charge current shows (topped off, or between the
+//     charger's own recharge-threshold cycles) - these two are
+//     indistinguishable with the signals available on this board (see
+//     hardware.md#power's Charge status bullet), and showing a charge
+//     symbol here would be misleading regardless of which one it is.
+//   - Battery, actively charging (percent < 100 as a UI guard against
+//     flashing "charging" right at the 100% boundary): charge symbol +
+//     percent, not the level icon - LVGL's symbol font has no single
+//     glyph combining "charging" with a specific fill level, and the
+//     charge symbol alone is the clearer signal while it's actively
 //     rising.
-//   - Battery, external power, percent == 100: level icon (always
-//     full) + percent, same as the no-external-power case - full, so
-//     nothing's actually being charged; showing the charge symbol here
-//     would be misleading.
 //   - No battery (always with external power - nothing would be
 //     running otherwise): USB symbol alone, not the charge symbol -
 //     there's no battery to charge, this is just "running on USB

@@ -347,34 +347,44 @@ in this codebase uses it.
   alone, just without portability. See [Battery-optional
   operation](#battery-optional-operation) below for what that means for
   the power state model.
-- **Charging:** IP2326 charging management chip. Its enable line is not
-  automatic - it's gated by bit 7 of the PI4IOE5V6408 IO expander's
-  output register at I2C `0x44` (the same expander instance used for
-  Wi-Fi power enable, see [Wireless](#wireless) above), and that pin
-  also needs its high-Z (open-drain) bit cleared - setting the output
-  level alone leaves it electrically floating, never actually driving
-  the enable line. **Confirmed on hardware** that battery percentage
-  climbs normally under USB-C power once both are set. Register-level
-  detail (this exact bit, plus the high-Z gotcha) isn't exposed by this
-  project's vendored `espressif/m5stack_tab5` BSP component -
-  cross-checked against M5Stack's own reference firmware,
-  [M5Tab5-UserDemo](https://github.com/m5stack/M5Tab5-UserDemo).
-- **USB-C connection presence:** a direct digital status bit, not
-  inferred from current draw - bit 6 of the same IO expander's input
-  status register. **Confirmed on hardware** by physically
-  plugging/unplugging USB-C and comparing readings.
-- **Battery presence:** current, not voltage, is the reliable signal
-  for whether a battery is physically installed. **Confirmed on
-  hardware** that bus voltage cannot tell "no battery" apart from
-  "battery present": with charging enabled (see above) and nothing
-  connected to charge, the IP2326 hunts for its regulation target on
-  the unloaded output, swinging between roughly 4V and the
-  100%-mapped voltage (8.4V, see below) every tick rather than settling -
-  a reading in that whole range is as likely to mean "empty charge
-  path" as "real battery." Current doesn't have this problem: it reads
-  a flat 0.000000A with no battery (nothing to source/sink current),
-  and settles to a small but clearly nonzero, stable value (~0.02A on
-  the reference unit) within one tick of a real pack being connected.
+- **Charging:** IP2326 charging management chip, controlled through the
+  same PI4IOE5V6408 IO expander at I2C `0x44` used for Wi-Fi power
+  enable (see [Wireless](#wireless) above) - this board has two such
+  expanders (`0x43` and `0x44`), confirmed against M5Stack's official
+  [Tab5 pinmap](https://m5stack-doc.oss-cn-shenzhen.aliyuncs.com/1132/C145_Pinmap_Overview.png),
+  which labels them `E1`/`E2` respectively. On `E2` (`0x44`), `P7` is
+  `CHG_EN`: not automatic - the enable line needs its high-Z
+  (open-drain) bit cleared as well as its output level set, or it stays
+  electrically floating rather than actually driving. **Confirmed on
+  hardware** that battery percentage climbs normally under USB-C power
+  once both are set.
+- **Charge status:** `E2.P6` is `CHG_STAT`, also confirmed against the
+  official pinmap - high only while the IP2326 is actively driving
+  charge current into a battery, low once charging terminates (e.g. a
+  full battery) even with USB-C still connected. There is no separate
+  raw cable/VBUS-presence pin exposed via either IO expander on the
+  pinmap, confirmed both by tracing every USB-C connector net on the
+  full schematic and against M5Stack's own M5Unified library (Tab5's
+  `isCharging()` reads this identical bit). Needs a pull-down
+  explicitly enabled (not left floating) to read cleanly - confirmed on
+  hardware, matching M5Stack's own
+  [M5Tab5-UserDemo](https://github.com/m5stack/M5Tab5-UserDemo)
+  reference firmware, which enables one on this exact pin.
+- **Battery presence:** current is the primary signal for whether a
+  battery is physically installed. **Confirmed on hardware** that bus
+  voltage alone cannot tell "no battery" apart from "battery present":
+  with charging enabled and nothing connected to charge, the IP2326
+  hunts for its regulation target on the unloaded output, swinging
+  between roughly 4V and the 100%-mapped voltage (8.4V, see below)
+  every tick rather than settling. Current reads a flat 0.000000A with
+  no battery, and settles to a small but clearly nonzero, stable value
+  within one tick of a real pack connecting - but current alone also
+  can't distinguish "no battery" from "battery present, full, charging
+  terminated," since both read that same flat zero. Voltage remains
+  usable there: an installed battery holds the rail steady via its own
+  chemistry (confirmed on hardware: consecutive readings within tens of
+  mV even right at the charging-terminates transition), unlike the
+  multi-volt hunting swing with no battery at all.
 - **Conversion:** MP4560 buck-boost converter.
 - **Power monitoring:** INA226 (I2C), providing real-time voltage *and*
   current monitoring. This is meaningfully better than raw ADC voltage
@@ -404,8 +414,10 @@ not hypothetical, gap in what's currently verified:
   attached - they swing unpredictably (see [Power](#power)'s Battery
   presence bullet), never settling. Current-based detection is the real
   "no battery installed" vs. "battery installed" signal - confirmed on
-  hardware by removing the battery on the K145 reference unit. See
-  [dashboard.md](dashboard.md#status) for how the Web/Touch UI uses this.
+  hardware by removing the battery on the K145 reference unit. A
+  running C145 unit has no possible power source other than USB-C. See
+  [dashboard.md](dashboard.md#status) for how the Web/Touch UI uses
+  this.
 - **Not yet reflected in the design:** [power-management.md](power-management.md)'s
   explicit power states currently assume a battery is present and track
   its charge level; a "no battery, wired only" configuration isn't

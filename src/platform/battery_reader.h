@@ -14,8 +14,13 @@ public:
     // 0-100.
     virtual int ReadPercent() const = 0;
 
-    // True when external USB-C power is present, independent of battery
-    // percentage.
+    // True when external power is confirmed present - actively charging a
+    // present battery, or no battery installed (the only cases this can be
+    // determined from available signals). False does NOT guarantee external
+    // power is absent: a battery that's connected but not currently drawing
+    // charge current (e.g. topped off) is indistinguishable from being
+    // unplugged on this hardware - see
+    // Ina226BatteryReader::IsExternalPowerConnected() for the full reasoning.
     virtual bool IsExternalPowerConnected() const = 0;
 
     // True when a battery pack is physically installed. HomeDeck must
