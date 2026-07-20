@@ -146,17 +146,17 @@ simulator.
       co-processor (see
       [hardware.md](architecture/hardware.md#wi-fi-bring-up) for why that
       matters here specifically).
-- [ ] LAN discovery (thin mDNS wrapper — see
+- [x] LAN discovery (thin mDNS wrapper — see
       [networking.md](architecture/networking.md#lan-discovery)).
       **Self-advertisement is real, confirmed on hardware** — the device
       advertises as `homedeck.local` once Wi-Fi connects (ESP-IDF's
       `mdns` component, called directly from `firmware/main/homedeck.cpp`,
       no Core abstraction — see [networking.md](architecture/networking.md#status)),
       verified reachable at `http://homedeck.local/` from a phone's
-      browser over the LAN. Still open:
-      the mDNS *browsing* wrapper itself (for modules to discover Home
-      Assistant/Kodi) — deliberately deferred until one of those modules
-      is real (M4/M6), not built speculatively ahead of a consumer
+      browser over the LAN. The mDNS *browsing* wrapper itself (for
+      modules to discover Home Assistant/Kodi) is out of scope here —
+      no consumer exists until one of those modules is real, so it's
+      tracked against M4/M6 instead (see those milestones' own items)
 - [ ] Configuration service (storage-backed) across the three storage tiers
       (NVS, internal flash filesystem, optional microSD — see
       [ADR-0012](decisions/ADR-0012-storage-tiers.md)), with a schema
@@ -276,6 +276,17 @@ simulator.
       structured/leveled logging facility `core.md`'s Logging
       responsibility also names (rotation policy and file format aren't
       decided anywhere yet, unlike crash diagnostics)
+- [ ] Audio bring-up (ES8388 codec, 1W speaker output — see
+      [hardware.md](architecture/hardware.md#audio) for the confirmed
+      BOM). A platform capability in its own right, not
+      Notifications-specific — Notifications' sound presentation
+      (below) depends on this rather than duplicating it. Nothing built
+      yet beyond chip identity confirmed present via the I2C bus scan.
+      Follow-on, not this item's own scope: on-device volume control —
+      needs a Core-level volume capability regardless of which UI ends
+      up exposing it; where that control actually lives (dashboard/
+      status-bar quick-access vs. something else) is still an open
+      question, deliberately not decided here.
 - [ ] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —
@@ -298,7 +309,7 @@ simulator.
       unconfirmed - `Ina226BatteryReader` has no equivalent manual
       trigger, so this specifically needs the pack to actually drop below
       15% to verify, not something forced for this pass. Still open:
-      sound (needs unbuilt audio hardware bring-up), the dashboard
+      sound (depends on the Audio bring-up item above), the dashboard
       indicator (a real widget, separate follow-up like weather), and the
       alert-priority wake cycle itself (Power Management scope, still
       unbuilt)
@@ -386,7 +397,10 @@ day-to-day usage with HomeDeck.
 
 ## M4 — Media
 
-- [ ] Kodi integration
+- [ ] Kodi integration — needs the mDNS *browsing* wrapper deferred from
+      M2's LAN discovery item (see
+      [networking.md](architecture/networking.md#lan-discovery)); this is
+      its first real consumer
 - [ ] Media browsing
 - [ ] Playback control
 - [ ] Now Playing widget/screen
@@ -403,7 +417,10 @@ day-to-day usage with HomeDeck.
 
 ## M6 — Home Automation
 
-- [ ] Home Assistant integration
+- [ ] Home Assistant integration — also a consumer of the mDNS
+      *browsing* wrapper deferred from M2's LAN discovery item (see
+      [networking.md](architecture/networking.md#lan-discovery)), if
+      discovery rather than manual configuration is used
 - [ ] Devices
 - [ ] Scenes
 - [ ] Dashboards
