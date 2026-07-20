@@ -317,8 +317,12 @@ simulator.
       non-scrolling chrome, solid black with white Montserrat 24 text —
       the closest available match to Android's status bar text by
       physical glyph size (see [dashboard.md](architecture/dashboard.md#status)
-      for the math). No charging/no-battery detection yet — that's Power
-      Management scope below, not this item's
+      for the math). **Charging and no-battery detection are also real,
+      confirmed on hardware** — a battery-level icon, a charge icon while
+      actually charging, and a USB icon (no percentage) with no battery
+      installed, all backed by real INA226/IO-expander signals rather
+      than a raw, sometimes-meaningless percentage (see
+      [hardware.md](architecture/hardware.md#power))
 - [ ] Power management state model, including the alert-priority wake-check
       cycle during Sleeping (interval tuned against real reconnect-cost/
       battery measurements on hardware — see

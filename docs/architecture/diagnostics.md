@@ -106,7 +106,10 @@ logging and persisting both via [Storage](core.md#responsibilities) (see
 
 **Web UI presentation of crash/reboot diagnostics is also real**
 (`src/core/diagnostics_routes.h`/`.cpp`, `webui/src/lib/Diagnostics.svelte`)
-— `GET /api/diagnostics` (reset reason, core dump presence) and
+— `GET /api/diagnostics` (reset reason, core dump presence, plus live
+battery/external-power state - see [hardware.md](hardware.md#power) -
+added to this same endpoint for convenience rather than a separate one,
+not itself part of crash/reboot diagnostics) and
 `GET /api/diagnostics/coredump` (the raw file, downloadable, not decoded
 in-browser per [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md)),
 both admin-only via `AdminAuthService::RequireAuth()`. The simulator
