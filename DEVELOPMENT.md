@@ -120,6 +120,11 @@ implementations in `src/platform/firmware/`), not just a bare template —
 confirmed running live on the Tab5 K145 reference unit, real sensor data
 included (see [docs/roadmap.md](docs/roadmap.md)'s M1 items).
 
+[tools/](tools/README.md) has scripts wrapping the commands below
+(`flash.sh`, `monitor.sh`, `factory-reset.sh`, `set-password.sh`) for
+day-to-day use - the steps here are the full explanation of what they
+do and why, worth reading at least once.
+
 1. `docker pull espressif/idf:v5.4.3` (not yet pulled on every machine —
    run this before the first build/flash after upgrading from v5.4.2).
 2. Build the Web UI bundle first if you haven't (`cd webui && npm ci &&
