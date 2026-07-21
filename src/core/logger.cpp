@@ -2,6 +2,8 @@
 
 #include "third_party/nlohmann/json.hpp"
 
+#include <future>
+
 namespace homedeck {
 
 namespace {
@@ -53,33 +55,31 @@ std::string JoinLinesAsArrayElements(const std::string& blob) {
 }  // namespace
 
 Logger::Logger(Storage& storage, TimeSource& time_source, size_t max_log_file_bytes)
-    : storage_(storage), time_source_(time_source), max_log_file_bytes_(max_log_file_bytes) {}
+    : storage_(storage),
+      time_source_(time_source),
+      max_log_file_bytes_(max_log_file_bytes),
+      worker_("logger", [this](std::stop_token stop_token) { WorkerLoop(stop_token); }) {}
+
+// Task's own destructor requests a stop and joins - WorkerLoop() is
+// blocked in pending_.Pop(stop_token), which wakes on either a new item
+// or the stop request, so no explicit shutdown signal needs to be
+// pushed here.
+Logger::~Logger() = default;
 
 void Logger::Log(LogLevel level, const std::string& component, const std::string& message) {
-    nlohmann::json entry = {
-        {"timestamp", std::chrono::system_clock::to_time_t(time_source_.Now())},
-        {"level", LevelToString(level)},
-        {"component", component},
-        {"message", message},
-    };
-    std::string line = entry.dump() + "\n";
-
-    auto current = storage_.ReadCache(kModuleId, kCurrentKey);
-    std::string previous = current.has_value() ? current->value : std::string();
-    std::string updated = previous + line;
-
-    if (updated.size() > max_log_file_bytes_) {
-        // The content before this new line becomes the rotated backup
-        // (overwriting any earlier one); this new line starts the fresh
-        // current blob - see ADR-0019's size-based rotation decision.
-        storage_.WriteCache(kModuleId, kRotatedKey, kSchemaVersion, previous);
-        storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, line);
-    } else {
-        storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, updated);
-    }
+    // Timestamp captured now, not whenever WorkerLoop() eventually
+    // persists this - callers need the time the event actually
+    // happened, not whenever the write got around to running.
+    Record record{std::chrono::system_clock::to_time_t(time_source_.Now()), level, component, message};
+    pending_.Push(Item{std::move(record), nullptr});
 }
 
-std::string Logger::ReadAll() const {
+std::string Logger::ReadAll() {
+    auto signal = std::make_shared<std::promise<void>>();
+    std::future<void> done = signal->get_future();
+    pending_.Push(Item{std::nullopt, signal});
+    done.wait();
+
     auto rotated = storage_.ReadCache(kModuleId, kRotatedKey);
     auto current = storage_.ReadCache(kModuleId, kCurrentKey);
 
@@ -94,6 +94,73 @@ std::string Logger::ReadAll() const {
     result += current_elements;
     result += "]";
     return result;
+}
+
+void Logger::WorkerLoop(std::stop_token stop_token) {
+    while (true) {
+        std::optional<Item> first = pending_.Pop(stop_token);
+        if (!first.has_value()) {
+            return;  // Stop requested, nothing left to wait for.
+        }
+
+        std::vector<Record> batch;
+        std::vector<std::shared_ptr<std::promise<void>>> flush_signals;
+        auto consume = [&](Item&& item) {
+            if (item.record.has_value()) {
+                batch.push_back(std::move(*item.record));
+            }
+            if (item.flush_signal) {
+                flush_signals.push_back(std::move(item.flush_signal));
+            }
+        };
+        consume(std::move(*first));
+
+        // Drain whatever else is already queued without blocking for
+        // more - this is what coalesces a burst of near-simultaneous
+        // Log() calls into a single flash write instead of several. See
+        // ADR-0020 for why that burst is exactly the case this exists
+        // to handle.
+        while (std::optional<Item> more = pending_.TryPop()) {
+            consume(std::move(*more));
+        }
+
+        if (!batch.empty()) {
+            WriteBatch(batch);
+        }
+        // Only after the batch above (everything queued ahead of these
+        // signals) has actually been written - FIFO ordering plus
+        // strictly-sequential processing here guarantees that.
+        for (auto& signal : flush_signals) {
+            signal->set_value();
+        }
+    }
+}
+
+void Logger::WriteBatch(const std::vector<Record>& batch) {
+    std::string lines;
+    for (const auto& record : batch) {
+        nlohmann::json entry = {
+            {"timestamp", record.timestamp},
+            {"level", LevelToString(record.level)},
+            {"component", record.component},
+            {"message", record.message},
+        };
+        lines += entry.dump() + "\n";
+    }
+
+    auto current = storage_.ReadCache(kModuleId, kCurrentKey);
+    std::string previous = current.has_value() ? current->value : std::string();
+    std::string updated = previous + lines;
+
+    if (updated.size() > max_log_file_bytes_) {
+        // The content before this batch becomes the rotated backup
+        // (overwriting any earlier one); this batch starts the fresh
+        // current blob - see ADR-0019's size-based rotation decision.
+        storage_.WriteCache(kModuleId, kRotatedKey, kSchemaVersion, previous);
+        storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, lines);
+    } else {
+        storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, updated);
+    }
 }
 
 }  // namespace homedeck

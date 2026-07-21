@@ -23,6 +23,8 @@ public:
     Navigation(const std::string& home_route, lv_obj_t* home_screen);
 
     void Register(const std::string& route, lv_obj_t* screen);
+    // No-op if route is already the active screen - safe for a caller to
+    // invoke without first checking current state itself (see .cpp).
     void GoTo(const std::string& route);
     void GoHome();
 

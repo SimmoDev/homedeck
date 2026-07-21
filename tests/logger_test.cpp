@@ -83,7 +83,14 @@ TEST_F(LoggerTest, RotatesOnceSizeThresholdIsExceeded) {
     // cross the real 64KB production default.
     homedeck::Logger logger(*storage_, time_source_, /*max_log_file_bytes=*/10);
 
+    // ReadAll() between calls flushes the background worker, forcing
+    // "first" into its own write instead of being batched together with
+    // "second" - see ADR-0020: Log() calls that land close together are
+    // deliberately coalesced into one write, so without this the two
+    // entries below would arrive as a single batch and never trigger a
+    // rotation between them.
     logger.Log(homedeck::LogLevel::kInfo, "core", "first");
+    logger.ReadAll();
     logger.Log(homedeck::LogLevel::kInfo, "core", "second");
 
     // Both entries still readable - the first moved to the rotated slot
@@ -104,8 +111,12 @@ TEST_F(LoggerTest, RotatesOnceSizeThresholdIsExceeded) {
 TEST_F(LoggerTest, RotationOverwritesThePreviousRotatedEntry) {
     homedeck::Logger logger(*storage_, time_source_, /*max_log_file_bytes=*/10);
 
+    // Each Log()/ReadAll() pair forces its own batch boundary - see the
+    // identical note in RotatesOnceSizeThresholdIsExceeded above.
     logger.Log(homedeck::LogLevel::kInfo, "core", "one");
+    logger.ReadAll();
     logger.Log(homedeck::LogLevel::kInfo, "core", "two");
+    logger.ReadAll();
     logger.Log(homedeck::LogLevel::kInfo, "core", "three");
 
     // "one" was rotated out for real once "two" pushed past the cap,
@@ -116,4 +127,28 @@ TEST_F(LoggerTest, RotationOverwritesThePreviousRotatedEntry) {
     ASSERT_EQ(parsed.size(), 2u);
     EXPECT_EQ(parsed[0]["message"], "two");
     EXPECT_EQ(parsed[1]["message"], "three");
+}
+
+TEST_F(LoggerTest, ConcurrentLogCallsAreCoalescedIntoOneBatch) {
+    // The whole point of ADR-0020's redesign: Log() calls that land
+    // close together (no flush between them) are written together, not
+    // as separate flash writes - this is what fixed a real display
+    // glitch on hardware (see docs/architecture/ui.md#status). The
+    // default cap is plenty for three short entries in one batch; the
+    // "no rotation happened" assertion below is what actually proves
+    // they landed in a single write rather than three.
+    homedeck::Logger logger(*storage_, time_source_);
+
+    logger.Log(homedeck::LogLevel::kInfo, "wifi", "a");
+    logger.Log(homedeck::LogLevel::kInfo, "mdns", "b");
+    logger.Log(homedeck::LogLevel::kInfo, "web_server", "c");
+
+    // No rotation happened - all three fit in one batch under the cap,
+    // so nothing was ever evicted to the rotated slot.
+    auto parsed = nlohmann::json::parse(logger.ReadAll());
+    ASSERT_EQ(parsed.size(), 3u);
+    EXPECT_EQ(parsed[0]["message"], "a");
+    EXPECT_EQ(parsed[1]["message"], "b");
+    EXPECT_EQ(parsed[2]["message"], "c");
+    EXPECT_FALSE(storage_->ReadCache("core", "log_rotated").has_value());
 }
