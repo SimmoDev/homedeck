@@ -392,12 +392,16 @@ simulator.
       Multi-widget hosting, first-fit placement at mixed spans (2×1,
       2×2, 1×1, 1×1), square cells, and cell spacing all render correctly
       on the real panel, via throwaway widgets on both targets (see
-      [dashboard.md](architecture/dashboard.md#status)). Still open: the
-      weather widget itself, the first real widget built against this
-      framework, worth its own real-hardware pass once built; an
-      optional large clock widget (Core-provided, distinct from the
-      always-on status bar clock - see
-      [dashboard.md](architecture/dashboard.md#widget-system)); and a
+      [dashboard.md](architecture/dashboard.md#status)). **The first real
+      widget is built**: `ClockWidget` (`src/ui/clock_widget.h`/`.cpp`,
+      the large clock named below) replaces those throwaways on both
+      targets. **Confirmed on hardware** (K145 reference unit): builds
+      cleanly on both targets, boots without a crash (`Dashboard loaded`
+      logged, heartbeat continues normally), and renders as intended -
+      centered, legible, no clipping or overlap. Still open: the weather
+      widget (Core `WeatherProvider`
+      interface, Open-Meteo as the direct provider - see
+      [dashboard.md](architecture/dashboard.md#weather-source)); and a
       network status widget (Core, connectivity detail beyond the status
       bar's compact icon - see the Status bar item below and
       [dashboard.md](architecture/dashboard.md#widget-system)). The

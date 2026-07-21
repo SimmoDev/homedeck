@@ -42,6 +42,7 @@ idf_component_register(
         "../../src/ui/screens/wifi_setup_screen.cpp"
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"
+        "../../src/ui/clock_widget.cpp"
         "../../src/ui/notification_banner.cpp"
         "../../src/ui/navigation.cpp"
         "../../src/ui/home_affordance.cpp"

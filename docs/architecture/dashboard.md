@@ -117,9 +117,9 @@ fixed, non-scrolling chrome, constructed by every screen
 targets, `WifiSetupScreen` — see [ui.md](ui.md#status)), rendered as a
 solid black bar with
 white text: compact date/time (subscribed to `Clock`'s existing
-`ClockTickEvent`, publishing once a second and once immediately at
-startup) and battery percentage, both refreshed on that same tick rather
-than a second timer, per
+`ClockTickEvent`, publishing once a second; blank until the first tick
+arrives rather than showing a fabricated time) and battery percentage,
+both refreshed on that same tick rather than a second timer, per
 [ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)'s
 "relocate, don't rebuild" framing. Black/white styling matches the
 Android/iOS convention that ADR already referenced.
@@ -167,12 +167,19 @@ into `DashboardScreen` on both targets, confirmed on hardware (Tab5 K145
 reference unit): first-fit placement of mixed spans, square 1×1 cells,
 and cell spacing all render correctly on the real panel.
 
-No real widget exists yet; weather (see [Weather source](#weather-source)
-above) is a separate follow-up pass. The mechanism — that `DashboardGrid`
-hosts multiple widgets of varying spans without knowing their concrete
-type, correctly packing around each other and growing new rows as
-needed — is proven via four throwaway widgets at mixed spans (2×1, 2×2,
-1×1, 1×1) on both targets: `PlaceholderWidget` (`simulator/widgets/`) on
-the simulator, and an identical inline `TestWidget` in
-`firmware/main/homedeck.cpp` on firmware. Both are removed once a real
-widget (weather) exists to replace them.
+**The first real grid widget is built**: `ClockWidget`
+(`src/ui/clock_widget.h`/`.cpp`) - a large time/date display, the
+"optional larger clock widget" this doc's own [Widget
+system](#widget-system) section named, distinct from the always-on
+status bar clock. Portable and target-agnostic, the same
+`EventBus::SubscribeUi<ClockTickEvent>` mechanism `StatusBar` already
+uses, just a bigger font (Montserrat 48, enabled identically on both
+targets alongside the status bar's own Montserrat 24) and a 2-column
+span. It replaces the four throwaway widgets (`PlaceholderWidget` in
+`simulator/widgets/`, an identical inline `TestWidget` in
+`firmware/main/homedeck.cpp`) that previously proved `DashboardGrid`'s
+mixed-span placement mechanism — both removed now that a real widget
+exists, per this section's own original intent. **Confirmed on
+hardware** (Tab5 K145 reference unit): renders centered and legible,
+with no clipping or overlap. Weather (see [Weather
+source](#weather-source) above) remains a separate follow-up pass.

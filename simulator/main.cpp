@@ -15,12 +15,12 @@
 #include "platform/host/time_source.h"
 #include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
+#include "ui/clock_widget.h"
 #include "ui/navigation.h"
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/ui_task.h"
-#include "widgets/placeholder_widget.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -208,37 +208,17 @@ int main() {
     homedeck::EventBus event_bus;
     homedeck::UiTask ui_task(kWindowWidth, kWindowHeight, event_bus, ResolveWindowZoom());
 
-    // DashboardScreen (whose StatusBar member is the ClockTickEvent
-    // subscriber) must exist before Clock (the publisher) - Clock
-    // publishes one tick immediately at construction (see clock.cpp) so
-    // the display doesn't show LVGL's placeholder text until the first
-    // periodic tick; that only reaches anyone if the subscription
-    // already exists when it happens.
+    // DashboardScreen (whose StatusBar and ClockWidget members are both
+    // ClockTickEvent subscribers) must exist before Clock (the
+    // publisher) - Clock publishes one tick immediately at construction
+    // (see clock.cpp) so subscribers get a real value right away rather
+    // than sitting blank for up to a full tick period; that only
+    // reaches anyone if the subscription already exists when it
+    // happens.
     homedeck::HostBatteryReader battery_reader;
     homedeck::DashboardScreen dashboard(event_bus, battery_reader);
-
-    // Temporary test-only wiring proving DashboardGrid hosts multiple
-    // widgets of varying spans, without knowing their concrete type (see
-    // docs/architecture/dashboard.md#widget-system) - there's no real
-    // widget yet (weather is a separate follow-up pass). Removed once one
-    // exists; kept out of DashboardScreen itself so real product code
-    // stays free of throwaway test scaffolding, the same reasoning
-    // CreateTestWifiSetupNavButton below already follows. Deliberately exercises
-    // column span, row span, first-fit packing around an
-    // already-occupied cell, and row growth together, not just the
-    // simplest case: A (2x1) and B (2x2, tall) fill row 0's 4 columns;
-    // C and D (1x1 each) then have to skip B's row-1 footprint to land
-    // in row 1's remaining free cells, which only exist because
-    // DashboardGrid grew a new row to fit B in the first place.
-    PlaceholderWidget widget_a(dashboard.Grid().Container(), "Widget A", /*column_span=*/2);
-    PlaceholderWidget widget_b(dashboard.Grid().Container(), "Widget B", /*column_span=*/2,
-                                /*row_span=*/2);
-    PlaceholderWidget widget_c(dashboard.Grid().Container(), "Widget C");
-    PlaceholderWidget widget_d(dashboard.Grid().Container(), "Widget D");
-    dashboard.Grid().AddWidget(widget_a);
-    dashboard.Grid().AddWidget(widget_b);
-    dashboard.Grid().AddWidget(widget_c);
-    dashboard.Grid().AddWidget(widget_d);
+    homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
+    dashboard.Grid().AddWidget(clock_widget);
 
     homedeck::Navigation navigation("dashboard", dashboard.Root());
 

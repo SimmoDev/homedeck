@@ -35,11 +35,11 @@
 #include "platform/firmware/time_source.h"
 #include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
+#include "ui/clock_widget.h"
 #include "ui/navigation.h"
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
-#include "ui/widget.h"
 #include "wifi_setup.h"
 
 // The real HomeDeck firmware entry point - the dashboard (see
@@ -104,35 +104,6 @@ lv_obj_t* ShowSplashScreen() {
     lv_scr_load(splash);
     return splash;
 }
-
-// Temporary, throwaway - proves DashboardGrid's mixed-span placement
-// (see docs/architecture/dashboard.md#widget-system) renders correctly
-// on the real panel, not just the simulator - simulator and real-hardware
-// rendering can differ (font legibility, scroll behavior), so this
-// framework's actual rendering deserves its own real check. Mirrors
-// simulator/widgets/placeholder_widget.h's role
-// exactly, kept inline here rather than as a shared file since both
-// copies are removed once a real widget (weather) exists.
-class TestWidget : public homedeck::Widget {
-public:
-    TestWidget(lv_obj_t* parent, const char* text, int column_span = 1, int row_span = 1)
-        : column_span_(column_span), row_span_(row_span) {
-        root_ = lv_obj_create(parent);
-        lv_obj_set_style_pad_all(root_, 8, 0);
-        lv_obj_t* label = lv_label_create(root_);
-        lv_label_set_text(label, text);
-        lv_obj_center(label);
-    }
-
-    lv_obj_t* Root() const override { return root_; }
-    int ColumnSpan() const override { return column_span_; }
-    int RowSpan() const override { return row_span_; }
-
-private:
-    lv_obj_t* root_;
-    int column_span_;
-    int row_span_;
-};
 
 // RFC 1035/6763 label rules for the mDNS hostname a user sets via the
 // Web UI's Settings page - checked here rather than left to
@@ -209,17 +180,8 @@ extern "C" void app_main(void) {
 
     bsp_display_lock(0);
     homedeck::DashboardScreen dashboard(event_bus, battery_reader);
-    // Same mixed-span demo as simulator/main.cpp - see TestWidget's own
-    // comment above for why this exists on firmware too.
-    TestWidget widget_a(dashboard.Grid().Container(), "Widget A", /*column_span=*/2);
-    TestWidget widget_b(dashboard.Grid().Container(), "Widget B", /*column_span=*/2,
-                         /*row_span=*/2);
-    TestWidget widget_c(dashboard.Grid().Container(), "Widget C");
-    TestWidget widget_d(dashboard.Grid().Container(), "Widget D");
-    dashboard.Grid().AddWidget(widget_a);
-    dashboard.Grid().AddWidget(widget_b);
-    dashboard.Grid().AddWidget(widget_c);
-    dashboard.Grid().AddWidget(widget_d);
+    homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
+    dashboard.Grid().AddWidget(clock_widget);
     // NotificationBanner must exist before LowBatteryMonitor, which must
     // exist before Clock (the ClockTickEvent publisher) - see
     // simulator/main.cpp's identical ordering note. Unlike the
@@ -258,8 +220,8 @@ extern "C" void app_main(void) {
     // Clock (the ClockTickEvent publisher) must exist after the
     // dashboard (the subscriber) is already listening - see
     // simulator/main.cpp's identical ordering note. Clock publishes one
-    // tick immediately at construction so the display doesn't sit on
-    // LVGL's placeholder text until the first periodic tick.
+    // tick immediately at construction so subscribers get a real value
+    // right away rather than sitting blank for up to a full tick period.
     homedeck::Clock clock(time_source, event_bus);
 
     homedeck::LogCrashDiagnostics();

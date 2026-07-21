@@ -166,3 +166,11 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 # compiles its own LVGL font table; a font enabled on only one side would
 # build fine there and fail to link on the other.
 CONFIG_LV_FONT_MONTSERRAT_24=y
+
+# ClockWidget (src/ui/clock_widget.h) uses Montserrat 48 for its large
+# time display - deliberately bigger than the status bar's own clock,
+# the same "compact status-bar clock plus an optional larger clock
+# widget" pairing docs/architecture/dashboard.md describes. Must be
+# enabled on both targets identically, same reasoning as Montserrat 24
+# above.
+CONFIG_LV_FONT_MONTSERRAT_48=y

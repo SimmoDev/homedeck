@@ -88,6 +88,7 @@ if(TARGET lvgl)
     ui/home_affordance.cpp
     ui/status_bar.cpp
     ui/dashboard_grid.cpp
+    ui/clock_widget.cpp
     ui/notification_banner.cpp
     ui/keyboard_input.cpp
     ui/screens/dashboard_screen.cpp

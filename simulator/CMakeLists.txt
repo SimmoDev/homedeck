@@ -45,7 +45,7 @@ if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../webui/dist/index.html" OR
     "in webui/ before building the simulator (see DEVELOPMENT.md).")
 endif()
 
-add_executable(homedeck_simulator main.cpp widgets/placeholder_widget.cpp)
+add_executable(homedeck_simulator main.cpp)
 target_link_libraries(homedeck_simulator PRIVATE homedeck_ui PkgConfig::SDL2)
 
 # Source-tree-relative, not a relative path resolved at runtime against
