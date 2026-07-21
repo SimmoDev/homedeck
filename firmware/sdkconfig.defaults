@@ -30,6 +30,21 @@ CONFIG_SPIRAM=y
 CONFIG_IDF_EXPERIMENTAL_FEATURES=y
 CONFIG_SPIRAM_SPEED_200M=y
 
+# A flash write/erase disables the L2 cache for its duration on the
+# ESP32-P4 (spi_flash_disable_interrupts_caches_and_other_cpu(), IDF's
+# spi_flash/cache_utils.c) - the same cache the PSRAM-backed display
+# framebuffer is read through, which was starving the DSI DMA
+# mid-scanout and producing a visible glitch (see
+# docs/decisions/ADR-0021-xip-from-psram.md). Moving .text/.rodata into
+# PSRAM removes code execution's dependency on that cache, so ESP-IDF
+# skips disabling it for a flash operation at all
+# (docs/en/api-guides/external-ram.rst's XiP-from-PSRAM section) -
+# trading increased steady-state PSRAM bus load (all code fetches now
+# compete with DSI scanout, not just during flash writes) for removing
+# the disable window entirely. Confirmed on hardware: the glitch is
+# gone.
+CONFIG_SPIRAM_XIP_FROM_PSRAM=y
+
 # EventBus (src/core/event_bus.h) uses typeid()/std::type_index for its
 # per-event-type subscriber dispatch - a real, load-bearing design
 # choice, not something to work around. ESP-IDF disables C++ RTTI by
