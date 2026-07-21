@@ -21,6 +21,7 @@
 #include "core/clock.h"
 #include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
+#include "core/logger.h"
 #include "core/low_battery_monitor.h"
 #include "core/ota_routes.h"
 #include "crash_diagnostics.h"
@@ -197,12 +198,30 @@ extern "C" void app_main(void) {
 
     homedeck::LogCrashDiagnostics();
 
+    // Constructed here, ahead of Wi-Fi/mDNS below, so Logger - built on
+    // Storage, see docs/decisions/ADR-0019-structured-logging.md - can
+    // record those as real boot-sequence events rather than starting
+    // its persisted log only once the Web UI's own setup begins. See
+    // docs/architecture/web-ui.md#admin-password for why the password
+    // hash storage this also backs stays plain NVS/FAT for now, per
+    // ADR-0018's staged security model. The password hash itself goes
+    // through secret_store, not settings_store - see
+    // docs/decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface.
+    // Declared here (not narrower) for the same reason web_server is
+    // below - it must stay alive for the rest of app_main's life.
+    homedeck::FirmwareSettingsStore settings_store;
+    homedeck::FirmwareCacheStore cache_store;
+    homedeck::FirmwareSecretStore secret_store;
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    homedeck::Logger logger(storage, time_source);
+
     // Blocks until connected - either immediately (stored credentials) or
     // until a phone/laptop completes SoftAP setup. The dashboard is
     // already on-screen and live (RTC-backed Clock, not network-backed)
     // by this point, so this doesn't delay first paint.
     homedeck::ConnectToWifi();
     printf("Wi-Fi connected\n");
+    logger.Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
 
     // Self-advertisement only - see
     // docs/architecture/networking.md#lan-discovery. Not the Core mDNS
@@ -218,23 +237,13 @@ extern "C" void app_main(void) {
         mdns_instance_name_set("HomeDeck");
         mdns_service_add(nullptr, "_http", "_tcp", 80, nullptr, 0);
         printf("mDNS advertising as homedeck.local\n");
+        logger.Log(homedeck::LogLevel::kInfo, "mdns", "Advertising as homedeck.local");
     } else {
         printf("mDNS init failed: %s\n", esp_err_to_name(mdns_result));
+        logger.Log(homedeck::LogLevel::kError, "mdns",
+                    std::string("Init failed: ") + esp_err_to_name(mdns_result));
     }
 
-    // AdminAuthService's password hash storage (see
-    // docs/architecture/web-ui.md#admin-password) - plain NVS/FAT for
-    // now, per ADR-0018's staged security model
-    // (docs/decisions/ADR-0018-staged-security-hardening.md). The
-    // password hash itself goes through secret_store, not
-    // settings_store - see
-    // docs/decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface.
-    // Declared here (not narrower) for the same reason web_server is
-    // below - it must stay alive for the rest of app_main's life.
-    homedeck::FirmwareSettingsStore settings_store;
-    homedeck::FirmwareCacheStore cache_store;
-    homedeck::FirmwareSecretStore secret_store;
-    homedeck::Storage storage(settings_store, cache_store, secret_store);
     // A monotonic clock, not the shared wall-clock time_source above -
     // see platform/steady_time_source.h for why session expiry can't
     // trust Rx8130TimeSource yet.
@@ -266,7 +275,7 @@ extern "C" void app_main(void) {
     // docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md) - mirrors
     // crash_diagnostics.cpp's own esp_core_dump_image_check() gate rather
     // than trusting esp_core_dump_image_get() alone to signal absence.
-    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader,
+    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader, logger,
                                          []() -> std::optional<std::string> {
         if (esp_core_dump_image_check() != ESP_OK) {
             return std::nullopt;
@@ -321,8 +330,10 @@ extern "C" void app_main(void) {
     homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer, ScheduleReboot);
     if (web_server.Start(80)) {
         printf("Web UI listening on port 80\n");
+        logger.Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");
     } else {
         printf("Web UI failed to start\n");
+        logger.Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
     }
     // A real, meaningful "this boot actually worked" checkpoint - see
     // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.

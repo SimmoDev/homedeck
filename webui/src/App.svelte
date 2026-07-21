@@ -38,7 +38,7 @@
   loadStatus();
 </script>
 
-<div class="card">
+<div class="card" class:card-wide={status?.authenticated}>
   <h1>HomeDeck</h1>
 
   {#if error}
@@ -68,6 +68,13 @@
     border-radius: 0.75rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
     box-sizing: border-box;
+  }
+
+  /* Only the authenticated view (OTA + Diagnostics, including the Logs
+     list) needs the extra width - the password setup/login form stays
+     narrow, since a single input field doesn't benefit from it. */
+  .card-wide {
+    max-width: 40rem;
   }
 
   h1 {

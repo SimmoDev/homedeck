@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/admin_auth_service.h"
+#include "core/logger.h"
 #include "core/storage.h"
 #include "platform/battery_reader.h"
 #include "platform/http_server.h"
@@ -24,15 +25,17 @@ using CoreDumpReader = std::function<std::optional<std::string>()>;
 // writes every boot - plus live battery percent, external-power, and
 // battery-presence state from `battery_reader`, useful for confirming
 // charging/USB-C/no-battery detection behavior without a serial
-// connection, see docs/architecture/hardware.md#power) and
+// connection, see docs/architecture/hardware.md#power),
 // GET /api/diagnostics/coredump
 // (the raw core dump file, downloadable for off-device analysis, not
 // decoded on-device - see
-// docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md). Both
-// require an authenticated session via auth.RequireAuth() - Web UI
-// diagnostics is admin-only, not a public surface. Must be called
-// before server.Start(), per HttpServer's own contract.
+// docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md), and
+// GET /api/diagnostics/logs (structured log entries from `logger` as a
+// JSON array - see docs/decisions/ADR-0019-structured-logging.md).
+// All three require an authenticated session via auth.RequireAuth() -
+// Web UI diagnostics is admin-only, not a public surface. Must be
+// called before server.Start(), per HttpServer's own contract.
 void RegisterDiagnosticsRoutes(HttpServer& server, Storage& storage, AdminAuthService& auth,
-                                BatteryReader& battery_reader, CoreDumpReader read_core_dump);
+                                BatteryReader& battery_reader, Logger& logger, CoreDumpReader read_core_dump);
 
 }  // namespace homedeck

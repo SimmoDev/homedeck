@@ -257,7 +257,7 @@ simulator.
       battery, no real partition writes) so the Web UI's OTA page
       doesn't need real hardware to build and test (see
       [simulator.md](architecture/simulator.md#how-it-works))
-- [ ] Logging, including reset-reason tracking and core dump capture on
+- [x] Logging, including reset-reason tracking and core dump capture on
       panic (dedicated flash partition, downloadable raw via Web UI, not
       symbolicated on-device — see
       [ADR-0013](decisions/ADR-0013-crash-and-reboot-diagnostics.md)).
@@ -271,11 +271,21 @@ simulator.
       reset reason and a downloadable raw core dump, confirmed on both
       the simulator (a real click-driven browser session, not just the
       API) and the Tab5 K145 reference unit over the LAN, including a
-      real core dump downloading as genuine ELF bytes. Still open,
-      deliberately scoped out rather than dropped: the general
-      structured/leveled logging facility `core.md`'s Logging
-      responsibility also names (rotation policy and file format aren't
-      decided anywhere yet, unlike crash diagnostics)
+      real core dump downloading as genuine ELF bytes. **The general
+      structured/leveled logging facility is also real** (`Logger`,
+      `src/core/logger.h`/`.cpp`, `GET /api/diagnostics/logs` — see
+      [ADR-0019](decisions/ADR-0019-structured-logging.md) for the
+      format/rotation/storage design) — JSON-lines entries with
+      timestamp/level/component/message, size-based rotation, built on
+      the existing `Storage` rather than a new platform interface, so
+      real on both targets rather than simulator-mocked. Confirmed on
+      the Tab5 K145 reference unit: real boot-sequence events (Wi-Fi
+      connect, mDNS advertising, Web UI listening) appear correctly
+      through the endpoint. The Web UI's Logs section
+      (`webui/src/lib/Diagnostics.svelte`) filters by level/component
+      client-side, confirmed against the simulator's real HTTP API and
+      a real page load. Still open: extended log archival to microSD
+      (ADR-0012's one named use for that tier, not wired up yet)
 - [ ] Audio bring-up (ES8388 codec, 1W speaker output — see
       [hardware.md](architecture/hardware.md#audio) for the confirmed
       BOM). A platform capability in its own right, not

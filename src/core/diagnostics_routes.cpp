@@ -11,7 +11,7 @@ constexpr const char* kModuleId = "core";
 }  // namespace
 
 void RegisterDiagnosticsRoutes(HttpServer& server, Storage& storage, AdminAuthService& auth,
-                                BatteryReader& battery_reader, CoreDumpReader read_core_dump) {
+                                BatteryReader& battery_reader, Logger& logger, CoreDumpReader read_core_dump) {
     server.RegisterHandler(
         HttpMethod::kGet, "/api/diagnostics",
         auth.RequireAuth([&storage, &battery_reader](const HttpRequest&) {
@@ -38,6 +38,11 @@ void RegisterDiagnosticsRoutes(HttpServer& server, Storage& storage, AdminAuthSe
             response.extra_headers.push_back({"Content-Disposition", "attachment; filename=\"coredump.bin\""});
             return response;
         }));
+
+    server.RegisterHandler(HttpMethod::kGet, "/api/diagnostics/logs",
+                            auth.RequireAuth([&logger](const HttpRequest&) {
+                                return HttpResponse{200, "application/json", logger.ReadAll(), {}};
+                            }));
 }
 
 }  // namespace homedeck

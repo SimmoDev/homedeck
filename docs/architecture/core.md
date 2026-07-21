@@ -121,18 +121,25 @@ itself is deliberately not built yet, not silently dropped: it's plain
 storage for now by design — see
 [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for the
 staged security model that decides when it activates. The microSD tier
-is also deferred, scoped to extended log archival, which has no consumer
-until general structured logging exists — see below.
+is still deferred - its one named use, extended log archival past the
+internal tier's bounded/rotating retention, needs that base logging
+facility to exist first, which it now does (see below), but archival
+to SD itself isn't wired up yet.
 
 **Crash and reboot diagnostics** — one specific, fully-specified slice of
 Diagnostics — are also real (`firmware/main/crash_diagnostics.cpp`):
 reset reason and core-dump presence are read every boot and persisted
 through `Storage`, per
-[ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md). The
-rest of Diagnostics (module status, connection state, error reporting)
-and all of the general Logging responsibility (structured, leveled,
-rotating logs — rotation policy and file format are still open, unlike
-crash diagnostics) remain unbuilt — see
+[ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md).
+
+**The general Logging responsibility is also real** — structured,
+leveled logs (`Logger`, `src/core/logger.h`/`.cpp`), per
+[ADR-0019](../decisions/ADR-0019-structured-logging.md) for the format/
+rotation/storage design. Built entirely on the existing `Storage`
+rather than a new platform interface, so - unlike crash/reboot
+diagnostics - it's not a firmware-only mechanism; the simulator uses
+the same real implementation. The rest of Diagnostics (module status,
+connection state, error reporting) remains unbuilt — see
 [diagnostics.md](diagnostics.md#status) for the full breakdown.
 
 **The widget system** is real: `Widget` and `DashboardGrid` (`src/ui/`)

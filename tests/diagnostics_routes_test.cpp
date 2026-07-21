@@ -1,6 +1,7 @@
 #include "core/diagnostics_routes.h"
 
 #include "core/admin_auth_service.h"
+#include "core/logger.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/http_server.h"
@@ -99,6 +100,7 @@ protected:
         secret_store_ = std::make_unique<homedeck::HostSecretStore>(root_dir_);
         storage_ = std::make_unique<homedeck::Storage>(*settings_store_, *cache_store_, *secret_store_);
         auth_ = std::make_unique<homedeck::AdminAuthService>(*storage_, time_source_);
+        logger_ = std::make_unique<homedeck::Logger>(*storage_, time_source_);
     }
 
     void TearDown() override { std::filesystem::remove_all(root_dir_); }
@@ -110,6 +112,7 @@ protected:
     std::unique_ptr<homedeck::Storage> storage_;
     homedeck::HostTimeSource time_source_;
     std::unique_ptr<homedeck::AdminAuthService> auth_;
+    std::unique_ptr<homedeck::Logger> logger_;
     homedeck::HostBatteryReader battery_reader_;
 };
 
@@ -123,9 +126,8 @@ TEST_F(DiagnosticsRoutesTest, RequiresAuthenticationAndReflectsStoredValues) {
 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, []() -> std::optional<std::string> {
-        return std::string("dump bytes");
-    });
+    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, *logger_,
+                                         []() -> std::optional<std::string> { return std::string("dump bytes"); });
     ASSERT_TRUE(server.Start(18191));
 
     // Unauthenticated, no password set yet - 403 setup_required.
@@ -152,9 +154,8 @@ TEST_F(DiagnosticsRoutesTest, RequiresAuthenticationAndReflectsStoredValues) {
 TEST_F(DiagnosticsRoutesTest, CoreDumpDownloadsRawBytesWithCorrectHeadersWhenPresent) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, []() -> std::optional<std::string> {
-        return std::string("dump bytes");
-    });
+    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, *logger_,
+                                         []() -> std::optional<std::string> { return std::string("dump bytes"); });
     ASSERT_TRUE(server.Start(18192));
 
     auto setup = HttpRequestRaw(18192, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
@@ -171,7 +172,7 @@ TEST_F(DiagnosticsRoutesTest, CoreDumpDownloadsRawBytesWithCorrectHeadersWhenPre
 TEST_F(DiagnosticsRoutesTest, CoreDumpReturns404WhenAbsent) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_,
+    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, *logger_,
                                          []() -> std::optional<std::string> { return std::nullopt; });
     ASSERT_TRUE(server.Start(18193));
 
@@ -180,4 +181,32 @@ TEST_F(DiagnosticsRoutesTest, CoreDumpReturns404WhenAbsent) {
 
     auto download = HttpRequestRaw(18193, "GET", "/api/diagnostics/coredump", "", cookie);
     EXPECT_EQ(download.status_code, 404);
+}
+
+TEST_F(DiagnosticsRoutesTest, LogsEndpointRequiresAuthAndReturnsRealEntries) {
+    logger_->Log(homedeck::LogLevel::kInfo, "wifi", "Connected");
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, *logger_,
+                                         []() -> std::optional<std::string> { return std::nullopt; });
+    ASSERT_TRUE(server.Start(18194));
+
+    // No password set yet - 403 setup_required, matching this file's
+    // other tests' precedent.
+    auto before_setup = HttpRequestRaw(18194, "GET", "/api/diagnostics/logs", "");
+    EXPECT_EQ(before_setup.status_code, 403);
+
+    auto setup = HttpRequestRaw(18194, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    std::string cookie = SessionCookieOnly(setup.set_cookie);
+
+    // Password set, but no session cookie - 401, not 403.
+    auto unauthenticated = HttpRequestRaw(18194, "GET", "/api/diagnostics/logs", "");
+    EXPECT_EQ(unauthenticated.status_code, 401);
+
+    auto logs = HttpRequestRaw(18194, "GET", "/api/diagnostics/logs", "", cookie);
+    EXPECT_EQ(logs.status_code, 200);
+    EXPECT_NE(logs.body.find("\"component\":\"wifi\""), std::string::npos);
+    EXPECT_NE(logs.body.find("\"message\":\"Connected\""), std::string::npos);
+    EXPECT_NE(logs.body.find("\"level\":\"info\""), std::string::npos);
 }

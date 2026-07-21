@@ -2,6 +2,7 @@
 #include "core/clock.h"
 #include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
+#include "core/logger.h"
 #include "core/low_battery_monitor.h"
 #include "core/ota_routes.h"
 #include "platform/host/battery_reader.h"
@@ -177,6 +178,26 @@ void CreateTestForceOtaFailureButton(lv_obj_t* parent, bool& force_failure) {
     lv_label_set_text(label, "Test: toggle force OTA failure");
 }
 
+// Temporary test-only wiring proving the Web UI's new Logs section
+// renders real entries without needing multiple simulator restarts to
+// accumulate them - see docs/decisions/ADR-0019-structured-logging.md.
+// Removed once a real, naturally-occurring event exists to exercise
+// this in the simulator (there's no Wi-Fi/mDNS bring-up here to log,
+// unlike firmware).
+void OnTestLogEntryClicked(lv_event_t* e) {
+    auto* logger = static_cast<homedeck::Logger*>(lv_event_get_user_data(e));
+    logger->Log(homedeck::LogLevel::kInfo, "simulator", "Test log entry");
+}
+
+void CreateTestLogEntryButton(lv_obj_t* parent, homedeck::Logger& logger) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -256);
+    lv_obj_add_event_cb(button, OnTestLogEntryClicked, LV_EVENT_CLICKED, &logger);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: write a log entry");
+}
+
 }  // namespace
 
 // The dashboard shell, StatusBar, and DashboardGrid widget framework -
@@ -257,6 +278,8 @@ int main() {
     homedeck::HostCacheStore cache_store(storage_root);
     homedeck::HostSecretStore secret_store(storage_root);
     homedeck::Storage storage(settings_store, cache_store, secret_store);
+    homedeck::Logger logger(storage, time_source);
+    CreateTestLogEntryButton(dashboard.Root(), logger);
     // A monotonic clock, not the shared wall-clock time_source above -
     // matches firmware's identical choice (see
     // platform/steady_time_source.h) so AdminAuthService behaves the
@@ -297,7 +320,7 @@ int main() {
     // docs/architecture/diagnostics.md's "Firmware-only mechanism" note.
     storage.SetSetting("core", "reset_reason", 1, "power-on");
     storage.SetSetting("core", "has_core_dump", 1, "true");
-    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader,
+    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader, logger,
                                          []() -> std::optional<std::string> {
         return std::string(
             "This is a simulator-only stub core dump for Web UI development - "
@@ -320,8 +343,10 @@ int main() {
     uint16_t web_port = ResolveWebPort();
     if (web_server.Start(web_port)) {
         std::printf("Web UI listening on http://localhost:%u/\n", web_port);
+        logger.Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port " + std::to_string(web_port));
     } else {
         std::printf("Web UI failed to start on port %u\n", web_port);
+        logger.Log(homedeck::LogLevel::kError, "web_server", "Failed to start on port " + std::to_string(web_port));
     }
 
     ui_task.Run();

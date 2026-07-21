@@ -39,6 +39,7 @@ add_executable(homedeck_tests
   admin_auth_routes_test.cpp
   diagnostics_routes_test.cpp
   ota_routes_test.cpp
+  logger_test.cpp
 )
 target_link_libraries(homedeck_tests PRIVATE homedeck_core GTest::gtest_main GTest::gmock)
 

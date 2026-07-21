@@ -127,8 +127,25 @@ real core dump downloading as genuine ELF-format bytes via
 `esp_core_dump_image_get()` + `esp_flash_read()` against the `coredump`
 partition.
 
-Still not implemented: structured logs (a general logging facility —
-rotation policy and file format are still open questions, not designed
-yet), module status and connection state (no modules exist to report
-on), and error reporting (routes through Notifications, a separate
-not-yet-built item).
+**Structured logs are also real** (`Logger`, `src/core/logger.h`/`.cpp`,
+`GET /api/diagnostics/logs`) — JSON-lines entries (timestamp, level,
+component, message) persisted through `Storage`'s existing cache tier
+with size-based rotation, per
+[ADR-0019](../decisions/ADR-0019-structured-logging.md) for the full
+format/rotation design. Unlike crash/reboot diagnostics, this isn't a
+firmware-only mechanism - the simulator runs the same real `Logger`,
+not mock data. **Confirmed on real hardware** (Tab5 K145 reference
+unit): real boot-sequence events (Wi-Fi connect, mDNS advertising, Web
+UI listening) appear correctly through the endpoint. The Web UI's Logs
+section (`webui/src/lib/Diagnostics.svelte`) fetches once and filters
+by level/component client-side; confirmed against the simulator's real
+HTTP API and a real page load, though not yet via the same
+click-driven browser session the crash/reboot diagnostics view above
+was confirmed with. Extended log archival to microSD past the internal
+tier's bounded retention - the one concrete use
+[ADR-0012](../decisions/ADR-0012-storage-tiers.md) names for that tier
+- is not built.
+
+Still not implemented: module status and connection state (no modules
+exist to report on), and error reporting (routes through
+Notifications, a separate not-yet-built item).
