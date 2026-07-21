@@ -1,3 +1,4 @@
+#include <cctype>
 #include <cstdio>
 
 #include "bsp/m5stack_tab5.h"
@@ -24,6 +25,7 @@
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
 #include "core/ota_routes.h"
+#include "core/settings_routes.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/cache_store.h"
@@ -131,6 +133,20 @@ private:
     int column_span_;
     int row_span_;
 };
+
+// RFC 1035/6763 label rules for the mDNS hostname a user sets via the
+// Web UI's Settings page - checked here rather than left to
+// mdns_hostname_set() itself, whose failure mode (silently not
+// re-announcing) would otherwise be indistinguishable from any other
+// cause at the settings_routes.cpp call site.
+bool IsValidHostnameLabel(const std::string& label) {
+    if (label.empty() || label.size() > 63) return false;
+    if (label.front() == '-' || label.back() == '-') return false;
+    for (char c : label) {
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-') return false;
+    }
+    return true;
+}
 
 }  // namespace
 
@@ -297,15 +313,22 @@ extern "C" void app_main(void) {
     // Kodi/Home Assistant) - that has no real consumer until one of
     // those modules exists (M4/M6 respectively), so building it now
     // would be exactly the kind of speculative Core abstraction
-    // ADR-0006 itself rejects. This just makes the device reachable as
-    // homedeck.local instead of requiring the serial-logged IP.
+    // ADR-0006 itself rejects. This makes the device reachable at
+    // <name>.local instead of requiring the serial-logged IP - "homedeck"
+    // by default, or whatever a user has set via the Web UI's Settings
+    // page (see docs/decisions/ADR-0023-settings-backup-api.md). Not
+    // written back here, only read, so an unset name stays genuinely
+    // unset rather than getting persisted as a default nobody chose.
+    auto device_name_setting = storage.GetSetting(homedeck::AdminAuthService::kModuleId, "device_name");
+    std::string device_name = device_name_setting.has_value() ? device_name_setting->value : "homedeck";
+
     esp_err_t mdns_result = mdns_init();
     if (mdns_result == ESP_OK) {
-        mdns_hostname_set("homedeck");
+        mdns_hostname_set(device_name.c_str());
         mdns_instance_name_set("HomeDeck");
         mdns_service_add(nullptr, "_http", "_tcp", 80, nullptr, 0);
-        printf("mDNS advertising as homedeck.local\n");
-        logger.Log(homedeck::LogLevel::kInfo, "mdns", "Advertising as homedeck.local");
+        printf("mDNS advertising as %s.local\n", device_name.c_str());
+        logger.Log(homedeck::LogLevel::kInfo, "mdns", "Advertising as " + device_name + ".local");
     } else {
         printf("mDNS init failed: %s\n", esp_err_to_name(mdns_result));
         logger.Log(homedeck::LogLevel::kError, "mdns",
@@ -396,6 +419,17 @@ extern "C" void app_main(void) {
             },
     };
     homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer, ScheduleReboot);
+    homedeck::RegisterSettingsRoutes(web_server, storage, admin_auth, [&logger](const std::string& value) -> bool {
+        if (!IsValidHostnameLabel(value)) {
+            return false;
+        }
+        bool ok = mdns_hostname_set(value.c_str()) == ESP_OK;
+        if (ok) {
+            printf("mDNS re-announced as %s.local\n", value.c_str());
+            logger.Log(homedeck::LogLevel::kInfo, "mdns", "Re-announced as " + value + ".local");
+        }
+        return ok;
+    });
     if (web_server.Start(80)) {
         printf("Web UI listening on port 80\n");
         logger.Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");

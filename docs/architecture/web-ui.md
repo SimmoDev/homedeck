@@ -112,6 +112,17 @@ automated test (a raw-socket HTTP client against `HostHttpServer` in
 `tests/http_server_test.cpp`) and manually against the running
 simulator.
 
+**`FirmwareHttpServer` previously had a use-after-free affecting every
+response's status line** (`httpd_resp_set_status()` only stores the
+pointer it's given, not a copy, and the code was passing one into a
+temporary `std::string` destroyed before the later `httpd_resp_send()`
+call that actually reads it) — found via real-hardware testing during
+[ADR-0023](../decisions/ADR-0023-settings-backup-api.md)'s work
+(intermittent response corruption, not present on the simulator's
+different server backend) and fixed there. Not specific to any one
+route — every firmware response was exposed to this, unpredictably,
+depending on what else happened to reuse the freed memory first.
+
 **The [authentication mechanism](#authentication-mechanism) is real** —
 `AdminAuthService` (`src/core/admin_auth_service.h`/`.cpp`) implements
 ADR-0007's single-admin-password/session-login design and its
@@ -221,8 +232,29 @@ app-rollback (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) automatically
 reverting to the previous slot after a deliberately-bad image was
 uploaded and rebooted into.
 
-The actual settings/backups screens are still ahead. Still open, each
-its own future pass: WebSockets for live updates, the rest of the REST
-API surface for the [Scope](#scope) items above (module configuration,
-backups, settings — none of that exists yet), and the NVS-encryption
-follow-up named above.
+**Settings and backups are also real** - `GET`/`POST /api/settings`,
+`POST /api/settings/erase`, `GET /api/backup`, `POST
+/api/backup/restore` (`src/core/settings_routes.h`/`.cpp`), all
+admin-only, built directly on `Storage::SetSetting/GetSetting/EraseSetting`
+and a new `Storage::ListAllSettings()` (see
+[ADR-0023](../decisions/ADR-0023-settings-backup-api.md) for the
+enumeration mechanism and a real security finding it addresses: on
+firmware, `SettingsStore` and `SecretStore` share the same physical NVS
+namespace, so the admin password hash needs an explicit reserved-key
+guard to stay out of this generic surface - confirmed via a dedicated
+regression test). `webui/src/lib/Settings.svelte` shows a concrete
+device name field (the first real setting - replaces the previously
+hardcoded `"homedeck"` mDNS hostname, applied live via
+`mdns_hostname_set()` without a reboot) plus backup download/restore -
+deliberately not a generic raw settings editor, since there's no real
+module yet to give one a second data point to design against. Confirmed
+end to end against both the simulator and the K145 reference unit
+(`curl` against a real running server, including the
+admin-password-exclusion regression scenario and the live mDNS
+re-announce, with no reboot).
+
+Still open, each its own future pass: WebSockets for live updates,
+module configuration specifically (no real module exists yet to
+configure - the generic settings API above is ready for one), Wi-Fi
+management (view/change post-provisioning), factory-reset, and the
+NVS-encryption follow-up named above.

@@ -226,6 +226,14 @@ simulator.
       unit, including the password surviving a device reboot. The
       password hash is stored plaintext by design at this project stage
       - see [ADR-0018](decisions/ADR-0018-staged-security-hardening.md).
+      Still open: login takes ~8 seconds on real hardware (PBKDF2-SHA256,
+      100,000 iterations, software SHA256 - see `admin_auth_service.cpp`),
+      close enough to the default FreeRTOS task watchdog timeout to have
+      tripped it once during testing (a logged warning, not a crash or
+      reboot). Not yet a correctness problem, but worth a real fix
+      (e.g. a lower iteration count, or UI feedback while it computes)
+      before it becomes a reliability concern rather than just a slow
+      login.
       **Static asset serving is real on both targets** (`ServeStaticFiles`,
       `src/platform/static_assets.h`/`.cpp`, see
       [web-ui.md](architecture/web-ui.md#status)) — assets embedded into
@@ -246,9 +254,20 @@ simulator.
       (reset reason + downloadable core dump - see
       [diagnostics.md#status](architecture/diagnostics.md#status)),
       confirmed on both targets including a real core dump download on
-      the reference unit. Still open: WebSockets and the REST API
-      surface for settings/config/backups — none of that exists yet.
-      Also still open, not yet designed: a factory-reset option (clearing
+      the reference unit. **Settings and backups are also real** - the
+      generic REST surface (`GET`/`POST /api/settings`, `POST
+      /api/settings/erase`, `GET /api/backup`, `POST
+      /api/backup/restore`), a real first consumer (device name,
+      replacing the previously hardcoded `"homedeck"` mDNS hostname,
+      applied live without a reboot), and a security finding it surfaced
+      and addressed - see
+      [ADR-0023](decisions/ADR-0023-settings-backup-api.md). Confirmed
+      end to end against both the simulator and the K145 reference unit.
+      Still open: WebSockets for live updates, module
+      configuration specifically (no real module exists yet to
+      configure), and Wi-Fi management (view/change post-provisioning -
+      firmware-only today, needs its own simulator-parity design). Also
+      still open, not yet designed: a factory-reset option (clearing
       stored Wi-Fi credentials, per
       [hardware.md](architecture/hardware.md#wi-fi-bring-up) for where
       those actually live, plus Core's own `Storage` state) — a real

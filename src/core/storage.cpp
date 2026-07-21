@@ -1,10 +1,22 @@
 #include "core/storage.h"
 
+#include "core/admin_auth_service.h"
+
 #include <charconv>
 
 namespace homedeck {
 
 namespace {
+
+// SettingsStore and SecretStore share the same physical NVS
+// namespace-per-module_id on firmware (no partition-level separation
+// yet - see docs/decisions/ADR-0023-settings-backup-api.md), so a
+// generic settings write/list could otherwise reach the admin password
+// hash through the wrong door. Interim guard until that partition split
+// lands; extend this whenever a new SecretStore key is introduced.
+bool IsReservedForSecrets(const std::string& module_id, const std::string& key) {
+    return module_id == AdminAuthService::kModuleId && key == AdminAuthService::kPasswordKey;
+}
 
 // A schema-versioned envelope, deliberately not JSON - Storage doesn't
 // need to understand what's inside a value, only carry a version
@@ -40,6 +52,9 @@ Storage::Storage(SettingsStore& settings_store, CacheStore& cache_store, SecretS
 
 bool Storage::SetSetting(const std::string& module_id, const std::string& key, int schema_version,
                           const std::string& value) {
+    if (IsReservedForSecrets(module_id, key)) {
+        return false;
+    }
     return settings_store_.Set(module_id, key, Encode(schema_version, value));
 }
 
@@ -53,6 +68,21 @@ std::optional<VersionedValue> Storage::GetSetting(const std::string& module_id, 
 
 bool Storage::EraseSetting(const std::string& module_id, const std::string& key) {
     return settings_store_.Erase(module_id, key);
+}
+
+std::vector<SettingEntry> Storage::ListAllSettings() {
+    std::vector<SettingEntry> entries;
+    for (const SettingsEntry& raw : settings_store_.ListAll()) {
+        if (IsReservedForSecrets(raw.ns, raw.key)) {
+            continue;
+        }
+        std::optional<VersionedValue> decoded = Decode(raw.value);
+        if (!decoded.has_value()) {
+            continue;
+        }
+        entries.push_back({raw.ns, raw.key, decoded->schema_version, decoded->value});
+    }
+    return entries;
 }
 
 bool Storage::SetSecret(const std::string& module_id, const std::string& key, int schema_version,

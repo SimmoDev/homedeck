@@ -2,6 +2,7 @@
   import Diagnostics from "./lib/Diagnostics.svelte";
   import Ota from "./lib/Ota.svelte";
   import PasswordForm from "./lib/PasswordForm.svelte";
+  import Settings from "./lib/Settings.svelte";
 
   // The real first-login-sets-password / session-login flow (see
   // docs/architecture/web-ui.md#admin-password and ADR-0007) - status
@@ -54,6 +55,7 @@
   {:else}
     <p class="hint">Logged in.</p>
     <button class="secondary" onclick={logout}>Log out</button>
+    <Settings />
     <Ota />
     <Diagnostics />
   {/if}

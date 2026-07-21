@@ -14,15 +14,15 @@ namespace homedeck {
 
 namespace {
 
-constexpr const char* kModuleId = "core";
-// 13 chars - NVS keys are capped at 15 (NVS_KEY_NAME_MAX_SIZE - 1, see
-// platform/firmware/secret_store.h). A longer key silently fails
-// every read/write on firmware (ESP_ERR_NVS_INVALID_NAME surfaced as a
-// normal false/nullopt, not a crash); HostSecretStore's file-per-key
-// storage has no equivalent limit, so this class of bug is invisible on
-// the simulator.
-constexpr const char* kPasswordKey = "admin_pw_hash";
-static_assert(std::string_view(kPasswordKey).size() <= 15,
+// kModuleId/kPasswordKey live on the class itself now (see
+// admin_auth_service.h) - Storage's reserved-key guard needs to
+// reference them too. 13 chars - NVS keys are capped at 15
+// (NVS_KEY_NAME_MAX_SIZE - 1, see platform/firmware/secret_store.h). A
+// longer key silently fails every read/write on firmware
+// (ESP_ERR_NVS_INVALID_NAME surfaced as a normal false/nullopt, not a
+// crash); HostSecretStore's file-per-key storage has no equivalent
+// limit, so this class of bug is invisible on the simulator.
+static_assert(std::string_view(AdminAuthService::kPasswordKey).size() <= 15,
               "NVS keys are capped at 15 characters (NVS_KEY_NAME_MAX_SIZE - 1)");
 constexpr int kPasswordSchemaVersion = 1;
 // Provisional - PBKDF2-SHA256 iteration counts trade login latency

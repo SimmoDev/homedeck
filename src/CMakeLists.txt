@@ -72,6 +72,7 @@ add_library(homedeck_core
   core/admin_auth_service.cpp
   core/diagnostics_routes.cpp
   core/ota_routes.cpp
+  core/settings_routes.cpp
   core/logger.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)

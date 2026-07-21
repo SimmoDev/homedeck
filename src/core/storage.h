@@ -6,6 +6,7 @@
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace homedeck {
 
@@ -16,6 +17,15 @@ namespace homedeck {
 // them ("migration logic deferred until a real breaking change exists to
 // migrate from") - callers that care compare schema_version themselves.
 struct VersionedValue {
+    int schema_version;
+    std::string value;
+};
+
+// One entry from ListAllSettings() - the settings/backup API's
+// enumeration primitive (docs/decisions/ADR-0023-settings-backup-api.md).
+struct SettingEntry {
+    std::string module_id;
+    std::string key;
     int schema_version;
     std::string value;
 };
@@ -42,10 +52,24 @@ class Storage {
 public:
     Storage(SettingsStore& settings_store, CacheStore& cache_store, SecretStore& secret_store);
 
+    // Both check a small reserved-key guard against the admin password's
+    // exact (module_id, key) - see storage.cpp - since SettingsStore and
+    // SecretStore share the same physical NVS namespace on firmware
+    // (platform/firmware/secret_store.h's own comment), so an unguarded
+    // generic settings write could otherwise silently overwrite it
+    // through the wrong door. SetSetting returns false for that key;
+    // ListAllSettings silently excludes it.
     bool SetSetting(const std::string& module_id, const std::string& key, int schema_version,
                      const std::string& value);
     std::optional<VersionedValue> GetSetting(const std::string& module_id, const std::string& key);
     bool EraseSetting(const std::string& module_id, const std::string& key);
+
+    // Every setting across every module - the settings/backup API's
+    // enumeration primitive. Entries that fail to decode (defensive -
+    // NVS could in principle hold something not written through this
+    // class's own Encode() format) are silently skipped rather than
+    // surfaced as partial/malformed results.
+    std::vector<SettingEntry> ListAllSettings();
 
     // Secrets excluded from config export/backups - see
     // docs/decisions/ADR-0012-storage-tiers.md#decision-backup-delivery.

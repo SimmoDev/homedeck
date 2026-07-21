@@ -22,4 +22,21 @@ bool HostSettingsStore::Erase(const std::string& ns, const std::string& key) {
     return EraseFile(PathFor(ns, key));
 }
 
+std::vector<SettingsEntry> HostSettingsStore::ListAll() {
+    std::vector<SettingsEntry> entries;
+    std::filesystem::path settings_dir = root_dir_ / "settings";
+    if (!std::filesystem::exists(settings_dir)) return entries;
+    for (const auto& ns_entry : std::filesystem::directory_iterator(settings_dir)) {
+        if (!ns_entry.is_directory()) continue;
+        std::string ns = ns_entry.path().filename().string();
+        for (const auto& key_entry : std::filesystem::directory_iterator(ns_entry.path())) {
+            if (!key_entry.is_regular_file()) continue;
+            std::optional<std::string> value = ReadFile(key_entry.path());
+            if (!value.has_value()) continue;
+            entries.push_back({ns, key_entry.path().filename().string(), *value});
+        }
+    }
+    return entries;
+}
+
 }  // namespace homedeck

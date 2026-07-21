@@ -20,6 +20,7 @@ public:
     bool Set(const std::string& ns, const std::string& key, const std::string& value) override;
     std::optional<std::string> Get(const std::string& ns, const std::string& key) override;
     bool Erase(const std::string& ns, const std::string& key) override;
+    std::vector<SettingsEntry> ListAll() override;
 
 private:
     std::filesystem::path PathFor(const std::string& ns, const std::string& key) const;

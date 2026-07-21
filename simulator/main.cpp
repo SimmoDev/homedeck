@@ -5,6 +5,7 @@
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
 #include "core/ota_routes.h"
+#include "core/settings_routes.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/file_backed_store.h"
@@ -350,6 +351,11 @@ int main() {
     };
     homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer,
                                  []() { std::printf("OTA reboot requested (no-op in simulator)\n"); });
+    // No device-name-changed callback - there's no mDNS to re-announce
+    // on the simulator, so a device name change just persists to
+    // storage like any other setting (see settings_routes.h's own
+    // comment on why the callback is optional).
+    homedeck::RegisterSettingsRoutes(web_server, storage, admin_auth);
     uint16_t web_port = ResolveWebPort();
     if (web_server.Start(web_port)) {
         std::printf("Web UI listening on http://localhost:%u/\n", web_port);
