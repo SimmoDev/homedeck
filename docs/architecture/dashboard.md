@@ -47,8 +47,12 @@ iOS, and desktop environments treat a status bar than how they treat a
 home-screen widget. Unlike grid widgets, the status bar isn't
 user-customizable (no enable/disable, no reordering); it's fixed system
 chrome, the same treatment as the [persistent home
-affordance](ui.md#navigation-model). Network status is a natural candidate
-to also live here rather than in the grid, but that isn't decided — see
+affordance](ui.md#navigation-model). Network status lives in both places,
+not one or the other: a compact Wi-Fi connectivity icon here (see
+[roadmap.md](../roadmap.md)'s Status bar item), alongside a fuller
+network status grid widget for detail beyond what an icon can show (see
+[Widget system](#widget-system) above) — the same compact/detailed split
+already established for the clock. See
 [ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)
 for the full rationale and what's still open (including whether the status
 bar and the home affordance should eventually be a single, unified piece

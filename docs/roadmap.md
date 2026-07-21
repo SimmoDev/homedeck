@@ -127,7 +127,7 @@ simulator.
 
 ## M2 — Platform Services (current)
 
-- [ ] Wi-Fi connectivity, including initial provisioning (SoftAP + a
+- [x] Wi-Fi connectivity, including initial provisioning (SoftAP + a
       minimal HTTP setup form — see
       [networking.md](architecture/networking.md#initial-wi-fi-provisioning)).
       **Real and confirmed on hardware** — ESP-Hosted/SDIO bring-up (see
@@ -363,7 +363,13 @@ simulator.
       on the real panel, via throwaway widgets on both targets (see
       [dashboard.md](architecture/dashboard.md#status)). Still open: the
       weather widget itself, the first real widget built against this
-      framework, worth its own real-hardware pass once built. The
+      framework, worth its own real-hardware pass once built; an
+      optional large clock widget (Core-provided, distinct from the
+      always-on status bar clock - see
+      [dashboard.md](architecture/dashboard.md#widget-system)); and a
+      network status widget (Core, connectivity detail beyond the status
+      bar's compact icon - see the Status bar item below and
+      [dashboard.md](architecture/dashboard.md#widget-system)). The
       screen/widget-destroyed-at-runtime scenario ADR-0011's fix targets
       doesn't arrive with weather specifically — it needs the
       enable/disable or reorder customization named in
@@ -383,7 +389,13 @@ simulator.
       actually charging, and a USB icon (no percentage) with no battery
       installed, all backed by real INA226/IO-expander signals rather
       than a raw, sometimes-meaningless percentage (see
-      [hardware.md](architecture/hardware.md#power))
+      [hardware.md](architecture/hardware.md#power)). Still open: a Wi-Fi
+      connectivity icon alongside the existing battery icon, shown once
+      connected - the status-bar half of the "where does network status
+      live" question also named in the Widget framework item above (see
+      [dashboard.md](architecture/dashboard.md#status-bar)); both a
+      compact icon here and a fuller grid widget there are planned, not
+      an either/or
 - [ ] Power management state model, including the alert-priority wake-check
       cycle during Sleeping (interval tuned against real reconnect-cost/
       battery measurements on hardware — see
@@ -400,6 +412,11 @@ simulator.
       priority wake cycle's cost model here (full re-association vs.
       modem-sleep resume), not just its tuned interval (see
       [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping))
+- [ ] Simulator physical-keyboard input (dev tooling, not product scope) —
+      `lv_sdl_keyboard_create()` plus an `lv_group` for focus/Tab routing,
+      so typing into a text field (e.g. `WifiSetupScreen`) works directly
+      from a physical keyboard instead of only by clicking the on-screen
+      one — see [simulator.md](architecture/simulator.md#status).
 
 **Exit criteria:** the device can be provisioned onto Wi-Fi via SoftAP,
 administered over the Web UI (after setting an admin password on first
