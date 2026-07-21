@@ -1,5 +1,7 @@
 #pragma once
 
+#include "platform/firmware/network_status.h"
+
 #include <functional>
 #include <string>
 
@@ -44,7 +46,15 @@ struct WifiCredentialsCheck {
 //
 // Must be called after esp_netif_init() and
 // esp_event_loop_create_default(), and before ConnectToWifi() below.
-WifiCredentialsCheck InitWifiAndCheckStoredCredentials();
+//
+// Also wires up `network_status` here rather than in ConnectToWifi()
+// below, specifically because the WIFI_EVENT/IP_EVENT handlers that
+// write into it are registered inside this function - wiring it in any
+// later would leave a real window where a live event (e.g. from the
+// Touch UI Wi-Fi setup screen submitting credentials directly) could
+// fire before network_status is set. Must outlive every subsequent
+// call in this file.
+WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& network_status);
 
 // Continues from InitWifiAndCheckStoredCredentials() above. If credentials
 // are already stored, connects directly; otherwise starts a temporary

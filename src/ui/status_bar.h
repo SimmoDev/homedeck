@@ -2,8 +2,10 @@
 
 #include "core/clock.h"
 #include "core/event_bus.h"
+#include "core/network_status_monitor.h"
 #include "lvgl.h"
 #include "platform/battery_reader.h"
+#include "platform/network_status.h"
 
 namespace homedeck {
 
@@ -21,18 +23,31 @@ public:
     // itself below the bar without duplicating this as a magic number.
     static constexpr int32_t kHeight = 48;
 
-    StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader);
+    StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status);
 
 private:
     BatteryReader& battery_reader_;
     lv_obj_t* clock_label_;
+    // Battery percentage and the Wi-Fi icon share this one label (rather
+    // than being separately-positioned objects) so LVGL's own text
+    // layout keeps their spacing uniform - the same "%s  %d%%" two-space
+    // convention RefreshStatusLabel already used internally.
     lv_obj_t* battery_label_;
+    // Tracked so a ClockTickEvent-driven refresh (see clock_subscription_
+    // below) can still render the Wi-Fi icon correctly between
+    // WifiConnectivityChangedEvent transitions.
+    bool wifi_connected_;
     // Battery refreshes on Clock's existing tick rather than a second
     // timer - a 1Hz read is more than enough for a percentage display,
     // and reusing the tick already flowing through here matches
     // CLAUDE.md's "use shared scheduling mechanisms where practical" for
     // background work.
     EventBus::ScopedSubscription clock_subscription_;
+    // The Wi-Fi icon refreshes on its own event rather than this same
+    // tick - connectivity is a discrete, rare transition, not a
+    // slowly-drifting number, so tying it to a 1Hz poll would mean
+    // near-constant no-op re-renders. See NetworkStatusMonitor.
+    EventBus::ScopedSubscription wifi_subscription_;
 };
 
 }  // namespace homedeck

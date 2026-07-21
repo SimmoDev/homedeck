@@ -35,6 +35,7 @@ add_executable(homedeck_tests
   http_server_test.cpp
   static_assets_test.cpp
   low_battery_monitor_test.cpp
+  network_status_monitor_test.cpp
   admin_auth_service_test.cpp
   admin_auth_routes_test.cpp
   diagnostics_routes_test.cpp

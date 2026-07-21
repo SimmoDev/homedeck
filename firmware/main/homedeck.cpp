@@ -24,12 +24,14 @@
 #include "core/event_bus.h"
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
+#include "core/network_status_monitor.h"
 #include "core/ota_routes.h"
 #include "core/settings_routes.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/cache_store.h"
 #include "platform/firmware/http_server.h"
+#include "platform/firmware/network_status.h"
 #include "platform/firmware/secret_store.h"
 #include "platform/firmware/settings_store.h"
 #include "platform/firmware/time_source.h"
@@ -159,6 +161,7 @@ extern "C" void app_main(void) {
     i2c_master_bus_handle_t i2c_bus = bsp_i2c_get_handle();
     homedeck::Ina226BatteryReader battery_reader(i2c_bus);
     homedeck::Rx8130TimeSource time_source(i2c_bus);
+    homedeck::FirmwareNetworkStatus network_status;
 
     // General system init required by Wi-Fi (and later, other Core
     // services that need NVS/the event loop) - see
@@ -176,10 +179,10 @@ extern "C" void app_main(void) {
     ESP_ERROR_CHECK(nvs_result);
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-    homedeck::WifiCredentialsCheck wifi_check = homedeck::InitWifiAndCheckStoredCredentials();
+    homedeck::WifiCredentialsCheck wifi_check = homedeck::InitWifiAndCheckStoredCredentials(network_status);
 
     bsp_display_lock(0);
-    homedeck::DashboardScreen dashboard(event_bus, battery_reader);
+    homedeck::DashboardScreen dashboard(event_bus, battery_reader, network_status);
     homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
     dashboard.Grid().AddWidget(clock_widget);
     // NotificationBanner must exist before LowBatteryMonitor, which must
@@ -189,6 +192,10 @@ extern "C" void app_main(void) {
     // real, so this only actually fires once the pack genuinely runs low.
     homedeck::NotificationBanner notification_banner(event_bus);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
+    // Same "subscriber before publisher" ordering as LowBatteryMonitor -
+    // NetworkStatusMonitor is also a ClockTickEvent subscriber, so it
+    // must exist before Clock too (see below).
+    homedeck::NetworkStatusMonitor network_status_monitor(event_bus, network_status);
     // Navigation's constructor loads home_screen itself (see
     // ui/navigation.h), so no explicit lv_scr_load() call is needed here.
     // wifi_setup_screen is the Touch UI fallback for initial Wi-Fi setup
@@ -197,7 +204,7 @@ extern "C" void app_main(void) {
     // app_main's life, which never returns.
     homedeck::Navigation navigation("dashboard", dashboard.Root());
     homedeck::WifiSetupScreen wifi_setup_screen(
-        event_bus, battery_reader, [](const std::string& ssid, const std::string& password) {
+        event_bus, battery_reader, network_status, [](const std::string& ssid, const std::string& password) {
             homedeck::ApplyWifiCredentials(ssid, password);
         });
     navigation.Register("wifi-setup", wifi_setup_screen.Root());

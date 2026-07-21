@@ -3,6 +3,7 @@
 #include "core/event_bus.h"
 #include "lvgl.h"
 #include "platform/battery_reader.h"
+#include "platform/network_status.h"
 #include "ui/keyboard_input.h"
 #include "ui/status_bar.h"
 
@@ -30,7 +31,8 @@ class WifiSetupScreen {
 public:
     using SubmitCallback = std::function<void(const std::string& ssid, const std::string& password)>;
 
-    WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, SubmitCallback on_submit);
+    WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
+                     SubmitCallback on_submit);
 
     lv_obj_t* Root() const { return root_; }
 

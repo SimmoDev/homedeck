@@ -3,6 +3,7 @@
 #include "core/event_bus.h"
 #include "lvgl.h"
 #include "platform/battery_reader.h"
+#include "platform/network_status.h"
 #include "ui/dashboard_grid.h"
 #include "ui/status_bar.h"
 
@@ -16,7 +17,7 @@ namespace homedeck {
 // docs/architecture/dashboard.md#widget-system.
 class DashboardScreen {
 public:
-    DashboardScreen(EventBus& event_bus, BatteryReader& battery_reader);
+    DashboardScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status);
 
     // Owns its own root (rather than taking an externally-provided
     // parent) so Navigation can lv_scr_load() it directly and switch to

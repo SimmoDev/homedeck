@@ -54,7 +54,11 @@ const char* BatteryLevelIcon(int percent) {
 //     unpredictably with nothing connected to charge - see
 //     Ina226BatteryReader::IsBatteryPresent()), so it's never shown in
 //     this state, not even a stale/misleading number.
-void RefreshBatteryLabel(lv_obj_t* label, BatteryReader& battery_reader) {
+// Wi-Fi icon and battery status share one label so LVGL lays out their
+// spacing uniformly - two spaces between every symbol, matching the
+// existing "%s  %d%%" convention below, rather than two independently-
+// positioned objects with a guessed pixel offset between them.
+void RefreshStatusLabel(lv_obj_t* label, BatteryReader& battery_reader, bool wifi_connected) {
     // 32, not 16: GCC's format-truncation check at -O2 sizes against
     // %d's full int range, not ReadPercent()'s real 0-100 - 16 is
     // provably enough for any real value but not for the type's range.
@@ -62,20 +66,21 @@ void RefreshBatteryLabel(lv_obj_t* label, BatteryReader& battery_reader) {
     bool battery_present = battery_reader.IsBatteryPresent();
     int percent = battery_reader.ReadPercent();
     bool charging = battery_present && battery_reader.IsExternalPowerConnected() && percent < 100;
+    const char* wifi_prefix = wifi_connected ? LV_SYMBOL_WIFI "  " : "";
     if (!battery_present) {
-        std::snprintf(text, sizeof(text), LV_SYMBOL_USB);
+        std::snprintf(text, sizeof(text), "%s" LV_SYMBOL_USB, wifi_prefix);
     } else if (charging) {
-        std::snprintf(text, sizeof(text), LV_SYMBOL_CHARGE "  %d%%", percent);
+        std::snprintf(text, sizeof(text), "%s" LV_SYMBOL_CHARGE "  %d%%", wifi_prefix, percent);
     } else {
-        std::snprintf(text, sizeof(text), "%s  %d%%", BatteryLevelIcon(percent), percent);
+        std::snprintf(text, sizeof(text), "%s%s  %d%%", wifi_prefix, BatteryLevelIcon(percent), percent);
     }
     lv_label_set_text(label, text);
 }
 
 }  // namespace
 
-StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader)
-    : battery_reader_(battery_reader) {
+StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status)
+    : battery_reader_(battery_reader), wifi_connected_(network_status.Snapshot().connected) {
     lv_obj_t* bar = lv_obj_create(parent);
     lv_obj_set_size(bar, LV_PCT(100), kHeight);
     lv_obj_align(bar, LV_ALIGN_TOP_MID, 0, 0);
@@ -100,13 +105,13 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     // something real - blank rather than a fabricated time, since
     // there's no real value to show until the first ClockTickEvent
     // arrives (up to one Clock period later). Matches battery_label_'s
-    // own immediate RefreshBatteryLabel() call below.
+    // own immediate RefreshStatusLabel() call below.
     lv_label_set_text(clock_label_, "");
 
     battery_label_ = lv_label_create(bar);
     lv_obj_set_style_text_font(battery_label_, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(battery_label_, lv_color_white(), 0);
-    RefreshBatteryLabel(battery_label_, battery_reader_);
+    RefreshStatusLabel(battery_label_, battery_reader_, wifi_connected_);
     lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, -12, 0);
 
     clock_subscription_ =
@@ -115,7 +120,13 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
             FormatCompactTime(event.time, text, sizeof(text));
             lv_label_set_text(clock_label_, text);
 
-            RefreshBatteryLabel(battery_label_, battery_reader_);
+            RefreshStatusLabel(battery_label_, battery_reader_, wifi_connected_);
+        });
+
+    wifi_subscription_ =
+        event_bus.SubscribeUi<WifiConnectivityChangedEvent>([this](const WifiConnectivityChangedEvent& event) {
+            wifi_connected_ = event.connected;
+            RefreshStatusLabel(battery_label_, battery_reader_, wifi_connected_);
         });
 }
 

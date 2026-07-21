@@ -109,3 +109,15 @@ Assistant) — building it now would be exactly the kind of speculative
 Core abstraction [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape)
 itself rejects. LAN discovery (browsing) remains planned for whichever of
 those milestones lands first.
+
+Connectivity status is also real, **confirmed on hardware**: a portable
+`NetworkStatus` interface (`src/platform/network_status.h`) exposes a
+`Snapshot()` of connected/SSID/IP state, backed by `FirmwareNetworkStatus`
+(updated from `wifi_setup.cpp`'s existing `WIFI_EVENT`/`IP_EVENT`
+handlers) and `HostNetworkStatus` for the simulator. A Core-level
+`NetworkStatusMonitor` (`src/core/network_status_monitor.h`) polls it on
+the existing clock tick and publishes `WifiConnectivityChangedEvent` only
+on an actual connected/disconnected transition — the status bar's Wi-Fi
+icon is the first consumer. The network-status dashboard widget and the
+Web UI's Wi-Fi management page named above are still open, now-unblocked
+follow-ups, not built yet.

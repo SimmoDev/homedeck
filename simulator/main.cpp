@@ -4,12 +4,14 @@
 #include "core/event_bus.h"
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
+#include "core/network_status_monitor.h"
 #include "core/ota_routes.h"
 #include "core/settings_routes.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/file_backed_store.h"
 #include "platform/host/http_server.h"
+#include "platform/host/network_status.h"
 #include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
 #include "platform/host/time_source.h"
@@ -216,7 +218,8 @@ int main() {
     // reaches anyone if the subscription already exists when it
     // happens.
     homedeck::HostBatteryReader battery_reader;
-    homedeck::DashboardScreen dashboard(event_bus, battery_reader);
+    homedeck::HostNetworkStatus network_status;
+    homedeck::DashboardScreen dashboard(event_bus, battery_reader, network_status);
     homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
     dashboard.Grid().AddWidget(clock_widget);
 
@@ -228,7 +231,7 @@ int main() {
     // "simulator as primary UI dev environment" philosophy, even though
     // there's no real esp_wifi call to make on this target.
     homedeck::WifiSetupScreen wifi_setup_screen(
-        event_bus, battery_reader, [](const std::string& ssid, const std::string& password) {
+        event_bus, battery_reader, network_status, [](const std::string& ssid, const std::string& password) {
             std::printf("Wi-Fi setup submitted (no-op in simulator): SSID=%s\n", ssid.c_str());
         });
     // No real SoftAP here to derive these from - a fixed placeholder is
@@ -254,6 +257,9 @@ int main() {
     // already be subscribed before that first tick could fire one.
     homedeck::NotificationBanner notification_banner(event_bus);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
+    // Same "subscriber before publisher" ordering as LowBatteryMonitor -
+    // NetworkStatusMonitor is also a ClockTickEvent subscriber.
+    homedeck::NetworkStatusMonitor network_status_monitor(event_bus, network_status);
 
     homedeck::HostTimeSource time_source;
     homedeck::Clock clock(time_source, event_bus);

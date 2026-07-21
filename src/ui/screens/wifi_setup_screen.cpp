@@ -15,9 +15,10 @@ constexpr const lv_font_t* kFont = &lv_font_montserrat_24;
 
 }  // namespace
 
-WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, SubmitCallback on_submit)
+WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
+                                  SubmitCallback on_submit)
     : root_(lv_obj_create(nullptr)),
-      status_bar_(root_, event_bus, battery_reader),
+      status_bar_(root_, event_bus, battery_reader, network_status),
       keyboard_(root_),
       on_submit_(std::move(on_submit)) {
     lv_obj_set_style_text_font(root_, kFont, 0);

@@ -38,6 +38,16 @@ EventGroupHandle_t g_event_group = nullptr;
 httpd_handle_t g_setup_server = nullptr;
 int g_reconnect_attempts = 0;
 WifiUiCallbacks g_ui_callbacks;
+FirmwareNetworkStatus* g_network_status = nullptr;
+// The SSID we're configured/attempting to connect to - captured from
+// existing esp_wifi_get_config()/ApplyWifiCredentials() call sites
+// (zero extra cost) rather than a fresh esp_wifi_sta_get_ap_info() call
+// inside OnEvent(), which would be a new esp_wifi_remote RPC round trip
+// to the C6 on every connect (see hardware.md's Wireless section for
+// the documented RPC-timeout risk this avoids). Not cleared on
+// disconnect - it still describes what we're configured for, useful
+// for the next reconnect attempt.
+std::string g_pending_ssid;
 
 void GetApSsid(char* ssid, size_t max_len) {
     uint8_t mac[6];
@@ -130,6 +140,9 @@ void OnEvent(void* /*arg*/, esp_event_base_t event_base, int32_t event_id, void*
                 esp_wifi_connect();
                 break;
             case WIFI_EVENT_STA_DISCONNECTED:
+                if (g_network_status != nullptr) {
+                    g_network_status->SetConnectionState(false, "", "");
+                }
                 if (g_setup_server != nullptr && g_reconnect_attempts >= kMaxSetupReconnectAttempts) {
                     ESP_LOGW(kTag, "Giving up after %d failed attempts - submit the setup form again to retry",
                              kMaxSetupReconnectAttempts);
@@ -146,6 +159,11 @@ void OnEvent(void* /*arg*/, esp_event_base_t event_base, int32_t event_id, void*
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         auto* event = static_cast<ip_event_got_ip_t*>(event_data);
         ESP_LOGI(kTag, "Connected, IP: " IPSTR, IP2STR(&event->ip_info.ip));
+        if (g_network_status != nullptr) {
+            char ip_str[16];
+            esp_ip4addr_ntoa(&event->ip_info.ip, ip_str, sizeof(ip_str));
+            g_network_status->SetConnectionState(true, g_pending_ssid, ip_str);
+        }
         if (g_setup_server != nullptr) {
             httpd_stop(g_setup_server);
             g_setup_server = nullptr;
@@ -161,6 +179,7 @@ void OnEvent(void* /*arg*/, esp_event_base_t event_base, int32_t event_id, void*
 }  // namespace
 
 void ApplyWifiCredentials(const std::string& ssid, const std::string& password) {
+    g_pending_ssid = ssid;
     wifi_config_t sta_config = {};
     std::snprintf(reinterpret_cast<char*>(sta_config.sta.ssid), sizeof(sta_config.sta.ssid), "%s", ssid.c_str());
     std::snprintf(reinterpret_cast<char*>(sta_config.sta.password), sizeof(sta_config.sta.password), "%s",
@@ -171,7 +190,12 @@ void ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     esp_wifi_connect();
 }
 
-WifiCredentialsCheck InitWifiAndCheckStoredCredentials() {
+WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& network_status) {
+    // Set before registering the event handlers below, not after - see
+    // this function's own declaration comment in wifi_setup.h for why
+    // the ordering matters.
+    g_network_status = &network_status;
+
     // Powers on the C6 co-processor's rail via the PI4IOE5V6408 I2C GPIO
     // expander - see docs/architecture/hardware.md#wireless. Without this
     // the SDIO link to the C6 never comes up.
@@ -189,6 +213,7 @@ WifiCredentialsCheck InitWifiAndCheckStoredCredentials() {
 
     wifi_config_t sta_config = {};
     ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &sta_config));
+    g_pending_ssid = reinterpret_cast<const char*>(sta_config.sta.ssid);
 
     char ap_ssid[24];
     GetApSsid(ap_ssid, sizeof(ap_ssid));
@@ -201,6 +226,7 @@ void ConnectToWifi(const WifiUiCallbacks& ui_callbacks) {
 
     wifi_config_t sta_config = {};
     ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &sta_config));
+    g_pending_ssid = reinterpret_cast<const char*>(sta_config.sta.ssid);
 
     if (sta_config.sta.ssid[0] != '\0') {
         ESP_LOGI(kTag, "Stored credentials found for '%s', connecting", sta_config.sta.ssid);

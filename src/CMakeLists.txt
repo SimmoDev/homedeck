@@ -69,6 +69,7 @@ add_library(homedeck_core
   core/clock.cpp
   core/storage.cpp
   core/low_battery_monitor.cpp
+  core/network_status_monitor.cpp
   core/admin_auth_service.cpp
   core/diagnostics_routes.cpp
   core/ota_routes.cpp

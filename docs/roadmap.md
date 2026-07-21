@@ -424,13 +424,20 @@ simulator.
       actually charging, and a USB icon (no percentage) with no battery
       installed, all backed by real INA226/IO-expander signals rather
       than a raw, sometimes-meaningless percentage (see
-      [hardware.md](architecture/hardware.md#power)). Still open: a Wi-Fi
-      connectivity icon alongside the existing battery icon, shown once
-      connected - the status-bar half of the "where does network status
-      live" question also named in the Widget framework item above (see
-      [dashboard.md](architecture/dashboard.md#status-bar)); both a
-      compact icon here and a fuller grid widget there are planned, not
-      an either/or. Still open: `clock_label_` shows blank for up to one
+      [hardware.md](architecture/hardware.md#power)). **A Wi-Fi
+      connectivity icon is also real, confirmed on hardware** — shown
+      once connected, prepended into the same label as the battery
+      icon/percentage (not a separately-positioned object) so their
+      spacing stays uniform, backed by the portable `NetworkStatus`/
+      `NetworkStatusMonitor` abstraction (see
+      [networking.md](architecture/networking.md#status)) - the
+      status-bar half of the "where does network status live" question
+      also named in the Widget framework item above (see
+      [dashboard.md](architecture/dashboard.md#status-bar)). Still open:
+      the fuller network-status grid widget and the Web UI's Wi-Fi
+      management page named there - both remain separate, now-unblocked
+      follow-ups, not built yet. Still open: `clock_label_` shows blank
+      for up to one
       Clock period (~1s) after construction rather than the correct time
       immediately - `battery_label_` avoids this by reading
       `BatteryReader` synchronously at construction, but `StatusBar`

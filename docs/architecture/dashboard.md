@@ -143,6 +143,20 @@ accuracy (confirmed slightly inaccurate, e.g. reading ~90% on a pack
 already fully charged) is unchanged by this — a real state-of-charge
 estimate is still Power Management scope, not the status bar's.
 
+The status bar's Wi-Fi connectivity icon is also real, confirmed on
+hardware: `StatusBar` prepends `LV_SYMBOL_WIFI` to the same label as the
+battery icon/percentage (present or absent, not glyph-swapped) rather
+than a separately-positioned object, so LVGL's own text layout keeps the
+spacing between every symbol uniform. The tracked connected state
+updates on the portable `WifiConnectivityChangedEvent` (see
+[networking.md](networking.md#status)) rather than the 1Hz clock tick,
+since connectivity is a discrete, rare transition rather than a
+slowly-drifting value - the label itself still only repaints on the
+clock tick or on that event, whichever comes first. The fuller
+network-status grid widget this doc's [Widget
+system](#widget-system) section names above remains a separate,
+not-yet-built follow-up.
+
 The widget framework's interface and layout half is real: `Widget`
 (`src/ui/widget.h`) is the standard contribution interface — a `Root()`
 accessor plus a `ColumnSpan()`/`RowSpan()` footprint (both default to 1,
