@@ -20,10 +20,15 @@
     message: string;
   }
 
-  let status: DiagnosticsStatus | undefined = $state(undefined);
+  // $state(undefined)'s generic infers from the argument, not the LHS
+  // annotation, quietly typing these as `undefined` instead of the wider
+  // union above - explicit type arguments here are load-bearing, not
+  // decorative (see the log-entries $derived expressions below, which
+  // svelte-check rejected outright without this).
+  let status: DiagnosticsStatus | undefined = $state<DiagnosticsStatus | undefined>(undefined);
   let error: string | undefined = $state(undefined);
 
-  let logs: LogEntry[] | undefined = $state(undefined);
+  let logs: LogEntry[] | undefined = $state<LogEntry[] | undefined>(undefined);
   let logsError: string | undefined = $state(undefined);
   // Filtering happens client-side against the already-fetched array,
   // not server-side query params - the whole log is small enough (see
