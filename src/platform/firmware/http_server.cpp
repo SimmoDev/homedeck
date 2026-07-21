@@ -114,7 +114,17 @@ esp_err_t FirmwareHttpServer::DispatchTrampoline(httpd_req_t* req) {
 
     HttpResponse response = (*handler)(request);
 
-    httpd_resp_set_status(req, StatusLine(response.status_code).c_str());
+    // httpd_resp_set_status() only stores the pointer it's given
+    // (ra->status = (char*)status in ESP-IDF's own httpd_txrx.c) - it
+    // doesn't send anything until httpd_resp_send() below, so the
+    // string this points to must outlive that call. A temporary
+    // (StatusLine(...).c_str() inline) would be destroyed at the end of
+    // this statement, leaving a dangling pointer read moments later -
+    // confirmed on real hardware as a real, intermittent HTTP response
+    // corruption (curl: "Unsupported HTTP/1 subversion in response"),
+    // not just a theoretical risk.
+    std::string status_line = StatusLine(response.status_code);
+    httpd_resp_set_status(req, status_line.c_str());
     httpd_resp_set_type(req, response.content_type.c_str());
     for (const auto& [name, value] : response.extra_headers) {
         httpd_resp_set_hdr(req, name.c_str(), value.c_str());
