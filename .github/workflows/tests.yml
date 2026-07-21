@@ -11,13 +11,13 @@ jobs:
     name: Build and run unit tests
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build
 
       - name: Cache FetchContent dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: tests/build/_deps
           key: tests-deps-${{ hashFiles('tests/CMakeLists.txt') }}
