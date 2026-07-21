@@ -33,19 +33,19 @@
 #include "platform/firmware/time_source.h"
 #include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
+#include "ui/navigation.h"
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
+#include "ui/screens/wifi_setup_screen.h"
 #include "ui/widget.h"
 #include "wifi_setup.h"
 
-// The real HomeDeck dashboard, running on-device - see docs/roadmap.md's
-// M1 "Basic LVGL application running on-device" item. Display and touch
+// The real HomeDeck firmware entry point - the dashboard (see
+// docs/architecture/dashboard.md), Navigation and the Wi-Fi setup screen
+// (see docs/architecture/ui.md#status), and the Web Management UI (see
+// docs/architecture/web-ui.md), all running on-device. Display and touch
 // are confirmed working on this hardware - see
 // docs/architecture/hardware.md#display-driver-strategy.
-//
-// Deliberately out of scope here: Navigation, the home affordance, and
-// any second screen - the dashboard is loaded directly as the only
-// screen, matching this step's scope in docs/roadmap.md.
 // firmware/platform/task.cpp and timer.cpp (FreeRTOS-backed, per
 // ADR-0002) exist because Clock needs a working Timer.
 namespace {
@@ -85,6 +85,22 @@ void ScheduleReboot() {
     args.name = "ota_reboot";
     esp_timer_create(&args, &timer);
     esp_timer_start_once(timer, 500 * 1000);
+}
+
+// Shown immediately after display start, before the Wi-Fi credentials
+// check below (a real SDIO/RPC round trip to the C6, not instant) - masks
+// that latency with something meaningful rather than either an LVGL
+// default blank screen or briefly showing the dashboard before knowing
+// whether Wi-Fi setup is actually needed. Caller deletes the returned
+// object once the real initial screen has loaded.
+lv_obj_t* ShowSplashScreen() {
+    lv_obj_t* splash = lv_obj_create(nullptr);
+    lv_obj_t* label = lv_label_create(splash);
+    lv_label_set_text(label, "HomeDeck");
+    lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+    lv_obj_center(label);
+    lv_scr_load(splash);
+    return splash;
 }
 
 // Temporary, throwaway - proves DashboardGrid's mixed-span placement
@@ -146,12 +162,34 @@ extern "C" void app_main(void) {
         lv_async_call(RunAndDelete, heap_fn);
     });
 
+    bsp_display_lock(0);
+    lv_obj_t* splash = ShowSplashScreen();
+    bsp_display_unlock();
+
     // The BSP already brought up the shared I2C bus for display/touch -
     // reused here rather than creating a second, conflicting bus on the
     // same physical pins.
     i2c_master_bus_handle_t i2c_bus = bsp_i2c_get_handle();
     homedeck::Ina226BatteryReader battery_reader(i2c_bus);
     homedeck::Rx8130TimeSource time_source(i2c_bus);
+
+    // General system init required by Wi-Fi (and later, other Core
+    // services that need NVS/the event loop) - see
+    // docs/architecture/networking.md#initial-wi-fi-provisioning. Moved
+    // ahead of the dashboard's construction below (unlike the rest of
+    // Wi-Fi bring-up, which stays deferred until after first paint) so
+    // InitWifiAndCheckStoredCredentials() can answer "is setup needed"
+    // before any real screen is shown - the splash above is what keeps
+    // first paint fast despite that.
+    esp_err_t nvs_result = nvs_flash_init();
+    if (nvs_result == ESP_ERR_NVS_NO_FREE_PAGES || nvs_result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_result = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_result);
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    homedeck::WifiCredentialsCheck wifi_check = homedeck::InitWifiAndCheckStoredCredentials();
 
     bsp_display_lock(0);
     homedeck::DashboardScreen dashboard(event_bus, battery_reader);
@@ -173,9 +211,33 @@ extern "C" void app_main(void) {
     // real, so this only actually fires once the pack genuinely runs low.
     homedeck::NotificationBanner notification_banner(event_bus);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
-    lv_scr_load(dashboard.Root());
+    // Navigation's constructor loads home_screen itself (see
+    // ui/navigation.h), so no explicit lv_scr_load() call is needed here.
+    // wifi_setup_screen is the Touch UI fallback for initial Wi-Fi setup
+    // (see docs/architecture/networking.md#initial-wi-fi-provisioning).
+    // Declared here (not narrower) so both stay alive for the rest of
+    // app_main's life, which never returns.
+    homedeck::Navigation navigation("dashboard", dashboard.Root());
+    homedeck::WifiSetupScreen wifi_setup_screen(
+        event_bus, battery_reader, [](const std::string& ssid, const std::string& password) {
+            homedeck::ApplyWifiCredentials(ssid, password);
+        });
+    navigation.Register("wifi-setup", wifi_setup_screen.Root());
+    // wifi_check (above) already knows whether setup is needed, so the
+    // correct screen loads immediately - never the dashboard first,
+    // followed a moment later by a redirect once ConnectToWifi() below
+    // gets around to it.
+    if (!wifi_check.has_stored_credentials) {
+        wifi_setup_screen.SetApInfo(wifi_check.ap_ssid, wifi_check.ap_ip);
+        navigation.GoTo("wifi-setup");
+    }
+    lv_obj_delete(splash);
     bsp_display_unlock();
-    printf("Dashboard loaded\n");
+    if (wifi_check.has_stored_credentials) {
+        printf("Dashboard loaded\n");
+    } else {
+        printf("Wi-Fi setup screen loaded\n");
+    }
 
     // Clock (the ClockTickEvent publisher) must exist after the
     // dashboard (the subscriber) is already listening - see
@@ -183,18 +245,6 @@ extern "C" void app_main(void) {
     // tick immediately at construction so the display doesn't sit on
     // LVGL's placeholder text until the first periodic tick.
     homedeck::Clock clock(time_source, event_bus);
-
-    // General system init required by Wi-Fi (and later, other Core
-    // services that need NVS/the event loop) - see
-    // docs/architecture/networking.md#initial-wi-fi-provisioning.
-    esp_err_t nvs_result = nvs_flash_init();
-    if (nvs_result == ESP_ERR_NVS_NO_FREE_PAGES || nvs_result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        nvs_result = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(nvs_result);
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     homedeck::LogCrashDiagnostics();
 
@@ -215,11 +265,29 @@ extern "C" void app_main(void) {
     homedeck::Storage storage(settings_store, cache_store, secret_store);
     homedeck::Logger logger(storage, time_source);
 
-    // Blocks until connected - either immediately (stored credentials) or
-    // until a phone/laptop completes SoftAP setup. The dashboard is
-    // already on-screen and live (RTC-backed Clock, not network-backed)
-    // by this point, so this doesn't delay first paint.
-    homedeck::ConnectToWifi();
+    // Continues from InitWifiAndCheckStoredCredentials() above - blocks
+    // until connected, either immediately (stored credentials), until a
+    // phone/laptop completes SoftAP setup, or until the Touch UI fallback
+    // screen (already showing, if wifi_check found no stored credentials)
+    // submits credentials directly. wifi_setup.cpp has no LVGL/Navigation
+    // dependency of its own, so reaching the UI happens through these two
+    // callbacks instead - each wrapped in the same lv_async_call()-based
+    // hand-off used elsewhere in this file, since they fire from
+    // ConnectToWifi()'s own task, not the UI task (see ADR-0011).
+    homedeck::WifiUiCallbacks wifi_ui_callbacks;
+    wifi_ui_callbacks.on_setup_needed = [&navigation, &wifi_setup_screen](const std::string& ap_ssid,
+                                                                            const std::string& ap_ip) {
+        auto* fn = new std::function<void()>([&navigation, &wifi_setup_screen, ap_ssid, ap_ip]() {
+            wifi_setup_screen.SetApInfo(ap_ssid, ap_ip);
+            navigation.GoTo("wifi-setup");
+        });
+        lv_async_call(RunAndDelete, fn);
+    };
+    wifi_ui_callbacks.on_connected = [&navigation]() {
+        auto* fn = new std::function<void()>([&navigation]() { navigation.GoHome(); });
+        lv_async_call(RunAndDelete, fn);
+    };
+    homedeck::ConnectToWifi(wifi_ui_callbacks);
     printf("Wi-Fi connected\n");
     logger.Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
 

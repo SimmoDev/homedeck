@@ -14,10 +14,10 @@
 #include "platform/host/time_source.h"
 #include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
-#include "screens/placeholder_screen.h"
 #include "ui/navigation.h"
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
+#include "ui/screens/wifi_setup_screen.h"
 #include "ui/ui_task.h"
 #include "widgets/placeholder_widget.h"
 
@@ -77,26 +77,6 @@ uint16_t ResolveWebPort() {
         return kDefaultWebPort;
     }
     return static_cast<uint16_t>(value);
-}
-
-// Temporary test-only wiring proving Navigation/the persistent home
-// affordance (see docs/roadmap.md's M1 item) - there's no real
-// "launch an app" affordance on the dashboard yet, so this stands in for
-// one. Removed once a real navigation trigger (an app icon, a widget
-// tap) exists; kept out of DashboardScreen itself so real product code
-// stays free of throwaway test scaffolding.
-void OnTestNavClicked(lv_event_t* e) {
-    auto* navigation = static_cast<homedeck::Navigation*>(lv_event_get_user_data(e));
-    navigation->GoTo("placeholder");
-}
-
-void CreateTestNavButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -16);
-    lv_obj_add_event_cb(button, OnTestNavClicked, LV_EVENT_CLICKED, &navigation);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: go to placeholder screen");
 }
 
 // Temporary test-only wiring proving LowBatteryMonitor/NotificationBanner
@@ -198,6 +178,25 @@ void CreateTestLogEntryButton(lv_obj_t* parent, homedeck::Logger& logger) {
     lv_label_set_text(label, "Test: write a log entry");
 }
 
+// Temporary test-only wiring to reach the Wi-Fi setup screen - the
+// simulator has no real SoftAP "not provisioned" path to trigger it
+// naturally (see wifi_setup_screen.h), the same reasoning
+// CreateTestLowBatteryButton below already follows for LowBatteryMonitor.
+// Removed once a real trigger exists.
+void OnTestWifiSetupNavClicked(lv_event_t* e) {
+    auto* navigation = static_cast<homedeck::Navigation*>(lv_event_get_user_data(e));
+    navigation->GoTo("wifi-setup");
+}
+
+void CreateTestWifiSetupNavButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -304);
+    lv_obj_add_event_cb(button, OnTestWifiSetupNavClicked, LV_EVENT_CLICKED, &navigation);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: go to Wi-Fi setup screen");
+}
+
 }  // namespace
 
 // The dashboard shell, StatusBar, and DashboardGrid widget framework -
@@ -223,7 +222,7 @@ int main() {
     // widget yet (weather is a separate follow-up pass). Removed once one
     // exists; kept out of DashboardScreen itself so real product code
     // stays free of throwaway test scaffolding, the same reasoning
-    // CreateTestNavButton below already follows. Deliberately exercises
+    // CreateTestWifiSetupNavButton below already follows. Deliberately exercises
     // column span, row span, first-fit packing around an
     // already-occupied cell, and row growth together, not just the
     // simplest case: A (2x1) and B (2x2, tall) fill row 0's 4 columns;
@@ -242,10 +241,21 @@ int main() {
 
     homedeck::Navigation navigation("dashboard", dashboard.Root());
 
-    PlaceholderScreen placeholder(navigation, event_bus, battery_reader);
-    navigation.Register("placeholder", placeholder.Root());
+    // Touch UI fallback for initial Wi-Fi setup (see
+    // docs/architecture/networking.md#initial-wi-fi-provisioning) - built
+    // and exercisable here like any other screen, per this project's
+    // "simulator as primary UI dev environment" philosophy, even though
+    // there's no real esp_wifi call to make on this target.
+    homedeck::WifiSetupScreen wifi_setup_screen(
+        event_bus, battery_reader, [](const std::string& ssid, const std::string& password) {
+            std::printf("Wi-Fi setup submitted (no-op in simulator): SSID=%s\n", ssid.c_str());
+        });
+    // No real SoftAP here to derive these from - a fixed placeholder is
+    // enough to exercise the layout (see wifi_setup_screen.h's SetApInfo).
+    wifi_setup_screen.SetApInfo("HomeDeck-SIM01", "192.168.4.1");
+    navigation.Register("wifi-setup", wifi_setup_screen.Root());
 
-    CreateTestNavButton(dashboard.Root(), navigation);
+    CreateTestWifiSetupNavButton(dashboard.Root(), navigation);
     CreateTestLowBatteryButton(dashboard.Root(), battery_reader);
     CreateTestExternalPowerButton(dashboard.Root(), battery_reader);
     CreateTestBatteryPresentButton(dashboard.Root(), battery_reader);

@@ -109,8 +109,9 @@ simulator, and real Tab5 hardware (see
 [hardware.md](hardware.md#on-device-dashboard)). The status bar is real,
 confirmed on hardware — `StatusBar` (`src/ui/status_bar.h`/`.cpp`) is
 fixed, non-scrolling chrome, constructed by every screen
-(`DashboardScreen` and, proving the "every screen" mechanism, the
-simulator-only `PlaceholderScreen`), rendered as a solid black bar with
+(`DashboardScreen` and, proving the "every screen" mechanism on both
+targets, `WifiSetupScreen` — see [ui.md](ui.md#status)), rendered as a
+solid black bar with
 white text: compact date/time (subscribed to `Clock`'s existing
 `ClockTickEvent`, publishing once a second and once immediately at
 startup) and battery percentage, both refreshed on that same tick rather

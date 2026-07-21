@@ -40,6 +40,14 @@ except the dashboard itself — not a gesture or a hardware button. See
 for why a persistent affordance was chosen over an edge-swipe gesture or a
 power-button long-press.
 
+`WifiSetupScreen` (see [status](#status) below) is a deliberate, narrow
+exception to "every screen except the dashboard" above: going home before
+Wi-Fi is configured would strand the user on a screen with no network and
+no way back to this one short of a reboot, since nothing else ever
+navigates here automatically. No other screen is expected to need this
+exception — a real navigable path away from the dashboard should still
+get the home affordance.
+
 A separate, independent piece of persistent chrome exists alongside the
 home affordance — a status bar (`StatusBar`, `src/ui/status_bar.h`/`.cpp`)
 showing date/time and battery on every screen, dashboard included; it's
@@ -137,13 +145,48 @@ modules only supply the notification's content.
 The dashboard exists (`DashboardScreen` in `src/ui/screens/`), and so do
 Navigation (`src/ui/navigation.h`) and the persistent home affordance
 (`src/ui/home_affordance.h`) — a minimal real route registry (`Register`/
-`GoTo`/`GoHome`) and a reusable `LV_SYMBOL_HOME` button, proven end to end
-against a deliberately throwaway second screen
-(`simulator/screens/placeholder_screen.h`, replaced once a genuine second
-screen exists — an M2 settings screen, or the first M3 module screen).
-Confirmed working manually in both directions, not just compiling. The
-status bar described above is real, confirmed on hardware (see
-[dashboard.md](dashboard.md#status)).
+`GoTo`/`GoHome`) and a reusable `LV_SYMBOL_HOME` button, **now real on
+firmware, not just the simulator**. `WifiSetupScreen`
+(`src/ui/screens/wifi_setup_screen.h`/`.cpp`), the Touch UI fallback for
+initial Wi-Fi setup (see
+[networking.md](networking.md#initial-wi-fi-provisioning)), is the
+genuine second screen registered alongside the dashboard on both
+targets (it omits the home affordance itself - see the Navigation model
+section above). Below its Connect button it shows instructions for
+setting up from a phone/laptop instead (join the SoftAP SSID, then
+browse to the gateway IP) - all screen text, including
+`OnScreenKeyboard`'s key labels (`src/ui/keyboard_input.h`/`.cpp` - a
+reusable on-screen keyboard that attaches to any `lv_textarea`, with no
+knowledge of what the text is for, so future screens needing text entry
+can reuse it directly rather than each wiring `lv_keyboard` themselves),
+uses Montserrat 24 (see [dashboard.md](dashboard.md#status)) rather than
+LVGL's small default - the keyboard needs this set directly on its own
+`LV_PART_ITEMS` style, since `lv_buttonmatrix` (what the keyboard is
+built on) doesn't inherit an ancestor's font for button labels the way
+plain labels do.
+
+Which screen loads first is decided before the dashboard is ever
+constructed: firmware shows a brief splash (`ShowSplashScreen()` in
+`firmware/main/homedeck.cpp`) immediately after display start, then
+brings up just enough of the Wi-Fi subsystem to answer "are credentials
+already stored" (`InitWifiAndCheckStoredCredentials()`,
+`firmware/main/wifi_setup.h`/`.cpp`) before `Navigation` and the real
+screens are constructed - so an unprovisioned device never shows the
+dashboard even briefly before redirecting to setup. The slower
+association/DHCP step still happens in the background after that,
+unchanged.
+
+All of the above - screen navigation, the splash-then-correct-screen
+boot sequence, field masking, keyboard font, and submission - is
+**confirmed on the K145 reference unit**, including the SoftAP-triggered
+path itself, by clearing its stored credentials and inspecting the
+device directly. Cached-vs-live data distinction on the dashboard when
+accessed without a Wi-Fi connection - relevant once a network-dependent
+widget (e.g. weather) exists - is covered by the existing
+offline-behaviour contract (see
+[networking.md](networking.md#offline-behaviour)), not something new
+this screen needed to solve. The status bar described above is real,
+confirmed on hardware (see [dashboard.md](dashboard.md#status)).
 
 Notification presentation is partly real: `NotificationBanner`
 (`src/ui/notification_banner.h`/`.cpp`) is the screen-banner output —

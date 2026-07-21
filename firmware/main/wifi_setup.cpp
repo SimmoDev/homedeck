@@ -29,9 +29,15 @@ constexpr int kConnectedBit = BIT0;
 constexpr int kMaxSetupReconnectAttempts = 5;
 constexpr int kReconnectBackoffMs = 500;
 
+// esp_netif's default AP gateway - not currently derived from
+// esp_netif_get_ip_info() since the default AP netif config is never
+// overridden here.
+constexpr char kApGatewayIp[] = "192.168.4.1";
+
 EventGroupHandle_t g_event_group = nullptr;
 httpd_handle_t g_setup_server = nullptr;
 int g_reconnect_attempts = 0;
+WifiUiCallbacks g_ui_callbacks;
 
 void GetApSsid(char* ssid, size_t max_len) {
     uint8_t mac[6];
@@ -67,16 +73,11 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     }
     body[received] = '\0';
 
-    wifi_config_t sta_config = {};
-    httpd_query_key_value(body, "ssid", reinterpret_cast<char*>(sta_config.sta.ssid),
-                           sizeof(sta_config.sta.ssid));
-    httpd_query_key_value(body, "password", reinterpret_cast<char*>(sta_config.sta.password),
-                           sizeof(sta_config.sta.password));
-
-    ESP_LOGI(kTag, "Setup form submitted, SSID: %s", sta_config.sta.ssid);
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
-    g_reconnect_attempts = 0;
-    esp_wifi_connect();
+    char ssid[33] = {};
+    char password[65] = {};
+    httpd_query_key_value(body, "ssid", ssid, sizeof(ssid));
+    httpd_query_key_value(body, "password", password, sizeof(password));
+    ApplyWifiCredentials(ssid, password);
 
     static const char kResponse[] =
         "<!DOCTYPE html><html><body style=\"font-family:sans-serif;max-width:400px;"
@@ -112,14 +113,14 @@ void StartSetupAccessPoint() {
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    // esp_netif's default AP gateway - not currently derived from
-    // esp_netif_get_ip_info() since the default AP netif config is never
-    // overridden here.
     ESP_LOGI(kTag, "Not provisioned - connect to Wi-Fi network '%s' (open) and visit "
-                    "http://192.168.4.1/ to set up HomeDeck",
-             ap_ssid);
+                    "http://%s/ to set up HomeDeck",
+             ap_ssid, kApGatewayIp);
 
     StartSetupHttpServer();
+    if (g_ui_callbacks.on_setup_needed) {
+        g_ui_callbacks.on_setup_needed(ap_ssid, kApGatewayIp);
+    }
 }
 
 void OnEvent(void* /*arg*/, esp_event_base_t event_base, int32_t event_id, void* event_data) {
@@ -150,13 +151,27 @@ void OnEvent(void* /*arg*/, esp_event_base_t event_base, int32_t event_id, void*
             g_setup_server = nullptr;
             esp_wifi_set_mode(WIFI_MODE_STA);
         }
+        if (g_ui_callbacks.on_connected) {
+            g_ui_callbacks.on_connected();
+        }
         xEventGroupSetBits(g_event_group, kConnectedBit);
     }
 }
 
 }  // namespace
 
-void ConnectToWifi() {
+void ApplyWifiCredentials(const std::string& ssid, const std::string& password) {
+    wifi_config_t sta_config = {};
+    std::snprintf(reinterpret_cast<char*>(sta_config.sta.ssid), sizeof(sta_config.sta.ssid), "%s", ssid.c_str());
+    std::snprintf(reinterpret_cast<char*>(sta_config.sta.password), sizeof(sta_config.sta.password), "%s",
+                  password.c_str());
+    ESP_LOGI(kTag, "Applying credentials, SSID: %s", sta_config.sta.ssid);
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+    g_reconnect_attempts = 0;
+    esp_wifi_connect();
+}
+
+WifiCredentialsCheck InitWifiAndCheckStoredCredentials() {
     // Powers on the C6 co-processor's rail via the PI4IOE5V6408 I2C GPIO
     // expander - see docs/architecture/hardware.md#wireless. Without this
     // the SDIO link to the C6 never comes up.
@@ -171,6 +186,18 @@ void ConnectToWifi() {
 
     wifi_init_config_t wifi_config = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&wifi_config));
+
+    wifi_config_t sta_config = {};
+    ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &sta_config));
+
+    char ap_ssid[24];
+    GetApSsid(ap_ssid, sizeof(ap_ssid));
+
+    return WifiCredentialsCheck{sta_config.sta.ssid[0] != '\0', ap_ssid, kApGatewayIp};
+}
+
+void ConnectToWifi(const WifiUiCallbacks& ui_callbacks) {
+    g_ui_callbacks = ui_callbacks;
 
     wifi_config_t sta_config = {};
     ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &sta_config));

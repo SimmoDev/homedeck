@@ -45,7 +45,7 @@ hardware. See [docs/roadmap.md](../docs/roadmap.md) for what's currently
 wired in, [docs/architecture/simulator.md](../docs/architecture/simulator.md)
 for the design, and
 [ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#1-simulator-rendering-backend)
-for the backend decision. `screens/placeholder_screen.h` is a
-deliberately minimal second screen proving Navigation and the persistent
-home affordance (`src/ui/home_affordance.h`) work, until a genuine
-second screen replaces it.
+for the backend decision. `WifiSetupScreen`
+(`../src/ui/screens/wifi_setup_screen.h`) is the second screen proving
+Navigation and the persistent home affordance
+(`../src/ui/home_affordance.h`) work across more than one screen.

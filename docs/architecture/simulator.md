@@ -101,3 +101,11 @@ confirmed by manually running the simulator, not just compiling — see
 No module code exists yet. See
 [DEVELOPMENT.md](../../DEVELOPMENT.md#simulator-workflow) for the
 day-to-day workflow.
+
+Only `lv_sdl_mouse_create()` is registered as an input device — a
+physical keyboard press does nothing right now, so exercising a text
+field (e.g. `WifiSetupScreen`, see [ui.md](ui.md#status)) means clicking
+the on-screen keyboard. Wiring up `lv_sdl_keyboard_create()` plus an
+`lv_group` for focus/Tab routing would let a developer type directly,
+speeding up iteration on that and future text-entry screens — flagged as
+a follow-up, not done here.

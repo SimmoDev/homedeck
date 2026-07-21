@@ -107,11 +107,10 @@ management state model" item instead.
       [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance)).
       A minimal real Navigation manager (`src/ui/navigation.h` -
       `Register`/`GoTo`/`GoHome`) and a reusable `LV_SYMBOL_HOME`
-      affordance (`src/ui/home_affordance.h`), proven against a
-      deliberately throwaway second screen
-      (`simulator/screens/placeholder_screen.h`) — replaced once a
-      genuine second screen exists (an M2 settings screen, or the first
-      M3 module screen).
+      affordance (`src/ui/home_affordance.h`), proven at the time against
+      a deliberately throwaway second screen — replaced once a genuine
+      one existed, M2's Wi-Fi setup screen below (see
+      [ui.md](architecture/ui.md#status)).
 - [x] Clock/date display — `Clock` (`src/core/`) publishes a
       `ClockTickEvent` once a second via the `EventBus`, plus once
       immediately at construction so the display never shows LVGL's
@@ -139,13 +138,30 @@ simulator.
       stack (see [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)).
       Confirmed working end to end: SoftAP up, a real phone submitting
       credentials through the form, the device connecting and getting a
-      real IP, SoftAP torn down afterward. Still open: Touch UI keyboard
-      entry as a fallback for users without a second device, and wiring
+      real IP, SoftAP torn down afterward. **The Touch UI keyboard
+      fallback is also real** — `WifiSetupScreen` (see
+      [ui.md](architecture/ui.md#status)), submitting through the same
+      `ApplyWifiCredentials()` path as the HTTP form so neither
+      reimplements `esp_wifi_set_config`/`connect` independently, and
+      showing the SoftAP SSID/gateway IP on-screen as an alternative for
+      a user who'd rather set up from a phone/laptop. Whether it or the
+      dashboard is the very first screen shown is decided before either
+      is constructed (a brief branded splash covers the check, so first
+      paint stays fast either way — see
+      [ui.md](architecture/ui.md#status)) rather than always showing the
+      dashboard and correcting course a moment later. Confirmed end to
+      end via the simulator, and on the K145 reference unit with its
+      stored credentials cleared - the splash, the setup screen appearing
+      directly (no dashboard flash first), real touch/keyboard entry, and
+      returning to the dashboard once connected. Still open: wiring
       credential storage into Core's real Configuration/Storage service
       instead of `esp_wifi`'s own default persistence on the C6
-      co-processor (see
-      [hardware.md](architecture/hardware.md#wi-fi-bring-up) for why that
-      matters here specifically).
+      co-processor. Deliberately not pursued for now — see
+      [hardware.md](architecture/hardware.md#wi-fi-bring-up) for where
+      credentials actually live; moving them doesn't change today's
+      security exposure (both locations are equally unencrypted flash)
+      and no current feature depends on it, so it stays a documented, low-
+      priority gap rather than active scope.
 - [x] LAN discovery (thin mDNS wrapper — see
       [networking.md](architecture/networking.md#lan-discovery)).
       **Self-advertisement is real, confirmed on hardware** — the device
@@ -231,7 +247,14 @@ simulator.
       [diagnostics.md#status](architecture/diagnostics.md#status)),
       confirmed on both targets including a real core dump download on
       the reference unit. Still open: WebSockets and the REST API
-      surface for settings/config/backups — none of that exists yet
+      surface for settings/config/backups — none of that exists yet.
+      Also still open, not yet designed: a factory-reset option (clearing
+      stored Wi-Fi credentials, per
+      [hardware.md](architecture/hardware.md#wi-fi-bring-up) for where
+      those actually live, plus Core's own `Storage` state) — a real
+      user-facing need once someone other than a developer with a serial
+      cable needs to clear them, but scope (a dedicated action vs. part
+      of a broader reset, what exactly gets cleared) isn't decided yet
 - [x] OTA update support, gated on battery threshold or external USB-C
       power (see
       [power-management.md](architecture/power-management.md#explicit-power-states)).
