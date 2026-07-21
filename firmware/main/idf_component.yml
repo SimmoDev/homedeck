@@ -5,7 +5,15 @@ dependencies:
   # path, which has a confirmed crash on this exact chip (m5stack/M5Unified#231)
   # - see docs/architecture/hardware.md#display-and-touch and
   # docs/decisions/ADR-0009-touch-display-detection.md.
-  espressif/m5stack_tab5: "^1.2.0~1"
+  # override_path points at a git-tracked local copy
+  # (firmware/components/m5stack_tab5/) rather than the registry-fetched
+  # one in the gitignored firmware/managed_components/ - it carries a
+  # real fix (see ADR-0022) that would otherwise silently vanish on any
+  # clean clone or dependency re-resolution, since managed_components/
+  # isn't tracked by git at all.
+  espressif/m5stack_tab5:
+    version: "^1.2.0~1"
+    override_path: "../components/m5stack_tab5"
   # m5stack_tab5 unconditionally pulls in `usb` (for camera/UVC support we
   # don't use for display bring-up). Its auto-resolved version calls a HAL
   # function (custom FIFO sizing) that ESP-IDF v5.4.2 doesn't have - fixed

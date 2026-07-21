@@ -167,6 +167,14 @@ do and why, worth reading at least once.
    (flash size, PSRAM speed, RTTI, partition table size, etc. were all
    learned this way) — an existing `sdkconfig` silently ignores updated
    defaults; only deleting it and reconfiguring picks them up.
+
+   **`firmware/components/` vs. `firmware/managed_components/`:** the
+   former is git-tracked and holds `m5stack_tab5`, a local fork carrying
+   a real fix (see
+   [ADR-0022](decisions/ADR-0022-panel-init-settle-delay.md)) —
+   `firmware/main/idf_component.yml`'s `override_path` points there
+   instead of fetching it. Everything else is fetched into the latter,
+   which is gitignored and safe to delete for a clean re-fetch.
 4. **Flashing and monitoring — confirmed working** against the real Tab5
    K145 reference unit:
    ```

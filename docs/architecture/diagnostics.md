@@ -134,9 +134,21 @@ with size-based rotation, per
 [ADR-0019](../decisions/ADR-0019-structured-logging.md) for the full
 format/rotation design. Unlike crash/reboot diagnostics, this isn't a
 firmware-only mechanism - the simulator runs the same real `Logger`,
-not mock data. **Confirmed on real hardware** (Tab5 K145 reference
-unit): real boot-sequence events (Wi-Fi connect, mDNS advertising, Web
-UI listening) appear correctly through the endpoint. The Web UI's Logs
+not mock data. `Log()` persists asynchronously on a background task,
+batching entries that arrive close together into one write — see
+[ADR-0020](../decisions/ADR-0020-async-log-persistence.md) for why: a
+synchronous write here was confirmed to cause a real, brief display
+glitch on the reference unit when multiple `Log()` calls landed close
+together. The underlying cause (a flash write stalling the PSRAM-backed
+display's DMA read) is now resolved directly - see
+[ADR-0021](../decisions/ADR-0021-xip-from-psram.md) - so this batching
+is no longer load-bearing for that specific glitch, though it remains
+good practice independent of it. **Confirmed on real hardware** (Tab5
+K145 reference unit):
+real boot-sequence events (Wi-Fi connect, mDNS advertising, Web UI
+listening) appear correctly through the endpoint, including entries
+that landed in the same batch sharing an identical persisted timestamp
+where they genuinely happened at the same moment. The Web UI's Logs
 section (`webui/src/lib/Diagnostics.svelte`) fetches once and filters
 by level/component client-side; confirmed against the simulator's real
 HTTP API and a real page load, though not yet via the same

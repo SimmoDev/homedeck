@@ -307,8 +307,20 @@ simulator.
       through the endpoint. The Web UI's Logs section
       (`webui/src/lib/Diagnostics.svelte`) filters by level/component
       client-side, confirmed against the simulator's real HTTP API and
-      a real page load. Still open: extended log archival to microSD
-      (ADR-0012's one named use for that tier, not wired up yet)
+      a real page load. **Persistence is asynchronous and batched** (see
+      [ADR-0020](decisions/ADR-0020-async-log-persistence.md)) — a
+      synchronous write was confirmed to cause a real, brief display
+      glitch on the reference unit when `Log()` calls landed close
+      together; moving the write off the caller and coalescing
+      near-simultaneous calls into one write measurably reduced it. The
+      remaining single-write case is also now resolved — see
+      [ADR-0021](decisions/ADR-0021-xip-from-psram.md) for the
+      root-caused fix (`CONFIG_SPIRAM_XIP_FROM_PSRAM`), confirmed across
+      20 consecutive hardware resets plus manual reboots with zero
+      recurrence. Still open: extended log archival to microSD
+      (ADR-0012's one named use for that tier, not wired up yet), on its
+      original extended-retention rationale alone now that ADR-0021
+      resolves the glitch that had briefly also motivated it
 - [ ] Audio bring-up (ES8388 codec, 1W speaker output — see
       [hardware.md](architecture/hardware.md#audio) for the confirmed
       BOM). A platform capability in its own right, not
@@ -395,7 +407,14 @@ simulator.
       live" question also named in the Widget framework item above (see
       [dashboard.md](architecture/dashboard.md#status-bar)); both a
       compact icon here and a fuller grid widget there are planned, not
-      an either/or
+      an either/or. Still open: `clock_label_` shows blank for up to one
+      Clock period (~1s) after construction rather than the correct time
+      immediately - `battery_label_` avoids this by reading
+      `BatteryReader` synchronously at construction, but `StatusBar`
+      isn't given a `TimeSource` to do the same for the clock. Fixing it
+      means threading `TimeSource` through `StatusBar`'s constructor and
+      both its callers (`DashboardScreen`, `WifiSetupScreen`) - deferred
+      as a minor, non-jarring gap, not a rendering bug
 - [ ] Power management state model, including the alert-priority wake-check
       cycle during Sleeping (interval tuned against real reconnect-cost/
       battery measurements on hardware — see

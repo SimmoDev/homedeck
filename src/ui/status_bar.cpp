@@ -55,7 +55,10 @@ const char* BatteryLevelIcon(int percent) {
 //     Ina226BatteryReader::IsBatteryPresent()), so it's never shown in
 //     this state, not even a stale/misleading number.
 void RefreshBatteryLabel(lv_obj_t* label, BatteryReader& battery_reader) {
-    char text[16];
+    // 32, not 16: GCC's format-truncation check at -O2 sizes against
+    // %d's full int range, not ReadPercent()'s real 0-100 - 16 is
+    // provably enough for any real value but not for the type's range.
+    char text[32];
     bool battery_present = battery_reader.IsBatteryPresent();
     int percent = battery_reader.ReadPercent();
     bool charging = battery_present && battery_reader.IsExternalPowerConnected() && percent < 100;
@@ -93,6 +96,12 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     lv_obj_set_style_text_font(clock_label_, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(clock_label_, lv_color_white(), 0);
     lv_obj_align(clock_label_, LV_ALIGN_LEFT_MID, 12, 0);
+    // lv_label_create() defaults to showing "Text" until this is set to
+    // something real - blank rather than a fabricated time, since
+    // there's no real value to show until the first ClockTickEvent
+    // arrives (up to one Clock period later). Matches battery_label_'s
+    // own immediate RefreshBatteryLabel() call below.
+    lv_label_set_text(clock_label_, "");
 
     battery_label_ = lv_label_create(bar);
     lv_obj_set_style_text_font(battery_label_, &lv_font_montserrat_24, 0);

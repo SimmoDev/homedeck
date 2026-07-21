@@ -138,9 +138,16 @@ leveled logs (`Logger`, `src/core/logger.h`/`.cpp`), per
 rotation/storage design. Built entirely on the existing `Storage`
 rather than a new platform interface, so - unlike crash/reboot
 diagnostics - it's not a firmware-only mechanism; the simulator uses
-the same real implementation. The rest of Diagnostics (module status,
-connection state, error reporting) remains unbuilt — see
-[diagnostics.md](diagnostics.md#status) for the full breakdown.
+the same real implementation. `Log()` persists asynchronously on a
+dedicated background `Task`, batching entries that arrive close
+together into a single write rather than one write per call — see
+[ADR-0020](../decisions/ADR-0020-async-log-persistence.md) for why (a
+confirmed display glitch on a synchronous write), and the first real
+production use of `Queue<T>`
+([src/platform/queue.h](../../src/platform/queue.h)) on firmware. The
+rest of Diagnostics (module status, connection state, error reporting)
+remains unbuilt — see [diagnostics.md](diagnostics.md#status) for the
+full breakdown.
 
 **The widget system** is real: `Widget` and `DashboardGrid` (`src/ui/`)
 are the standard interface modules contribute dashboard content through
