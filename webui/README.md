@@ -17,11 +17,16 @@ real safeguard since there's no password-recovery flow yet), with its
 validation/error-mapping logic pulled out into
 `src/lib/passwordValidation.ts` so it's unit-testable without a
 component-testing stack (see `npm run test` below).
-`src/lib/Diagnostics.svelte` shows the authenticated view's crash/
-reboot diagnostics (reset reason, downloadable core dump). The real
-settings/OTA/backups screens are still ahead - see
+Once authenticated, `App.svelte` composes three real screens:
+`src/lib/Settings.svelte` (device name, weather location search/save,
+backup download/restore), `src/lib/Ota.svelte` (current version, the
+battery/power gate's status, upload progress, reboot), and
+`src/lib/Diagnostics.svelte` (reset reason, downloadable core dump,
+live battery/power state, and a level/component-filterable structured
+log view). See
 [docs/architecture/web-ui.md](../docs/architecture/web-ui.md) for the
-full scope.
+full scope, including what's still open (WebSockets for live updates,
+module configuration, Wi-Fi management).
 
 Build:
 

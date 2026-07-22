@@ -85,7 +85,28 @@ src/
 │                on both targets - FetchContent'd for host, ESP-IDF's own
 │                vendored copy for firmware), mutex-guarded since it's
 │                called from HTTP server worker threads, not the LVGL UI
-│                task like most of Core.
+│                task like most of Core. Also the Web UI route
+│                registration files, one per API surface: settings_routes
+│                (the generic settings/backup REST API, with the
+│                reserved-key guard keeping AdminAuthService's password
+│                hash out of it - see ADR-0023), ota_routes (status/
+│                upload/reboot, gated by ota_gate.h's battery/power check
+│                - see ADR-0005), diagnostics_routes (reset reason, core
+│                dump download, structured logs - see diagnostics.md),
+│                and weather_routes (the location-search/save endpoints
+│                proxying Open-Meteo's geocoding API). Also
+│                weather_provider.h/.cpp - OpenMeteoWeatherProvider, the
+│                pluggable WeatherProvider interface's direct
+│                implementation (see ADR-0008), polling on its own
+│                background Task. Also logger.h/.cpp - Logger, Core's
+│                structured/leveled log (see ADR-0019/ADR-0020),
+│                persisting asynchronously on its own background Task.
+│                Also notification_sound.h/.cpp - NotificationSound, the
+│                Notifications service's sound presentation, playing a
+│                generated tone via AudioOutput on its own background
+│                Task. Also network_status_monitor.h/.cpp -
+│                NetworkStatusMonitor, republishing NetworkStatus's
+│                connectivity transitions as Notifications-facing events.
 └── ui/          UiTask - owns LVGL exclusively via the SDL2 window on
                  the simulator; firmware has no equivalent class, since
                  `espressif/m5stack_tab5`'s `bsp_display_start()` already
@@ -105,8 +126,19 @@ src/
                  (see dashboard.md#widget-system); NotificationBanner -
                  the screen-banner notification output, parented to
                  LVGL's top layer so it renders above whatever screen is
-                 active; and ui/screens/ - DashboardScreen, the home
-                 screen (see docs/architecture/dashboard.md), reused
+                 active. Also the real dashboard widgets: ClockWidget
+                 (the large clock tile, distinct from StatusBar's compact
+                 one), NetworkStatusWidget (SSID/IP detail beyond the
+                 status bar's Wi-Fi icon), WeatherWidget (see
+                 dashboard.md#weather-source), and NotificationWidget
+                 (a last-notification tile, not an unread-count badge -
+                 see roadmap.md's M7 list for that variant). Also
+                 keyboard_input.h/.cpp - OnScreenKeyboard, a reusable
+                 touch keyboard any screen can attach to its own
+                 lv_textarea. And ui/screens/ - DashboardScreen, the home
+                 screen (see docs/architecture/dashboard.md), and
+                 WifiSetupScreen, the Touch UI fallback for initial
+                 Wi-Fi provisioning (see networking.md) - both reused
                  directly by both the simulator and firmware.
 ```
 
