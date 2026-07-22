@@ -672,5 +672,11 @@ index — decision name, ADR, one-line outcome.
 | Storage namespacing | [ADR-0012](decisions/ADR-0012-storage-tiers.md#decision-storage-namespacing) | Enforced per-module by the storage service, not a naming convention |
 | Backup delivery | [ADR-0012](decisions/ADR-0012-storage-tiers.md#decision-backup-delivery) | Always Web UI JSON download, regardless of SD presence |
 | Crash/reboot diagnostics | [ADR-0013](decisions/ADR-0013-crash-and-reboot-diagnostics.md) | Reset-reason tracking + core dump to a dedicated partition, raw download only |
+| Partition table | [ADR-0017](decisions/ADR-0017-partition-table.md) | Custom `ota_0`/`ota_1` A/B scheme + dedicated core dump partition, replacing the built-in single-app table |
+| Structured logging storage | [ADR-0019](decisions/ADR-0019-structured-logging.md) | Reuse `CacheStore`'s existing internal-flash tier — no new platform code |
+| Async log persistence | [ADR-0020](decisions/ADR-0020-async-log-persistence.md) | `Logger::Log()` never blocks on flash I/O — a background `Task`/`Queue<T>` owns all writes |
+| XIP from PSRAM | [ADR-0021](decisions/ADR-0021-xip-from-psram.md) | `CONFIG_SPIRAM_XIP_FROM_PSRAM=y` — resolves a flash-write-stalls-display-DMA glitch |
+| Panel init settle delay | [ADR-0022](decisions/ADR-0022-panel-init-settle-delay.md) | Added delays after Sleep Out/Display On in the ST7123 init table, fixing an intermittent grey/fade-in on boot |
+| Settings/backup reserved-key guard | [ADR-0023](decisions/ADR-0023-settings-backup-api.md) | A reserved-key guard, not a partition split, keeps the admin password hash out of the generic settings API |
 | Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol specifics investigated in M3 |
 | Module interface (exact API) | [modules.md](architecture/modules.md#status) | Deferred by design — defined when Harmony (M3) is built |

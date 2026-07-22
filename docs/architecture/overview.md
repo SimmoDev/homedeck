@@ -118,6 +118,5 @@ bottom.
   where each is addressed
 - [diagnostics.md](diagnostics.md) — cross-cutting diagnostics requirements
   and where each is addressed, including crash/reboot diagnostics
-- [ADR-0001](../decisions/ADR-0001-project-vision.md) through
-  [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md) — the
-  decisions behind this architecture
+- [docs/decisions/](../decisions/) — the decisions behind this
+  architecture

@@ -5,12 +5,11 @@ This document describes the development workflow for HomeDeck. See
 
 ## Where to start
 
-The architecture documentation has grown large (12 architecture docs, 16
-ADRs) across M0's design work and M1 so far (three of the ADRs, 0014,
-0015, and 0016, were written during M1 hardware bring-up, not M0). Not
-all of it is relevant to starting M1 — most of it covers M2+ services and
-later modules. If you're implementing M1, this is the essential reading,
-in order:
+The architecture documentation has grown large (12 architecture docs, 23
+ADRs) across M0's design work and the hardware/platform-services work
+since. Not all of it is relevant to starting M1 — most of it covers M2+
+services and later modules. If you're implementing M1, this is the
+essential reading, in order:
 
 1. [README.md](README.md) — what HomeDeck is, in brief.
 2. [docs/architecture/overview.md](docs/architecture/overview.md) — the
