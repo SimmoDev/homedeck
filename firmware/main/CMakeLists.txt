@@ -63,6 +63,7 @@ idf_component_register(
         "../../src/platform/firmware/cache_store.cpp"
         "../../src/platform/firmware/http_server.cpp"
         "../../src/platform/firmware/http_client.cpp"
+        "../../src/platform/firmware/audio_output.cpp"
         "../../src/platform/static_assets.cpp"
     INCLUDE_DIRS
         "."
@@ -82,6 +83,7 @@ idf_component_register(
         spi_flash
         mbedtls
         app_update
+        esp_codec_dev
     EMBED_FILES
         "../../webui/dist/index.html"
         "../../webui/dist/app.js"

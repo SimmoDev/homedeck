@@ -340,17 +340,23 @@ simulator.
       (ADR-0012's one named use for that tier, not wired up yet), on its
       original extended-retention rationale alone now that ADR-0021
       resolves the glitch that had briefly also motivated it
-- [ ] Audio bring-up (ES8388 codec, 1W speaker output — see
+- [x] Audio bring-up (ES8388 codec, 1W speaker output — see
       [hardware.md](architecture/hardware.md#audio) for the confirmed
-      BOM). A platform capability in its own right, not
-      Notifications-specific — Notifications' sound presentation
-      (below) depends on this rather than duplicating it. Nothing built
-      yet beyond chip identity confirmed present via the I2C bus scan.
-      Follow-on, not this item's own scope: on-device volume control —
-      needs a Core-level volume capability regardless of which UI ends
-      up exposing it; where that control actually lives (dashboard/
-      status-bar quick-access vs. something else) is still an open
-      question, deliberately not decided here.
+      pins/I2C/feature-enable facts). A platform capability in its own
+      right, not Notifications-specific — Notifications' sound
+      presentation (below) depends on this rather than duplicating it.
+      `AudioOutput` (`src/platform/`) is the portable interface —
+      mono 16-bit PCM, blocking, paced in real time on both targets —
+      with `FirmwareAudioOutput` (wraps the vendored BSP's
+      `bsp_audio_codec_speaker_init()`/`esp_codec_dev`) and
+      `HostAudioOutput` (SDL2) implementations. Confirmed audible on the
+      K145 reference unit's speaker. Still open, separate follow-ups:
+      the ES7210 mic input (not wired up — no capability needs it yet),
+      Notifications' actual sound presentation (below), and on-device
+      volume control — needs a Core-level volume capability regardless
+      of which UI ends up exposing it; where that control actually lives
+      (dashboard/status-bar quick-access vs. something else) is still an
+      open question, deliberately not decided here.
 - [ ] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —

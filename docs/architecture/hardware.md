@@ -448,6 +448,14 @@ Confirmed against the project's own reference unit:
 ## Audio
 
 - ES8388 codec, ES7210 AEC dual-mic array, 1W speaker, 3.5mm jack.
+- I2S pins: MCLK=GPIO30, SCLK=GPIO27, LCLK=GPIO29, DOUT=GPIO26,
+  DSIN=GPIO28.
+- ES8388 at I2C address 0x10 (see the address map above), ES7210 at 0x40.
+- The speaker amp is gated by an output pin on the same I2C GPIO
+  expander as the LCD/touch/camera enables (not the Wi-Fi/USB one) —
+  not by a direct GPIO, which is unconnected on this board.
+- **Confirmed:** enabling that output pin enables the amp (audible
+  output at full digital volume on the K145 reference unit's speaker).
 
 ## Camera (out of current scope)
 

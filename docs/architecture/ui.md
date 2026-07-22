@@ -122,10 +122,13 @@ explicitly doesn't yet:
   [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping))
   surface this way on next wake.
 - **Sound** — uses the confirmed ES8388 codec and onboard speaker (see
-  [hardware.md](hardware.md#audio)) via the audio-out hardware interface
-  already named in [overview.md](overview.md#hardware-abstraction). Exact
-  sound selection per notification severity is an M2 implementation detail,
-  not an architectural decision.
+  [hardware.md](hardware.md#audio)) via `AudioOutput`
+  (`src/platform/audio_output.h`), the portable audio-out hardware
+  interface already named in
+  [overview.md](overview.md#hardware-abstraction) — real and confirmed
+  audible on hardware, but not yet wired to actual notification firing.
+  Exact sound selection per notification severity is an M2
+  implementation detail, not an architectural decision.
 - **Dashboard indicators** — a notification-count/status badge surfaced
   through the existing widget system (see
   [dashboard.md](dashboard.md#widget-system)), not a separate mechanism.
@@ -195,6 +198,8 @@ screen, since it renders above whatever screen Navigation currently has
 loaded; a single instance covers every screen, unlike `StatusBar`, which
 each screen constructs its own copy of. Auto-dismisses a few seconds
 after showing. Sound and the dashboard-indicator output are not built —
-sound needs audio hardware bring-up that hasn't happened yet, and the
-indicator is a real `DashboardGrid` widget that's a separate follow-up,
-the same as weather (see [dashboard.md](dashboard.md#status)).
+audio hardware bring-up itself is done (see [Notification
+presentation](#notification-presentation) above), but nothing yet
+triggers a sound on an actual notification firing, and the indicator is
+a real `DashboardGrid` widget that's a separate follow-up, the same as
+weather (see [dashboard.md](dashboard.md#status)).

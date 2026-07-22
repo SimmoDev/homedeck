@@ -9,6 +9,7 @@
 #include "core/settings_routes.h"
 #include "core/weather_provider.h"
 #include "core/weather_routes.h"
+#include "platform/host/audio_output.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/file_backed_store.h"
@@ -29,6 +30,7 @@
 #include "ui/ui_task.h"
 #include "ui/weather_widget.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -224,6 +226,37 @@ void CreateTestWifiDisconnectButton(lv_obj_t* parent, homedeck::HostNetworkStatu
     lv_label_set_text(label, "Test: toggle wifi disconnected");
 }
 
+// Not temporary - there's no other way to manually exercise
+// AudioOutput in the simulator, the same lasting-dev-hook role
+// CreateTestLowBatteryButton above already plays for its own hardware
+// signal. Runs on UiTask's own thread (the one already running
+// lv_timer_handler()), so this freezes the simulator window for the
+// clip's ~0.3s duration - a known, accepted tradeoff for a manual test
+// button, not worth a Task-based async wrapper (see
+// platform/audio_output.h's own blocking contract).
+void OnTestPlayToneClicked(lv_event_t* e) {
+    auto* audio_output = static_cast<homedeck::HostAudioOutput*>(lv_event_get_user_data(e));
+    constexpr uint32_t kSampleRate = 48000;
+    constexpr double kDurationSeconds = 0.3;
+    constexpr double kToneHz = 440.0;
+    std::vector<int16_t> tone(static_cast<size_t>(kSampleRate * kDurationSeconds));
+    for (size_t i = 0; i < tone.size(); ++i) {
+        double t = static_cast<double>(i) / kSampleRate;
+        tone[i] = static_cast<int16_t>(std::sin(2 * M_PI * kToneHz * t) * 10000);
+    }
+    audio_output->SetVolume(70);
+    audio_output->Play(tone.data(), tone.size(), kSampleRate);
+}
+
+void CreateTestPlayToneButton(lv_obj_t* parent, homedeck::HostAudioOutput& audio_output) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -400);
+    lv_obj_add_event_cb(button, OnTestPlayToneClicked, LV_EVENT_CLICKED, &audio_output);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: play tone");
+}
+
 }  // namespace
 
 // The dashboard shell, StatusBar, and DashboardGrid widget framework -
@@ -243,6 +276,7 @@ int main() {
     // happens.
     homedeck::HostBatteryReader battery_reader;
     homedeck::HostNetworkStatus network_status;
+    homedeck::HostAudioOutput audio_output;
 
     // Moved ahead of the dashboard's construction below (unlike Logger
     // further down, which doesn't need to be) so WeatherWidget can be
@@ -284,6 +318,7 @@ int main() {
 
     CreateTestWifiSetupNavButton(dashboard.Root(), navigation);
     CreateTestWifiDisconnectButton(dashboard.Root(), network_status);
+    CreateTestPlayToneButton(dashboard.Root(), audio_output);
     CreateTestLowBatteryButton(dashboard.Root(), battery_reader);
     CreateTestExternalPowerButton(dashboard.Root(), battery_reader);
     CreateTestBatteryPresentButton(dashboard.Root(), battery_reader);
