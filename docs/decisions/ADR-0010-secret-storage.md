@@ -104,16 +104,8 @@ Standard tier activates NVS encryption, `SecretStore`'s backing
 implementation is the one place that changes; callers (`AdminAuthService`
 today, module credential storage from M3 on) don't.
 
-**Implemented.** `SecretStore` (`src/platform/secret_store.h`), backed by
-`HostSecretStore`/`FirmwareSecretStore`, is real on both targets, with
-`Storage::SetSecret`/`GetSecret`/`EraseSecret` as the corresponding
-`Storage`-level methods. `AdminAuthService` routes the admin password
-hash through it. `HostSecretStore` stores under a separate `secrets/`
-directory from `HostSettingsStore`'s `settings/`, so the two never
-collide on disk; `FirmwareSecretStore` shares NVS's per-`ns` namespace
-with `FirmwareSettingsStore` (see `FirmwareSecretStore`'s own comment for
-why that's a documented constraint on callers, not structurally
-prevented).
+`SecretStore` is real on both targets — see
+[core.md](../architecture/core.md#status) for the implementation.
 
 ## Consequences
 

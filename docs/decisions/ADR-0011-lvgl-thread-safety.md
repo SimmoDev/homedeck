@@ -143,15 +143,8 @@ a load that doesn't exist.
   [ADR-0002](ADR-0002-technology-stack.md#3-embedded-webwebsocket-server).
 - **Resolved (M2):** `lv_async_call()` hands off *when* a callback runs
   safely, not *whether* the subscriber it belongs to still exists by
-  then. `EventBus::PublishImpl`'s deferred hand-off now closes over only
-  the subscriber's id, not a copy of its callback — the callback is
-  looked up again in the live subscriber map at the point it actually
-  executes (`EventBus::FindCallback`, `src/core/event_bus.cpp`), so a
-  callback whose subscriber has since called `Unsubscribe` (triggered by
-  a `ScopedSubscription` going out of scope — see
-  [ADR-0004](ADR-0004-ui-philosophy.md#decision-ui-state-management-pattern))
-  is simply not found, and is skipped rather than invoked against a
-  dangling `this`. `tests/event_bus_test.cpp`'s
-  `DeferredUiCallbackIsSkippedIfUnsubscribedBeforeTheTickRuns` exercises
-  this directly with a queuing fake dispatcher, standing in for real
-  `lv_async_call()` timing that a host test can't otherwise reproduce.
+  then — see `EventBus`'s own header comment
+  (`src/core/event_bus.h`) for the mechanism, and
+  `tests/event_bus_test.cpp`'s
+  `DeferredUiCallbackIsSkippedIfUnsubscribedBeforeTheTickRuns` for the
+  regression test.

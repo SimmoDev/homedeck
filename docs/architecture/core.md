@@ -116,7 +116,14 @@ rather than trusting callers to prefix their own keys. Secrets route
 through a distinct `SecretStore`/`SetSecret`/`GetSecret` call path from
 general settings, per
 [ADR-0010](../decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface)
-— `AdminAuthService`'s admin password hash uses it. NVS encryption
+— `AdminAuthService`'s admin password hash uses it, via
+`HostSecretStore`/`FirmwareSecretStore`
+(`src/platform/host/`/`src/platform/firmware/`): `HostSecretStore`
+stores under a separate `secrets/` directory from `HostSettingsStore`'s
+`settings/`, so the two never collide on disk; `FirmwareSecretStore`
+shares NVS's per-`ns` namespace with `FirmwareSettingsStore` (a
+documented caller constraint, not structurally prevented - see
+`FirmwareSecretStore`'s own comment). NVS encryption
 itself is deliberately not built yet, not silently dropped: it's plain
 storage for now by design — see
 [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for the
@@ -141,13 +148,12 @@ diagnostics - it's not a firmware-only mechanism; the simulator uses
 the same real implementation. `Log()` persists asynchronously on a
 dedicated background `Task`, batching entries that arrive close
 together into a single write rather than one write per call — see
-[ADR-0020](../decisions/ADR-0020-async-log-persistence.md) for why (a
-confirmed display glitch on a synchronous write), and the first real
-production use of `Queue<T>`
-([src/platform/queue.h](../../src/platform/queue.h)) on firmware. The
-rest of Diagnostics (module status, connection state, error reporting)
-remains unbuilt — see [diagnostics.md](diagnostics.md#status) for the
-full breakdown.
+[ADR-0020](../decisions/ADR-0020-async-log-persistence.md) for the
+rationale. Also the first firmware use of `Queue<T>`
+([src/platform/queue.h](../../src/platform/queue.h)) for cross-task
+hand-off. The rest of Diagnostics (module status, connection state,
+error reporting) remains unbuilt — see
+[diagnostics.md](diagnostics.md#status) for the full breakdown.
 
 **The widget system** is real: `Widget` and `DashboardGrid` (`src/ui/`)
 are the standard interface modules contribute dashboard content through

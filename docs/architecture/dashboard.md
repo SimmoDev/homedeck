@@ -247,12 +247,10 @@ immediately, so choosing a new location doesn't leave the dashboard
 waiting out the rest of a real 30-minute interval in silence; the
 Web UI's Settings page calls this (via `POST /api/weather/refresh`, see
 [web-ui.md](web-ui.md#status)) right after saving a newly-selected
-location. Confirmed end to end against the simulator, a real browser
-session, and the Tab5 K145 reference unit (location search via
-Open-Meteo's own geocoding API, proxied through a new admin-gated
-`GET /api/weather/geocode` endpoint, selecting a result, and
-`TriggerPoll()` firing a real fetch immediately - a real TLS handshake
-visible in the reference unit's own serial log right after). `Storage`
+location. Confirmed end to end, including location search via
+Open-Meteo's own geocoding API (proxied through an admin-gated
+`GET /api/weather/geocode` endpoint), against the simulator, a real
+browser session, and the Tab5 K145 reference unit. `Storage`
 (`src/core/storage.h`) is internally
 thread-safe (a single mutex guarding every method) - genuinely needed,
 not defensive: app_main's boot sequence, the Web UI's httpd worker

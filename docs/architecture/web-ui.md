@@ -112,17 +112,6 @@ automated test (a raw-socket HTTP client against `HostHttpServer` in
 `tests/http_server_test.cpp`) and manually against the running
 simulator.
 
-**`FirmwareHttpServer` previously had a use-after-free affecting every
-response's status line** (`httpd_resp_set_status()` only stores the
-pointer it's given, not a copy, and the code was passing one into a
-temporary `std::string` destroyed before the later `httpd_resp_send()`
-call that actually reads it) — found via real-hardware testing during
-[ADR-0023](../decisions/ADR-0023-settings-backup-api.md)'s work
-(intermittent response corruption, not present on the simulator's
-different server backend) and fixed there. Not specific to any one
-route — every firmware response was exposed to this, unpredictably,
-depending on what else happened to reuse the freed memory first.
-
 **The [authentication mechanism](#authentication-mechanism) is real** —
 `AdminAuthService` (`src/core/admin_auth_service.h`/`.cpp`) implements
 ADR-0007's single-admin-password/session-login design and its
@@ -271,11 +260,7 @@ to wait out the rest of a real 30-minute poll interval before showing
 anything for the location just chosen. Confirmed end to end (search,
 select, save, refresh, and the dashboard's weather widget picking up
 the change within a couple of seconds) against the simulator, a real
-desktop browser session, and the K145 reference unit - a real GET
-`/api/weather/geocode` search, `POST /api/settings`, and
-`POST /api/weather/refresh` against the unit's own Web UI, with the
-triggered fetch's real TLS handshake (`esp-x509-crt-bundle: Certificate
-validated`) visible in the serial log immediately after.
+desktop browser session, and the K145 reference unit.
 
 Still open, each its own future pass: WebSockets for live updates,
 module configuration specifically (no real module exists yet to

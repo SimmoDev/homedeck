@@ -166,14 +166,7 @@ where date/time and battery live.
   into shared status-bar chrome present on every screen, not building a
   grid cell for them.
 
-`StatusBar` (`src/ui/status_bar.h`/`.cpp`) is that relocation — each
-screen constructs its own instance, the same "each screen includes it"
-pattern `home_affordance.h` uses, present on the dashboard too. Battery
-refreshes on `Clock`'s existing tick rather than a dedicated timer, since
-a 1Hz read is enough for a percentage display and reuses scheduling
-already flowing through the screen (see
-[dashboard.md](../architecture/dashboard.md#status) for full status).
-Styled as solid black chrome with white text, matching Android/iOS's
-status-bar convention rather than blending into LVGL's default light
-theme. Which widgets beyond date/time/battery belong on the bar (network
-status is the natural candidate) remains undecided.
+`StatusBar` (`src/ui/status_bar.h`/`.cpp`) is that relocation, built and
+confirmed on hardware, since joined by a compact Wi-Fi connectivity icon
+— see [dashboard.md](../architecture/dashboard.md#status) for the real
+implementation.
