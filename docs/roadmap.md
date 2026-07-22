@@ -226,14 +226,18 @@ simulator.
       unit, including the password surviving a device reboot. The
       password hash is stored plaintext by design at this project stage
       - see [ADR-0018](decisions/ADR-0018-staged-security-hardening.md).
-      Still open: login takes ~8 seconds on real hardware (PBKDF2-SHA256,
-      100,000 iterations, software SHA256 - see `admin_auth_service.cpp`),
-      close enough to the default FreeRTOS task watchdog timeout to have
+      Login/setup now shows loading feedback while it computes
+      (`PasswordForm.svelte` - the submit button's own text changes to
+      "Logging in..."/"Setting password..." for the duration, rather
+      than just going disabled with no explanation). Still open: login
+      itself still takes ~8 seconds on real hardware (PBKDF2-SHA256, 100,000
+      iterations, software SHA256 - see `admin_auth_service.cpp`), close
+      enough to the default FreeRTOS task watchdog timeout to have
       tripped it once during testing (a logged warning, not a crash or
-      reboot). Not yet a correctness problem, but worth a real fix
-      (e.g. a lower iteration count, or UI feedback while it computes)
-      before it becomes a reliability concern rather than just a slow
-      login.
+      reboot). The UI feedback above addresses the perceived-hang
+      symptom, not this underlying watchdog-proximity risk - a lower
+      iteration count (or another real fix) is still worth doing before
+      it becomes a reliability concern rather than just a slow login.
       **Static asset serving is real on both targets** (`ServeStaticFiles`,
       `src/platform/static_assets.h`/`.cpp`, see
       [web-ui.md](architecture/web-ui.md#status)) — assets embedded into

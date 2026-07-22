@@ -75,7 +75,11 @@
     <p class="error">{error}</p>
   {/if}
   <button type="submit" disabled={submitting}>
-    {mode === "setup" ? "Set password" : "Log in"}
+    {#if submitting}
+      {mode === "setup" ? "Setting password..." : "Logging in..."}
+    {:else}
+      {mode === "setup" ? "Set password" : "Log in"}
+    {/if}
   </button>
 </form>
 
