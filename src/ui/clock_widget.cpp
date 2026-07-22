@@ -1,31 +1,9 @@
 #include "ui/clock_widget.h"
 
 #include "core/clock.h"
-
-#include <ctime>
+#include "ui/time_format.h"
 
 namespace homedeck {
-
-namespace {
-
-// localtime_r is POSIX; matches Linux being the only currently-verified
-// simulator platform (see DEVELOPMENT.md) - same precedent as
-// status_bar.cpp's own time formatting.
-void FormatTime(std::chrono::system_clock::time_point time, char* buffer, size_t size) {
-    std::time_t t = std::chrono::system_clock::to_time_t(time);
-    std::tm tm{};
-    localtime_r(&t, &tm);
-    std::strftime(buffer, size, "%H:%M", &tm);
-}
-
-void FormatDate(std::chrono::system_clock::time_point time, char* buffer, size_t size) {
-    std::time_t t = std::chrono::system_clock::to_time_t(time);
-    std::tm tm{};
-    localtime_r(&t, &tm);
-    std::strftime(buffer, size, "%a %d %b", &tm);
-}
-
-}  // namespace
 
 ClockWidget::ClockWidget(lv_obj_t* parent, EventBus& event_bus) {
     root_ = lv_obj_create(parent);
@@ -50,8 +28,8 @@ ClockWidget::ClockWidget(lv_obj_t* parent, EventBus& event_bus) {
     clock_subscription_ = event_bus.SubscribeUi<ClockTickEvent>([this](const ClockTickEvent& event) {
         char time_text[16];
         char date_text[32];
-        FormatTime(event.time, time_text, sizeof(time_text));
-        FormatDate(event.time, date_text, sizeof(date_text));
+        FormatLocalTime(event.time, "%H:%M", time_text, sizeof(time_text));
+        FormatLocalTime(event.time, "%a %d %b", date_text, sizeof(date_text));
         lv_label_set_text(time_label_, time_text);
         lv_label_set_text(date_label_, date_text);
     });

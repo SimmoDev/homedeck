@@ -100,6 +100,7 @@ if(TARGET lvgl)
     ui/ui_task.cpp
     ui/navigation.cpp
     ui/home_affordance.cpp
+    ui/time_format.cpp
     ui/status_bar.cpp
     ui/dashboard_grid.cpp
     ui/clock_widget.cpp

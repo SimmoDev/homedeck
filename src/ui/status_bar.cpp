@@ -1,22 +1,13 @@
 #include "ui/status_bar.h"
 
 #include "core/low_battery_monitor.h"
+#include "ui/time_format.h"
 
 #include <cstdio>
-#include <ctime>
 
 namespace homedeck {
 
 namespace {
-
-// localtime_r is POSIX; matches Linux being the only currently-verified
-// simulator platform (see DEVELOPMENT.md).
-void FormatCompactTime(std::chrono::system_clock::time_point time, char* buffer, size_t size) {
-    std::time_t t = std::chrono::system_clock::to_time_t(time);
-    std::tm tm{};
-    localtime_r(&t, &tm);
-    std::strftime(buffer, size, "%H:%M  %a %d %b", &tm);
-}
 
 // Breakpoints for the four non-empty levels are even round numbers, not
 // tied to anything else. The empty breakpoint isn't independent - it
@@ -117,7 +108,7 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     clock_subscription_ =
         event_bus.SubscribeUi<ClockTickEvent>([this](const ClockTickEvent& event) {
             char text[32];
-            FormatCompactTime(event.time, text, sizeof(text));
+            FormatLocalTime(event.time, "%H:%M  %a %d %b", text, sizeof(text));
             lv_label_set_text(clock_label_, text);
 
             RefreshStatusLabel(battery_label_, battery_reader_, wifi_connected_);
