@@ -39,6 +39,7 @@
 #include "platform/steady_time_source.h"
 #include "ui/clock_widget.h"
 #include "ui/navigation.h"
+#include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
@@ -185,6 +186,8 @@ extern "C" void app_main(void) {
     homedeck::DashboardScreen dashboard(event_bus, battery_reader, network_status);
     homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
     dashboard.Grid().AddWidget(clock_widget);
+    homedeck::NetworkStatusWidget network_status_widget(dashboard.Grid().Container(), event_bus, network_status);
+    dashboard.Grid().AddWidget(network_status_widget);
     // NotificationBanner must exist before LowBatteryMonitor, which must
     // exist before Clock (the ClockTickEvent publisher) - see
     // simulator/main.cpp's identical ordering note. Unlike the

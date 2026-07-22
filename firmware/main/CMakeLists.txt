@@ -44,6 +44,7 @@ idf_component_register(
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"
         "../../src/ui/clock_widget.cpp"
+        "../../src/ui/network_status_widget.cpp"
         "../../src/ui/notification_banner.cpp"
         "../../src/ui/navigation.cpp"
         "../../src/ui/home_affordance.cpp"

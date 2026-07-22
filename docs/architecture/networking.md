@@ -118,6 +118,7 @@ handlers) and `HostNetworkStatus` for the simulator. A Core-level
 `NetworkStatusMonitor` (`src/core/network_status_monitor.h`) polls it on
 the existing clock tick and publishes `WifiConnectivityChangedEvent` only
 on an actual connected/disconnected transition — the status bar's Wi-Fi
-icon is the first consumer. The network-status dashboard widget and the
-Web UI's Wi-Fi management page named above are still open, now-unblocked
-follow-ups, not built yet.
+icon is the first consumer, and the network-status dashboard widget
+(`NetworkStatusWidget`, see [dashboard.md](dashboard.md#status)) is the
+second. The Web UI's Wi-Fi management page named above is still open, a
+now-unblocked follow-up, not built yet.

@@ -398,13 +398,17 @@ simulator.
       targets. **Confirmed on hardware** (K145 reference unit): builds
       cleanly on both targets, boots without a crash (`Dashboard loaded`
       logged, heartbeat continues normally), and renders as intended -
-      centered, legible, no clipping or overlap. Still open: the weather
-      widget (Core `WeatherProvider`
+      centered, legible, no clipping or overlap. **A network status
+      widget is also real** — `NetworkStatusWidget`
+      (`src/ui/network_status_widget.h`/`.cpp`, connectivity detail
+      beyond the status bar's compact icon - see the Status bar item
+      below and [dashboard.md](architecture/dashboard.md#status)).
+      Confirmed in the simulator (connected and disconnected states) and
+      on the K145 reference unit, including the rendered layout on the
+      real panel. Still open: the
+      weather widget (Core `WeatherProvider`
       interface, Open-Meteo as the direct provider - see
-      [dashboard.md](architecture/dashboard.md#weather-source)); and a
-      network status widget (Core, connectivity detail beyond the status
-      bar's compact icon - see the Status bar item below and
-      [dashboard.md](architecture/dashboard.md#widget-system)). The
+      [dashboard.md](architecture/dashboard.md#weather-source)). The
       screen/widget-destroyed-at-runtime scenario ADR-0011's fix targets
       doesn't arrive with weather specifically — it needs the
       enable/disable or reorder customization named in
@@ -433,10 +437,11 @@ simulator.
       [networking.md](architecture/networking.md#status)) - the
       status-bar half of the "where does network status live" question
       also named in the Widget framework item above (see
-      [dashboard.md](architecture/dashboard.md#status-bar)). Still open:
-      the fuller network-status grid widget and the Web UI's Wi-Fi
-      management page named there - both remain separate, now-unblocked
-      follow-ups, not built yet. Still open: `clock_label_` shows blank
+      [dashboard.md](architecture/dashboard.md#status-bar)); the fuller
+      network-status grid widget named there is also now built (see the
+      Widget framework item above). Still open: the Web UI's Wi-Fi
+      management page, a separate, now-unblocked follow-up, not built
+      yet. Still open: `clock_label_` shows blank
       for up to one
       Clock period (~1s) after construction rather than the correct time
       immediately - `battery_label_` avoids this by reading

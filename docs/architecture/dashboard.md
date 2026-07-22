@@ -197,3 +197,28 @@ exists, per this section's own original intent. **Confirmed on
 hardware** (Tab5 K145 reference unit): renders centered and legible,
 with no clipping or overlap. Weather (see [Weather
 source](#weather-source) above) remains a separate follow-up pass.
+
+**The network status widget is also real**: `NetworkStatusWidget`
+(`src/ui/network_status_widget.h`/`.cpp`) is the
+"fuller network status grid widget for detail beyond what an icon can
+show" this doc's [Status bar](#status-bar) section names above - a
+2-column tile showing the Wi-Fi icon plus connected/disconnected state,
+and (once connected) SSID and IP, sourced from the same
+`NetworkStatus`/`WifiConnectivityChangedEvent` the status bar's icon
+uses (see [networking.md](networking.md#status)). SSID is truncated
+with an ellipsis at its real 32-character maximum rather than wrapped,
+since a wrapped second line would push the IP label out of the tile.
+When disconnected, the SSID/IP labels are hidden rather than blanked,
+so a lone "Disconnected" line stays centered in the tile instead of
+leaving dead space below it. **Confirmed in the simulator**: renders
+correctly alongside `ClockWidget`, both connected (real SSID/IP) and
+disconnected (exercised via a simulator debug button) states.
+**Confirmed on the Tab5 K145 reference unit**, including the rendered
+layout on the real panel: boots without a crash, the real Wi-Fi SSID/IP
+reach it (`Dashboard loaded` followed by a clean heartbeat, confirmed
+via serial log), and it renders correctly alongside `ClockWidget`. Known
+gap: `NetworkStatusMonitor` only publishes on a
+connected/disconnected transition, so an IP change that doesn't pass
+through a disconnect (e.g. a DHCP lease renewal while still associated)
+won't refresh this widget's IP label - not observed in practice and not
+worth a second event/poll path until it is.

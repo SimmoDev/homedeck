@@ -19,6 +19,7 @@
 #include "platform/steady_time_source.h"
 #include "ui/clock_widget.h"
 #include "ui/navigation.h"
+#include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
@@ -200,6 +201,25 @@ void CreateTestWifiSetupNavButton(lv_obj_t* parent, homedeck::Navigation& naviga
     lv_label_set_text(label, "Test: go to Wi-Fi setup screen");
 }
 
+// Temporary test-only wiring to exercise StatusBar's and
+// NetworkStatusWidget's disconnected rendering - HostNetworkStatus
+// defaults to connected with nothing to disconnect it, the same
+// reasoning CreateTestLowBatteryButton above already follows. Removed
+// once a real trigger exists.
+void OnTestWifiDisconnectClicked(lv_event_t* e) {
+    auto* network_status = static_cast<homedeck::HostNetworkStatus*>(lv_event_get_user_data(e));
+    network_status->SetConnected(!network_status->Snapshot().connected);
+}
+
+void CreateTestWifiDisconnectButton(lv_obj_t* parent, homedeck::HostNetworkStatus& network_status) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -352);
+    lv_obj_add_event_cb(button, OnTestWifiDisconnectClicked, LV_EVENT_CLICKED, &network_status);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: toggle wifi disconnected");
+}
+
 }  // namespace
 
 // The dashboard shell, StatusBar, and DashboardGrid widget framework -
@@ -222,6 +242,8 @@ int main() {
     homedeck::DashboardScreen dashboard(event_bus, battery_reader, network_status);
     homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
     dashboard.Grid().AddWidget(clock_widget);
+    homedeck::NetworkStatusWidget network_status_widget(dashboard.Grid().Container(), event_bus, network_status);
+    dashboard.Grid().AddWidget(network_status_widget);
 
     homedeck::Navigation navigation("dashboard", dashboard.Root());
 
@@ -240,6 +262,7 @@ int main() {
     navigation.Register("wifi-setup", wifi_setup_screen.Root());
 
     CreateTestWifiSetupNavButton(dashboard.Root(), navigation);
+    CreateTestWifiDisconnectButton(dashboard.Root(), network_status);
     CreateTestLowBatteryButton(dashboard.Root(), battery_reader);
     CreateTestExternalPowerButton(dashboard.Root(), battery_reader);
     CreateTestBatteryPresentButton(dashboard.Root(), battery_reader);

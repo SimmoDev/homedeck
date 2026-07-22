@@ -90,6 +90,7 @@ if(TARGET lvgl)
     ui/status_bar.cpp
     ui/dashboard_grid.cpp
     ui/clock_widget.cpp
+    ui/network_status_widget.cpp
     ui/notification_banner.cpp
     ui/keyboard_input.cpp
     ui/screens/dashboard_screen.cpp
