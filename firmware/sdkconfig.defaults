@@ -113,11 +113,12 @@ CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 # mbedtls defaults to hardware-accelerated SHA (GDMA + the SHA
 # peripheral) - its own Kconfig help text already warns "faster than
 # software in some situations but slower in others, you should
-# benchmark." AdminAuthService's PBKDF2-SHA256 password hashing
-# (100,000 iterations, ~200,000 individual SHA256 block operations) is
-# the "slower" case: a fixed per-call DMA setup/teardown cost, paid on
-# every one of those operations, took a single login call past 30
-# seconds on real hardware - long enough to trip the task watchdog.
+# benchmark." AdminAuthService's PBKDF2-SHA256 password hashing (see
+# admin_auth_service.cpp for the current iteration count and full
+# rationale) is the "slower" case: a fixed per-call DMA setup/teardown
+# cost, paid on every individual SHA256 block operation PBKDF2
+# performs, took a single login call past 30 seconds on real hardware
+# at 100,000 iterations - long enough to trip the task watchdog.
 # Software SHA256 has no such per-call overhead.
 CONFIG_MBEDTLS_HARDWARE_SHA=n
 
