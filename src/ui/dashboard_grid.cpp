@@ -91,6 +91,14 @@ void DashboardGrid::MarkOccupied(int row, int col, int col_span, int row_span) {
 void DashboardGrid::AddWidget(Widget& widget) {
     int col_span = widget.ColumnSpan();
     int row_span = widget.RowSpan();
+    // A col_span wider than the grid itself would make Fits() reject
+    // every column at every row below, spinning the placement loop
+    // forever instead of terminating - clamp defensively (see
+    // widget.h's own ColumnSpan() contract) rather than hang the UI
+    // thread on a misbehaving Widget implementation.
+    if (col_span > kColumns) {
+        col_span = kColumns;
+    }
 
     int row = 0;
     int col = 0;
