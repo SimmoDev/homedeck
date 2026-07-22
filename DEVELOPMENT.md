@@ -92,6 +92,12 @@ trying to hold all of it in mind now.
   A plain host CMake + SDL2 build is a well-trodden combination — see
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system)
   for why this was chosen over running it under ESP-IDF's Linux target.
+- **libcurl development package** — required for `HostHttpClient`'s
+  (`src/platform/host/http_client.h`) outbound HTTP support (weather
+  and any future module needing it). Exact package name is platform-
+  dependent (e.g. `libcurl4-openssl-dev` on Debian/Ubuntu). System-linked
+  via `find_package(CURL)`, not vendored, the same host-only-tooling
+  precedent as SDL2 above.
 - **Python 3** — only needed on the host if using a native ESP-IDF install
   instead of Docker; the `espressif/idf:v5.4.3` image bundles its own
   (Python 3.12.3, verified working).

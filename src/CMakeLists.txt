@@ -50,6 +50,15 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(mbedtls)
 
+# HttpClient's host backend (see platform/host/http_client.h) - system-
+# linked, not FetchContent-vendored like civetweb/mbedtls above: this is
+# host-only dev tooling never shipped to firmware, the same precedent
+# DEVELOPMENT.md already sets for SDL2 (a required system package, not
+# vendored). libcurl's own build (many optional features, SSL backend
+# selection) is also meaningfully heavier to vendor from source than
+# civetweb/mbedtls were.
+find_package(CURL REQUIRED)
+
 add_library(homedeck_platform_host
   platform/host/task.cpp
   platform/host/timer.cpp
@@ -58,11 +67,12 @@ add_library(homedeck_platform_host
   platform/host/secret_store.cpp
   platform/host/cache_store.cpp
   platform/host/http_server.cpp
+  platform/host/http_client.cpp
   platform/static_assets.cpp
 )
 target_include_directories(homedeck_platform_host PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(homedeck_platform_host PUBLIC cxx_std_20)
-target_link_libraries(homedeck_platform_host PUBLIC civetweb-c-library)
+target_link_libraries(homedeck_platform_host PUBLIC civetweb-c-library CURL::libcurl)
 
 add_library(homedeck_core
   core/event_bus.cpp
@@ -70,6 +80,8 @@ add_library(homedeck_core
   core/storage.cpp
   core/low_battery_monitor.cpp
   core/network_status_monitor.cpp
+  core/weather_provider.cpp
+  core/weather_routes.cpp
   core/admin_auth_service.cpp
   core/diagnostics_routes.cpp
   core/ota_routes.cpp
@@ -91,6 +103,7 @@ if(TARGET lvgl)
     ui/dashboard_grid.cpp
     ui/clock_widget.cpp
     ui/network_status_widget.cpp
+    ui/weather_widget.cpp
     ui/notification_banner.cpp
     ui/keyboard_input.cpp
     ui/screens/dashboard_screen.cpp

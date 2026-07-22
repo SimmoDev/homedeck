@@ -55,10 +55,12 @@ bool Storage::SetSetting(const std::string& module_id, const std::string& key, i
     if (IsReservedForSecrets(module_id, key)) {
         return false;
     }
+    std::lock_guard<std::mutex> lock(mutex_);
     return settings_store_.Set(module_id, key, Encode(schema_version, value));
 }
 
 std::optional<VersionedValue> Storage::GetSetting(const std::string& module_id, const std::string& key) {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::optional<std::string> raw = settings_store_.Get(module_id, key);
     if (!raw.has_value()) {
         return std::nullopt;
@@ -67,10 +69,12 @@ std::optional<VersionedValue> Storage::GetSetting(const std::string& module_id, 
 }
 
 bool Storage::EraseSetting(const std::string& module_id, const std::string& key) {
+    std::lock_guard<std::mutex> lock(mutex_);
     return settings_store_.Erase(module_id, key);
 }
 
 std::vector<SettingEntry> Storage::ListAllSettings() {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::vector<SettingEntry> entries;
     for (const SettingsEntry& raw : settings_store_.ListAll()) {
         if (IsReservedForSecrets(raw.ns, raw.key)) {
@@ -87,10 +91,12 @@ std::vector<SettingEntry> Storage::ListAllSettings() {
 
 bool Storage::SetSecret(const std::string& module_id, const std::string& key, int schema_version,
                          const std::string& value) {
+    std::lock_guard<std::mutex> lock(mutex_);
     return secret_store_.Set(module_id, key, Encode(schema_version, value));
 }
 
 std::optional<VersionedValue> Storage::GetSecret(const std::string& module_id, const std::string& key) {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::optional<std::string> raw = secret_store_.Get(module_id, key);
     if (!raw.has_value()) {
         return std::nullopt;
@@ -99,15 +105,18 @@ std::optional<VersionedValue> Storage::GetSecret(const std::string& module_id, c
 }
 
 bool Storage::EraseSecret(const std::string& module_id, const std::string& key) {
+    std::lock_guard<std::mutex> lock(mutex_);
     return secret_store_.Erase(module_id, key);
 }
 
 bool Storage::WriteCache(const std::string& module_id, const std::string& key, int schema_version,
                           const std::string& value) {
+    std::lock_guard<std::mutex> lock(mutex_);
     return cache_store_.Write(module_id, key, Encode(schema_version, value));
 }
 
 std::optional<VersionedValue> Storage::ReadCache(const std::string& module_id, const std::string& key) {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::optional<std::string> raw = cache_store_.Read(module_id, key);
     if (!raw.has_value()) {
         return std::nullopt;
@@ -116,6 +125,7 @@ std::optional<VersionedValue> Storage::ReadCache(const std::string& module_id, c
 }
 
 bool Storage::EraseCache(const std::string& module_id, const std::string& key) {
+    std::lock_guard<std::mutex> lock(mutex_);
     return cache_store_.Erase(module_id, key);
 }
 

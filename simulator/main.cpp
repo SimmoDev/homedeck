@@ -7,9 +7,12 @@
 #include "core/network_status_monitor.h"
 #include "core/ota_routes.h"
 #include "core/settings_routes.h"
+#include "core/weather_provider.h"
+#include "core/weather_routes.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/file_backed_store.h"
+#include "platform/host/http_client.h"
 #include "platform/host/http_server.h"
 #include "platform/host/network_status.h"
 #include "platform/host/secret_store.h"
@@ -24,6 +27,7 @@
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/ui_task.h"
+#include "ui/weather_widget.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -239,11 +243,28 @@ int main() {
     // happens.
     homedeck::HostBatteryReader battery_reader;
     homedeck::HostNetworkStatus network_status;
+
+    // Moved ahead of the dashboard's construction below (unlike Logger
+    // further down, which doesn't need to be) so WeatherWidget can be
+    // constructed alongside ClockWidget/NetworkStatusWidget - see
+    // homedeck.cpp's identical reordering note (no equivalent OS-init
+    // constraint here, HostSettingsStore/HostSecretStore are plain
+    // filesystem paths).
+    std::filesystem::path storage_root = std::filesystem::temp_directory_path() / "homedeck_simulator";
+    homedeck::HostSettingsStore settings_store(storage_root);
+    homedeck::HostCacheStore cache_store(storage_root);
+    homedeck::HostSecretStore secret_store(storage_root);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    homedeck::HostHttpClient http_client;
+    homedeck::OpenMeteoWeatherProvider weather_provider(http_client, storage, event_bus);
+
     homedeck::DashboardScreen dashboard(event_bus, battery_reader, network_status);
     homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
     dashboard.Grid().AddWidget(clock_widget);
     homedeck::NetworkStatusWidget network_status_widget(dashboard.Grid().Container(), event_bus, network_status);
     dashboard.Grid().AddWidget(network_status_widget);
+    homedeck::WeatherWidget weather_widget(dashboard.Grid().Container(), event_bus, weather_provider);
+    dashboard.Grid().AddWidget(weather_widget);
 
     homedeck::Navigation navigation("dashboard", dashboard.Root());
 
@@ -287,17 +308,12 @@ int main() {
     homedeck::HostTimeSource time_source;
     homedeck::Clock clock(time_source, event_bus);
 
-    // AdminAuthService's password hash storage (see
-    // docs/architecture/web-ui.md#admin-password) - a fixed location
+    // Storage (constructed earlier above, see its own comment there)
+    // backs both AdminAuthService's password hash - a fixed location
     // under the OS temp directory rather than a fresh one per run, so
     // the simulator's admin password persists across restarts the same
     // way NVS would on real hardware, instead of demanding first-login
-    // setup again every time the simulator relaunches.
-    std::filesystem::path storage_root = std::filesystem::temp_directory_path() / "homedeck_simulator";
-    homedeck::HostSettingsStore settings_store(storage_root);
-    homedeck::HostCacheStore cache_store(storage_root);
-    homedeck::HostSecretStore secret_store(storage_root);
-    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    // setup again every time the simulator relaunches - and Logger here.
     homedeck::Logger logger(storage, time_source);
     CreateTestLogEntryButton(dashboard.Root(), logger);
     // A monotonic clock, not the shared wall-clock time_source above -
@@ -310,8 +326,7 @@ int main() {
 
     // The Web Management UI's server primitive (see
     // docs/architecture/web-ui.md#status) - the built Svelte/Vite
-    // scaffold plus admin auth. Real settings/diagnostics pages are
-    // still future passes.
+    // scaffold plus admin auth, settings, and diagnostics.
     homedeck::HostHttpServer web_server;
     // Read once at startup, not per-request - matches firmware's
     // EMBED_FILES approach (data available for the process's lifetime),
@@ -365,6 +380,7 @@ int main() {
     // storage like any other setting (see settings_routes.h's own
     // comment on why the callback is optional).
     homedeck::RegisterSettingsRoutes(web_server, storage, admin_auth);
+    homedeck::RegisterWeatherRoutes(web_server, http_client, weather_provider, admin_auth);
     uint16_t web_port = ResolveWebPort();
     if (web_server.Start(web_port)) {
         std::printf("Web UI listening on http://localhost:%u/\n", web_port);

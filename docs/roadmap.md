@@ -377,7 +377,7 @@ simulator.
       indicator (a real widget, separate follow-up like weather), and the
       alert-priority wake cycle itself (Power Management scope, still
       unbuilt)
-- [ ] Widget framework (general dashboard widget interface), including the
+- [x] Widget framework (general dashboard widget interface), including the
       weather widget (Core `WeatherProvider` interface, Open-Meteo as the
       direct provider — see [dashboard.md](architecture/dashboard.md#weather-source)).
       Its prerequisite is done: `EventBus`'s cross-thread subscriber-lifetime
@@ -405,13 +405,35 @@ simulator.
       below and [dashboard.md](architecture/dashboard.md#status)).
       Confirmed in the simulator (connected and disconnected states) and
       on the K145 reference unit, including the rendered layout on the
-      real panel. Still open: the
-      weather widget (Core `WeatherProvider`
-      interface, Open-Meteo as the direct provider - see
-      [dashboard.md](architecture/dashboard.md#weather-source)). The
-      screen/widget-destroyed-at-runtime scenario ADR-0011's fix targets
-      doesn't arrive with weather specifically — it needs the
-      enable/disable or reorder customization named in
+      real panel. **The weather widget is also real** —
+      `WeatherWidget`/`OpenMeteoWeatherProvider`
+      (`src/ui/weather_widget.h`/`.cpp`, `src/core/weather_provider.h`/`.cpp`)
+      — the first outbound-HTTPS feature in this codebase (see
+      [networking.md](architecture/networking.md#status) for the new
+      `HttpClient` platform interface this and future modules build on)
+      and the first to exercise live/cached/not-configured data
+      freshness (see [dashboard.md](architecture/dashboard.md#status)).
+      Location is chosen via a place-name search (Open-Meteo's own free
+      geocoding API, proxied through a new admin-gated
+      `GET /api/weather/geocode` endpoint) in the Web UI's Settings page
+      (`webui/src/lib/Settings.svelte`), confirmed end to end — search,
+      select, save, and a real forecast rendering on the dashboard — in
+      both the simulator and a real browser session, and on the K145
+      reference unit (real HTTPS fetch succeeds over Wi-Fi, no crash,
+      widget renders a real reading). Not yet configured on the K145
+      unit itself as of this pass — verified via the simulator's and a
+      desktop browser's own real requests instead.
+      Still open, deliberately out of scope for this pass: weather
+      condition icons and Fahrenheit/Celsius selection (both M7 polish,
+      see the M7 section below). Also still open: a tap handler on
+      `Widget` itself (no widget has one today) - deferred until
+      Harmony (M3) or Kodi (M4) first need tap-for-detail, rather than
+      designed speculatively against weather alone; a richer
+      hourly/daily forecast screen reachable by tapping the weather
+      tile specifically is separate M7 polish scope once that mechanism
+      exists. The screen/widget-destroyed-at-runtime scenario
+      ADR-0011's fix targets doesn't arrive with weather specifically —
+      it needs the enable/disable or reorder customization named in
       [dashboard.md](architecture/dashboard.md#customization-future),
       which is separate, later M7 scope
 - [x] Status bar (persistent date/time and battery, shown on every screen —
@@ -547,6 +569,16 @@ day-to-day usage with HomeDeck.
       Timing within M7 is a placeholder, not fixed: the actual trigger is
       a real module credential existing to protect (see ADR-0018), which
       may land earlier once M3+ modules are built
+- [ ] Weather condition icons for `WeatherWidget` (`src/ui/weather_widget.cpp`),
+      replacing the current text-only WMO condition mapping - custom
+      icon assets, out of scope for the widget's first pass (see
+      [dashboard.md](architecture/dashboard.md#status))
+- [ ] Celsius/Fahrenheit unit selection for `WeatherWidget` - currently
+      hardcoded to Celsius (`OpenMeteoWeatherProvider`,
+      `src/core/weather_provider.cpp`)
+- [ ] Richer weather detail (hourly/daily forecast) reachable by tapping
+      the weather tile, once `Widget` gains a tap handler (see the
+      Widget framework item's own note in M2)
 
 ## Architectural Decisions Index
 

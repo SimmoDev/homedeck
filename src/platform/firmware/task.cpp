@@ -10,9 +10,15 @@ namespace homedeck {
 
 namespace {
 
-// Starting points, not deeply tuned - revisit if a real background task
-// needs more headroom or contention becomes a problem.
-constexpr uint32_t kStackSizeBytes = 4096;
+// OpenMeteoWeatherProvider's poll Task (core/weather_provider.h) is the
+// first real Task consumer, and runs esp_http_client/TLS (mbedtls) plus
+// JSON parsing - both genuinely stack-hungry, well past a minimal
+// background task's usual footprint. Same "generous, not just past
+// current requirement" reasoning as CONFIG_ESP_MAIN_TASK_STACK_SIZE/
+// CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH in sdkconfig.defaults - PSRAM/
+// RAM headroom makes a larger static stack cheap, and this constant
+// applies uniformly to every Task instance, not just this one caller.
+constexpr uint32_t kStackSizeBytes = 12288;
 constexpr UBaseType_t kPriority = tskIDLE_PRIORITY + 1;
 
 // FreeRTOS's xTaskCreate only accepts a plain C function pointer plus a

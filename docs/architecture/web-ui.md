@@ -246,12 +246,34 @@ regression test). `webui/src/lib/Settings.svelte` shows a concrete
 device name field (the first real setting - replaces the previously
 hardcoded `"homedeck"` mDNS hostname, applied live via
 `mdns_hostname_set()` without a reboot) plus backup download/restore -
-deliberately not a generic raw settings editor, since there's no real
-module yet to give one a second data point to design against. Confirmed
+deliberately not a generic raw settings editor, since device name alone
+gave the design nothing to check itself against. Confirmed
 end to end against both the simulator and the K145 reference unit
 (`curl` against a real running server, including the
 admin-password-exclusion regression scenario and the live mDNS
 re-announce, with no reboot).
+
+**Weather location is the second real setting** - a place-name search
+box backed by a new `GET /api/weather/geocode?query=<name>` endpoint
+(`src/core/weather_routes.h`/`.cpp`, admin-only like every other
+endpoint here), proxying Open-Meteo's own free geocoding API rather
+than the browser calling it directly, so the Web UI stays a client of
+only the device's own API surface. Selecting a search result saves
+`latitude`/`longitude`/`display_name` through the existing generic
+settings endpoints above - no dedicated save endpoint needed, confirming
+the generic API's design holds up against a second real consumer - then
+calls a second new endpoint, `POST /api/weather/refresh`, which wakes
+`OpenMeteoWeatherProvider`'s poll loop immediately (see
+[dashboard.md](dashboard.md#status)) rather than leaving the dashboard
+to wait out the rest of a real 30-minute poll interval before showing
+anything for the location just chosen. Confirmed end to end (search,
+select, save, refresh, and the dashboard's weather widget picking up
+the change within a couple of seconds) against the simulator, a real
+desktop browser session, and the K145 reference unit - a real GET
+`/api/weather/geocode` search, `POST /api/settings`, and
+`POST /api/weather/refresh` against the unit's own Web UI, with the
+triggered fetch's real TLS handshake (`esp-x509-crt-bundle: Certificate
+validated`) visible in the serial log immediately after.
 
 Still open, each its own future pass: WebSockets for live updates,
 module configuration specifically (no real module exists yet to

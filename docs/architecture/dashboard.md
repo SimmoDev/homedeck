@@ -65,8 +65,9 @@ the data source is user-selectable in the Web Management UI, with no
 default enabled:
 
 - **Direct provider** — Open-Meteo (no API key required), with the user
-  entering a location manually. Available from M2 onward, independent of
-  any module.
+  choosing a location via a place-name search (also Open-Meteo, its free
+  geocoding API - see [Status](#status) below). Real as of M2,
+  independent of any module.
 - **Home Assistant provider** — supplied by the HA module (M6) through the
   same interface, reusing whatever weather source the user already has in
   HA.
@@ -196,7 +197,7 @@ mixed-span placement mechanism — both removed now that a real widget
 exists, per this section's own original intent. **Confirmed on
 hardware** (Tab5 K145 reference unit): renders centered and legible,
 with no clipping or overlap. Weather (see [Weather
-source](#weather-source) above) remains a separate follow-up pass.
+source](#weather-source) above) is also real - see below.
 
 **The network status widget is also real**: `NetworkStatusWidget`
 (`src/ui/network_status_widget.h`/`.cpp`) is the
@@ -222,3 +223,38 @@ connected/disconnected transition, so an IP change that doesn't pass
 through a disconnect (e.g. a DHCP lease renewal while still associated)
 won't refresh this widget's IP label - not observed in practice and not
 worth a second event/poll path until it is.
+
+**The weather widget is also real**: `WeatherWidget`
+(`src/ui/weather_widget.h`/`.cpp`), backed by `OpenMeteoWeatherProvider`
+(`src/core/weather_provider.h`/`.cpp` - see [Weather
+source](#weather-source) below and
+[networking.md](networking.md#status) for the new outbound `HttpClient`
+interface it's built on). A 2-column tile showing temperature and a WMO
+condition-code text mapping (no custom icons yet - see the roadmap's M7
+polish item), plus the configured location's display name. Renders one
+of three states: not configured ("Set a location in Settings"), a live
+reading, or a cached/stale reading marked as such - the first widget to
+exercise this doc's own [Data freshness](#data-freshness) requirement
+for real, per ADR-0008's note that it was left undesigned until a real
+widget existed to design against. Polls Open-Meteo every 30 minutes on
+a dedicated background `Task` (`src/platform/task.h`), not `Timer` -
+FreeRTOS's software timers share one timer-service task sized for
+lightweight callbacks (`Clock`'s own tick), and a multi-second HTTPS
+fetch would stall every other timer system-wide if run there. A
+condition variable, not a plain sleep, governs the wait between polls -
+`OpenMeteoWeatherProvider::TriggerPoll()` notifies it to wake the loop
+immediately, so choosing a new location doesn't leave the dashboard
+waiting out the rest of a real 30-minute interval in silence; the
+Web UI's Settings page calls this (via `POST /api/weather/refresh`, see
+[web-ui.md](web-ui.md#status)) right after saving a newly-selected
+location. Confirmed end to end against the simulator, a real browser
+session, and the Tab5 K145 reference unit (location search via
+Open-Meteo's own geocoding API, proxied through a new admin-gated
+`GET /api/weather/geocode` endpoint, selecting a result, and
+`TriggerPoll()` firing a real fetch immediately - a real TLS handshake
+visible in the reference unit's own serial log right after). `Storage`
+(`src/core/storage.h`) is internally
+thread-safe (a single mutex guarding every method) - genuinely needed,
+not defensive: app_main's boot sequence, the Web UI's httpd worker
+thread, and this widget's poll `Task` all call into the same `Storage`
+instance with no coordination between them.

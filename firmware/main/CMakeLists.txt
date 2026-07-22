@@ -34,6 +34,8 @@ idf_component_register(
         "../../src/core/storage.cpp"
         "../../src/core/low_battery_monitor.cpp"
         "../../src/core/network_status_monitor.cpp"
+        "../../src/core/weather_provider.cpp"
+        "../../src/core/weather_routes.cpp"
         "../../src/core/admin_auth_service.cpp"
         "../../src/core/diagnostics_routes.cpp"
         "../../src/core/ota_routes.cpp"
@@ -45,6 +47,7 @@ idf_component_register(
         "../../src/ui/dashboard_grid.cpp"
         "../../src/ui/clock_widget.cpp"
         "../../src/ui/network_status_widget.cpp"
+        "../../src/ui/weather_widget.cpp"
         "../../src/ui/notification_banner.cpp"
         "../../src/ui/navigation.cpp"
         "../../src/ui/home_affordance.cpp"
@@ -59,6 +62,7 @@ idf_component_register(
         "../../src/platform/firmware/secret_store.cpp"
         "../../src/platform/firmware/cache_store.cpp"
         "../../src/platform/firmware/http_server.cpp"
+        "../../src/platform/firmware/http_client.cpp"
         "../../src/platform/static_assets.cpp"
     INCLUDE_DIRS
         "."
@@ -68,6 +72,8 @@ idf_component_register(
         esp_netif
         esp_event
         esp_http_server
+        esp_http_client
+        esp-tls
         mdns
         nvs_flash
         fatfs

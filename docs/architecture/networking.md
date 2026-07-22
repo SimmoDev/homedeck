@@ -122,3 +122,16 @@ icon is the first consumer, and the network-status dashboard widget
 (`NetworkStatusWidget`, see [dashboard.md](dashboard.md#status)) is the
 second. The Web UI's Wi-Fi management page named above is still open, a
 now-unblocked follow-up, not built yet.
+
+Outbound HTTP(S) is also real, **confirmed on hardware** — a portable
+`HttpClient` interface (`src/platform/http_client.h`, GET-only) backed
+by `FirmwareHttpClient` (`esp_http_client`, TLS verified via ESP-IDF's
+built-in certificate bundle rather than a pinned cert) and
+`HostHttpClient` (libcurl) for the simulator. The first real consumer
+is the weather widget's Open-Meteo integration (see
+[dashboard.md](dashboard.md#status)); the same interface is expected to
+back Kodi/Uptime Kuma/Home Assistant's own outbound calls once those
+modules exist (M4-M6), not a single-purpose addition. Confirmed on the
+Tab5 K145 reference unit: a real HTTPS GET against a public host
+succeeds over the ESP32-C6/`esp_wifi_remote` link with no new
+RPC-timeout symptoms beyond the existing documented one above.

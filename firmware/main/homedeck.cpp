@@ -27,9 +27,12 @@
 #include "core/network_status_monitor.h"
 #include "core/ota_routes.h"
 #include "core/settings_routes.h"
+#include "core/weather_provider.h"
+#include "core/weather_routes.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/cache_store.h"
+#include "platform/firmware/http_client.h"
 #include "platform/firmware/http_server.h"
 #include "platform/firmware/network_status.h"
 #include "platform/firmware/secret_store.h"
@@ -43,6 +46,7 @@
 #include "ui/notification_banner.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
+#include "ui/weather_widget.h"
 #include "wifi_setup.h"
 
 // The real HomeDeck firmware entry point - the dashboard (see
@@ -178,6 +182,24 @@ extern "C" void app_main(void) {
         nvs_result = nvs_flash_init();
     }
     ESP_ERROR_CHECK(nvs_result);
+
+    // Moved ahead of the dashboard's construction below (unlike Logger
+    // further down, which doesn't need to be) so WeatherWidget can be
+    // constructed alongside ClockWidget/NetworkStatusWidget - requires
+    // nvs_flash_init() above to have already run (see
+    // platform/firmware/settings_store.h's and secret_store.h's own
+    // "Requires nvs_flash_init()" comments); moving this any earlier,
+    // e.g. alongside battery_reader/network_status above, would
+    // silently break every nvs_open() call in both backing stores.
+    homedeck::FirmwareSettingsStore settings_store;
+    homedeck::FirmwareCacheStore cache_store;
+    homedeck::FirmwareSecretStore secret_store;
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    // Outlives OpenMeteoWeatherProvider's own poll Task, which holds a
+    // reference to it for the rest of app_main's life.
+    homedeck::FirmwareHttpClient http_client;
+    homedeck::OpenMeteoWeatherProvider weather_provider(http_client, storage, event_bus);
+
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     homedeck::WifiCredentialsCheck wifi_check = homedeck::InitWifiAndCheckStoredCredentials(network_status);
@@ -188,6 +210,8 @@ extern "C" void app_main(void) {
     dashboard.Grid().AddWidget(clock_widget);
     homedeck::NetworkStatusWidget network_status_widget(dashboard.Grid().Container(), event_bus, network_status);
     dashboard.Grid().AddWidget(network_status_widget);
+    homedeck::WeatherWidget weather_widget(dashboard.Grid().Container(), event_bus, weather_provider);
+    dashboard.Grid().AddWidget(weather_widget);
     // NotificationBanner must exist before LowBatteryMonitor, which must
     // exist before Clock (the ClockTickEvent publisher) - see
     // simulator/main.cpp's identical ordering note. Unlike the
@@ -234,23 +258,18 @@ extern "C" void app_main(void) {
     // right away rather than sitting blank for up to a full tick period.
     homedeck::Clock clock(time_source, event_bus);
 
-    homedeck::LogCrashDiagnostics();
+    homedeck::LogCrashDiagnostics(storage);
 
     // Constructed here, ahead of Wi-Fi/mDNS below, so Logger - built on
-    // Storage, see docs/decisions/ADR-0019-structured-logging.md - can
-    // record those as real boot-sequence events rather than starting
-    // its persisted log only once the Web UI's own setup begins. See
+    // Storage (constructed earlier above, see its own comment there),
+    // see docs/decisions/ADR-0019-structured-logging.md - can record
+    // those as real boot-sequence events rather than starting its
+    // persisted log only once the Web UI's own setup begins. See
     // docs/architecture/web-ui.md#admin-password for why the password
     // hash storage this also backs stays plain NVS/FAT for now, per
     // ADR-0018's staged security model. The password hash itself goes
     // through secret_store, not settings_store - see
     // docs/decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface.
-    // Declared here (not narrower) for the same reason web_server is
-    // below - it must stay alive for the rest of app_main's life.
-    homedeck::FirmwareSettingsStore settings_store;
-    homedeck::FirmwareCacheStore cache_store;
-    homedeck::FirmwareSecretStore secret_store;
-    homedeck::Storage storage(settings_store, cache_store, secret_store);
     homedeck::Logger logger(storage, time_source);
 
     // Continues from InitWifiAndCheckStoredCredentials() above - blocks
@@ -402,6 +421,7 @@ extern "C" void app_main(void) {
         }
         return ok;
     });
+    homedeck::RegisterWeatherRoutes(web_server, http_client, weather_provider, admin_auth);
     if (web_server.Start(80)) {
         printf("Web UI listening on port 80\n");
         logger.Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");

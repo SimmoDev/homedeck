@@ -174,3 +174,10 @@ CONFIG_LV_FONT_MONTSERRAT_24=y
 # enabled on both targets identically, same reasoning as Montserrat 24
 # above.
 CONFIG_LV_FONT_MONTSERRAT_48=y
+
+# FirmwareHttpClient (src/platform/firmware/http_client.h) verifies TLS
+# against ESP-IDF's bundled Mozilla-derived CA certificate set
+# (esp_crt_bundle_attach) rather than a pinned cert that would need
+# manual rotation - the standard, low-maintenance way to trust an
+# arbitrary public HTTPS host (Open-Meteo) without pinning one.
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y

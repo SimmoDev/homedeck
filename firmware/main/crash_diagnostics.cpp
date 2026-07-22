@@ -1,10 +1,5 @@
 #include "crash_diagnostics.h"
 
-#include "core/storage.h"
-#include "platform/firmware/cache_store.h"
-#include "platform/firmware/secret_store.h"
-#include "platform/firmware/settings_store.h"
-
 #include "esp_core_dump.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -56,17 +51,10 @@ const char* ResetReasonToString(esp_reset_reason_t reason) {
 
 }  // namespace
 
-void LogCrashDiagnostics() {
+void LogCrashDiagnostics(Storage& storage) {
     const char* reason = ResetReasonToString(esp_reset_reason());
     ESP_LOGI(kTag, "Last reset reason: %s", reason);
 
-    // Only SetSetting is used here - secret_store is unused, but
-    // Storage's constructor requires all three stores (see
-    // core/storage.h).
-    FirmwareSettingsStore settings_store;
-    FirmwareCacheStore cache_store;
-    FirmwareSecretStore secret_store;
-    Storage storage(settings_store, cache_store, secret_store);
     storage.SetSetting("core", "reset_reason", 1, reason);
 
     bool has_core_dump = esp_core_dump_image_check() == ESP_OK;
@@ -74,9 +62,9 @@ void LogCrashDiagnostics() {
 
     // Raw task name/program counter only - not symbolicated on-device
     // (see ADR-0013). A developer decodes the actual downloaded core
-    // dump off-device against the matching build. Never erased here -
-    // that belongs to a future "downloaded via Web UI" flow, not to
-    // boot-time detection.
+    // dump off-device against the matching build. Never erased here or
+    // by the Web UI's own download endpoint (`core/diagnostics_routes.cpp`) -
+    // erasure isn't implemented anywhere yet.
     if (has_core_dump) {
         esp_core_dump_summary_t summary;
         if (esp_core_dump_get_summary(&summary) == ESP_OK) {

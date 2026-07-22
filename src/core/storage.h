@@ -4,6 +4,7 @@
 #include "platform/secret_store.h"
 #include "platform/settings_store.h"
 
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -48,6 +49,12 @@ struct SettingEntry {
 // by convention") comes from requiring module_id on every call and
 // passing it straight through to the underlying store, rather than
 // trusting callers to prefix their own keys.
+//
+// Thread-safe: every method locks a single internal mutex_ - genuinely
+// needed, not defensive. app_main's own boot-sequence thread, the Web
+// UI's httpd worker thread, and OpenMeteoWeatherProvider's background
+// poll Task (core/weather_provider.h) all call into the same Storage
+// instance, none coordinated with each other.
 class Storage {
 public:
     Storage(SettingsStore& settings_store, CacheStore& cache_store, SecretStore& secret_store);
@@ -88,6 +95,7 @@ public:
     bool EraseCache(const std::string& module_id, const std::string& key);
 
 private:
+    std::mutex mutex_;
     SettingsStore& settings_store_;
     CacheStore& cache_store_;
     SecretStore& secret_store_;
