@@ -41,6 +41,14 @@ NotificationBanner::NotificationBanner(EventBus& event_bus) {
     lv_obj_set_width(label_, LV_PCT(100));
     lv_label_set_long_mode(label_, LV_LABEL_LONG_WRAP);
 
+    // Created once, reused for the life of this instance rather than a
+    // fresh timer per Show() call - see Show()'s own comment for why.
+    // Starts paused: nothing to dismiss until the first notification.
+    dismiss_timer_ = lv_timer_create(OnAutoDismiss, kAutoDismissMs, banner_);
+    lv_timer_set_repeat_count(dismiss_timer_, 1);
+    lv_timer_set_auto_delete(dismiss_timer_, false);
+    lv_timer_pause(dismiss_timer_);
+
     subscription_ = event_bus.SubscribeUi<NotificationEvent>(
         [this](const NotificationEvent& event) { Show(event.message); });
 }
@@ -49,14 +57,16 @@ void NotificationBanner::Show(const std::string& message) {
     lv_label_set_text(label_, message.c_str());
     lv_obj_clear_flag(banner_, LV_OBJ_FLAG_HIDDEN);
 
-    // One-shot: fires once after kAutoDismissMs, then deletes itself -
-    // see lv_timer_set_auto_delete. A notification arriving while the
-    // banner is already visible just restarts the dismiss countdown via
-    // a fresh timer instance; the previous one still fires harmlessly
-    // against an already-hidden (or re-hidden) banner.
-    lv_timer_t* timer = lv_timer_create(OnAutoDismiss, kAutoDismissMs, banner_);
-    lv_timer_set_repeat_count(timer, 1);
-    lv_timer_set_auto_delete(timer, true);
+    // Reusing the same timer (reset + resume + re-arm its repeat count,
+    // rather than creating a new one-shot timer per call) means a
+    // notification arriving while the banner is already visible always
+    // restarts the same kAutoDismissMs countdown from now - a fresh
+    // timer per call would leave the *earlier* call's timer still
+    // pending, which could fire first and hide the banner before this
+    // notification's own window elapses.
+    lv_timer_set_repeat_count(dismiss_timer_, 1);
+    lv_timer_reset(dismiss_timer_);
+    lv_timer_resume(dismiss_timer_);
 }
 
 }  // namespace homedeck

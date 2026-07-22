@@ -22,6 +22,9 @@ private:
 
     lv_obj_t* banner_;
     lv_obj_t* label_;
+    // A single reused timer, not one created fresh per Show() call - see
+    // Show()'s own comment for why.
+    lv_timer_t* dismiss_timer_;
     EventBus::ScopedSubscription subscription_;
 };
 
