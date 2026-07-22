@@ -201,81 +201,24 @@ simulator.
       stored reversibly — see [web-ui.md](architecture/web-ui.md#admin-password))
       and API input validation on every endpoint (mechanism decided at
       implementation time — see
-      [security.md](architecture/security.md#requirement-validate-api-input)),
-      including confirming civetweb's safe cross-task dispatch mechanism
-      for the WebSocket relay before building live updates on the
-      simulator — `esp_http_server`'s side is `httpd_queue_work()`,
-      civetweb's equivalent is not yet confirmed (see
-      [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server)).
-      **The `HttpServer` primitive itself is real, confirmed on both
-      targets, including on real hardware** (`FirmwareHttpServer`/
-      `HostHttpServer` in `src/platform/`, see
-      [web-ui.md](architecture/web-ui.md#status)), proven with a real
-      request/response round trip (an automated raw-socket test against
-      the simulator's server, a manual `curl` against the running
-      simulator, and on the Tab5 K145 reference unit, reachable over the
-      LAN from a browser once Wi-Fi connects). **The admin auth mechanism
-      is also real, confirmed on real hardware** (Tab5 K145 reference
-      unit) — `AdminAuthService` (`src/core/`) implements the first-login
-      setup/login/logout flow this item's own description calls for,
-      PBKDF2-SHA256 password hashing, session cookies, and a
-      `RequireAuth()` gate future protected endpoints will use.
-      Confirmed end to end (setup → protected route → login →
-      wrong-password → logout) via an automated real-HTTP test and
-      manual `curl` runs against both the simulator and the reference
-      unit, including the password surviving a device reboot. The
-      password hash is stored plaintext by design at this project stage
-      - see [ADR-0018](decisions/ADR-0018-staged-security-hardening.md).
-      Login/setup now shows loading feedback while it computes
-      (`PasswordForm.svelte` - the submit button's own text changes to
-      "Logging in..."/"Setting password..." for the duration, rather
-      than just going disabled with no explanation). PBKDF2-SHA256 at
-      25,000 iterations (`admin_auth_service.cpp`) takes ~2 seconds on
-      real hardware at the measured ~12,500 iterations/sec rate - a
-      real margin under ESP-IDF's default 5-second FreeRTOS task
-      watchdog timeout. See that file's own comment for the full
-      rationale, including why hardware SHA acceleration isn't the fix
-      (measured slower, not faster, for PBKDF2's access pattern).
-      **Static asset serving is real on both targets** (`ServeStaticFiles`,
-      `src/platform/static_assets.h`/`.cpp`, see
-      [web-ui.md](architecture/web-ui.md#status)) — assets embedded into
-      the firmware app image rather than a partition (see
-      [ADR-0002](decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)),
-      confirmed on the Tab5 K145 reference unit over the LAN at
-      `http://homedeck.local/`, as well as via a real HTTP request against
-      the simulator and a clean Docker firmware build. **The first-login/
-      session flow is real UI** (`webui/`, see
-      [ADR-0002](decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)) —
-      password setup, login, and an authenticated view with working
-      logout, matching ADR-0007's design including its accepted
-      first-login race handling. Setup/login form renders and the full
-      session lifecycle (wrong password, correct password, logout)
-      confirmed against the simulator; the full bundle including basic
-      layout styling and the wrong-password path confirmed on the Tab5
-      K145 reference unit too. **The diagnostics screen is also real**
-      (reset reason + downloadable core dump - see
-      [diagnostics.md#status](architecture/diagnostics.md#status)),
-      confirmed on both targets including a real core dump download on
-      the reference unit. **Settings and backups are also real** - the
-      generic REST surface (`GET`/`POST /api/settings`, `POST
-      /api/settings/erase`, `GET /api/backup`, `POST
-      /api/backup/restore`), a real first consumer (device name,
-      replacing the previously hardcoded `"homedeck"` mDNS hostname,
-      applied live without a reboot), and a security finding it surfaced
-      and addressed - see
-      [ADR-0023](decisions/ADR-0023-settings-backup-api.md). Confirmed
-      end to end against both the simulator and the K145 reference unit.
-      Still open: WebSockets for live updates, module
-      configuration specifically (no real module exists yet to
-      configure), and Wi-Fi management (view/change post-provisioning -
-      firmware-only today, needs its own simulator-parity design). Also
-      still open, not yet designed: a factory-reset option (clearing
-      stored Wi-Fi credentials, per
+      [security.md](architecture/security.md#requirement-validate-api-input)).
+      Auth, static assets, the first-login/session UI, diagnostics, OTA,
+      settings, backups, and weather-location search are all real and
+      confirmed on both the simulator and the K145 reference unit — see
+      [web-ui.md](architecture/web-ui.md#status) for the full detail.
+      Still open, each its own future pass: WebSockets for live updates
+      (needs confirming civetweb's safe cross-task dispatch mechanism
+      first — `esp_http_server`'s side is `httpd_queue_work()`,
+      civetweb's equivalent is not yet confirmed, see
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server)),
+      module configuration (no real module exists yet to configure - the
+      generic settings API is ready for one), Wi-Fi management
+      (view/change post-provisioning), and a factory-reset option
+      (clearing stored Wi-Fi credentials, per
       [hardware.md](architecture/hardware.md#wi-fi-bring-up) for where
-      those actually live, plus Core's own `Storage` state) — a real
-      user-facing need once someone other than a developer with a serial
-      cable needs to clear them, but scope (a dedicated action vs. part
-      of a broader reset, what exactly gets cleared) isn't decided yet
+      those actually live, plus Core's own `Storage` state) — scope (a
+      dedicated action vs. part of a broader reset, what exactly gets
+      cleared) isn't decided yet
 - [x] OTA update support, gated on battery threshold or external USB-C
       power (see
       [power-management.md](architecture/power-management.md#explicit-power-states)).
@@ -393,65 +336,23 @@ simulator.
       cycle itself (Power Management scope, still unbuilt) - correctly
       out of this item's scope per its own description above, not a gap
       in this pass
-- [x] Widget framework (general dashboard widget interface), including the
-      weather widget (Core `WeatherProvider` interface, Open-Meteo as the
-      direct provider — see [dashboard.md](architecture/dashboard.md#weather-source)).
-      Its prerequisite is done: `EventBus`'s cross-thread subscriber-lifetime
-      gap is resolved (see [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md#consequences)).
-      **The interface and grid layout are real, confirmed on hardware**
-      (Tab5 K145 reference unit) — `Widget` (`src/ui/widget.h`, with
-      `ColumnSpan()`/`RowSpan()` footprint) and `DashboardGrid`
-      (`src/ui/dashboard_grid.h`/`.cpp`, LVGL's native grid layout, 4
-      fixed columns each a fixed square-sized row tall, unbounded
-      scrollable rows, first-fit placement against a real per-row
-      occupancy bitset) are built into `DashboardScreen` on both targets.
-      Multi-widget hosting, first-fit placement at mixed spans (2×1,
-      2×2, 1×1, 1×1), square cells, and cell spacing all render correctly
-      on the real panel, via throwaway widgets on both targets (see
-      [dashboard.md](architecture/dashboard.md#status)). **The first real
-      widget is built**: `ClockWidget` (`src/ui/clock_widget.h`/`.cpp`,
-      the large clock named below) replaces those throwaways on both
-      targets. **Confirmed on hardware** (K145 reference unit): builds
-      cleanly on both targets, boots without a crash (`Dashboard loaded`
-      logged, heartbeat continues normally), and renders as intended -
-      centered, legible, no clipping or overlap. **A network status
-      widget is also real** — `NetworkStatusWidget`
-      (`src/ui/network_status_widget.h`/`.cpp`, connectivity detail
-      beyond the status bar's compact icon - see the Status bar item
-      below and [dashboard.md](architecture/dashboard.md#status)).
-      Confirmed in the simulator (connected and disconnected states) and
-      on the K145 reference unit, including the rendered layout on the
-      real panel. **The weather widget is also real** —
-      `WeatherWidget`/`OpenMeteoWeatherProvider`
-      (`src/ui/weather_widget.h`/`.cpp`, `src/core/weather_provider.h`/`.cpp`)
-      — the first outbound-HTTPS feature in this codebase (see
-      [networking.md](architecture/networking.md#status) for the new
-      `HttpClient` platform interface this and future modules build on)
-      and the first to exercise live/cached/not-configured data
-      freshness (see [dashboard.md](architecture/dashboard.md#status)).
-      Location is chosen via a place-name search (Open-Meteo's own free
-      geocoding API, proxied through a new admin-gated
-      `GET /api/weather/geocode` endpoint) in the Web UI's Settings page
-      (`webui/src/lib/Settings.svelte`), confirmed end to end — search,
-      select, save, and a real forecast rendering on the dashboard — in
-      both the simulator and a real browser session, and on the K145
-      reference unit (real HTTPS fetch succeeds over Wi-Fi, no crash,
-      widget renders a real reading). Not yet configured on the K145
-      unit itself as of this pass — verified via the simulator's and a
-      desktop browser's own real requests instead.
-      Still open, deliberately out of scope for this pass: weather
-      condition icons and Fahrenheit/Celsius selection (both M7 polish,
-      see the M7 section below). Also still open: a tap handler on
-      `Widget` itself (no widget has one today) - deferred until
-      Harmony (M3) or Kodi (M4) first need tap-for-detail, rather than
-      designed speculatively against weather alone; a richer
-      hourly/daily forecast screen reachable by tapping the weather
-      tile specifically is separate M7 polish scope once that mechanism
-      exists. The screen/widget-destroyed-at-runtime scenario
-      ADR-0011's fix targets doesn't arrive with weather specifically —
-      it needs the enable/disable or reorder customization named in
+- [x] Widget framework (general dashboard widget interface), including
+      the weather widget (Core `WeatherProvider` interface, Open-Meteo
+      as the direct provider — see
+      [dashboard.md](architecture/dashboard.md#weather-source)). Real
+      and confirmed on hardware (K145 reference unit) — see
+      [dashboard.md](architecture/dashboard.md#status) for the
+      `Widget`/`DashboardGrid` interface and every real widget built on
+      it (`ClockWidget`, `NetworkStatusWidget`, `WeatherWidget`,
+      `NotificationWidget`). Still open, deliberately out of scope for
+      this pass: weather condition icons and Fahrenheit/Celsius
+      selection (both M7 polish, see the M7 section below); a tap
+      handler on `Widget` itself (no widget has one today) - deferred
+      until Harmony (M3) or Kodi (M4) first need tap-for-detail, rather
+      than designed speculatively against weather alone; and the
+      enable/disable/reorder widget customization named in
       [dashboard.md](architecture/dashboard.md#customization-future),
-      which is separate, later M7 scope
+      separate M7 scope
 - [x] Status bar (persistent date/time and battery, shown on every screen —
       not a dashboard widget, see
       [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)).
