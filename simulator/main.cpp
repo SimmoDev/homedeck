@@ -5,6 +5,7 @@
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
 #include "core/network_status_monitor.h"
+#include "core/notification_sound.h"
 #include "core/ota_routes.h"
 #include "core/settings_routes.h"
 #include "core/weather_provider.h"
@@ -25,6 +26,7 @@
 #include "ui/navigation.h"
 #include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
+#include "ui/notification_widget.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/ui_task.h"
@@ -299,6 +301,8 @@ int main() {
     dashboard.Grid().AddWidget(network_status_widget);
     homedeck::WeatherWidget weather_widget(dashboard.Grid().Container(), event_bus, weather_provider);
     dashboard.Grid().AddWidget(weather_widget);
+    homedeck::NotificationWidget notification_widget(dashboard.Grid().Container(), event_bus);
+    dashboard.Grid().AddWidget(notification_widget);
 
     homedeck::Navigation navigation("dashboard", dashboard.Root());
 
@@ -328,13 +332,15 @@ int main() {
     bool force_ota_failure = false;
     CreateTestForceOtaFailureButton(dashboard.Root(), force_ota_failure);
 
-    // NotificationBanner must exist before LowBatteryMonitor, which must
-    // exist before Clock (the ClockTickEvent publisher) - the same
-    // "subscriber before publisher" ordering StatusBar's own comment
-    // above already explains, extended one step further: LowBatteryMonitor
-    // itself publishes NotificationEvent, so NotificationBanner needs to
-    // already be subscribed before that first tick could fire one.
+    // NotificationBanner and NotificationSound must exist before
+    // LowBatteryMonitor, which must exist before Clock (the
+    // ClockTickEvent publisher) - the same "subscriber before publisher"
+    // ordering StatusBar's own comment above already explains, extended
+    // one step further: LowBatteryMonitor itself publishes
+    // NotificationEvent, so both subscribers need to already be
+    // registered before that first tick could fire one.
     homedeck::NotificationBanner notification_banner(event_bus);
+    homedeck::NotificationSound notification_sound(event_bus, audio_output);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
     // Same "subscriber before publisher" ordering as LowBatteryMonitor -
     // NetworkStatusMonitor is also a ClockTickEvent subscriber.

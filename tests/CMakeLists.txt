@@ -38,6 +38,7 @@ add_executable(homedeck_tests
   low_battery_monitor_test.cpp
   network_status_monitor_test.cpp
   weather_provider_test.cpp
+  notification_sound_test.cpp
   admin_auth_service_test.cpp
   admin_auth_routes_test.cpp
   diagnostics_routes_test.cpp

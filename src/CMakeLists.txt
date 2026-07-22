@@ -87,6 +87,7 @@ add_library(homedeck_core
   core/ota_routes.cpp
   core/settings_routes.cpp
   core/logger.cpp
+  core/notification_sound.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 
@@ -105,6 +106,7 @@ if(TARGET lvgl)
     ui/network_status_widget.cpp
     ui/weather_widget.cpp
     ui/notification_banner.cpp
+    ui/notification_widget.cpp
     ui/keyboard_input.cpp
     ui/screens/dashboard_screen.cpp
     ui/screens/wifi_setup_screen.cpp

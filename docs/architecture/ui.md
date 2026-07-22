@@ -125,13 +125,20 @@ explicitly doesn't yet:
   [hardware.md](hardware.md#audio)) via `AudioOutput`
   (`src/platform/audio_output.h`), the portable audio-out hardware
   interface already named in
-  [overview.md](overview.md#hardware-abstraction) — real and confirmed
-  audible on hardware, but not yet wired to actual notification firing.
-  Exact sound selection per notification severity is an M2
-  implementation detail, not an architectural decision.
-- **Dashboard indicators** — a notification-count/status badge surfaced
-  through the existing widget system (see
-  [dashboard.md](dashboard.md#widget-system)), not a separate mechanism.
+  [overview.md](overview.md#hardware-abstraction) — real, via
+  `NotificationSound` (`src/core/notification_sound.h`/`.cpp`), which
+  plays the same short tone for every `NotificationEvent` regardless of
+  severity today. Differentiating the sound per severity is a real,
+  unresolved product decision (nothing publishes `kAlertPriority` yet),
+  tracked as an M7 follow-up rather than designed speculatively now.
+- **Dashboard indicators** — real, via `NotificationWidget`
+  (`src/ui/notification_widget.h`/`.cpp`), surfaced through the existing
+  widget system (see [dashboard.md](dashboard.md#widget-system)), not a
+  separate mechanism. A last-notification tile (always echoes the most
+  recent message), not an unread-count badge - that variant is a
+  separate, deliberately deferred M7 follow-up (see
+  [roadmap.md](../roadmap.md)), since nothing today fires more than one
+  notification per episode.
 - **Vibration** — CLAUDE.md names this as explicitly "future," and
   correctly so: no haptic motor exists on the confirmed Tab5 BOM (see
   [hardware.md](hardware.md)). Not planned until hardware exists to support
@@ -191,15 +198,17 @@ offline-behaviour contract (see
 this screen needed to solve. The status bar described above is real,
 confirmed on hardware (see [dashboard.md](dashboard.md#status)).
 
-Notification presentation is partly real: `NotificationBanner`
-(`src/ui/notification_banner.h`/`.cpp`) is the screen-banner output —
-parented to LVGL's own top layer (`lv_layer_top()`), not any particular
-screen, since it renders above whatever screen Navigation currently has
-loaded; a single instance covers every screen, unlike `StatusBar`, which
-each screen constructs its own copy of. Auto-dismisses a few seconds
-after showing. Sound and the dashboard-indicator output are not built —
-audio hardware bring-up itself is done (see [Notification
-presentation](#notification-presentation) above), but nothing yet
-triggers a sound on an actual notification firing, and the indicator is
-a real `DashboardGrid` widget that's a separate follow-up, the same as
-weather (see [dashboard.md](dashboard.md#status)).
+Notification presentation is real, all three built outputs confirmed on
+hardware: `NotificationBanner` (`src/ui/notification_banner.h`/`.cpp`)
+is the screen-banner output — parented to LVGL's own top layer
+(`lv_layer_top()`), not any particular screen, since it renders above
+whatever screen Navigation currently has loaded; a single instance
+covers every screen, unlike `StatusBar`, which each screen constructs
+its own copy of. Auto-dismisses a few seconds after showing.
+`NotificationSound` (`src/core/notification_sound.h`/`.cpp`) is the
+sound output, and `NotificationWidget` (`src/ui/notification_widget.h`/
+`.cpp`) is the dashboard-indicator output — see [Notification
+presentation](#notification-presentation) above for both. Confirmed via
+the simulator's existing low-battery test trigger and, on the K145
+reference unit, via a temporary debug publish exercising all three
+together.

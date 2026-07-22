@@ -258,3 +258,19 @@ thread-safe (a single mutex guarding every method) - genuinely needed,
 not defensive: app_main's boot sequence, the Web UI's httpd worker
 thread, and this widget's poll `Task` all call into the same `Storage`
 instance with no coordination between them.
+
+**The notification indicator widget is also real**: `NotificationWidget`
+(`src/ui/notification_widget.h`/`.cpp`) is the dashboard-indicator
+output CLAUDE.md's notification requirements name (see
+[ui.md](ui.md#notification-presentation)) - a 2-column tile always
+echoing the most recent `NotificationEvent`'s message ("No
+notifications yet" until the first one arrives), not an unread-count
+badge - see [roadmap.md](../roadmap.md)'s M7 list for that variant,
+deliberately deferred since nothing today fires more than one
+notification per episode. Subscribes directly to `NotificationEvent`,
+the same as `NotificationBanner`'s own screen-banner presentation of
+the same event - no new Core-owned state exists purely to back this
+widget. Confirmed in the simulator (renders alongside the other three
+widgets, updates on the existing low-battery test trigger) and on the
+Tab5 K145 reference unit (via a temporary debug publish, removed
+afterward).

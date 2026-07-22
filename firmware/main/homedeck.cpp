@@ -25,11 +25,13 @@
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
 #include "core/network_status_monitor.h"
+#include "core/notification_sound.h"
 #include "core/ota_routes.h"
 #include "core/settings_routes.h"
 #include "core/weather_provider.h"
 #include "core/weather_routes.h"
 #include "crash_diagnostics.h"
+#include "platform/firmware/audio_output.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/cache_store.h"
 #include "platform/firmware/http_client.h"
@@ -44,6 +46,7 @@
 #include "ui/navigation.h"
 #include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
+#include "ui/notification_widget.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/weather_widget.h"
@@ -167,6 +170,7 @@ extern "C" void app_main(void) {
     homedeck::Ina226BatteryReader battery_reader(i2c_bus);
     homedeck::Rx8130TimeSource time_source(i2c_bus);
     homedeck::FirmwareNetworkStatus network_status;
+    homedeck::FirmwareAudioOutput audio_output;
 
     // General system init required by Wi-Fi (and later, other Core
     // services that need NVS/the event loop) - see
@@ -212,12 +216,16 @@ extern "C" void app_main(void) {
     dashboard.Grid().AddWidget(network_status_widget);
     homedeck::WeatherWidget weather_widget(dashboard.Grid().Container(), event_bus, weather_provider);
     dashboard.Grid().AddWidget(weather_widget);
-    // NotificationBanner must exist before LowBatteryMonitor, which must
-    // exist before Clock (the ClockTickEvent publisher) - see
-    // simulator/main.cpp's identical ordering note. Unlike the
-    // simulator, there's no manual trigger here - Ina226BatteryReader is
-    // real, so this only actually fires once the pack genuinely runs low.
+    homedeck::NotificationWidget notification_widget(dashboard.Grid().Container(), event_bus);
+    dashboard.Grid().AddWidget(notification_widget);
+    // NotificationBanner and NotificationSound must exist before
+    // LowBatteryMonitor, which must exist before Clock (the
+    // ClockTickEvent publisher) - see simulator/main.cpp's identical
+    // ordering note. Unlike the simulator, there's no manual trigger
+    // here - Ina226BatteryReader is real, so this only actually fires
+    // once the pack genuinely runs low.
     homedeck::NotificationBanner notification_banner(event_bus);
+    homedeck::NotificationSound notification_sound(event_bus, audio_output);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
     // Same "subscriber before publisher" ordering as LowBatteryMonitor -
     // NetworkStatusMonitor is also a ClockTickEvent subscriber, so it

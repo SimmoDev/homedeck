@@ -352,37 +352,45 @@ simulator.
       `HostAudioOutput` (SDL2) implementations. Confirmed audible on the
       K145 reference unit's speaker. Still open, separate follow-ups:
       the ES7210 mic input (not wired up — no capability needs it yet),
-      Notifications' actual sound presentation (below), and on-device
-      volume control — needs a Core-level volume capability regardless
-      of which UI ends up exposing it; where that control actually lives
-      (dashboard/status-bar quick-access vs. something else) is still an
-      open question, deliberately not decided here.
-- [ ] Notifications service, with presentation (banners, sound, dashboard
+      and on-device volume control — needs a Core-level volume
+      capability regardless of which UI ends up exposing it; where that
+      control actually lives (dashboard/status-bar quick-access vs.
+      something else) is still an open question, deliberately not
+      decided here (see the Power management item below for the
+      display-brightness analogue of this same open question).
+- [x] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —
       vibration is out of scope, no motor exists on the confirmed BOM.
-      **The core service and screen-banner output are real** —
+      **All three presentation outputs are real.** The core service:
       `NotificationEvent`/`NotificationSeverity`
       (`src/core/notification.h`, carrying the alert-priority/deferred
       urgency [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
       requires) published via `EventBus`, `LowBatteryMonitor`
       (`src/core/`) as the first real publisher (latched so a sustained
       low-battery state notifies once, not once a second, guarded by a
-      regression test), and `NotificationBanner` (`src/ui/`, parented to
-      LVGL's top layer so it renders over whatever screen is active) as
-      the first real presentation output. Confirmed via the simulator (a
-      temporary test trigger, since the simulator's mock battery never
-      naturally drops low) and confirmed on hardware for the parts that
-      don't need a genuinely low pack to exercise: the new wiring boots
-      and runs the dashboard normally, no regression. The actual
-      notification firing and rendering on the real panel is
-      unconfirmed - `Ina226BatteryReader` has no equivalent manual
-      trigger, so this specifically needs the pack to actually drop below
-      15% to verify, not something forced for this pass. Still open:
-      sound (depends on the Audio bring-up item above), the dashboard
-      indicator (a real widget, separate follow-up like weather), and the
-      alert-priority wake cycle itself (Power Management scope, still
-      unbuilt)
+      regression test). Screen banners: `NotificationBanner` (`src/ui/`,
+      parented to LVGL's top layer so it renders over whatever screen is
+      active). Sound: `NotificationSound` (`src/core/`) - the same
+      Task-plus-condition-variable shape `OpenMeteoWeatherProvider` uses
+      for its own background hardware I/O, but reactive rather than
+      interval-based, playing a short generated tone via `AudioOutput`
+      (see the Audio bring-up item above) on every `NotificationEvent`
+      regardless of severity - differentiating them by sound is real,
+      unresolved product scope, deferred to when a second severity
+      actually has a publisher (see the M7 item below). Dashboard
+      indicator: `NotificationWidget` (`src/ui/`) - a last-notification
+      tile (always echoes the most recent message, matching
+      `ClockWidget`/`NetworkStatusWidget`/`WeatherWidget`'s existing
+      shape), not an unread-count badge - see the M7 item below for that
+      variant, deliberately deferred rather than dropped. Confirmed via
+      the simulator (the existing low-battery test trigger exercises all
+      three outputs together) and confirmed on the K145 reference unit
+      via a temporary debug publish (banner, tone, and tile all fired
+      together; removed afterward). Still open: the alert-priority wake
+      cycle itself (Power Management scope, still unbuilt) - correctly
+      out of this item's scope per its own description above, not a gap
+      in this pass
 - [x] Widget framework (general dashboard widget interface), including the
       weather widget (Core `WeatherProvider` interface, Open-Meteo as the
       direct provider — see [dashboard.md](architecture/dashboard.md#weather-source)).
@@ -493,7 +501,13 @@ simulator.
       protocol-level question is what actually determines the alert-
       priority wake cycle's cost model here (full re-association vs.
       modem-sleep resume), not just its tuned interval (see
-      [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping))
+      [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)).
+      Also still open, separate from automatic brightness (CLAUDE.md's
+      own Power Management capability list): on-device manual brightness
+      control - the display-side analogue of the Audio bring-up item's
+      still-open volume control above, same open question of where the
+      control actually lives (dashboard/status-bar quick-access vs.
+      something else), deliberately not decided here either
 - [ ] Simulator physical-keyboard input (dev tooling, not product scope) —
       `lv_sdl_keyboard_create()` plus an `lv_group` for focus/Tab routing,
       so typing into a text field (e.g. `WifiSetupScreen`) works directly
@@ -585,6 +599,26 @@ day-to-day usage with HomeDeck.
 - [ ] Richer weather detail (hourly/daily forecast) reachable by tapping
       the weather tile, once `Widget` gains a tap handler (see the
       Widget framework item's own note in M2)
+- [ ] Distinct notification sounds per `NotificationSeverity`
+      (`src/core/notification_sound.cpp`) - currently one tone for both
+      `kDeferred`/`kAlertPriority`, deferred until a second severity
+      actually has a real publisher (see the M2 Notifications item)
+- [ ] Nicer notification sound design generally - `NotificationSound`'s
+      current tone is a plain generated sine wave (no audio asset
+      pipeline exists yet - see the M2 Audio bring-up item), functional
+      but not a considered piece of sound design
+- [ ] A startup sound played when the splash screen displays
+      (`ShowSplashScreen()`, `firmware/main/homedeck.cpp`) - not
+      designed yet, and not necessarily `NotificationSound` itself
+      (boot isn't a notification), but the same `AudioOutput` interface
+      it's built on
+- [ ] Unread-notification-count badge as an alternative/addition to
+      `NotificationWidget`'s current last-notification-tile design (see
+      the M2 Notifications item) - needs a new Core-owned counter plus a
+      mark-as-seen rule (on dashboard view? on tap?) that doesn't exist
+      yet and has no natural trigger point today, deliberately deferred
+      rather than built speculatively ahead of a second notification
+      publisher actually existing
 
 ## Architectural Decisions Index
 
