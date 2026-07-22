@@ -63,11 +63,9 @@ indefinitely after a crash is a worse experience than one that recovers.
 - [diagnostics.md](../architecture/diagnostics.md) states the resulting
   design without repeating this reasoning.
 - The core dump partition is a real partition-table entry, planned
-  alongside the OTA A/B scheme during M1/M2 (the current firmware build
-  is still on ESP-IDF's single-app partition table as a pragmatic
-  unblock — see [hardware.md](../architecture/hardware.md#on-device-dashboard)
-  — the real A/B scheme remains M2 scope) — not a detail that can be
-  added invisibly later.
+  alongside the OTA A/B scheme — not a detail that can be added
+  invisibly later. Both are now real; see
+  [ADR-0017](ADR-0017-partition-table.md) for the final table.
 - Web UI diagnostics exposes a core dump download and last-reboot-reason
   display; it does not attempt to decode or symbolicate crashes in the
   browser.

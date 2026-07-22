@@ -67,16 +67,12 @@ dependency (e.g. the camera-QR provisioning path in
 
 ## OTA image integrity
 
-**Known gap, deliberately deferred, not silently absent.** ESP-IDF's A/B
-partition scheme (see
-[ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md)) protects
-against *boot-time corruption* from an interrupted OTA write — it does not
-verify that an OTA image actually came from the project itself. The
-current firmware build doesn't actually have the real A/B table in place
-yet either — it's still on ESP-IDF's single-app partition table as a
-pragmatic unblock (see
-[hardware.md](hardware.md#on-device-dashboard)), with the real A/B
-scheme remaining explicit M2 scope. Today, the
+**Known gap, deliberately deferred, not silently absent.** The real A/B
+partition scheme is in place — `ota_0`/`ota_1` app partitions plus
+bootloader app-rollback (see
+[ADR-0017](../decisions/ADR-0017-partition-table.md)) — and protects
+against *boot-time corruption* from an interrupted OTA write. It does not
+verify that an OTA image actually came from the project itself. Today, the
 only barrier to pushing an arbitrary firmware image is the Web UI's admin
 authentication gating the OTA endpoint (see
 [web-ui.md](web-ui.md#security)) — so the realistic exposure is an
