@@ -102,10 +102,14 @@ No module code exists yet. See
 [DEVELOPMENT.md](../../DEVELOPMENT.md#simulator-workflow) for the
 day-to-day workflow.
 
-Only `lv_sdl_mouse_create()` is registered as an input device — a
-physical keyboard press does nothing right now, so exercising a text
-field (e.g. `WifiSetupScreen`, see [ui.md](ui.md#status)) means clicking
-the on-screen keyboard. Wiring up `lv_sdl_keyboard_create()` plus an
-`lv_group` for focus/Tab routing would let a developer type directly,
-speeding up iteration on that and future text-entry screens — flagged as
-a follow-up, not done here.
+Physical keyboard input is also real: `UiTask` (`src/ui/ui_task.cpp`)
+sets a default `lv_group` before any screen is constructed, so every
+focusable widget (textareas, buttons) LVGL creates from then on joins
+it automatically (`group_def=true` in its own widget class - no
+per-screen wiring needed), then registers `lv_sdl_keyboard_create()`
+against that group alongside the existing `lv_sdl_mouse_create()`.
+Typing, Tab/arrow-key focus movement, and Enter/Escape all work
+directly on a text field (e.g. `WifiSetupScreen`, see
+[ui.md](ui.md#status)) without touching the on-screen keyboard, though
+that still works too - confirmed manually in the simulator. Dev tooling
+only, no on-device equivalent (touch is the only real input).

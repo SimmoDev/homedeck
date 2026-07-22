@@ -508,11 +508,13 @@ simulator.
       still-open volume control above, same open question of where the
       control actually lives (dashboard/status-bar quick-access vs.
       something else), deliberately not decided here either
-- [ ] Simulator physical-keyboard input (dev tooling, not product scope) —
-      `lv_sdl_keyboard_create()` plus an `lv_group` for focus/Tab routing,
-      so typing into a text field (e.g. `WifiSetupScreen`) works directly
-      from a physical keyboard instead of only by clicking the on-screen
-      one — see [simulator.md](architecture/simulator.md#status).
+- [x] Simulator physical-keyboard input (dev tooling, not product scope) —
+      `lv_sdl_keyboard_create()` plus a default `lv_group` for focus/Tab
+      routing (`UiTask`, `src/ui/ui_task.cpp`), so typing into a text
+      field (e.g. `WifiSetupScreen`) works directly from a physical
+      keyboard instead of only by clicking the on-screen one. Confirmed
+      manually in the simulator — see
+      [simulator.md](architecture/simulator.md#status).
 
 **Exit criteria:** the device can be provisioned onto Wi-Fi via SoftAP,
 administered over the Web UI (after setting an admin password on first

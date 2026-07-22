@@ -29,6 +29,7 @@
 #include "ui/notification_widget.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
+#include "ui/status_bar.h"
 #include "ui/ui_task.h"
 #include "ui/weather_widget.h"
 
@@ -209,6 +210,44 @@ void CreateTestWifiSetupNavButton(lv_obj_t* parent, homedeck::Navigation& naviga
     lv_label_set_text(label, "Test: go to Wi-Fi setup screen");
 }
 
+// WifiSetupScreen deliberately omits the home affordance (see ui.md's
+// Navigation model) - correct on real hardware, since an unprovisioned
+// device shouldn't let the user bail back to a dashboard with no
+// network, but it leaves the simulator with no way back to the
+// dashboard once CreateTestWifiSetupNavButton above navigates here.
+// Parented to wifi_setup_screen.Root() itself, not dashboard.Root() -
+// this screen's controls are the only ones visible once it's loaded.
+// Removed once a real trigger exists, same as the button above. Placed
+// just below the screen's own content rather than bottom-anchored like
+// every other Test: button - this screen's on-screen keyboard occupies
+// the bottom 40% of the screen once a text field is focused (see
+// keyboard_input.cpp), and a bottom-anchored button would sit on top of
+// (and block) part of it.
+void OnTestBackToDashboardClicked(lv_event_t* e) {
+    auto* navigation = static_cast<homedeck::Navigation*>(lv_event_get_user_data(e));
+    navigation->GoHome();
+}
+
+void CreateTestBackToDashboardButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
+    lv_obj_t* button = lv_button_create(parent);
+    // Below the "To configure Wi-Fi..." instructions text (the last
+    // real content on this screen) with a visible gap - a fixed offset
+    // rather than flex-flowed alongside it, since that text is owned by
+    // the portable WifiSetupScreen (wifi_setup_screen.cpp) and not
+    // exposed for a simulator-only debug button to attach to.
+    lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 460);
+    lv_obj_add_event_cb(button, OnTestBackToDashboardClicked, LV_EVENT_CLICKED, &navigation);
+
+    lv_obj_t* label = lv_label_create(button);
+    // WifiSetupScreen's root_ sets Montserrat 24 for its own real
+    // content (see wifi_setup_screen.cpp), inherited here since this
+    // button is parented to it - override back to LVGL's default size
+    // to match every other Test: button, which are parented to
+    // dashboard.Root() (no such override) and so stay at the default.
+    lv_obj_set_style_text_font(label, LV_FONT_DEFAULT, 0);
+    lv_label_set_text(label, "Test: back to dashboard");
+}
+
 // Temporary test-only wiring to exercise StatusBar's and
 // NetworkStatusWidget's disconnected rendering - HostNetworkStatus
 // defaults to connected with nothing to disconnect it, the same
@@ -319,6 +358,7 @@ int main() {
     // enough to exercise the layout (see wifi_setup_screen.h's SetApInfo).
     wifi_setup_screen.SetApInfo("HomeDeck-SIM01", "192.168.4.1");
     navigation.Register("wifi-setup", wifi_setup_screen.Root());
+    CreateTestBackToDashboardButton(wifi_setup_screen.Root(), navigation);
 
     CreateTestWifiSetupNavButton(dashboard.Root(), navigation);
     CreateTestWifiDisconnectButton(dashboard.Root(), network_status);
