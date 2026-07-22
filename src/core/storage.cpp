@@ -45,6 +45,16 @@ std::optional<VersionedValue> Decode(const std::string& raw) {
     return VersionedValue{schema_version, raw.substr(separator + 1)};
 }
 
+// Shared by GetSetting/GetSecret/ReadCache - identical "no value stored"
+// vs "decode what's there" handling, differing only in which store's Get/
+// Read produced raw.
+std::optional<VersionedValue> DecodeIfPresent(const std::optional<std::string>& raw) {
+    if (!raw.has_value()) {
+        return std::nullopt;
+    }
+    return Decode(*raw);
+}
+
 }  // namespace
 
 Storage::Storage(SettingsStore& settings_store, CacheStore& cache_store, SecretStore& secret_store)
@@ -61,11 +71,7 @@ bool Storage::SetSetting(const std::string& module_id, const std::string& key, i
 
 std::optional<VersionedValue> Storage::GetSetting(const std::string& module_id, const std::string& key) {
     std::lock_guard<std::mutex> lock(mutex_);
-    std::optional<std::string> raw = settings_store_.Get(module_id, key);
-    if (!raw.has_value()) {
-        return std::nullopt;
-    }
-    return Decode(*raw);
+    return DecodeIfPresent(settings_store_.Get(module_id, key));
 }
 
 bool Storage::EraseSetting(const std::string& module_id, const std::string& key) {
@@ -97,11 +103,7 @@ bool Storage::SetSecret(const std::string& module_id, const std::string& key, in
 
 std::optional<VersionedValue> Storage::GetSecret(const std::string& module_id, const std::string& key) {
     std::lock_guard<std::mutex> lock(mutex_);
-    std::optional<std::string> raw = secret_store_.Get(module_id, key);
-    if (!raw.has_value()) {
-        return std::nullopt;
-    }
-    return Decode(*raw);
+    return DecodeIfPresent(secret_store_.Get(module_id, key));
 }
 
 bool Storage::EraseSecret(const std::string& module_id, const std::string& key) {
@@ -117,11 +119,7 @@ bool Storage::WriteCache(const std::string& module_id, const std::string& key, i
 
 std::optional<VersionedValue> Storage::ReadCache(const std::string& module_id, const std::string& key) {
     std::lock_guard<std::mutex> lock(mutex_);
-    std::optional<std::string> raw = cache_store_.Read(module_id, key);
-    if (!raw.has_value()) {
-        return std::nullopt;
-    }
-    return Decode(*raw);
+    return DecodeIfPresent(cache_store_.Read(module_id, key));
 }
 
 bool Storage::EraseCache(const std::string& module_id, const std::string& key) {
