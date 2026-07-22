@@ -25,14 +25,20 @@ namespace {
 static_assert(std::string_view(AdminAuthService::kPasswordKey).size() <= 15,
               "NVS keys are capped at 15 characters (NVS_KEY_NAME_MAX_SIZE - 1)");
 constexpr int kPasswordSchemaVersion = 1;
-// Provisional - PBKDF2-SHA256 iteration counts trade login latency
-// against offline brute-force resistance. At this count, ESP-IDF's
-// default hardware-accelerated SHA256 takes 30+ seconds on the
-// ESP32-P4, long enough to trip the FreeRTOS task watchdog - see
-// web-ui.md#status. Hardware SHA acceleration is disabled project-wide
-// (firmware/sdkconfig.defaults) rather than lowering this count; real
-// timing with it disabled hasn't been measured yet.
-constexpr unsigned int kPbkdf2Iterations = 100000;
+// PBKDF2-SHA256 iteration counts trade login latency against offline
+// brute-force resistance. At 25,000 iterations, login takes ~2 seconds
+// on the ESP32-P4 (software SHA256 - see firmware/sdkconfig.defaults's
+// CONFIG_MBEDTLS_HARDWARE_SHA=n, off because the hardware-accelerated
+// path's fixed per-call GDMA cost dominates over PBKDF2's ~200,000
+// individual SHA256 block operations, making it slower overall, not
+// faster), a real margin under ESP-IDF's default 5-second FreeRTOS
+// task watchdog timeout (CONFIG_ESP_TASK_WDT_TIMEOUT_S). This device's
+// threat model (a single local admin account, LAN-only, never
+// internet-facing - see
+// docs/decisions/ADR-0018-staged-security-hardening.md) is what makes
+// that latency/brute-force-resistance trade acceptable; an
+// internet-facing account would need a very different number.
+constexpr unsigned int kPbkdf2Iterations = 25000;
 constexpr size_t kSaltBytes = 16;
 constexpr size_t kHashBytes = 32;
 constexpr size_t kSessionTokenBytes = 32;
@@ -191,10 +197,9 @@ std::optional<SessionToken> AdminAuthService::Login(const std::string& password)
         return std::nullopt;
     }
 
-    // Format: pbkdf2-sha256$<iterations>$<salt_hex>$<hash_hex> - a
-    // self-describing format (deliberately not just a bare hash) so a
-    // future iteration-count or algorithm change can recognize and
-    // migrate old entries instead of invalidating every stored password.
+    // Format: pbkdf2-sha256$<iterations>$<salt_hex>$<hash_hex>.
+    // iterations_str is parsed and discarded, not used - verification
+    // always hashes at the current kPbkdf2Iterations constant.
     std::istringstream stream(stored->value);
     std::string algorithm, iterations_str, salt_hex, hash_hex;
     std::getline(stream, algorithm, '$');

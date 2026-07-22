@@ -229,15 +229,13 @@ simulator.
       Login/setup now shows loading feedback while it computes
       (`PasswordForm.svelte` - the submit button's own text changes to
       "Logging in..."/"Setting password..." for the duration, rather
-      than just going disabled with no explanation). Still open: login
-      itself still takes ~8 seconds on real hardware (PBKDF2-SHA256, 100,000
-      iterations, software SHA256 - see `admin_auth_service.cpp`), close
-      enough to the default FreeRTOS task watchdog timeout to have
-      tripped it once during testing (a logged warning, not a crash or
-      reboot). The UI feedback above addresses the perceived-hang
-      symptom, not this underlying watchdog-proximity risk - a lower
-      iteration count (or another real fix) is still worth doing before
-      it becomes a reliability concern rather than just a slow login.
+      than just going disabled with no explanation). PBKDF2-SHA256 at
+      25,000 iterations (`admin_auth_service.cpp`) takes ~2 seconds on
+      real hardware at the measured ~12,500 iterations/sec rate - a
+      real margin under ESP-IDF's default 5-second FreeRTOS task
+      watchdog timeout. See that file's own comment for the full
+      rationale, including why hardware SHA acceleration isn't the fix
+      (measured slower, not faster, for PBKDF2's access pattern).
       **Static asset serving is real on both targets** (`ServeStaticFiles`,
       `src/platform/static_assets.h`/`.cpp`, see
       [web-ui.md](architecture/web-ui.md#status)) — assets embedded into
