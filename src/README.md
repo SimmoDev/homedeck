@@ -110,11 +110,10 @@ src/
 └── ui/          UiTask - owns LVGL exclusively via the SDL2 window on
                  the simulator; firmware has no equivalent class, since
                  `espressif/m5stack_tab5`'s `bsp_display_start()` already
-                 owns LVGL on-device (see
-                 docs/architecture/hardware.md#on-device-dashboard) - only
-                 the `lv_async_call()` hand-off pattern itself is
-                 replicated in firmware/main/homedeck.cpp, not the whole
-                 class. Also Navigation - a minimal real route registry
+                 owns LVGL on-device - only the `lv_async_call()`
+                 hand-off pattern itself is replicated in
+                 firmware/main/homedeck.cpp, not the whole class. Also
+                 Navigation - a minimal real route registry
                  (Core's Navigation responsibility conceptually, but lives
                  here since lv_scr_load() is a UI-layer implementation
                  detail, same reasoning as EventBus staying LVGL-free);
@@ -154,7 +153,7 @@ logic testable without linking LVGL at all. `firmware/` doesn't use this
 mechanism at all - its CMakeLists.txt lists the handful of reused `src/`
 files it needs directly, rather than nesting this plain-CMake build
 inside ESP-IDF's own component system (see
-docs/architecture/hardware.md#on-device-dashboard for why).
+`firmware/main/CMakeLists.txt`'s own comment for why).
 
 No module code exists yet — modules arrive in M3, built against whatever
 concrete needs the Harmony module (the reference module, per

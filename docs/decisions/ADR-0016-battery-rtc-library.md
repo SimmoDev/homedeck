@@ -105,7 +105,6 @@ underlying intent.
   two, confirmed against `firmware/dependencies.lock`. No isolated
   before/after flash measurement was taken for this specific addition;
   the current full build (this plus `espressif/m5stack_tab5`, LVGL, and
-  RTTI) has 32% flash free — see
-  [hardware.md](../architecture/hardware.md#on-device-dashboard) — which
-  is the only concrete data point available, not a claim that this
-  addition specifically is negligible.
+  RTTI) had 32% flash free at the time of this decision — the only
+  concrete data point available, not a claim that this addition
+  specifically is negligible.

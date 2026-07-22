@@ -251,68 +251,18 @@ registered here).
 
 ## On-device dashboard
 
-The real dashboard - `EventBus`, `Clock`, `DashboardScreen`, reused
-directly from `src/`, not reimplemented for firmware - runs live on the
-Tab5, confirmed via a live ticking clock and a real (not mocked) battery
-percentage both actually sourced from hardware. This needed a real
-`src/platform/firmware/` layer, none of which existed before:
-
-- **`Task`/`Timer`** - FreeRTOS-backed, per ADR-0002's already-decided
-  design (`xTaskCreate`/`xTimerCreate` directly, not built on
-  `std::jthread` like the host backend, since ESP-IDF's C++ standard
-  library threading support isn't needed here). Getting destruction
-  ordering right needed real care: FreeRTOS has no built-in "join" for a
-  self-deleting task, and `xTimerDelete` returning only means the delete
-  *command* was queued, not that it's been processed - both destructors
-  block on an explicit completion signal (a semaphore, and for `Timer` a
-  pended function call ordered after the delete in FreeRTOS's single
-  shared timer-command queue) rather than assuming either call is
-  synchronous. A private nested `Impl` type (matching the host backend's
-  pattern) can't be named from the free C function FreeRTOS's API
-  requires as a callback, unlike a capturing lambda - both backends use a
-  separate, ordinary (non-nested) context struct that `Impl` merely owns
-  a pointer to, worked around rather than by loosening `Impl`'s access.
-- **`BatteryReader`** via the INA226 (`espp/ina226`) and **`TimeSource`**
-  via the RX8130CE RTC (`espp/rx8130ce`) - a third hardware support
-  library, distinct from `espressif/m5stack_tab5`, since its capability
-  table doesn't cover either peripheral - see
-  [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md) for why. See
-  [Power](#power) and [RTC](#rtc) above for what those real reads
-  actually showed. Both
-  `espp` components communicate via function-pointer glue matching their
-  `BasePeripheral` shape, not a bus handle directly - a small shared
-  `I2cDevice` helper wraps ESP-IDF's `i2c_master` driver once and is
-  reused by both, rather than duplicated. Both reuse the BSP's existing
-  shared I2C bus (`bsp_i2c_get_handle()`) instead of creating a second,
-  conflicting one on the same physical pins.
-
-Two standing build requirements this layer needs:
-
-- **ESP-IDF disables C++ RTTI by default.** `EventBus` uses
-  `typeid()`/`std::type_index` for its per-event-type dispatch - a real,
-  load-bearing design choice, not something to work around. Enabled via
-  `CONFIG_COMPILER_CXX_RTTI=y` in `firmware/sdkconfig.defaults`.
-- **The Docker build mounts the whole repo root, not just `firmware/`** -
-  the firmware component reuses portable source directly from
-  `../../src` (see `firmware/main/CMakeLists.txt`), which needs to be
-  visible inside the container. See
-  [DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for the exact
-  commands. Flash headroom is provided by the real OTA A/B partition
-  table (see [ADR-0017](../decisions/ADR-0017-partition-table.md)).
-
-`firmware/main/CMakeLists.txt` lists the reused `src/` files directly by
-relative path rather than nesting `src/CMakeLists.txt`'s plain-CMake
-`add_subdirectory` build inside this ESP-IDF component - the two build
-systems have different conventions, and integrating them properly
-(confirming LVGL's `TARGET lvgl` check in `src/CMakeLists.txt` resolves
-correctly against the managed `lvgl` component, in particular) is real,
-unverified risk not taken on for this step. A known tradeoff: these paths
-need updating by hand if `src/`'s own file list changes.
-
-Deliberately out of scope for this step: Navigation, the home affordance,
-and any second screen - the dashboard is loaded directly as the only
-screen. `Queue<T>`'s firmware backend also stays deferred - still nothing
-in this codebase uses it.
+Confirmed running live on the Tab5, not just the simulator: a real
+ticking clock and a real (not mocked) battery percentage, both sourced
+directly from hardware via `BatteryReader`
+(`src/platform/firmware/battery_reader.h`) reading the INA226 (see
+[Power](#power) above) and `TimeSource`
+(`src/platform/firmware/time_source.h`) reading the RX8130CE RTC (see
+[RTC](#rtc) above) - a third hardware support library (`espp`), distinct
+from `espressif/m5stack_tab5`, since its capability table doesn't cover
+either peripheral (see
+[ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)). Both reuse
+the BSP's existing I2C bus (`bsp_i2c_get_handle()`) rather than a
+second, conflicting one on the same physical pins.
 
 ## IMU
 

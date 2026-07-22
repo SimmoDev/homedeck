@@ -110,7 +110,7 @@ reintroduce silently otherwise.
 
 ## Consequences
 
-- [hardware.md](../architecture/hardware.md#on-device-dashboard) and
+- [hardware.md](../architecture/hardware.md#wireless) and
   [docs/roadmap.md](../roadmap.md) no longer describe the OTA A/B scheme
   as pending — the table exists. Core dump capture and the FAT filesystem
   mount are real, built against this table's `coredump`/`storage`
