@@ -45,6 +45,13 @@ HttpClientResponse FirmwareHttpClient::Get(const std::string& url) {
     config.user_data = &body;
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
+    if (client == nullptr) {
+        ESP_LOGW(kTag, "GET %s failed: esp_http_client_init() returned null", url.c_str());
+        HttpClientResponse response;
+        response.success = false;
+        response.status_code = 0;
+        return response;
+    }
     esp_err_t err = esp_http_client_perform(client);
 
     HttpClientResponse response;

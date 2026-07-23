@@ -34,6 +34,12 @@ HttpClientResponse HostHttpClient::Get(const std::string& url) {
     EnsureGlobalInit();
 
     CURL* curl = curl_easy_init();
+    if (curl == nullptr) {
+        HttpClientResponse response;
+        response.success = false;
+        response.status_code = 0;
+        return response;
+    }
     std::string body;
 
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
