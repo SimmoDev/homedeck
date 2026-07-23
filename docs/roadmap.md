@@ -173,8 +173,8 @@ simulator.
       modules to discover Home Assistant/Kodi) is out of scope here —
       no consumer exists until one of those modules is real, so it's
       tracked against M4/M6 instead (see those milestones' own items)
-- [ ] Configuration service (storage-backed) across the three storage tiers
-      (NVS, internal flash filesystem, optional microSD — see
+- [x] Configuration service (storage-backed) across the storage tiers
+      (NVS, internal flash filesystem — see
       [ADR-0012](decisions/ADR-0012-storage-tiers.md)), with a schema
       version field on every persisted blob (see
       [security.md](architecture/security.md#requirement-avoid-insecure-secret-storage)
@@ -188,12 +188,14 @@ simulator.
       one part `ctest` can't exercise). The `SecretStore` interface
       ADR-0010 decides on for routing secrets separately from general
       settings is also real (`AdminAuthService`'s password hash uses it).
-      Still open, deliberately deferred rather than dropped: the microSD
-      tier (no consumer until Logging exists below). NVS encryption
-      itself is not M2 scope at all — see
+      NVS encryption itself is not M2 scope at all — see
       [ADR-0018](decisions/ADR-0018-staged-security-hardening.md)'s
-      staged security model and the M7 item below
-- [ ] Web Management UI (settings, module configuration, diagnostics,
+      staged security model and the M7 item below. The optional microSD
+      tier ([ADR-0012](decisions/ADR-0012-storage-tiers.md)'s decided use:
+      extended log archival once the internal flash filesystem's
+      bounded/rotating logs evict older entries) is tracked as its own M7
+      item below
+- [x] Web Management UI (settings, module configuration, diagnostics,
       backups as a downloadable JSON export —
       *not* initial Wi-Fi setup, which is the SoftAP flow above; see
       [web-ui.md](architecture/web-ui.md#relationship-to-wi-fi-provisioning)),
@@ -206,19 +208,10 @@ simulator.
       settings, backups, and weather-location search are all real and
       confirmed on both the simulator and the K145 reference unit — see
       [web-ui.md](architecture/web-ui.md#status) for the full detail.
-      Still open, each its own future pass: WebSockets for live updates
-      (needs confirming civetweb's safe cross-task dispatch mechanism
-      first — `esp_http_server`'s side is `httpd_queue_work()`,
-      civetweb's equivalent is not yet confirmed, see
-      [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server)),
-      module configuration (no real module exists yet to configure - the
-      generic settings API is ready for one), Wi-Fi management
-      (view/change post-provisioning), and a factory-reset option
-      (clearing stored Wi-Fi credentials, per
-      [hardware.md](architecture/hardware.md#wi-fi-bring-up) for where
-      those actually live, plus Core's own `Storage` state) — scope (a
-      dedicated action vs. part of a broader reset, what exactly gets
-      cleared) isn't decided yet
+      Module configuration is tracked as its own M3 item below (no real
+      module exists yet to configure); WebSockets for live updates,
+      Wi-Fi management, and a factory-reset option are tracked as their
+      own M7 items below
 - [x] OTA update support, gated on battery threshold or external USB-C
       power (see
       [power-management.md](architecture/power-management.md#explicit-power-states)).
@@ -281,10 +274,8 @@ simulator.
       [ADR-0021](decisions/ADR-0021-xip-from-psram.md) for the
       root-caused fix (`CONFIG_SPIRAM_XIP_FROM_PSRAM`), confirmed across
       20 consecutive hardware resets plus manual reboots with zero
-      recurrence. Still open: extended log archival to microSD
-      (ADR-0012's one named use for that tier, not wired up yet), on its
-      original extended-retention rationale alone now that ADR-0021
-      resolves the glitch that had briefly also motivated it
+      recurrence. Extended log archival to microSD is tracked as its
+      own M7 item below
 - [x] Audio bring-up (ES8388 codec, 1W speaker output — see
       [hardware.md](architecture/hardware.md#audio) for the confirmed
       pins/I2C/feature-enable facts). A platform capability in its own
@@ -442,6 +433,9 @@ this until it's done — see
 - [ ] Remote control (navigation, volume, channel, numeric keypad, transport
       controls, long-press actions where supported)
 - [ ] Status/events integrated with Core's event bus and notifications
+- [ ] Web Management UI module configuration page for Harmony (hub
+      IP/credentials) — the generic settings API (M2) is ready for a
+      consumer; this is its first real one
 
 **Exit criteria:** a user can fully replace their physical Harmony remote's
 day-to-day usage with HomeDeck.
@@ -510,6 +504,26 @@ day-to-day usage with HomeDeck.
       no shared CSS custom properties, so adding this later means
       touching every component individually. Distinct from the
       "Themes" item above, which is the on-device Touch UI (LVGL)
+- [ ] WebSockets for live Web Management UI updates - needs confirming
+      civetweb's safe cross-task dispatch mechanism first
+      (`esp_http_server`'s side is `httpd_queue_work()`, civetweb's
+      equivalent is not yet confirmed — see
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server))
+- [ ] Web Management UI Wi-Fi management (view/change credentials
+      post-provisioning) - currently only possible via
+      `tools/factory-reset.sh` + reprovisioning
+- [ ] Web Management UI factory-reset option (clearing stored Wi-Fi
+      credentials, per
+      [hardware.md](architecture/hardware.md#wi-fi-bring-up) for where
+      those actually live, plus Core's own `Storage` state) - scope (a
+      dedicated action vs. part of a broader reset, what exactly gets
+      cleared) isn't decided yet
+- [ ] Extended log archival to microSD, once a card is present - the
+      internal flash filesystem's logs (M2) are bounded/rotating;
+      [ADR-0012](decisions/ADR-0012-storage-tiers.md) decides this is
+      the microSD tier's purpose, degrading gracefully (clearly
+      indicating "no card present") when none is inserted, per
+      CLAUDE.md's "work fully using stock Tab5 hardware" requirement
 - [ ] Gesture navigation (Android-style): swipe up from the bottom edge
       to go home, swipe in from the left/right edge to go back. The
       home-swipe would be an addition alongside the persistent home
