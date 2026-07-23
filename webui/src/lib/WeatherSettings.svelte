@@ -1,0 +1,220 @@
+<script lang="ts">
+  // The dashboard's weather source (see docs/architecture/dashboard.md's
+  // Weather source section and ADR-0008). Backed by the generic
+  // /api/settings endpoint (three plain keys: latitude/longitude/
+  // display_name), not a dedicated weather-config endpoint - no
+  // per-module schema exists or is needed.
+  interface SettingEntry {
+    module: string;
+    key: string;
+    value: string;
+    schemaVersion: number;
+  }
+
+  interface GeocodeResult {
+    name: string;
+    admin1: string;
+    country: string;
+    latitude: number;
+    longitude: number;
+  }
+
+  const kWeatherModuleId = "weather";
+  const kWeatherSchemaVersion = 1;
+
+  let error: string | undefined = $state(undefined);
+  let loaded = $state(false);
+  let displayName = $state("");
+  let query = $state("");
+  let searching = $state(false);
+  let searchError: string | undefined = $state(undefined);
+  let results: GeocodeResult[] = $state([]);
+  let saving = $state(false);
+  let saveError: string | undefined = $state(undefined);
+
+  async function loadWeatherLocation() {
+    try {
+      const response = await fetch("/api/settings");
+      if (!response.ok) {
+        error = `Request failed: ${response.status}`;
+        return;
+      }
+      error = undefined;
+      const entries = (await response.json()) as SettingEntry[];
+      const current = entries.find((entry) => entry.module === kWeatherModuleId && entry.key === "display_name");
+      displayName = current?.value ?? "";
+      loaded = true;
+    } catch (err) {
+      error = String(err);
+    }
+  }
+
+  async function searchLocation() {
+    if (!query.trim()) return;
+    searching = true;
+    searchError = undefined;
+    results = [];
+    try {
+      const response = await fetch(`/api/weather/geocode?query=${encodeURIComponent(query)}`);
+      if (!response.ok) {
+        searchError = `Search failed: ${response.status}`;
+        return;
+      }
+      const body = (await response.json()) as { results: GeocodeResult[] };
+      results = body.results;
+      if (results.length === 0) {
+        searchError = "No matches found.";
+      }
+    } catch (err) {
+      searchError = String(err);
+    } finally {
+      searching = false;
+    }
+  }
+
+  async function selectLocation(result: GeocodeResult) {
+    saving = true;
+    saveError = undefined;
+    const label = [result.name, result.admin1, result.country].filter(Boolean).join(", ");
+    try {
+      for (const [key, value] of [
+        ["latitude", String(result.latitude)],
+        ["longitude", String(result.longitude)],
+        ["display_name", label],
+      ]) {
+        const response = await fetch("/api/settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ module: kWeatherModuleId, key, value, schemaVersion: kWeatherSchemaVersion }),
+        });
+        if (!response.ok) {
+          saveError = `Save failed: ${response.status}`;
+          return;
+        }
+      }
+      displayName = label;
+      results = [];
+      query = "";
+      // Without this, the dashboard widget would silently wait out the
+      // rest of the real ~30-minute poll interval before showing
+      // anything for the location just chosen - fire-and-forget, the
+      // widget picks up the result via its own WeatherUpdatedEvent
+      // subscription once the triggered fetch completes.
+      fetch("/api/weather/refresh", { method: "POST" }).catch(() => {});
+    } catch (err) {
+      saveError = String(err);
+    } finally {
+      saving = false;
+    }
+  }
+
+  loadWeatherLocation();
+</script>
+
+<div class="section">
+  <h3>Weather</h3>
+  {#if error}
+    <p class="error">Error: {error}</p>
+  {:else if !loaded}
+    <p class="hint">Loading...</p>
+  {:else}
+    {#if displayName}
+      <p class="hint">Current location: {displayName}</p>
+    {:else}
+      <p class="hint">No location set - the dashboard's weather widget won't show a reading until one is chosen.</p>
+    {/if}
+    <div class="row">
+      <input
+        type="text"
+        placeholder="Search for a city..."
+        bind:value={query}
+        disabled={searching || saving}
+        onkeydown={(event) => {
+          if (event.key === "Enter") searchLocation();
+        }}
+      />
+      <button onclick={searchLocation} disabled={searching || saving || query.trim().length === 0}>
+        {searching ? "Searching..." : "Search"}
+      </button>
+    </div>
+    {#if searchError}
+      <p class="error">{searchError}</p>
+    {/if}
+    {#if saveError}
+      <p class="error">{saveError}</p>
+    {/if}
+    {#if results.length > 0}
+      <ul class="weather-results">
+        {#each results as result}
+          <li>
+            <span>{[result.name, result.admin1, result.country].filter(Boolean).join(", ")}</span>
+            <button onclick={() => selectLocation(result)} disabled={saving}>Select</button>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  {/if}
+</div>
+
+<style>
+  .section {
+    text-align: left;
+    margin-bottom: 1.25rem;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+
+  p {
+    margin: 0 0 0.5rem;
+  }
+
+  .row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+  }
+
+  .hint {
+    color: #4b5563;
+    font-size: 0.875rem;
+  }
+
+  .error {
+    color: #b91c1c;
+    font-size: 0.875rem;
+  }
+
+  .weather-results {
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.375rem;
+    overflow: hidden;
+  }
+
+  .weather-results li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.875rem;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .weather-results li:last-child {
+    border-bottom: none;
+  }
+</style>
