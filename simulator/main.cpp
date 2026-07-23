@@ -92,6 +92,26 @@ uint16_t ResolveWebPort() {
     return static_cast<uint16_t>(value);
 }
 
+// A bottom-anchored flex column all the CreateTestXButton() helpers
+// below attach to, so a new debug button just gets added to the flow -
+// no manually-chosen pixel offset to pick, and no need to renumber
+// other buttons' offsets if one is removed. COLUMN_REVERSE so each new
+// call appends above the previous one, closest-to-edge first. Cross
+// axis (horizontal, for a column flow) must be CENTER, not END - END
+// right-aligns each button against the panel's own content-sized width
+// instead of centering it.
+lv_obj_t* CreateTestButtonPanel(lv_obj_t* parent) {
+    lv_obj_t* panel = lv_obj_create(parent);
+    lv_obj_remove_style_all(panel);
+    lv_obj_set_size(panel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_align(panel, LV_ALIGN_BOTTOM_MID, 0, -16);
+    lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN_REVERSE);
+    lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(panel, 8, 0);
+    lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
+    return panel;
+}
+
 // Temporary test-only wiring proving LowBatteryMonitor/NotificationBanner
 // end to end - HostBatteryReader is a fixed-then-adjustable mock (see
 // platform/host/battery_reader.h) that never naturally crosses the low-
@@ -108,7 +128,6 @@ void OnTestLowBatteryClicked(lv_event_t* e) {
 
 void CreateTestLowBatteryButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -64);
     lv_obj_add_event_cb(button, OnTestLowBatteryClicked, LV_EVENT_CLICKED, &battery_reader);
 
     lv_obj_t* label = lv_label_create(button);
@@ -127,7 +146,6 @@ void OnTestExternalPowerClicked(lv_event_t* e) {
 
 void CreateTestExternalPowerButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -112);
     lv_obj_add_event_cb(button, OnTestExternalPowerClicked, LV_EVENT_CLICKED, &battery_reader);
 
     lv_obj_t* label = lv_label_create(button);
@@ -146,7 +164,6 @@ void OnTestBatteryPresentClicked(lv_event_t* e) {
 
 void CreateTestBatteryPresentButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -160);
     lv_obj_add_event_cb(button, OnTestBatteryPresentClicked, LV_EVENT_CLICKED, &battery_reader);
 
     lv_obj_t* label = lv_label_create(button);
@@ -164,7 +181,6 @@ void OnTestForceOtaFailureClicked(lv_event_t* e) {
 
 void CreateTestForceOtaFailureButton(lv_obj_t* parent, bool& force_failure) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -208);
     lv_obj_add_event_cb(button, OnTestForceOtaFailureClicked, LV_EVENT_CLICKED, &force_failure);
 
     lv_obj_t* label = lv_label_create(button);
@@ -184,7 +200,6 @@ void OnTestLogEntryClicked(lv_event_t* e) {
 
 void CreateTestLogEntryButton(lv_obj_t* parent, homedeck::Logger& logger) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -256);
     lv_obj_add_event_cb(button, OnTestLogEntryClicked, LV_EVENT_CLICKED, &logger);
 
     lv_obj_t* label = lv_label_create(button);
@@ -203,7 +218,6 @@ void OnTestWifiSetupNavClicked(lv_event_t* e) {
 
 void CreateTestWifiSetupNavButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -304);
     lv_obj_add_event_cb(button, OnTestWifiSetupNavClicked, LV_EVENT_CLICKED, &navigation);
 
     lv_obj_t* label = lv_label_create(button);
@@ -243,7 +257,8 @@ void CreateTestBackToDashboardButton(lv_obj_t* parent, homedeck::Navigation& nav
     // content (see wifi_setup_screen.cpp), inherited here since this
     // button is parented to it - override back to LVGL's default size
     // to match every other Test: button, which are parented to
-    // dashboard.Root() (no such override) and so stay at the default.
+    // CreateTestButtonPanel()'s panel (no such override) and so stay at
+    // the default.
     lv_obj_set_style_text_font(label, LV_FONT_DEFAULT, 0);
     lv_label_set_text(label, "Test: back to dashboard");
 }
@@ -260,7 +275,6 @@ void OnTestWifiDisconnectClicked(lv_event_t* e) {
 
 void CreateTestWifiDisconnectButton(lv_obj_t* parent, homedeck::HostNetworkStatus& network_status) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -352);
     lv_obj_add_event_cb(button, OnTestWifiDisconnectClicked, LV_EVENT_CLICKED, &network_status);
 
     lv_obj_t* label = lv_label_create(button);
@@ -291,7 +305,6 @@ void OnTestPlayToneClicked(lv_event_t* e) {
 
 void CreateTestPlayToneButton(lv_obj_t* parent, homedeck::HostAudioOutput& audio_output) {
     lv_obj_t* button = lv_button_create(parent);
-    lv_obj_align(button, LV_ALIGN_BOTTOM_MID, 0, -400);
     lv_obj_add_event_cb(button, OnTestPlayToneClicked, LV_EVENT_CLICKED, &audio_output);
 
     lv_obj_t* label = lv_label_create(button);
@@ -360,17 +373,18 @@ int main() {
     navigation.Register("wifi-setup", wifi_setup_screen.Root());
     CreateTestBackToDashboardButton(wifi_setup_screen.Root(), navigation);
 
-    CreateTestWifiSetupNavButton(dashboard.Root(), navigation);
-    CreateTestWifiDisconnectButton(dashboard.Root(), network_status);
-    CreateTestPlayToneButton(dashboard.Root(), audio_output);
-    CreateTestLowBatteryButton(dashboard.Root(), battery_reader);
-    CreateTestExternalPowerButton(dashboard.Root(), battery_reader);
-    CreateTestBatteryPresentButton(dashboard.Root(), battery_reader);
+    lv_obj_t* test_button_panel = CreateTestButtonPanel(dashboard.Root());
+    CreateTestWifiSetupNavButton(test_button_panel, navigation);
+    CreateTestWifiDisconnectButton(test_button_panel, network_status);
+    CreateTestPlayToneButton(test_button_panel, audio_output);
+    CreateTestLowBatteryButton(test_button_panel, battery_reader);
+    CreateTestExternalPowerButton(test_button_panel, battery_reader);
+    CreateTestBatteryPresentButton(test_button_panel, battery_reader);
     // Declared here, not narrower - captured by reference into
     // ota_writer.write_image below, which must stay valid for the
     // server's lifetime.
     bool force_ota_failure = false;
-    CreateTestForceOtaFailureButton(dashboard.Root(), force_ota_failure);
+    CreateTestForceOtaFailureButton(test_button_panel, force_ota_failure);
 
     // NotificationBanner and NotificationSound must exist before
     // LowBatteryMonitor, which must exist before Clock (the
@@ -396,7 +410,7 @@ int main() {
     // way NVS would on real hardware, instead of demanding first-login
     // setup again every time the simulator relaunches - and Logger here.
     homedeck::Logger logger(storage, time_source);
-    CreateTestLogEntryButton(dashboard.Root(), logger);
+    CreateTestLogEntryButton(test_button_panel, logger);
     // A monotonic clock, not the shared wall-clock time_source above -
     // matches firmware's identical choice (see
     // platform/steady_time_source.h) so AdminAuthService behaves the
