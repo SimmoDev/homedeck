@@ -6,14 +6,14 @@ namespace homedeck {
 
 namespace {
 constexpr int kTimeoutMs = 1000;
-constexpr uint32_t kScl_speed_hz = 400000;
+constexpr uint32_t kSclSpeedHz = 400000;
 }  // namespace
 
 I2cDevice::I2cDevice(i2c_master_bus_handle_t bus, uint8_t address) {
     i2c_device_config_t dev_cfg = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
         .device_address = address,
-        .scl_speed_hz = kScl_speed_hz,
+        .scl_speed_hz = kSclSpeedHz,
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &dev_cfg, &handle_));
 }
