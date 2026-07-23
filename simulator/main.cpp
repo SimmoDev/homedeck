@@ -20,6 +20,7 @@
 #include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
 #include "platform/host/time_source.h"
+#include "platform/host/ui_task.h"
 #include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
 #include "ui/clock_widget.h"
@@ -30,7 +31,6 @@
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/status_bar.h"
-#include "ui/ui_task.h"
 #include "ui/weather_widget.h"
 
 #include <cmath>

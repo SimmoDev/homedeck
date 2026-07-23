@@ -97,7 +97,7 @@ target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 # simply doesn't get this target, keeping Core's unit tests LVGL-free.
 if(TARGET lvgl)
   add_library(homedeck_ui
-    ui/ui_task.cpp
+    ui/ui_dispatch.cpp
     ui/navigation.cpp
     ui/home_affordance.cpp
     ui/time_format.cpp
@@ -111,14 +111,16 @@ if(TARGET lvgl)
     ui/keyboard_input.cpp
     ui/screens/dashboard_screen.cpp
     ui/screens/wifi_setup_screen.cpp
-    # Not a UI file - HostAudioOutput (platform/host/audio_output.h)
-    # lives here rather than homedeck_platform_host below deliberately:
-    # that library is shared with tests/, which never fetches LVGL/SDL2
-    # and must stay buildable without either. This target already links
-    # SDL2 transitively (via lvgl's own SDL display driver, what
-    # ui_task.cpp uses), so it's the natural home for a second SDL2
-    # consumer rather than adding a new dependency anywhere.
+    # Neither is a portable UI file - HostAudioOutput
+    # (platform/host/audio_output.h) and UiTask (platform/host/ui_task.h,
+    # SDL2-specific) live here rather than homedeck_platform_host below
+    # deliberately: that library is shared with tests/, which never
+    # fetches LVGL/SDL2 and must stay buildable without either. This
+    # target already links SDL2 transitively (via lvgl's own SDL display
+    # driver, what ui_task.cpp uses), so it's the natural home for SDL2
+    # consumers rather than adding a new dependency anywhere.
     platform/host/audio_output.cpp
+    platform/host/ui_task.cpp
   )
   target_link_libraries(homedeck_ui PUBLIC homedeck_core lvgl)
 endif()

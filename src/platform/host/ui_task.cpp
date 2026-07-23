@@ -1,24 +1,10 @@
-#include "ui/ui_task.h"
+#include "platform/host/ui_task.h"
+
+#include "ui/ui_dispatch.h"
 
 #include <SDL2/SDL.h>
 
-#include <functional>
-#include <utility>
-
 namespace homedeck {
-
-namespace {
-
-// The lv_async_call() hand-off EventBus's UI dispatch routes through.
-// Wraps the std::function in a heap allocation matching lv_async_call's
-// single void* user_data slot; freed here once invoked.
-void RunAndDelete(void* user_data) {
-    auto* fn = static_cast<std::function<void()>*>(user_data);
-    (*fn)();
-    delete fn;
-}
-
-}  // namespace
 
 UiTask::UiTask(int32_t width, int32_t height, EventBus& event_bus, float zoom) {
     // Reduces (doesn't eliminate) the text softening a non-1.0 zoom
@@ -48,10 +34,7 @@ UiTask::UiTask(int32_t width, int32_t height, EventBus& event_bus, float zoom) {
     // clicking the on-screen keyboard.
     lv_indev_set_group(lv_sdl_keyboard_create(), lv_group_get_default());
 
-    event_bus.SetUiDispatcher([](std::function<void()> fn) {
-        auto* heap_fn = new std::function<void()>(std::move(fn));
-        lv_async_call(RunAndDelete, heap_fn);
-    });
+    event_bus.SetUiDispatcher(PostToUiThread);
 }
 
 void UiTask::Run() {

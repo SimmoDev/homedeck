@@ -49,6 +49,7 @@
 #include "ui/notification_widget.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
+#include "ui/ui_dispatch.h"
 #include "ui/weather_widget.h"
 #include "wifi_setup.h"
 
@@ -74,16 +75,6 @@ extern const uint8_t webui_app_js_start[] asm("_binary_app_js_start");
 extern const uint8_t webui_app_js_end[] asm("_binary_app_js_end");
 extern const uint8_t webui_app_css_start[] asm("_binary_app_css_start");
 extern const uint8_t webui_app_css_end[] asm("_binary_app_css_end");
-
-// Mirrors the exact lv_async_call()-based hand-off UiTask uses for the
-// simulator (src/ui/ui_task.cpp) - this is core LVGL API, not backend-
-// specific, so the same mechanism applies whether LVGL is being driven
-// by SDL2 or (as here) espressif/m5stack_tab5's BSP.
-void RunAndDelete(void* user_data) {
-    auto* fn = static_cast<std::function<void()>*>(user_data);
-    (*fn)();
-    delete fn;
-}
 
 // Passed to RegisterOtaRoutes as its OtaRebootFn - esp_restart() can't
 // be called directly from the /api/ota/reboot handler, since the
@@ -154,10 +145,7 @@ extern "C" void app_main(void) {
     printf("Display started\n");
 
     homedeck::EventBus event_bus;
-    event_bus.SetUiDispatcher([](std::function<void()> fn) {
-        auto* heap_fn = new std::function<void()>(std::move(fn));
-        lv_async_call(RunAndDelete, heap_fn);
-    });
+    event_bus.SetUiDispatcher(homedeck::PostToUiThread);
 
     bsp_display_lock(0);
     lv_obj_t* splash = ShowSplashScreen();
@@ -286,21 +274,19 @@ extern "C" void app_main(void) {
     // screen (already showing, if wifi_check found no stored credentials)
     // submits credentials directly. wifi_setup.cpp has no LVGL/Navigation
     // dependency of its own, so reaching the UI happens through these two
-    // callbacks instead - each wrapped in the same lv_async_call()-based
-    // hand-off used elsewhere in this file, since they fire from
-    // ConnectToWifi()'s own task, not the UI task (see ADR-0011).
+    // callbacks instead - each routed through PostToUiThread (see
+    // ui/ui_dispatch.h), since they fire from ConnectToWifi()'s own
+    // task, not the UI task (see ADR-0011).
     homedeck::WifiUiCallbacks wifi_ui_callbacks;
     wifi_ui_callbacks.on_setup_needed = [&navigation, &wifi_setup_screen](const std::string& ap_ssid,
                                                                             const std::string& ap_ip) {
-        auto* fn = new std::function<void()>([&navigation, &wifi_setup_screen, ap_ssid, ap_ip]() {
+        homedeck::PostToUiThread([&navigation, &wifi_setup_screen, ap_ssid, ap_ip]() {
             wifi_setup_screen.SetApInfo(ap_ssid, ap_ip);
             navigation.GoTo("wifi-setup");
         });
-        lv_async_call(RunAndDelete, fn);
     };
     wifi_ui_callbacks.on_connected = [&navigation]() {
-        auto* fn = new std::function<void()>([&navigation]() { navigation.GoHome(); });
-        lv_async_call(RunAndDelete, fn);
+        homedeck::PostToUiThread([&navigation]() { navigation.GoHome(); });
     };
     homedeck::ConnectToWifi(wifi_ui_callbacks);
     printf("Wi-Fi connected\n");

@@ -55,6 +55,7 @@ idf_component_register(
         "../../src/ui/navigation.cpp"
         "../../src/ui/home_affordance.cpp"
         "../../src/ui/keyboard_input.cpp"
+        "../../src/ui/ui_dispatch.cpp"
         "../../src/platform/firmware/task.cpp"
         "../../src/platform/firmware/timer.cpp"
         "../../src/platform/firmware/i2c_device.cpp"

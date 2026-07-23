@@ -17,8 +17,9 @@ namespace homedeck {
 // same layer rule that keeps Core from depending on a module - see
 // overview.md), so EventBus never calls lv_async_call() itself: UI-safe
 // delivery goes through a dispatch function registered via
-// SetUiDispatcher(), which UiTask provides. This also means EventBus is
-// fully unit-testable without linking LVGL at all.
+// SetUiDispatcher() - both targets register ui/ui_dispatch.h's
+// PostToUiThread. This also means EventBus is fully unit-testable
+// without linking LVGL at all.
 class EventBus {
 public:
     using UiDispatcher = std::function<void(std::function<void()>)>;
