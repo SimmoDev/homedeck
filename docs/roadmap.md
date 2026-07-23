@@ -510,6 +510,19 @@ day-to-day usage with HomeDeck.
       no shared CSS custom properties, so adding this later means
       touching every component individually. Distinct from the
       "Themes" item above, which is the on-device Touch UI (LVGL)
+- [ ] Gesture navigation (Android-style): swipe up from the bottom edge
+      to go home, swipe in from the left/right edge to go back. The
+      home-swipe would be an addition alongside the persistent home
+      icon, not a replacement - see
+      [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance)
+      for why an edge gesture was rejected as the *guaranteed*
+      mechanism (risk of conflicting with a future module screen's own
+      gesture use, e.g. a media carousel or a scrollable list near the
+      edge) but left open as a later power-user addition once modules
+      exist and their real gesture needs are known. The back-swipe half
+      needs a real prerequisite first: `Navigation`
+      (`src/ui/navigation.h`) has no history/back-stack today, only
+      `GoTo(route)`/`GoHome()`
 - [ ] Distinct notification sounds per `NotificationSeverity`
       (`src/core/notification_sound.cpp`) - currently one tone for both
       `kDeferred`/`kAlertPriority`, deferred until a second severity
