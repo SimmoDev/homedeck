@@ -2,12 +2,15 @@
 # Sets the Web UI admin password on a freshly-erased device (see
 # ADR-0007's first-login-sets-the-password flow). Only works once -
 # there's no password-change flow yet, so a device that already has one
-# set needs tools/factory-reset.sh first. Passwords containing a `"` or
-# `\` aren't supported - this builds the request body with a plain
-# string substitution, not a JSON library.
+# set needs tools/factory-reset.sh first.
 #
 # Usage: tools/set-password.sh [host]  (default: homedeck.local)
 set -euo pipefail
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required." >&2
+  exit 1
+fi
 
 HOST="${1:-homedeck.local}"
 
@@ -23,7 +26,7 @@ echo
 
 RESPONSE=$(curl -s -X POST "http://$HOST/api/auth/setup" \
   -H "Content-Type: application/json" \
-  -d "{\"password\":\"$PASSWORD\"}")
+  -d "$(jq -n --arg password "$PASSWORD" '{password: $password}')")
 
 if echo "$RESPONSE" | grep -q '"ok":true'; then
   echo "Password set."
