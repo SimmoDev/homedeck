@@ -504,6 +504,12 @@ day-to-day usage with HomeDeck.
 - [ ] Richer weather detail (hourly/daily forecast) reachable by tapping
       the weather tile, once `Widget` gains a tap handler (see the
       Widget framework item's own note in M2)
+- [ ] Web Management UI dark theme - no `prefers-color-scheme` support
+      anywhere in `webui/src`; `index.html` and every component's own
+      scoped `<style>` block hardcode light-theme literal colors with
+      no shared CSS custom properties, so adding this later means
+      touching every component individually. Distinct from the
+      "Themes" item above, which is the on-device Touch UI (LVGL)
 - [ ] Distinct notification sounds per `NotificationSeverity`
       (`src/core/notification_sound.cpp`) - currently one tone for both
       `kDeferred`/`kAlertPriority`, deferred until a second severity
