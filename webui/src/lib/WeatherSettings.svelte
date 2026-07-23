@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { loadJson } from "./api";
+
   // The dashboard's weather source (see docs/architecture/dashboard.md's
   // Weather source section and ADR-0008). Backed by the generic
   // /api/settings endpoint (three plain keys: latitude/longitude/
@@ -33,20 +35,15 @@
   let saveError: string | undefined = $state(undefined);
 
   async function loadWeatherLocation() {
-    try {
-      const response = await fetch("/api/settings");
-      if (!response.ok) {
-        error = `Request failed: ${response.status}`;
-        return;
-      }
-      error = undefined;
-      const entries = (await response.json()) as SettingEntry[];
-      const current = entries.find((entry) => entry.module === kWeatherModuleId && entry.key === "display_name");
-      displayName = current?.value ?? "";
-      loaded = true;
-    } catch (err) {
-      error = String(err);
+    const result = await loadJson<SettingEntry[]>("/api/settings");
+    if (result.error !== undefined) {
+      error = result.error;
+      return;
     }
+    error = undefined;
+    const current = result.data.find((entry) => entry.module === kWeatherModuleId && entry.key === "display_name");
+    displayName = current?.value ?? "";
+    loaded = true;
   }
 
   async function searchLocation() {

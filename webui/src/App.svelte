@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { loadJson } from "./lib/api";
   import Diagnostics from "./lib/Diagnostics.svelte";
   import Ota from "./lib/Ota.svelte";
   import PasswordForm from "./lib/PasswordForm.svelte";
@@ -18,17 +19,13 @@
   let error: string | undefined = $state(undefined);
 
   async function loadStatus() {
-    try {
-      const response = await fetch("/api/auth/status");
-      if (!response.ok) {
-        error = `Request failed: ${response.status}`;
-        return;
-      }
-      error = undefined;
-      status = (await response.json()) as AuthStatus;
-    } catch (err) {
-      error = String(err);
+    const result = await loadJson<AuthStatus>("/api/auth/status");
+    if (result.error !== undefined) {
+      error = result.error;
+      return;
     }
+    error = undefined;
+    status = result.data;
   }
 
   async function logout() {

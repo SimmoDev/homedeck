@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { readErrorBody } from "./api";
   import { describeAuthError, validateSetupPassword } from "./passwordValidation";
 
   // Shared by both first-login setup and ordinary login - same field,
@@ -37,7 +38,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ password }),
       });
-      const body = await response.json().catch(() => ({}));
+      const body = await readErrorBody(response);
       // already_set means another request won first (the real race
       // ADR-0007 accepts) - the password itself may now be wrong, but
       // the state genuinely changed, so re-checking status is still the

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { loadJson } from "./api";
+
   // Firmware update (see docs/architecture/web-ui.md#ota and
   // docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
   // decision). Deliberately uses XMLHttpRequest for the upload call,
@@ -25,17 +27,13 @@
   let rebooting = $state(false);
 
   async function loadStatus() {
-    try {
-      const response = await fetch("/api/ota/status");
-      if (!response.ok) {
-        error = `Request failed: ${response.status}`;
-        return;
-      }
-      error = undefined;
-      status = (await response.json()) as OtaStatus;
-    } catch (err) {
-      error = String(err);
+    const result = await loadJson<OtaStatus>("/api/ota/status");
+    if (result.error !== undefined) {
+      error = result.error;
+      return;
     }
+    error = undefined;
+    status = result.data;
   }
 
   function onFileChange(event: Event) {

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { loadJson, readErrorBody } from "./api";
+
   // Device name (see docs/architecture/web-ui.md#scope and
   // docs/decisions/ADR-0023-settings-backup-api.md) - the mDNS hostname
   // a user can set via the Web UI. Backed by the generic /api/settings
@@ -22,20 +24,15 @@
   let saved = $state(false);
 
   async function loadDeviceName() {
-    try {
-      const response = await fetch("/api/settings");
-      if (!response.ok) {
-        error = `Request failed: ${response.status}`;
-        return;
-      }
-      error = undefined;
-      const entries = (await response.json()) as SettingEntry[];
-      const current = entries.find((entry) => entry.module === kModuleId && entry.key === kDeviceNameKey);
-      deviceName = current?.value ?? "homedeck";
-      loaded = true;
-    } catch (err) {
-      error = String(err);
+    const result = await loadJson<SettingEntry[]>("/api/settings");
+    if (result.error !== undefined) {
+      error = result.error;
+      return;
     }
+    error = undefined;
+    const current = result.data.find((entry) => entry.module === kModuleId && entry.key === kDeviceNameKey);
+    deviceName = current?.value ?? "homedeck";
+    loaded = true;
   }
 
   async function saveDeviceName() {
@@ -54,7 +51,7 @@
         }),
       });
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
+        const body = await readErrorBody(response);
         saveError = body.error === "invalid_value" ? "Not a valid device name." : `Save failed: ${response.status}`;
         return;
       }

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { loadJson } from "./api";
+
   // Crash/reboot diagnostics (see docs/architecture/diagnostics.md and
   // ADR-0013), live battery/power state (see
   // docs/architecture/hardware.md#power), and structured logs (see
@@ -38,31 +40,23 @@
   let componentFilter = $state("all");
 
   async function load() {
-    try {
-      const response = await fetch("/api/diagnostics");
-      if (!response.ok) {
-        error = `Request failed: ${response.status}`;
-        return;
-      }
-      error = undefined;
-      status = (await response.json()) as DiagnosticsStatus;
-    } catch (err) {
-      error = String(err);
+    const result = await loadJson<DiagnosticsStatus>("/api/diagnostics");
+    if (result.error !== undefined) {
+      error = result.error;
+      return;
     }
+    error = undefined;
+    status = result.data;
   }
 
   async function loadLogs() {
-    try {
-      const response = await fetch("/api/diagnostics/logs");
-      if (!response.ok) {
-        logsError = `Request failed: ${response.status}`;
-        return;
-      }
-      logsError = undefined;
-      logs = (await response.json()) as LogEntry[];
-    } catch (err) {
-      logsError = String(err);
+    const result = await loadJson<LogEntry[]>("/api/diagnostics/logs");
+    if (result.error !== undefined) {
+      logsError = result.error;
+      return;
     }
+    logsError = undefined;
+    logs = result.data;
   }
 
   function formatTimestamp(unixSeconds: number): string {
