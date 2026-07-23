@@ -1,0 +1,324 @@
+#include "core/weather_routes.h"
+
+#include "core/admin_auth_service.h"
+#include "core/weather_provider.h"
+#include "platform/host/cache_store.h"
+#include "platform/host/http_server.h"
+#include "platform/host/secret_store.h"
+#include "platform/host/settings_store.h"
+#include "platform/host/time_source.h"
+
+#include <gtest/gtest.h>
+
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <chrono>
+#include <cstring>
+#include <filesystem>
+#include <memory>
+#include <mutex>
+#include <thread>
+
+namespace {
+
+// A scriptable HttpClient double - same role as
+// weather_provider_test.cpp's own FakeHttpClient, duplicated here
+// rather than shared, matching settings_routes_test.cpp's own
+// HttpRequestRaw precedent for this exact tradeoff.
+class FakeHttpClient : public homedeck::HttpClient {
+public:
+    homedeck::HttpClientResponse Get(const std::string& /*url*/) override {
+        std::lock_guard<std::mutex> lock(mutex_);
+        get_count_++;
+        return response_;
+    }
+
+    void SetResponse(homedeck::HttpClientResponse response) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        response_ = std::move(response);
+    }
+
+    int GetCount() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return get_count_;
+    }
+
+private:
+    std::mutex mutex_;
+    homedeck::HttpClientResponse response_{false, 0, ""};
+    int get_count_ = 0;
+};
+
+// Same shape as settings_routes_test.cpp's/diagnostics_routes_test.cpp's/
+// ota_routes_test.cpp's HttpRequestRaw/HttpResult - duplicated rather
+// than shared, matching those files' own precedent for this exact
+// tradeoff.
+struct HttpResult {
+    int status_code = 0;
+    std::string set_cookie;
+    std::string body;
+};
+
+HttpResult HttpRequestRaw(uint16_t port, const std::string& method, const std::string& path,
+                           const std::string& body, const std::string& cookie_header = "") {
+    HttpResult result;
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) {
+        return result;
+    }
+
+    sockaddr_in addr = {};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+
+    if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+        close(sock);
+        return result;
+    }
+
+    std::string request = method + " " + path + " HTTP/1.1\r\nHost: localhost\r\n";
+    if (!cookie_header.empty()) {
+        request += "Cookie: " + cookie_header + "\r\n";
+    }
+    if (!body.empty()) {
+        request += "Content-Length: " + std::to_string(body.size()) + "\r\n";
+    }
+    request += "Connection: close\r\n\r\n" + body;
+
+    size_t total_sent = 0;
+    while (total_sent < request.size()) {
+        ssize_t sent = send(sock, request.data() + total_sent, request.size() - total_sent, 0);
+        if (sent <= 0) {
+            break;
+        }
+        total_sent += static_cast<size_t>(sent);
+    }
+
+    std::string response;
+    char buffer[4096];
+    ssize_t received;
+    while ((received = recv(sock, buffer, sizeof(buffer), 0)) > 0) {
+        response.append(buffer, static_cast<size_t>(received));
+    }
+    close(sock);
+
+    size_t header_end = response.find("\r\n\r\n");
+    std::string headers = header_end == std::string::npos ? response : response.substr(0, header_end);
+    result.body = header_end == std::string::npos ? "" : response.substr(header_end + 4);
+
+    size_t status_start = headers.find(' ');
+    if (status_start != std::string::npos) {
+        result.status_code = std::atoi(headers.c_str() + status_start + 1);
+    }
+    size_t cookie_pos = headers.find("Set-Cookie: ");
+    if (cookie_pos != std::string::npos) {
+        size_t value_start = cookie_pos + std::strlen("Set-Cookie: ");
+        size_t line_end = headers.find("\r\n", value_start);
+        result.set_cookie = headers.substr(value_start, line_end - value_start);
+    }
+    return result;
+}
+
+std::string SessionCookieOnly(const std::string& set_cookie) {
+    size_t semicolon = set_cookie.find(';');
+    return semicolon == std::string::npos ? set_cookie : set_cookie.substr(0, semicolon);
+}
+
+class WeatherRoutesTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        root_dir_ = std::filesystem::path(::testing::TempDir()) /
+                    ("homedeck_weather_routes_test_" +
+                     std::string(::testing::UnitTest::GetInstance()->current_test_info()->name()));
+        std::filesystem::remove_all(root_dir_);
+        settings_store_ = std::make_unique<homedeck::HostSettingsStore>(root_dir_);
+        cache_store_ = std::make_unique<homedeck::HostCacheStore>(root_dir_);
+        secret_store_ = std::make_unique<homedeck::HostSecretStore>(root_dir_);
+        storage_ = std::make_unique<homedeck::Storage>(*settings_store_, *cache_store_, *secret_store_);
+        auth_ = std::make_unique<homedeck::AdminAuthService>(*storage_, time_source_);
+        event_bus_ = std::make_unique<homedeck::EventBus>();
+        weather_provider_ = std::make_unique<homedeck::OpenMeteoWeatherProvider>(
+            geocode_http_client_, *storage_, *event_bus_, std::chrono::hours(1));
+    }
+
+    void TearDown() override { std::filesystem::remove_all(root_dir_); }
+
+    // Registers auth routes and returns the session cookie from a real
+    // setup call - must run after server.Start(), per HttpServer's own
+    // contract.
+    std::string Login(uint16_t port) {
+        auto setup = HttpRequestRaw(port, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+        return SessionCookieOnly(setup.set_cookie);
+    }
+
+    std::filesystem::path root_dir_;
+    std::unique_ptr<homedeck::HostSettingsStore> settings_store_;
+    std::unique_ptr<homedeck::HostCacheStore> cache_store_;
+    std::unique_ptr<homedeck::HostSecretStore> secret_store_;
+    std::unique_ptr<homedeck::Storage> storage_;
+    homedeck::HostTimeSource time_source_;
+    std::unique_ptr<homedeck::AdminAuthService> auth_;
+    std::unique_ptr<homedeck::EventBus> event_bus_;
+    FakeHttpClient geocode_http_client_;
+    // Constructed with a far-future poll interval in SetUp() - PollOnce()
+    // firing on its own during a test would spuriously inflate
+    // geocode_http_client_'s GetCount(), the same reasoning
+    // weather_provider_test.cpp's TriggerPollWakesTheLoopImmediately
+    // test already documents.
+    std::unique_ptr<homedeck::OpenMeteoWeatherProvider> weather_provider_;
+};
+
+}  // namespace
+
+TEST_F(WeatherRoutesTest, BothEndpointsRequireAuthentication) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18310));
+
+    EXPECT_EQ(HttpRequestRaw(18310, "GET", "/api/weather/geocode?query=Berlin", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(18310, "POST", "/api/weather/refresh", "").status_code, 403);
+
+    auto setup = HttpRequestRaw(18310, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    ASSERT_EQ(setup.status_code, 200);
+
+    EXPECT_EQ(HttpRequestRaw(18310, "GET", "/api/weather/geocode?query=Berlin", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(18310, "POST", "/api/weather/refresh", "").status_code, 401);
+}
+
+TEST_F(WeatherRoutesTest, GeocodeRejectsMissingQueryParam) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18311));
+    std::string cookie = Login(18311);
+
+    auto result = HttpRequestRaw(18311, "GET", "/api/weather/geocode", "", cookie);
+    EXPECT_EQ(result.status_code, 400);
+    EXPECT_NE(result.body.find(R"("field":"query")"), std::string::npos);
+}
+
+TEST_F(WeatherRoutesTest, GeocodeParsesUpstreamResultsAndSkipsIncompleteEntries) {
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{
+        true, 200,
+        R"({"results":[)"
+        R"({"name":"Berlin","admin1":"Berlin","country":"Germany","latitude":52.52,"longitude":13.41},)"
+        // Missing "longitude" - must be skipped, not crash the handler.
+        R"({"name":"Incomplete","latitude":1.0})"
+        R"(]})"});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18312));
+    std::string cookie = Login(18312);
+
+    auto result = HttpRequestRaw(18312, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 200);
+    EXPECT_NE(result.body.find(R"("name":"Berlin")"), std::string::npos);
+    EXPECT_EQ(result.body.find("Incomplete"), std::string::npos);
+}
+
+TEST_F(WeatherRoutesTest, GeocodeUrlEncodesTheQueryBeforeForwarding) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18313));
+    std::string cookie = Login(18313);
+
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{true, 200, R"({"results":[]})"});
+    // "New York" contains a space - must be percent-encoded (or at
+    // least not left as a literal space) on the outbound Open-Meteo
+    // URL, per UrlEncode's own comment on why an unescaped space would
+    // break the request. This test only proves the handler completes
+    // successfully with a query containing reserved characters; the
+    // FakeHttpClient doesn't capture the outbound URL to inspect
+    // directly.
+    auto result = HttpRequestRaw(18313, "GET", "/api/weather/geocode?query=New%20York", "", cookie);
+    EXPECT_EQ(result.status_code, 200);
+    EXPECT_EQ(geocode_http_client_.GetCount(), 1);
+}
+
+TEST_F(WeatherRoutesTest, GeocodeReturns502WhenUpstreamRequestFails) {
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{false, 0, ""});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18314));
+    std::string cookie = Login(18314);
+
+    auto result = HttpRequestRaw(18314, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 502);
+    EXPECT_NE(result.body.find("upstream_failed"), std::string::npos);
+}
+
+TEST_F(WeatherRoutesTest, GeocodeReturns502OnNon200UpstreamStatus) {
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{true, 500, "Internal Server Error"});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18315));
+    std::string cookie = Login(18315);
+
+    auto result = HttpRequestRaw(18315, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 502);
+    EXPECT_NE(result.body.find("upstream_failed"), std::string::npos);
+}
+
+TEST_F(WeatherRoutesTest, GeocodeReturns502OnMalformedUpstreamJson) {
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{true, 200, "not json"});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18316));
+    std::string cookie = Login(18316);
+
+    auto result = HttpRequestRaw(18316, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 502);
+    EXPECT_NE(result.body.find("upstream_invalid_response"), std::string::npos);
+}
+
+TEST_F(WeatherRoutesTest, GeocodeReturnsEmptyResultsWhenUpstreamOmitsResultsKey) {
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{true, 200, R"({"generationtime_ms":0.1})"});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18317));
+    std::string cookie = Login(18317);
+
+    auto result = HttpRequestRaw(18317, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 200);
+    EXPECT_EQ(result.body, R"({"results":[]})");
+}
+
+TEST_F(WeatherRoutesTest, RefreshTriggersAnImmediatePoll) {
+    // Configured (unlike the other tests here) so TriggerPoll()'s own
+    // PollOnce() actually reaches Get() - proving the endpoint is wired
+    // to the real provider, not just returning 200 without effect.
+    storage_->SetSetting("weather", "latitude", 1, "52.52");
+    storage_->SetSetting("weather", "longitude", 1, "13.41");
+    geocode_http_client_.SetResponse(
+        homedeck::HttpClientResponse{true, 200, R"({"current":{"temperature_2m":13.7,"weather_code":0}})"});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18318));
+    std::string cookie = Login(18318);
+
+    int count_before = geocode_http_client_.GetCount();
+    auto result = HttpRequestRaw(18318, "POST", "/api/weather/refresh", "", cookie);
+    EXPECT_EQ(result.status_code, 200);
+
+    for (int i = 0; i < 200 && geocode_http_client_.GetCount() == count_before; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    EXPECT_GT(geocode_http_client_.GetCount(), count_before);
+}
