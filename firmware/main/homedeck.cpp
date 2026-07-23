@@ -76,6 +76,20 @@ extern const uint8_t webui_app_js_end[] asm("_binary_app_js_end");
 extern const uint8_t webui_app_css_start[] asm("_binary_app_css_start");
 extern const uint8_t webui_app_css_end[] asm("_binary_app_css_end");
 
+// The first thing app_main() does, before anything else can fail and
+// leave no trace of what was even running.
+void PrintBootBanner() {
+    esp_chip_info_t chip_info;
+    esp_chip_info(&chip_info);
+
+    printf("HomeDeck firmware boot\n");
+    printf("  IDF version:  %s\n", esp_get_idf_version());
+    printf("  Chip:         %s, cores: %d, revision: v%d.%d\n", CONFIG_IDF_TARGET,
+           chip_info.cores, chip_info.revision / 100, chip_info.revision % 100);
+    printf("  Free heap:    %lu bytes\n", (unsigned long)esp_get_free_heap_size());
+    printf("  Free PSRAM:   %zu bytes\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+}
+
 // Passed to RegisterOtaRoutes as its OtaRebootFn - esp_restart() can't
 // be called directly from the /api/ota/reboot handler, since the
 // handler still has to return so its 200 response is actually sent
@@ -120,18 +134,160 @@ bool IsValidHostnameLabel(const std::string& label) {
     return true;
 }
 
+// General system init required by Wi-Fi (and later, other Core services
+// that need NVS/the event loop) - see
+// docs/architecture/networking.md#initial-wi-fi-provisioning. Called
+// ahead of the dashboard's construction in app_main() (unlike the rest
+// of Wi-Fi bring-up, which stays deferred until after first paint) so
+// InitWifiAndCheckStoredCredentials() can answer "is setup needed"
+// before any real screen is shown - the splash shown just before this
+// call is what keeps first paint fast despite that.
+void InitNvs() {
+    esp_err_t nvs_result = nvs_flash_init();
+    if (nvs_result == ESP_ERR_NVS_NO_FREE_PAGES || nvs_result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        nvs_result = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(nvs_result);
+}
+
+// Not written back here, only read, so an unset name stays genuinely
+// unset rather than getting persisted as a default nobody chose.
+std::string ResolveDeviceName(homedeck::Storage& storage) {
+    auto device_name_setting = storage.GetSetting(homedeck::AdminAuthService::kModuleId, "device_name");
+    return device_name_setting.has_value() ? device_name_setting->value : "homedeck";
+}
+
+// Self-advertisement only - see
+// docs/architecture/networking.md#lan-discovery. Not the Core mDNS
+// *browsing* wrapper that doc also names (for modules discovering
+// Kodi/Home Assistant) - that has no real consumer until one of those
+// modules exists (M4/M6 respectively), so building it now would be
+// exactly the kind of speculative Core abstraction ADR-0006 itself
+// rejects. This makes the device reachable at <name>.local instead of
+// requiring the serial-logged IP.
+void RegisterMdns(const std::string& device_name, homedeck::Logger& logger) {
+    esp_err_t mdns_result = mdns_init();
+    if (mdns_result == ESP_OK) {
+        mdns_hostname_set(device_name.c_str());
+        mdns_instance_name_set("HomeDeck");
+        mdns_service_add(nullptr, "_http", "_tcp", 80, nullptr, 0);
+        printf("mDNS advertising as %s.local\n", device_name.c_str());
+        logger.Log(homedeck::LogLevel::kInfo, "mdns", "Advertising as " + device_name + ".local");
+    } else {
+        printf("mDNS init failed: %s\n", esp_err_to_name(mdns_result));
+        logger.Log(homedeck::LogLevel::kError, "mdns",
+                    std::string("Init failed: ") + esp_err_to_name(mdns_result));
+    }
+}
+
+// See docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
+// decision and core/ota_gate.h.
+homedeck::OtaWriter BuildOtaWriter() {
+    return homedeck::OtaWriter{
+        .max_image_size =
+            []() -> size_t {
+                const esp_partition_t* partition = esp_ota_get_next_update_partition(nullptr);
+                return partition != nullptr ? partition->size : 0;
+            },
+        .write_image =
+            [](const std::string& image) -> bool {
+                const esp_partition_t* partition = esp_ota_get_next_update_partition(nullptr);
+                if (partition == nullptr) {
+                    return false;
+                }
+                esp_ota_handle_t handle;
+                if (esp_ota_begin(partition, image.size(), &handle) != ESP_OK) {
+                    return false;
+                }
+                if (esp_ota_write(handle, image.data(), image.size()) != ESP_OK) {
+                    esp_ota_end(handle);
+                    return false;
+                }
+                // esp_ota_set_boot_partition() only runs once esp_ota_end()
+                // has validated the image - a bad image must never become
+                // bootable.
+                if (esp_ota_end(handle) != ESP_OK) {
+                    return false;
+                }
+                return esp_ota_set_boot_partition(partition) == ESP_OK;
+            },
+        .running_version =
+            []() -> std::string {
+                const esp_app_desc_t* desc = esp_app_get_description();
+                return desc != nullptr ? std::string(desc->version) : std::string("unknown");
+            },
+    };
+}
+
+// The Web Management UI's server primitive (see
+// docs/architecture/web-ui.md#status) - the built Svelte/Vite scaffold
+// plus admin auth. Called after Wi-Fi connects, and after
+// wifi_setup.cpp's own temporary SoftAP-setup server has already
+// stopped, so there's no port/lifecycle overlap between the two.
+// battery_reader is the same Ina226BatteryReader instance the dashboard
+// already reads.
+void StartWebServer(homedeck::HttpServer& web_server, homedeck::Storage& storage,
+                     homedeck::AdminAuthService& admin_auth, homedeck::BatteryReader& battery_reader,
+                     homedeck::Logger& logger, homedeck::HttpClient& http_client,
+                     homedeck::OpenMeteoWeatherProvider& weather_provider, homedeck::OtaWriter ota_writer) {
+    homedeck::ServeStaticFiles(
+        web_server,
+        {{"/", "text/html",
+          std::string(reinterpret_cast<const char*>(webui_index_html_start),
+                       webui_index_html_end - webui_index_html_start)},
+         {"/app.js", "text/javascript",
+          std::string(reinterpret_cast<const char*>(webui_app_js_start),
+                       webui_app_js_end - webui_app_js_start)},
+         {"/app.css", "text/css",
+          std::string(reinterpret_cast<const char*>(webui_app_css_start),
+                       webui_app_css_end - webui_app_css_start)}});
+    homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
+    // Real flash read against the coredump partition (see
+    // docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md) - mirrors
+    // crash_diagnostics.cpp's own esp_core_dump_image_check() gate rather
+    // than trusting esp_core_dump_image_get() alone to signal absence.
+    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader, logger,
+                                         []() -> std::optional<std::string> {
+        if (esp_core_dump_image_check() != ESP_OK) {
+            return std::nullopt;
+        }
+        size_t addr = 0, size = 0;
+        if (esp_core_dump_image_get(&addr, &size) != ESP_OK || size == 0) {
+            return std::nullopt;
+        }
+        std::string buffer(size, '\0');
+        if (esp_flash_read(esp_flash_default_chip, buffer.data(), addr, size) != ESP_OK) {
+            return std::nullopt;
+        }
+        return buffer;
+    });
+    homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer, ScheduleReboot);
+    homedeck::RegisterSettingsRoutes(web_server, storage, admin_auth, [&logger](const std::string& value) -> bool {
+        if (!IsValidHostnameLabel(value)) {
+            return false;
+        }
+        bool ok = mdns_hostname_set(value.c_str()) == ESP_OK;
+        if (ok) {
+            printf("mDNS re-announced as %s.local\n", value.c_str());
+            logger.Log(homedeck::LogLevel::kInfo, "mdns", "Re-announced as " + value + ".local");
+        }
+        return ok;
+    });
+    homedeck::RegisterWeatherRoutes(web_server, http_client, weather_provider, admin_auth);
+    if (web_server.Start(80)) {
+        printf("Web UI listening on port 80\n");
+        logger.Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");
+    } else {
+        printf("Web UI failed to start\n");
+        logger.Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
+    }
+}
+
 }  // namespace
 
 extern "C" void app_main(void) {
-    esp_chip_info_t chip_info;
-    esp_chip_info(&chip_info);
-
-    printf("HomeDeck firmware boot\n");
-    printf("  IDF version:  %s\n", esp_get_idf_version());
-    printf("  Chip:         %s, cores: %d, revision: v%d.%d\n", CONFIG_IDF_TARGET,
-           chip_info.cores, chip_info.revision / 100, chip_info.revision % 100);
-    printf("  Free heap:    %lu bytes\n", (unsigned long)esp_get_free_heap_size());
-    printf("  Free PSRAM:   %zu bytes\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+    PrintBootBanner();
 
     printf("Starting display...\n");
     lv_display_t* display = bsp_display_start();
@@ -160,20 +316,7 @@ extern "C" void app_main(void) {
     homedeck::FirmwareNetworkStatus network_status;
     homedeck::FirmwareAudioOutput audio_output;
 
-    // General system init required by Wi-Fi (and later, other Core
-    // services that need NVS/the event loop) - see
-    // docs/architecture/networking.md#initial-wi-fi-provisioning. Moved
-    // ahead of the dashboard's construction below (unlike the rest of
-    // Wi-Fi bring-up, which stays deferred until after first paint) so
-    // InitWifiAndCheckStoredCredentials() can answer "is setup needed"
-    // before any real screen is shown - the splash above is what keeps
-    // first paint fast despite that.
-    esp_err_t nvs_result = nvs_flash_init();
-    if (nvs_result == ESP_ERR_NVS_NO_FREE_PAGES || nvs_result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        nvs_result = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(nvs_result);
+    InitNvs();
 
     // Moved ahead of the dashboard's construction below (unlike Logger
     // further down, which doesn't need to be) so WeatherWidget can be
@@ -292,33 +435,10 @@ extern "C" void app_main(void) {
     printf("Wi-Fi connected\n");
     logger.Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
 
-    // Self-advertisement only - see
-    // docs/architecture/networking.md#lan-discovery. Not the Core mDNS
-    // *browsing* wrapper that doc also names (for modules discovering
-    // Kodi/Home Assistant) - that has no real consumer until one of
-    // those modules exists (M4/M6 respectively), so building it now
-    // would be exactly the kind of speculative Core abstraction
-    // ADR-0006 itself rejects. This makes the device reachable at
-    // <name>.local instead of requiring the serial-logged IP - "homedeck"
-    // by default, or whatever a user has set via the Web UI's Settings
-    // page (see docs/decisions/ADR-0023-settings-backup-api.md). Not
-    // written back here, only read, so an unset name stays genuinely
-    // unset rather than getting persisted as a default nobody chose.
-    auto device_name_setting = storage.GetSetting(homedeck::AdminAuthService::kModuleId, "device_name");
-    std::string device_name = device_name_setting.has_value() ? device_name_setting->value : "homedeck";
-
-    esp_err_t mdns_result = mdns_init();
-    if (mdns_result == ESP_OK) {
-        mdns_hostname_set(device_name.c_str());
-        mdns_instance_name_set("HomeDeck");
-        mdns_service_add(nullptr, "_http", "_tcp", 80, nullptr, 0);
-        printf("mDNS advertising as %s.local\n", device_name.c_str());
-        logger.Log(homedeck::LogLevel::kInfo, "mdns", "Advertising as " + device_name + ".local");
-    } else {
-        printf("mDNS init failed: %s\n", esp_err_to_name(mdns_result));
-        logger.Log(homedeck::LogLevel::kError, "mdns",
-                    std::string("Init failed: ") + esp_err_to_name(mdns_result));
-    }
+    // "homedeck" by default, or whatever a user has set via the Web
+    // UI's Settings page (see docs/decisions/ADR-0023-settings-backup-api.md).
+    std::string device_name = ResolveDeviceName(storage);
+    RegisterMdns(device_name, logger);
 
     // A monotonic clock, not the shared wall-clock time_source above -
     // see platform/steady_time_source.h for why session expiry can't
@@ -326,103 +446,12 @@ extern "C" void app_main(void) {
     homedeck::SteadyTimeSource auth_time_source;
     homedeck::AdminAuthService admin_auth(storage, auth_time_source);
 
-    // The Web Management UI's server primitive (see
-    // docs/architecture/web-ui.md#status) - the built Svelte/Vite
-    // scaffold plus admin auth. Started after Wi-Fi connects, and after
-    // wifi_setup.cpp's own temporary SoftAP-setup server has already
-    // stopped, so there's no port/lifecycle overlap between the two.
-    // Real settings/diagnostics pages are still future passes. Declared
-    // here (not in a narrower scope) so it stays alive for the rest of
-    // app_main's life, which never returns.
+    // Declared here (not in a narrower scope) so it stays alive for the
+    // rest of app_main's life, which never returns.
     homedeck::FirmwareHttpServer web_server;
-    homedeck::ServeStaticFiles(
-        web_server,
-        {{"/", "text/html",
-          std::string(reinterpret_cast<const char*>(webui_index_html_start),
-                       webui_index_html_end - webui_index_html_start)},
-         {"/app.js", "text/javascript",
-          std::string(reinterpret_cast<const char*>(webui_app_js_start),
-                       webui_app_js_end - webui_app_js_start)},
-         {"/app.css", "text/css",
-          std::string(reinterpret_cast<const char*>(webui_app_css_start),
-                       webui_app_css_end - webui_app_css_start)}});
-    homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
-    // Real flash read against the coredump partition (see
-    // docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md) - mirrors
-    // crash_diagnostics.cpp's own esp_core_dump_image_check() gate rather
-    // than trusting esp_core_dump_image_get() alone to signal absence.
-    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader, logger,
-                                         []() -> std::optional<std::string> {
-        if (esp_core_dump_image_check() != ESP_OK) {
-            return std::nullopt;
-        }
-        size_t addr = 0, size = 0;
-        if (esp_core_dump_image_get(&addr, &size) != ESP_OK || size == 0) {
-            return std::nullopt;
-        }
-        std::string buffer(size, '\0');
-        if (esp_flash_read(esp_flash_default_chip, buffer.data(), addr, size) != ESP_OK) {
-            return std::nullopt;
-        }
-        return buffer;
-    });
-    // See docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
-    // decision and core/ota_gate.h - battery_reader is the same
-    // Ina226BatteryReader instance the dashboard already reads.
-    homedeck::OtaWriter ota_writer{
-        .max_image_size =
-            []() -> size_t {
-                const esp_partition_t* partition = esp_ota_get_next_update_partition(nullptr);
-                return partition != nullptr ? partition->size : 0;
-            },
-        .write_image =
-            [](const std::string& image) -> bool {
-                const esp_partition_t* partition = esp_ota_get_next_update_partition(nullptr);
-                if (partition == nullptr) {
-                    return false;
-                }
-                esp_ota_handle_t handle;
-                if (esp_ota_begin(partition, image.size(), &handle) != ESP_OK) {
-                    return false;
-                }
-                if (esp_ota_write(handle, image.data(), image.size()) != ESP_OK) {
-                    esp_ota_end(handle);
-                    return false;
-                }
-                // esp_ota_set_boot_partition() only runs once esp_ota_end()
-                // has validated the image - a bad image must never become
-                // bootable.
-                if (esp_ota_end(handle) != ESP_OK) {
-                    return false;
-                }
-                return esp_ota_set_boot_partition(partition) == ESP_OK;
-            },
-        .running_version =
-            []() -> std::string {
-                const esp_app_desc_t* desc = esp_app_get_description();
-                return desc != nullptr ? std::string(desc->version) : std::string("unknown");
-            },
-    };
-    homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer, ScheduleReboot);
-    homedeck::RegisterSettingsRoutes(web_server, storage, admin_auth, [&logger](const std::string& value) -> bool {
-        if (!IsValidHostnameLabel(value)) {
-            return false;
-        }
-        bool ok = mdns_hostname_set(value.c_str()) == ESP_OK;
-        if (ok) {
-            printf("mDNS re-announced as %s.local\n", value.c_str());
-            logger.Log(homedeck::LogLevel::kInfo, "mdns", "Re-announced as " + value + ".local");
-        }
-        return ok;
-    });
-    homedeck::RegisterWeatherRoutes(web_server, http_client, weather_provider, admin_auth);
-    if (web_server.Start(80)) {
-        printf("Web UI listening on port 80\n");
-        logger.Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");
-    } else {
-        printf("Web UI failed to start\n");
-        logger.Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
-    }
+    StartWebServer(web_server, storage, admin_auth, battery_reader, logger, http_client, weather_provider,
+                   BuildOtaWriter());
+
     // A real, meaningful "this boot actually worked" checkpoint - see
     // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.
     // No-op when rollback is disabled or this isn't a pending-verify
