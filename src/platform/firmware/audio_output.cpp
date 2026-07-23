@@ -48,6 +48,9 @@ bool FirmwareAudioOutput::Play(const int16_t* samples, size_t sample_count, uint
 }
 
 void FirmwareAudioOutput::SetVolume(int percent) {
+    if (codec_ == nullptr) {
+        return;
+    }
     int result = esp_codec_dev_set_out_vol(codec_, percent);
     if (result != ESP_CODEC_DEV_OK) {
         ESP_LOGW(kTag, "esp_codec_dev_set_out_vol failed: %d", result);
