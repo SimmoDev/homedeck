@@ -34,6 +34,7 @@ idf_component_register(
         "../../src/core/storage.cpp"
         "../../src/core/low_battery_monitor.cpp"
         "../../src/core/network_status_monitor.cpp"
+        "../../src/core/power_manager.cpp"
         "../../src/core/weather_provider.cpp"
         "../../src/core/weather_routes.cpp"
         "../../src/core/admin_auth_service.cpp"

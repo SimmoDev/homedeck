@@ -7,12 +7,14 @@
 #include "core/network_status_monitor.h"
 #include "core/notification_sound.h"
 #include "core/ota_routes.h"
+#include "core/power_manager.h"
 #include "core/settings_routes.h"
 #include "core/weather_provider.h"
 #include "core/weather_routes.h"
 #include "platform/host/audio_output.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
+#include "platform/host/display_brightness.h"
 #include "platform/host/file_backed_store.h"
 #include "platform/host/http_client.h"
 #include "platform/host/http_server.h"
@@ -24,6 +26,7 @@
 #include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
 #include "ui/clock_widget.h"
+#include "ui/lvgl_user_activity_source.h"
 #include "ui/navigation.h"
 #include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
@@ -311,6 +314,63 @@ void CreateTestPlayToneButton(lv_obj_t* parent, homedeck::HostAudioOutput& audio
     lv_label_set_text(label, "Test: play tone");
 }
 
+// Wraps the real LvglUserActivitySource with a settable override - it
+// has no separate fake backend to begin with (unlike HostBatteryReader/
+// HostNetworkStatus, real UserActivitySource is identical on both
+// targets, see ui/lvgl_user_activity_source.h), and LVGL has no "pretend
+// N minutes passed" API, only lv_display_trigger_activity() (resets to
+// just-active). Stays local debug scaffolding here rather than a second
+// real platform/host/ backend, same reasoning force_ota_failure below
+// already follows.
+class DebugOverridableUserActivitySource : public homedeck::UserActivitySource {
+public:
+    explicit DebugOverridableUserActivitySource(homedeck::UserActivitySource& real) : real_(real) {}
+
+    uint32_t MillisecondsSinceLastActivity() const override {
+        return forced_idle_ ? kForcedIdleMs : real_.MillisecondsSinceLastActivity();
+    }
+
+    void SetForcedIdle(bool forced) { forced_idle_ = forced; }
+
+private:
+    // Past any real placeholder idle timeout - see core/power_manager.cpp.
+    static constexpr uint32_t kForcedIdleMs = 24u * 60 * 60 * 1000;
+
+    homedeck::UserActivitySource& real_;
+    bool forced_idle_ = false;
+};
+
+void OnTestTriggerIdleClicked(lv_event_t* e) {
+    auto* source = static_cast<DebugOverridableUserActivitySource*>(lv_event_get_user_data(e));
+    source->SetForcedIdle(true);
+}
+
+void CreateTestTriggerIdleButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_add_event_cb(button, OnTestTriggerIdleClicked, LV_EVENT_CLICKED, &source);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: trigger idle");
+}
+
+void OnTestTriggerActiveClicked(lv_event_t* e) {
+    auto* source = static_cast<DebugOverridableUserActivitySource*>(lv_event_get_user_data(e));
+    source->SetForcedIdle(false);
+    // Clears the override, but the underlying real clock needs to be
+    // fresh too - otherwise it could still read as idle on the very
+    // next tick if the real SDL window hasn't actually been touched
+    // recently.
+    lv_display_trigger_activity(nullptr);
+}
+
+void CreateTestTriggerActiveButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_add_event_cb(button, OnTestTriggerActiveClicked, LV_EVENT_CLICKED, &source);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: trigger active");
+}
+
 }  // namespace
 
 // The dashboard shell, StatusBar, and DashboardGrid widget framework -
@@ -331,6 +391,12 @@ int main() {
     homedeck::HostBatteryReader battery_reader;
     homedeck::HostNetworkStatus network_status;
     homedeck::HostAudioOutput audio_output;
+    // Safe to construct here - UiTask's constructor above already ran
+    // lv_init(), and neither constructor otherwise touches LVGL/BSP
+    // state beyond that (see ui/lvgl_user_activity_source.h).
+    homedeck::HostDisplayBrightness display_brightness;
+    homedeck::LvglUserActivitySource real_user_activity_source;
+    DebugOverridableUserActivitySource user_activity_source(real_user_activity_source);
 
     // Moved ahead of the dashboard's construction below (unlike Logger
     // further down, which doesn't need to be) so WeatherWidget can be
@@ -385,6 +451,8 @@ int main() {
     // server's lifetime.
     bool force_ota_failure = false;
     CreateTestForceOtaFailureButton(test_button_panel, force_ota_failure);
+    CreateTestTriggerIdleButton(test_button_panel, user_activity_source);
+    CreateTestTriggerActiveButton(test_button_panel, user_activity_source);
 
     // NotificationBanner and NotificationSound must exist before
     // LowBatteryMonitor, which must exist before Clock (the
@@ -399,6 +467,15 @@ int main() {
     // Same "subscriber before publisher" ordering as LowBatteryMonitor -
     // NetworkStatusMonitor is also a ClockTickEvent subscriber.
     homedeck::NetworkStatusMonitor network_status_monitor(event_bus, network_status);
+    // Grouped here for readability, not a real ordering dependency on
+    // NotificationBanner/NotificationSound - see homedeck.cpp's identical
+    // note. A second SteadyTimeSource instance (stateless, see
+    // platform/steady_time_source.h) rather than sharing auth_time_source
+    // below, which is constructed later and named for AdminAuthService
+    // specifically.
+    homedeck::SteadyTimeSource power_time_source;
+    homedeck::PowerManager power_manager(event_bus, user_activity_source, display_brightness,
+                                          power_time_source);
 
     homedeck::HostTimeSource time_source;
     homedeck::Clock clock(time_source, event_bus);

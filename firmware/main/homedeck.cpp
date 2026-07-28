@@ -27,6 +27,7 @@
 #include "core/network_status_monitor.h"
 #include "core/notification_sound.h"
 #include "core/ota_routes.h"
+#include "core/power_manager.h"
 #include "core/settings_routes.h"
 #include "core/weather_provider.h"
 #include "core/weather_routes.h"
@@ -34,6 +35,7 @@
 #include "platform/firmware/audio_output.h"
 #include "platform/firmware/battery_reader.h"
 #include "platform/firmware/cache_store.h"
+#include "platform/firmware/display_brightness.h"
 #include "platform/firmware/http_client.h"
 #include "platform/firmware/http_server.h"
 #include "platform/firmware/network_status.h"
@@ -43,6 +45,7 @@
 #include "platform/static_assets.h"
 #include "platform/steady_time_source.h"
 #include "ui/clock_widget.h"
+#include "ui/lvgl_user_activity_source.h"
 #include "ui/navigation.h"
 #include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
@@ -315,6 +318,13 @@ extern "C" void app_main(void) {
     homedeck::Rx8130TimeSource time_source(i2c_bus);
     homedeck::FirmwareNetworkStatus network_status;
     homedeck::FirmwareAudioOutput audio_output;
+    // Safe to construct here, ahead of the dashboard below - neither
+    // constructor touches LVGL/BSP state itself, only their later-called
+    // methods do, and those only ever run from PowerManager's own
+    // SubscribeUi tick (see ui/lvgl_user_activity_source.h), already
+    // UI-thread-safe by then.
+    homedeck::FirmwareDisplayBrightness display_brightness;
+    homedeck::LvglUserActivitySource user_activity_source;
 
     InitNvs();
 
@@ -362,6 +372,17 @@ extern "C" void app_main(void) {
     // NetworkStatusMonitor is also a ClockTickEvent subscriber, so it
     // must exist before Clock too (see below).
     homedeck::NetworkStatusMonitor network_status_monitor(event_bus, network_status);
+    // Grouped here for readability, not a real ordering dependency on
+    // NotificationBanner/NotificationSound the way LowBatteryMonitor has
+    // - PowerManager neither consumes nor publishes NotificationEvent,
+    // it just shares the same "must exist before Clock" rule every
+    // ClockTickEvent subscriber does. A second SteadyTimeSource instance
+    // (stateless, see platform/steady_time_source.h) rather than sharing
+    // auth_time_source below, which is constructed later and named for
+    // AdminAuthService specifically.
+    homedeck::SteadyTimeSource power_time_source;
+    homedeck::PowerManager power_manager(event_bus, user_activity_source, display_brightness,
+                                          power_time_source);
     // Navigation's constructor loads home_screen itself (see
     // ui/navigation.h), so no explicit lv_scr_load() call is needed here.
     // wifi_setup_screen is the Touch UI fallback for initial Wi-Fi setup
