@@ -184,9 +184,13 @@ real `Ina226BatteryReader` path. `kError` takes priority over
 shutdown right now regardless of what the UI is doing" - deliberately
 interrupting an in-progress OTA write rather than deferring to it,
 since `esp_ota_end()` already validates an image before it can become
-bootable, so an interrupted write fails safe. Still open: a charging
-fault and a thermal fault, per ADR-0005's original Error scope - neither
-has a hardware-confirmed detection signal (the IP2326 charge controller
-exposes no fault pin beyond `CHG_STAT`, and no temperature sensor is
-confirmed on the BOM - see [hardware.md](hardware.md#power)), so neither
-is designed or stubbed yet.
+bootable, so an interrupted write fails safe. Of the other two fault
+types ADR-0005 originally scoped Error to cover: charging-fault
+detection is a permanent limitation of this board revision, not
+outstanding work - `CHG_STAT` (see [hardware.md](hardware.md#power))
+can't distinguish a stalled charge from a simply-unplugged or
+already-full battery, and no independent cable-presence signal exists
+to disambiguate (see [roadmap.md](../roadmap.md) for the detail).
+Thermal fault remains genuinely open: whether the ESP32-P4's own die
+temperature is an acceptable stand-in for battery temperature (no
+dedicated battery-temperature sensor exists) hasn't been decided.

@@ -419,10 +419,23 @@ simulator.
       `PowerManager` into `kError` once the battery crosses a critical
       threshold while not on external power (confirmed on the K145
       unit), taking priority over `kUpdating` if both are true at once.
-      Still open: a charging fault and a thermal fault - neither has a
-      hardware-confirmed detection signal (see
-      [hardware.md](architecture/hardware.md#power)), so neither is
-      designed or stubbed yet. Also still open,
+      Charging-fault detection is a permanent limitation of this board
+      revision, not deferred scope: `CHG_STAT` (see
+      [hardware.md](architecture/hardware.md#power)) is the only
+      charge-related signal available, and it reads low both when
+      charging genuinely stalls *and* whenever USB-C is simply
+      unplugged or a full battery stops drawing current - there's no
+      independent cable-presence signal to tell those cases apart
+      (confirmed in practice: the status bar's own charge icon already
+      disappears near 100% with the cable still connected, for the same
+      reason). A duration-based heuristic doesn't recover this either,
+      since the moment charging would look stalled, the same signal
+      already also reads "unplugged." `Error`'s charging-fault case is
+      considered closed as not buildable on this hardware, not
+      outstanding work. Thermal fault is a separate, genuinely open
+      question, not yet decided: whether the ESP32-P4's own die
+      temperature is an acceptable stand-in for battery temperature (no
+      dedicated battery-temperature sensor exists). Also still open,
       separate from automatic brightness (CLAUDE.md's own Power
       Management capability list): on-device manual brightness control
       - the display-side analogue of the Audio bring-up item's
