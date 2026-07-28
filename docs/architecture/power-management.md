@@ -165,14 +165,32 @@ measurements rather than decided abstractly:**
 
 ## Status
 
-Not yet implemented. Planned for M2 (Platform Services), building on the
-Tab5 boot/display/battery work done in M1. Two pieces named above are
-real ahead of the rest: the urgency concept this section requires of
-Core's notification service (`NotificationSeverity`,
-`src/core/notification.h`) exists, since a low-battery notification
-needed it; and the Updating state's own gate check (`src/core/ota_gate.h`,
-`EvaluateOtaGate()`) is real and confirmed on hardware — the 30%/external-
-power condition itself, not the full Updating state (background-task
-suppression, entry/exit transitions), which doesn't exist yet since
-there's barely any background-task activity today to suppress. The wake
-cycle, and everything else in this document, remain unbuilt.
+**`PowerManager` (`src/core/power_manager.h`/`.cpp`) is real** for the
+`Active`/`Idle` half of the state model — confirmed on the K145
+reference unit: the display dims after the idle timeout and restores
+on touch. It reads user inactivity through `UserActivitySource`
+(`src/platform/user_activity_source.h`, backed by
+`src/ui/lvgl_user_activity_source.h`/`.cpp` on both targets) and drives
+`DisplayBrightness` (`src/platform/display_brightness.h`, real PWM on
+firmware via `src/platform/firmware/display_brightness.h`/`.cpp`, an
+LVGL overlay on the simulator via
+`src/platform/host/display_brightness.h`/`.cpp` — see
+[simulator.md](simulator.md#how-it-works)). The sleep-veto mechanism
+(`PowerManager::RequestSleepVeto`/`HasActiveSleepVeto`) is also real
+and unit-tested, though nothing calls it yet — no module exists to
+call it until M3+.
+
+`Sleeping`/`Updating`/`Error` exist in the `PowerState` enum but have
+no real trigger. Real ESP32 deep sleep, the alert-priority wake cycle,
+touch/IMU wake sources, and the ESP-Hosted/SDIO reassociation-vs-
+modem-sleep question above are all still open — deep sleep needs that
+question answered on real hardware before its wake cycle can be tuned
+against the right cost model, not just implemented. The Updating
+state's own gate check (`src/core/ota_gate.h`, `EvaluateOtaGate()`) is
+real and confirmed on hardware — the 30%/external-power condition
+itself, not the full `Updating` state (background-task suppression,
+entry/exit transitions), which doesn't exist yet since there's barely
+any background-task activity today to suppress. The urgency concept
+the wake cycle needs from Core's notification service
+(`NotificationSeverity`, `src/core/notification.h`) already exists,
+since a low-battery notification needed it independently.
