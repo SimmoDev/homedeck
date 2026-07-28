@@ -51,9 +51,11 @@ for why this ruled out a separate web-based mock UI.
     [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)) — the
     process keeps running underneath either way, matching real hardware,
     so there's nothing here the simulator needs to avoid replicating.
-    Idle dims the SDL2 window, Sleeping blacks it out, and a debug
-    control simulates the touch-wake poll so that flow doesn't require
-    manually waiting out the real idle/sleep timeouts.
+    Idle dims the SDL2 window, Sleeping blacks it out, and two debug
+    controls ("Test: trigger idle"/"Test: trigger sleeping",
+    `simulator/main.cpp`) force each inactivity level directly so both
+    are reachable on demand rather than waiting out the real timeouts -
+    screenshot-verified for all three states (dim, black, restored).
   - *Crash/reboot diagnostics:* `esp_reset_reason()` and ESP-IDF's core
     dump partition (see
     [diagnostics.md](diagnostics.md#crash-and-reboot-diagnostics)) don't

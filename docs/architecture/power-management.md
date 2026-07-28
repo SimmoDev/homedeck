@@ -113,7 +113,8 @@ layer](overview.md#hardware-abstraction), not directly, so power management
 logic can run identically against the simulator (with a mocked/simulated
 battery) and real hardware. See [simulator.md](simulator.md#how-it-works)
 for how power states are visually represented in the simulator (dimming,
-blackout, a debug-triggered touch-wake poll) so power-related UI work
+blackout, and debug controls that force each inactivity level directly
+rather than waiting out the real timeouts) so power-related UI work
 doesn't require real hardware.
 
 ## State transition policy
@@ -141,20 +142,22 @@ measurements rather than decided abstractly:**
 
 ## Status
 
-**`PowerManager` (`src/core/power_manager.h`/`.cpp`) is real** for the
-`Active`/`Idle` half of the state model — confirmed on the K145
-reference unit: the display dims after the idle timeout and restores
-on touch. It reads user inactivity through `UserActivitySource`
-(`src/platform/user_activity_source.h`, backed by
+**`PowerManager` (`src/core/power_manager.h`/`.cpp`) is real** for
+`Active`/`Idle`/`Sleeping` — confirmed on the K145 reference unit: the
+display dims after the idle timeout, goes fully off (0% brightness)
+after the sleep timeout, and restores directly to full brightness on
+touch from either state. It reads user inactivity through
+`UserActivitySource` (`src/platform/user_activity_source.h`, backed by
 `src/ui/lvgl_user_activity_source.h`/`.cpp` on both targets) and drives
 `DisplayBrightness` (`src/platform/display_brightness.h`, real PWM on
 firmware via `src/platform/firmware/display_brightness.h`/`.cpp`, an
 LVGL overlay on the simulator via
 `src/platform/host/display_brightness.h`/`.cpp` — see
-[simulator.md](simulator.md#how-it-works)). The sleep-veto mechanism
-(`PowerManager::RequestSleepVeto`/`HasActiveSleepVeto`) is also real
-and unit-tested, though nothing calls it yet — no module exists to
-call it until M3+.
+[simulator.md](simulator.md#how-it-works)). `Idle -> Sleeping` is
+gated by the sleep-veto mechanism (`PowerManager::RequestSleepVeto`/
+`HasActiveSleepVeto`) — `HasActiveSleepVeto()` is now consulted for
+real by that transition, though `RequestSleepVeto()` itself still has
+no module caller until M3+.
 
 `Updating` is also real: `POST /api/ota/upload` publishes
 `OtaUpdateStateChangedEvent` immediately around the actual flash write,
@@ -168,10 +171,6 @@ confirmed on hardware too — the 30%/external-power condition. What
 an intentionally deferred scope decision, not a gap, since there's
 barely any background-task activity today to suppress.
 
-`Sleeping`/`Error` exist in the `PowerState` enum but have no real
-trigger yet. Unlike `Idle`/`Updating`, this isn't blocked on hardware
-investigation — [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)
-settles the design (display off, CPU stays active, touch-wake by
-polling, no deep sleep) — it's simply not implemented yet. `Error` has
-no trigger either; no power-specific fault condition (critical low
-battery, charging fault, thermal fault) has a real detector built yet.
+`Error` exists in the `PowerState` enum but has no real trigger yet; no
+power-specific fault condition (critical low battery, charging fault,
+thermal fault) has a real detector built.

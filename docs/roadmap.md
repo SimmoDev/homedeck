@@ -383,33 +383,36 @@ simulator.
       both its callers (`DashboardScreen`, `WifiSetupScreen`) - deferred
       as a minor, non-jarring gap, not a rendering bug
 - [ ] Power management state model — **`PowerManager`
-      (`src/core/power_manager.h`/`.cpp`) is real** for `Active`/`Idle`:
-      real display dimming after a (placeholder) idle timeout,
-      confirmed on the K145 reference unit, plus the sleep-veto API
-      (unit-tested, unused until a real module exists to call it).
-      `Updating` is real too, driven by the actual OTA upload's flash
-      write (also confirmed on the K145 unit) — see
-      [power-management.md](architecture/power-management.md#status)
-      for the full detail. Still open, but no longer blocked on hardware
-      investigation: `Sleeping` itself isn't implemented yet. Its design
-      is settled — display off, CPU stays active, touch-wake by polling,
-      no ESP32 deep sleep — because none of touch, IMU, or RTC has a
-      confirmed GPIO path capable of waking the device from real deep
-      sleep, and M5Stack's own official Tab5 firmware turns out not to
-      depend on one either, for the same three sources (see
+      (`src/core/power_manager.h`/`.cpp`) is real** for
+      `Active`/`Idle`/`Sleeping`: real display dimming after a
+      (placeholder) idle timeout and a full backlight-off after a
+      further (placeholder) sleep timeout, both confirmed on the K145
+      reference unit including direct wake-to-full-brightness from
+      Sleeping on real touch, plus the sleep-veto mechanism now
+      gating the Idle->Sleeping transition for real (unit-tested;
+      `RequestSleepVeto` itself still has no module caller until M3+).
+      `Sleeping` isn't real ESP32 deep sleep - display off, CPU stays
+      active, touch-wake by polling - because none of touch, IMU, or
+      RTC has a confirmed GPIO path capable of waking the device from
+      real deep sleep, and M5Stack's own official Tab5 firmware turns
+      out not to depend on one either, for the same three sources (see
       [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)). This
       also resolves the ESP-Hosted/SDIO reassociation-vs-modem-sleep
       question moved from M1: it's moot for `Sleeping`, since the P4
       never disconnects in this design (see
-      [hardware.md](architecture/hardware.md#wireless)). The simulator's
-      blackout/touch-wake-poll visual representation is still to build
-      alongside this. Also still open, separate from automatic
-      brightness (CLAUDE.md's own Power Management capability list):
-      on-device manual brightness control - the display-side analogue of
-      the Audio bring-up item's still-open volume control above, same
-      open question of where the control actually lives (dashboard/
-      status-bar quick-access vs. something else), deliberately not
-      decided here either
+      [hardware.md](architecture/hardware.md#wireless)). `Updating` is
+      real too, driven by the actual OTA upload's flash write (also
+      confirmed on the K145 unit) — see
+      [power-management.md](architecture/power-management.md#status)
+      for the full detail. Still open: `Error` has no real trigger -
+      no power-specific fault condition (critical low battery, charging
+      fault, thermal fault) has a real detector built. Also still open,
+      separate from automatic brightness (CLAUDE.md's own Power
+      Management capability list): on-device manual brightness control
+      - the display-side analogue of the Audio bring-up item's
+      still-open volume control above, same open question of where the
+      control actually lives (dashboard/status-bar quick-access vs.
+      something else), deliberately not decided here either
 - [x] Simulator physical-keyboard input (dev tooling, not product scope) —
       `lv_sdl_keyboard_create()` plus a default `lv_group` for focus/Tab
       routing (`UiTask`, `src/ui/ui_task.cpp`), so typing into a text
