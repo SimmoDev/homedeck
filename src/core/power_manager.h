@@ -11,8 +11,8 @@
 namespace homedeck {
 
 // See docs/architecture/power-management.md for the full model.
-// kActive/kIdle/kUpdating are reachable via real transitions -
-// kSleeping/kError exist in the type but have no trigger wired up yet.
+// kActive/kIdle/kUpdating/kSleeping are reachable via real transitions -
+// kError exists in the type but has no trigger wired up yet.
 enum class PowerState { kActive, kIdle, kSleeping, kUpdating, kError };
 
 // Published on every real transition.
@@ -37,9 +37,10 @@ public:
     PowerState State() const { return state_; }
 
     // Event-based, time-limited request to delay entering Sleeping - see
-    // ADR-0005's sleep-veto decision. Not consulted by any real
-    // transition yet (Sleeping is unreachable this phase) - built now
-    // per ADR-0005's own reasoning that retrofitting it later would be
+    // ADR-0005's sleep-veto decision. HasActiveSleepVeto() is consulted
+    // by OnTick()'s Idle->Sleeping transition; RequestSleepVeto() itself
+    // still has no module caller until M3+, built ahead of one per
+    // ADR-0005's own reasoning that retrofitting it later would be
     // disruptive to every module's background-task code. Each call
     // overwrites the previously recorded expiry rather than stacking
     // across repeated calls.

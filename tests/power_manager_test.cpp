@@ -101,7 +101,10 @@ TEST(PowerManager, IdleTransitionIsLatchedNotRepeatedEveryTick) {
     FakeTimeSource time_source;
     homedeck::PowerManager manager(bus, activity, brightness, time_source);
 
-    activity.SetMs(UINT32_MAX);
+    // Past kIdleTimeoutMs but short of kSleepTimeoutMs - UINT32_MAX would
+    // also cross into Sleeping territory on a later tick, which is a
+    // different behavior this test isn't about.
+    activity.SetMs(60000);
     bus.Publish(homedeck::ClockTickEvent{});
     bus.Publish(homedeck::ClockTickEvent{});
     bus.Publish(homedeck::ClockTickEvent{});
@@ -144,7 +147,9 @@ TEST(PowerManager, PublishesPowerStateChangedEventOnEachRealTransition) {
     auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
         [&events](const homedeck::PowerStateChangedEvent& event) { events.push_back(event.state); });
 
-    activity.SetMs(UINT32_MAX);
+    // Past kIdleTimeoutMs but short of kSleepTimeoutMs - see the latch
+    // test above for why this can't be UINT32_MAX here.
+    activity.SetMs(60000);
     bus.Publish(homedeck::ClockTickEvent{});
     bus.Publish(homedeck::ClockTickEvent{});  // still idle - must not publish again
 
@@ -191,7 +196,7 @@ TEST(PowerManager, RepeatedSleepVetoRequestsOverwriteRatherThanStack) {
     EXPECT_FALSE(manager.HasActiveSleepVeto());
 }
 
-TEST(PowerManager, ActiveSleepVetoDoesNotBlockIdleTransitionThisPhase) {
+TEST(PowerManager, ActiveSleepVetoDoesNotBlockActiveToIdleTransition) {
     homedeck::EventBus bus;
     RunDispatcherInline(bus);
     FakeUserActivitySource activity;
@@ -203,10 +208,109 @@ TEST(PowerManager, ActiveSleepVetoDoesNotBlockIdleTransitionThisPhase) {
     activity.SetMs(UINT32_MAX);
     bus.Publish(homedeck::ClockTickEvent{});
 
-    // The veto exists and is tested above, but Sleeping is unreachable
-    // this phase, so it has nothing to veto yet - this asserts that
-    // real, current behavior explicitly rather than leaving it implicit.
+    // The veto only ever gates entry into Sleeping (see
+    // SleepVetoBlocksIdleToSleepingTransition below) - it must not also
+    // block the unrelated Active->Idle transition.
     EXPECT_EQ(manager.State(), homedeck::PowerState::kIdle);
+}
+
+TEST(PowerManager, TransitionsToSleepingAfterExtendedInactivity) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});  // Active -> Idle
+    bus.Publish(homedeck::ClockTickEvent{});  // Idle -> Sleeping
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kSleeping);
+    EXPECT_EQ(brightness.last_percent, 0);
+}
+
+TEST(PowerManager, WakesFromSleepingDirectlyToActive) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});
+    bus.Publish(homedeck::ClockTickEvent{});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kSleeping);
+
+    activity.SetMs(0);
+    bus.Publish(homedeck::ClockTickEvent{});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kActive);
+    EXPECT_EQ(brightness.last_percent, 100);
+}
+
+TEST(PowerManager, PublishesPowerStateChangedEventOnSleepingTransition) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    std::vector<homedeck::PowerState> events;
+    auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
+        [&events](const homedeck::PowerStateChangedEvent& event) { events.push_back(event.state); });
+
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});  // Active -> Idle
+    bus.Publish(homedeck::ClockTickEvent{});  // Idle -> Sleeping
+
+    activity.SetMs(0);
+    bus.Publish(homedeck::ClockTickEvent{});  // Sleeping -> Active
+
+    ASSERT_EQ(events.size(), 3u);
+    EXPECT_EQ(events[0], homedeck::PowerState::kIdle);
+    EXPECT_EQ(events[1], homedeck::PowerState::kSleeping);
+    EXPECT_EQ(events[2], homedeck::PowerState::kActive);
+}
+
+TEST(PowerManager, SleepVetoBlocksIdleToSleepingTransition) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    manager.RequestSleepVeto(std::chrono::minutes(30));
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});  // Active -> Idle, unaffected by the veto
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kIdle);
+
+    bus.Publish(homedeck::ClockTickEvent{});  // Would reach Sleeping without the veto
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kIdle);
+}
+
+TEST(PowerManager, SleepVetoExpiryAllowsSleepingOnLaterTick) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    manager.RequestSleepVeto(std::chrono::minutes(1));
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});  // Active -> Idle
+    bus.Publish(homedeck::ClockTickEvent{});  // Veto still active - stays Idle
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kIdle);
+
+    time_source.fixed_time += std::chrono::minutes(2);
+    bus.Publish(homedeck::ClockTickEvent{});  // Veto expired - proceeds to Sleeping
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kSleeping);
 }
 
 TEST(PowerManager, OtaInProgressTransitionsToUpdating) {
