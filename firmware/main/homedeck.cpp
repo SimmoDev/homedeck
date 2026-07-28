@@ -20,6 +20,7 @@
 
 #include "core/admin_auth_service.h"
 #include "core/clock.h"
+#include "core/critical_battery_monitor.h"
 #include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
 #include "core/logger.h"
@@ -368,6 +369,12 @@ extern "C" void app_main(void) {
     homedeck::NotificationBanner notification_banner(event_bus);
     homedeck::NotificationSound notification_sound(event_bus, audio_output);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
+    // Same ordering rule as LowBatteryMonitor above - also a
+    // ClockTickEvent subscriber, must exist before Clock. PowerManager's
+    // own CriticalBatteryStateChangedEvent subscription is set up in its
+    // constructor below, before Clock's first tick, so its position
+    // relative to this doesn't matter beyond that.
+    homedeck::CriticalBatteryMonitor critical_battery_monitor(event_bus, battery_reader);
     // Same "subscriber before publisher" ordering as LowBatteryMonitor -
     // NetworkStatusMonitor is also a ClockTickEvent subscriber, so it
     // must exist before Clock too (see below).

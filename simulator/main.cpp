@@ -1,5 +1,6 @@
 #include "core/admin_auth_service.h"
 #include "core/clock.h"
+#include "core/critical_battery_monitor.h"
 #include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
 #include "core/logger.h"
@@ -135,6 +136,24 @@ void CreateTestLowBatteryButton(lv_obj_t* parent, homedeck::HostBatteryReader& b
 
     lv_obj_t* label = lv_label_create(button);
     lv_label_set_text(label, "Test: trigger low battery");
+}
+
+// Same reasoning as CreateTestLowBatteryButton above, for
+// CriticalBatteryMonitor/PowerManager's kError transition instead - 2%
+// is below CriticalBatteryMonitor::kCriticalThresholdPercent (5), the
+// same margin style this button's 10 uses against LowBatteryMonitor's
+// 15.
+void OnTestCriticalBatteryClicked(lv_event_t* e) {
+    auto* battery_reader = static_cast<homedeck::HostBatteryReader*>(lv_event_get_user_data(e));
+    battery_reader->SetPercent(2);
+}
+
+void CreateTestCriticalBatteryButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_add_event_cb(button, OnTestCriticalBatteryClicked, LV_EVENT_CLICKED, &battery_reader);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: trigger critical battery");
 }
 
 // Temporary test-only wiring proving GET /api/diagnostics' external-power
@@ -474,6 +493,7 @@ int main() {
     CreateTestWifiDisconnectButton(test_button_panel, network_status);
     CreateTestPlayToneButton(test_button_panel, audio_output);
     CreateTestLowBatteryButton(test_button_panel, battery_reader);
+    CreateTestCriticalBatteryButton(test_button_panel, battery_reader);
     CreateTestExternalPowerButton(test_button_panel, battery_reader);
     CreateTestBatteryPresentButton(test_button_panel, battery_reader);
     // Declared here, not narrower - captured by reference into
@@ -495,6 +515,11 @@ int main() {
     homedeck::NotificationBanner notification_banner(event_bus);
     homedeck::NotificationSound notification_sound(event_bus, audio_output);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
+    // Same ordering rule as LowBatteryMonitor above - also a
+    // ClockTickEvent subscriber, and also publishes NotificationEvent,
+    // so it needs NotificationBanner/NotificationSound already
+    // registered too.
+    homedeck::CriticalBatteryMonitor critical_battery_monitor(event_bus, battery_reader);
     // Same "subscriber before publisher" ordering as LowBatteryMonitor -
     // NetworkStatusMonitor is also a ClockTickEvent subscriber.
     homedeck::NetworkStatusMonitor network_status_monitor(event_bus, network_status);
