@@ -111,16 +111,20 @@ if(TARGET lvgl)
     ui/keyboard_input.cpp
     ui/screens/dashboard_screen.cpp
     ui/screens/wifi_setup_screen.cpp
-    # Neither is a portable UI file - HostAudioOutput
-    # (platform/host/audio_output.h) and UiTask (platform/host/ui_task.h,
-    # SDL2-specific) live here rather than homedeck_platform_host below
-    # deliberately: that library is shared with tests/, which never
-    # fetches LVGL/SDL2 and must stay buildable without either. This
-    # target already links SDL2 transitively (via lvgl's own SDL display
-    # driver, what ui_task.cpp uses), so it's the natural home for SDL2
+    ui/lvgl_user_activity_source.cpp
+    # None of these three is a portable UI file - HostAudioOutput
+    # (platform/host/audio_output.h, SDL2), UiTask
+    # (platform/host/ui_task.h, SDL2), and HostDisplayBrightness
+    # (platform/host/display_brightness.h, LVGL only, no SDL2) live here
+    # rather than homedeck_platform_host below deliberately: that
+    # library is shared with tests/, which never fetches LVGL/SDL2 and
+    # must stay buildable without either. This target already links
+    # both transitively (via lvgl's own SDL display driver, what
+    # ui_task.cpp uses), so it's the natural home for LVGL/SDL2
     # consumers rather than adding a new dependency anywhere.
     platform/host/audio_output.cpp
     platform/host/ui_task.cpp
+    platform/host/display_brightness.cpp
   )
   target_link_libraries(homedeck_ui PUBLIC homedeck_core lvgl)
 endif()

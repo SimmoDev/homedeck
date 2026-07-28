@@ -69,6 +69,8 @@ idf_component_register(
         "../../src/platform/firmware/http_server.cpp"
         "../../src/platform/firmware/http_client.cpp"
         "../../src/platform/firmware/audio_output.cpp"
+        "../../src/platform/firmware/display_brightness.cpp"
+        "../../src/ui/lvgl_user_activity_source.cpp"
         "../../src/platform/static_assets.cpp"
     INCLUDE_DIRS
         "."
