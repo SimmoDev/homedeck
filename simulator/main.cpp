@@ -324,25 +324,42 @@ void CreateTestPlayToneButton(lv_obj_t* parent, homedeck::HostAudioOutput& audio
 // already follows.
 class DebugOverridableUserActivitySource : public homedeck::UserActivitySource {
 public:
+    enum class ForcedLevel { kNone, kIdle, kSleeping };
+
     explicit DebugOverridableUserActivitySource(homedeck::UserActivitySource& real) : real_(real) {}
 
     uint32_t MillisecondsSinceLastActivity() const override {
-        return forced_idle_ ? kForcedIdleMs : real_.MillisecondsSinceLastActivity();
+        switch (forced_) {
+            case ForcedLevel::kIdle:
+                return kForcedIdleOnlyMs;
+            case ForcedLevel::kSleeping:
+                return kForcedSleepingMs;
+            case ForcedLevel::kNone:
+            default:
+                return real_.MillisecondsSinceLastActivity();
+        }
     }
 
-    void SetForcedIdle(bool forced) { forced_idle_ = forced; }
+    void SetForced(ForcedLevel level) { forced_ = level; }
 
 private:
-    // Past any real placeholder idle timeout - see core/power_manager.cpp.
-    static constexpr uint32_t kForcedIdleMs = 24u * 60 * 60 * 1000;
+    // Past kIdleTimeoutMs but short of kSleepTimeoutMs (see
+    // core/power_manager.cpp) so this level parks at Idle rather than
+    // cascading into Sleeping on a later tick - a known, accepted
+    // coupling to those placeholder values, same convention
+    // kForcedSleepingMs below already follows.
+    static constexpr uint32_t kForcedIdleOnlyMs = 60000;
+    // Past any real placeholder timeout, including Sleep's - see
+    // core/power_manager.cpp.
+    static constexpr uint32_t kForcedSleepingMs = 24u * 60 * 60 * 1000;
 
     homedeck::UserActivitySource& real_;
-    bool forced_idle_ = false;
+    ForcedLevel forced_ = ForcedLevel::kNone;
 };
 
 void OnTestTriggerIdleClicked(lv_event_t* e) {
     auto* source = static_cast<DebugOverridableUserActivitySource*>(lv_event_get_user_data(e));
-    source->SetForcedIdle(true);
+    source->SetForced(DebugOverridableUserActivitySource::ForcedLevel::kIdle);
 }
 
 void CreateTestTriggerIdleButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source) {
@@ -353,9 +370,22 @@ void CreateTestTriggerIdleButton(lv_obj_t* parent, DebugOverridableUserActivityS
     lv_label_set_text(label, "Test: trigger idle");
 }
 
+void OnTestTriggerSleepingClicked(lv_event_t* e) {
+    auto* source = static_cast<DebugOverridableUserActivitySource*>(lv_event_get_user_data(e));
+    source->SetForced(DebugOverridableUserActivitySource::ForcedLevel::kSleeping);
+}
+
+void CreateTestTriggerSleepingButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_add_event_cb(button, OnTestTriggerSleepingClicked, LV_EVENT_CLICKED, &source);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: trigger sleeping");
+}
+
 void OnTestTriggerActiveClicked(lv_event_t* e) {
     auto* source = static_cast<DebugOverridableUserActivitySource*>(lv_event_get_user_data(e));
-    source->SetForcedIdle(false);
+    source->SetForced(DebugOverridableUserActivitySource::ForcedLevel::kNone);
     // Clears the override, but the underlying real clock needs to be
     // fresh too - otherwise it could still read as idle on the very
     // next tick if the real SDL window hasn't actually been touched
@@ -452,6 +482,7 @@ int main() {
     bool force_ota_failure = false;
     CreateTestForceOtaFailureButton(test_button_panel, force_ota_failure);
     CreateTestTriggerIdleButton(test_button_panel, user_activity_source);
+    CreateTestTriggerSleepingButton(test_button_panel, user_activity_source);
     CreateTestTriggerActiveButton(test_button_panel, user_activity_source);
 
     // NotificationBanner and NotificationSound must exist before
