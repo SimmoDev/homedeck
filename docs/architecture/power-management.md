@@ -171,6 +171,22 @@ confirmed on hardware too — the 30%/external-power condition. What
 an intentionally deferred scope decision, not a gap, since there's
 barely any background-task activity today to suppress.
 
-`Error` exists in the `PowerState` enum but has no real trigger yet; no
-power-specific fault condition (critical low battery, charging fault,
-thermal fault) has a real detector built.
+`Error` is now real for one of its three scoped fault types:
+`CriticalBatteryMonitor` (`src/core/critical_battery_monitor.h`/`.cpp`,
+structural twin of `LowBatteryMonitor`) publishes
+`CriticalBatteryStateChangedEvent` once the battery crosses below its
+critical threshold while not on external power (the same
+threshold-OR-external-power reasoning `EvaluateOtaGate` already uses),
+and `PowerManager` transitions into `kError` (and back to `kActive` on
+recovery) accordingly — confirmed on the K145 reference unit through the
+real `Ina226BatteryReader` path. `kError` takes priority over
+`kUpdating` if both are true at once, per ADR-0005's "force a safe
+shutdown right now regardless of what the UI is doing" - deliberately
+interrupting an in-progress OTA write rather than deferring to it,
+since `esp_ota_end()` already validates an image before it can become
+bootable, so an interrupted write fails safe. Still open: a charging
+fault and a thermal fault, per ADR-0005's original Error scope - neither
+has a hardware-confirmed detection signal (the IP2326 charge controller
+exposes no fault pin beyond `CHG_STAT`, and no temperature sensor is
+confirmed on the BOM - see [hardware.md](hardware.md#power)), so neither
+is designed or stubbed yet.

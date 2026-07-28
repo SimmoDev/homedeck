@@ -399,7 +399,7 @@ simulator.
       as a minor, non-jarring gap, not a rendering bug
 - [ ] Power management state model — **`PowerManager`
       (`src/core/power_manager.h`/`.cpp`) is real** for
-      `Active`/`Idle`/`Sleeping`: real display dimming after a
+      `Active`/`Idle`/`Sleeping`/`Error`: real display dimming after a
       (placeholder) idle timeout and a full backlight-off after a
       further (placeholder) sleep timeout, both confirmed on the K145
       reference unit including direct wake-to-full-brightness from
@@ -419,9 +419,16 @@ simulator.
       real too, driven by the actual OTA upload's flash write (also
       confirmed on the K145 unit) — see
       [power-management.md](architecture/power-management.md#status)
-      for the full detail. Still open: `Error` has no real trigger -
-      no power-specific fault condition (critical low battery, charging
-      fault, thermal fault) has a real detector built. Also still open,
+      for the full detail. `Error` is real too, but only for one of its
+      three ADR-0005-scoped fault types: `CriticalBatteryMonitor`
+      (`src/core/critical_battery_monitor.h`/`.cpp`) transitions
+      `PowerManager` into `kError` once the battery crosses a critical
+      threshold while not on external power (confirmed on the K145
+      unit), taking priority over `kUpdating` if both are true at once.
+      Still open: a charging fault and a thermal fault - neither has a
+      hardware-confirmed detection signal (see
+      [hardware.md](architecture/hardware.md#power)), so neither is
+      designed or stubbed yet. Also still open,
       separate from automatic brightness (CLAUDE.md's own Power
       Management capability list): on-device manual brightness control
       - the display-side analogue of the Audio bring-up item's
