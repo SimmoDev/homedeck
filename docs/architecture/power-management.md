@@ -191,6 +191,13 @@ outstanding work - `CHG_STAT` (see [hardware.md](hardware.md#power))
 can't distinguish a stalled charge from a simply-unplugged or
 already-full battery, and no independent cable-presence signal exists
 to disambiguate (see [roadmap.md](../roadmap.md) for the detail).
-Thermal fault remains genuinely open: whether the ESP32-P4's own die
-temperature is an acceptable stand-in for battery temperature (no
-dedicated battery-temperature sensor exists) hasn't been decided.
+Thermal fault is the same: no battery-temperature signal exists in this
+design at any level, confirmed against the schematic - the IP2326's
+`NTC` pin is permanently spoofed to "normal" by a fixed resistor
+network rather than fed by a real thermistor, and the battery
+connector's only candidate thermistor pin is unconnected on the board.
+The ESP32-P4's own die temperature was considered and rejected as a
+stand-in: it reflects board/CPU heat, not battery chemistry, and
+wouldn't catch a failing cell before it heats the rest of the board
+(see [hardware.md](hardware.md#power)). Both are closed as permanent
+hardware limitations, not outstanding work.

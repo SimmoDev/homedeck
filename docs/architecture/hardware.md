@@ -318,6 +318,17 @@ second, conflicting one on the same physical pins.
   hardware, matching M5Stack's own
   [M5Tab5-UserDemo](https://github.com/m5stack/M5Tab5-UserDemo)
   reference firmware, which enables one on this exact pin.
+- **No battery-temperature signal exists, at any level - confirmed
+  against the schematic.** `U20` (the IP2326)'s `NTC` pin (pin 4) is
+  not fed by a thermistor: it's tied to a fixed/switched resistor
+  divider (`R66`/`R68`/`R69`, all 49.9K/1%) between `SOC_3.3V` and
+  `GND`, gated by `Q1` under `nCHG_QC_EN` - a quick-charge-negotiation
+  signal, unrelated to temperature - so the IC's own built-in thermal
+  protection is permanently spoofed to "normal," not merely unused.
+  `J12` (`CON4_SMD`, the battery pack connector) is 4 pins + shield:
+  pin 1 is `SYS_BAT_PRE` (through `Q5`), pins 3/4/shield are `GND`, and
+  pin 2 - the only candidate for a pack-side thermistor line - is
+  unconnected on the board side.
 - **Battery presence:** current is the primary signal for whether a
   battery is physically installed. **Confirmed on hardware** that bus
   voltage alone cannot tell "no battery" apart from "battery present":

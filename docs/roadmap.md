@@ -430,12 +430,18 @@ simulator.
       disappears near 100% with the cable still connected, for the same
       reason). A duration-based heuristic doesn't recover this either,
       since the moment charging would look stalled, the same signal
-      already also reads "unplugged." `Error`'s charging-fault case is
-      considered closed as not buildable on this hardware, not
-      outstanding work. Thermal fault is a separate, genuinely open
-      question, not yet decided: whether the ESP32-P4's own die
-      temperature is an acceptable stand-in for battery temperature (no
-      dedicated battery-temperature sensor exists). Also still open,
+      already also reads "unplugged." Thermal fault is the same: no
+      battery-temperature signal exists anywhere in this design, at any
+      level - the IP2326's own `NTC` pin is permanently spoofed to
+      "normal" by a fixed resistor network rather than fed by a real
+      thermistor, and the battery connector doesn't route a thermistor
+      line to the board at all (see
+      [hardware.md](architecture/hardware.md#power)). The ESP32-P4's own
+      die temperature was considered as a stand-in and rejected: it
+      measures board/CPU heat, not battery chemistry, and wouldn't
+      reliably reflect a failing cell that hasn't yet heated the rest of
+      the board. Both fault types are considered closed as not buildable
+      on this hardware, not outstanding work. Also still open,
       separate from automatic brightness (CLAUDE.md's own Power
       Management capability list): on-device manual brightness control
       - the display-side analogue of the Audio bring-up item's
