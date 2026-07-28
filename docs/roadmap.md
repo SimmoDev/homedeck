@@ -328,7 +328,22 @@ simulator.
       distinction this service carries no longer gates any wake-cycle
       behavior (see [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md))
       - it remains available for a future presentation difference, not a
-      gap in this pass
+      gap in this pass. **Known bug:** `NotificationBanner`/`NotificationWidget`
+      both display whichever `NotificationEvent` last overwrote their
+      label, but `PostToUiThread` (`src/ui/ui_dispatch.cpp`) defers each
+      one via `lv_async_call`, which in this LVGL version schedules a
+      one-shot timer inserted at the *head* of LVGL's internal timer
+      list (`lv_timer_create`) - so when two `ClockTickEvent` subscribers
+      each publish a `NotificationEvent` on the same tick, their deferred
+      UI updates apply in reverse publish order, and the *earlier*-published
+      (potentially less urgent) one ends up as the one still showing.
+      Affects both firmware and simulator (same shared `PostToUiThread`).
+      Not a gap introduced by any single publisher - a latent property of
+      the deferred-UI-dispatch mechanism itself, first actually exercised
+      once two independent monitors (`LowBatteryMonitor`,
+      `CriticalBatteryMonitor`) could both fire on the same tick. Needs
+      its own fix to `EventBus`/`PostToUiThread`'s UI-dispatch ordering,
+      not a per-publisher workaround.
 - [x] Widget framework (general dashboard widget interface), including
       the weather widget (Core `WeatherProvider` interface, Open-Meteo
       as the direct provider — see
