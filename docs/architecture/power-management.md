@@ -182,20 +182,27 @@ LVGL overlay on the simulator via
 and unit-tested, though nothing calls it yet — no module exists to
 call it until M3+.
 
-`Sleeping`/`Updating`/`Error` exist in the `PowerState` enum but have
-no real trigger. Real ESP32 deep sleep is blocked on more than tuning:
-none of touch, IMU, or RTC has a confirmed GPIO path capable of waking
-the device at all (see [hardware
+`Updating` is also real: `POST /api/ota/upload` publishes
+`OtaUpdateStateChangedEvent` immediately around the actual flash write,
+`PowerManager` transitions into `kUpdating` and back to `kActive`
+accordingly, and `OnTick()` skips the Idle timeout entirely while
+`kUpdating` so the display can't dim mid-write — confirmed on the K145
+reference unit. The Updating state's own gate check
+(`src/core/ota_gate.h`, `EvaluateOtaGate()`) is separately real and
+confirmed on hardware too — the 30%/external-power condition. What
+`Updating` does *not* do yet is suppress other background tasks; that's
+an intentionally deferred scope decision, not a gap, since there's
+barely any background-task activity today to suppress.
+
+`Sleeping`/`Error` exist in the `PowerState` enum but have no real
+trigger. Real ESP32 deep sleep is blocked on more than tuning: none of
+touch, IMU, or RTC has a confirmed GPIO path capable of waking the
+device at all (see [hardware
 capabilities](#hardware-capabilities-involved)), which also undercuts
 a foundational premise of the alert-priority wake cycle's design (see
 [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)).
 The ESP-Hosted/SDIO reassociation-vs-modem-sleep question above is
-still separately open too. The Updating
-state's own gate check (`src/core/ota_gate.h`, `EvaluateOtaGate()`) is
-real and confirmed on hardware — the 30%/external-power condition
-itself, not the full `Updating` state (background-task suppression,
-entry/exit transitions), which doesn't exist yet since there's barely
-any background-task activity today to suppress. The urgency concept
+still separately open too. The urgency concept
 the wake cycle needs from Core's notification service
 (`NotificationSeverity`, `src/core/notification.h`) already exists,
 since a low-battery notification needed it independently.

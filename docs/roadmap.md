@@ -384,7 +384,9 @@ simulator.
       (`src/core/power_manager.h`/`.cpp`) is real** for `Active`/`Idle`:
       real display dimming after a (placeholder) idle timeout,
       confirmed on the K145 reference unit, plus the sleep-veto API
-      (unit-tested, unused until a real module exists to call it) — see
+      (unit-tested, unused until a real module exists to call it).
+      `Updating` is real too, driven by the actual OTA upload's flash
+      write (also confirmed on the K145 unit) — see
       [power-management.md](architecture/power-management.md#status)
       for the full detail. Still open: real ESP32 deep sleep and the
       alert-priority wake-check cycle during Sleeping - blocked on more
