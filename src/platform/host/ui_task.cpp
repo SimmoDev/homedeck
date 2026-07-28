@@ -14,6 +14,10 @@ UiTask::UiTask(int32_t width, int32_t height, EventBus& event_bus, float zoom) {
     // lv_sdl_window_create() creates the SDL renderer/texture.
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "best");
     lv_init();
+    // No lock needed here, unlike firmware's equivalent call (see
+    // homedeck.cpp) - this constructor runs single-threaded in main(),
+    // before anything else exists that could touch LVGL concurrently.
+    InitUiDispatchQueue();
 
     // The default group: LVGL auto-adds every subsequently-created
     // focusable widget (buttons, textareas - anything with

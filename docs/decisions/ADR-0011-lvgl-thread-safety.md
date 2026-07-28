@@ -148,3 +148,19 @@ a load that doesn't exist.
   `tests/event_bus_test.cpp`'s
   `DeferredUiCallbackIsSkippedIfUnsubscribedBeforeTheTickRuns` for the
   regression test.
+- **Resolved (M2):** `lv_async_call()` itself doesn't guarantee FIFO
+  order across repeated calls — this LVGL version schedules each one as
+  a fresh one-shot timer inserted at the *head* of LVGL's internal timer
+  list, so two calls made back-to-back run in reverse order. `PostToUiThread`
+  (`src/ui/ui_dispatch.h`/`.cpp`) now queues through its own `Queue<T>`
+  and drains it via a single recurring timer instead, restoring real
+  FIFO order independent of `lv_async_call`'s internal behavior.
+- **Found during that same fix:** `bsp_display_start()`
+  (`firmware/main/homedeck.cpp`) already spawns its own dedicated
+  `taskLVGL` (`esp_lvgl_port`'s `lvgl_port_init()`) that's running its
+  own `lv_timer_handler()` loop by the time it returns — any `lv_*` call
+  made from `app_main()` after that point, including one-time
+  initialization calls, needs the same `bsp_display_lock()`/
+  `bsp_display_unlock()` wrapping the splash screen and dashboard
+  construction already use. Easy to miss for a call that looks like
+  simple startup sequencing rather than a concurrent-access site.

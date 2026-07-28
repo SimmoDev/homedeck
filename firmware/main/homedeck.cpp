@@ -304,6 +304,16 @@ extern "C" void app_main(void) {
     bsp_display_backlight_on();
     printf("Display started\n");
 
+    // bsp_display_start() above already spawned its own dedicated
+    // taskLVGL (see esp_lvgl_port.c), running its own lv_timer_handler()
+    // loop concurrently with app_main() from this point on - so, unlike
+    // the simulator's equivalent call (see ui_task.cpp), this lv_* call
+    // needs the same lock every other direct LVGL call from app_main()
+    // already takes (splash screen, dashboard construction, below).
+    bsp_display_lock(0);
+    homedeck::InitUiDispatchQueue();
+    bsp_display_unlock();
+
     homedeck::EventBus event_bus;
     event_bus.SetUiDispatcher(homedeck::PostToUiThread);
 
