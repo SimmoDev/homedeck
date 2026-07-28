@@ -46,15 +46,14 @@ for why this ruled out a separate web-based mock UI.
   - *Battery/IMU/RTC:* a battery level, IMU reading, or RTC drift that can
     be manipulated from a debug control, rather than always reporting a
     fixed value.
-  - *Power states* (see [power-management.md](power-management.md)): deep
-    sleep halts a real ESP32, which the simulator must not try to
-    replicate by actually suspending itself — that would defeat its
-    purpose as a dev tool. Idle dims the SDL2 window, Sleeping blacks it
-    out while the process keeps running underneath, and debug controls
-    simulate wake sources, including a manual trigger for the
-    alert-priority wake cycle (see
-    [power-management.md](power-management.md#notifications-during-sleeping))
-    so that flow doesn't require a real multi-minute wait.
+  - *Power states* (see [power-management.md](power-management.md)):
+    `Sleeping` isn't real ESP32 deep sleep (see
+    [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)) — the
+    process keeps running underneath either way, matching real hardware,
+    so there's nothing here the simulator needs to avoid replicating.
+    Idle dims the SDL2 window, Sleeping blacks it out, and a debug
+    control simulates the touch-wake poll so that flow doesn't require
+    manually waiting out the real idle/sleep timeouts.
   - *Crash/reboot diagnostics:* `esp_reset_reason()` and ESP-IDF's core
     dump partition (see
     [diagnostics.md](diagnostics.md#crash-and-reboot-diagnostics)) don't

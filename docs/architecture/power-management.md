@@ -3,16 +3,17 @@
 Battery life is a primary feature of HomeDeck, not an afterthought. This
 document describes the power state model required by CLAUDE.md and how
 other subsystems must respect it. See
-[ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md) for the
+[ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md) and
+[ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for the
 tradeoffs and rejected alternatives behind the decisions referenced below.
 
-**Known gap:** every timing/threshold number in this document (the 2-5
-minute wake interval, the 30% OTA gate, idle/sleep timeouts) is a
-provisional starting point, not a measured one — no power budget exists
-yet estimating real current draw (display+backlight, ESP32-P4, ESP32-C6
-co-processor, deep sleep baseline) against the confirmed 2000mAh/14.8Wh
-battery. These numbers should be treated as placeholders until M1/M2
-produce real on-hardware measurements to tune them against.
+**Known gap:** every timing/threshold number in this document (the 30%
+OTA gate, idle/sleep timeouts) is a provisional starting point, not a
+measured one — no power budget exists yet estimating real current draw
+(display+backlight, ESP32-P4, ESP32-C6 co-processor) against the
+confirmed 2000mAh/14.8Wh battery. These numbers should be treated as
+placeholders until M1/M2 produce real on-hardware measurements to tune
+them against.
 
 ## Explicit power states
 
@@ -23,14 +24,15 @@ logic:
   activity.
 - **Idle** — user hasn't interacted recently; the display dims as its
   timeout approaches, and background polling reduces in frequency.
-- **Sleeping** — ESP32 deep sleep, display off. Intended wake sources are
-  touch, IMU motion, and a periodic RTC-timer check of alert-priority
-  module state (see [Notifications during
-  Sleeping](#notifications-during-sleeping)), but none of the three
-  currently has a confirmed GPIO path capable of triggering that wake —
-  see [hardware capabilities](#hardware-capabilities-involved). FreeRTOS
-  halts entirely during deep sleep, between whichever wake windows turn
-  out to be reachable.
+- **Sleeping** — display off (or dimmed further than Idle), but *not*
+  ESP32 deep sleep: CPU and FreeRTOS keep running, and wake-on-touch is
+  polling-based rather than GPIO-interrupt-based. This matches M5Stack's
+  own official Tab5 firmware, which uses the same pattern rather than a
+  deep-sleep GPIO wake for touch, IMU, or RTC — see
+  [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for the
+  finding and why. Because Core keeps running, no separate wake cycle is
+  needed for anything else either — see [Notifications during
+  Sleeping](#notifications-during-sleeping).
 - **Updating** — an OTA update is in progress; behavior favors stability
   over responsiveness (e.g. suppressing non-critical background tasks).
   Entry is gated on a minimum battery threshold (e.g. 30%, tuned in M2) or
@@ -63,55 +65,27 @@ Core means:
   requirement](modules.md#what-a-module-may-provide) — respecting power
   states is a listed requirement for any module background task, not
   optional).
-- Wake sources (touch, IMU movement) are configured in one place.
+- Sleeping's touch-wake polling is implemented once in Core, not
+  reimplemented per screen.
 - Display timeout and automatic brightness are Core responsibilities, not
   something each screen manages.
 
 ## Notifications during Sleeping
 
-Deep sleep halts FreeRTOS — nothing polls, no socket stays open, no module
-background task runs, between wake windows. Most notifications generated
-while the device is asleep (a Harmony disconnect, a firmware update being
-available) are queued via Core's notification service and surfaced on next
-wake ("3 things happened while you were away") — the device does not stay
-reachable to push these immediately, matching how a physical remote already
-behaves.
+Because `Sleeping` keeps the CPU and FreeRTOS running (see
+[ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)), nothing
+about notification handling changes between `Idle` and `Sleeping`: Core's
+event bus, module background tasks, and the notification service all keep
+running exactly as they do in `Idle`. There is no periodic wake-and-check
+cycle, no RTC-timed wake, and no Wi-Fi reassociation cost to reason about
+for this state — the device is never disconnected in the first place.
 
-**Alert-priority notifications are the one exception.** Monitoring-type
-alerts — starting with Uptime Kuma monitors going down, plausibly extended
-to specific urgent Home Assistant events later — participate in a periodic
-wake cycle instead: the RX8130CE RTC's timed interrupt wake (see
-[hardware.md](hardware.md#rtc); whether this RTC wake actually has a
-confirmed path to the P4 at all is a separate open question, see
-[hardware.md](hardware.md#power)) wakes the device on a ~2-5 minute
-interval (exact value tuned in M2/M5 against real reconnect-cost and
-battery measurements), it briefly reconnects (paying the Wi-Fi co-processor
-reassociation cost each time — see [hardware.md](hardware.md#wireless)),
-asks alert-priority modules to report current state, surfaces anything
-newly bad, and returns to deep sleep. This requires Core's notification
-service to carry an urgency concept and requires alert-priority modules to
-expose a lightweight state-check hook distinct from their normal background
-task (see [modules.md](modules.md#what-a-module-may-provide)). See
-[ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
-for why this shape was chosen over deferring everything or waking on a
-fixed interval for all notifications.
-
-**Unverified assumption, not just an unmeasured number:** "reassociation
-cost" assumes the ESP32-C6 co-processor loses its Wi-Fi association
-entirely while the P4 is in deep sleep and must fully re-associate
-(handshake, DHCP/lease, any application-layer reconnect) on every wake —
-not resume from a lower-power state that keeps the association alive. This
-is a real hardware-topology question, not a tuning parameter: if the C6
-sits on a power/SDIO domain independent of the P4's deep-sleep domain, it
-could instead stay in Wi-Fi modem-sleep (associated, low duty cycle)
-through the P4's sleep, changing the wake cycle's entire cost shape rather
-than just its magnitude — full-reassociation cost likely dominates the
-2-5 minute interval's economics; modem-sleep-resume cost likely wouldn't.
-Nothing in [hardware.md](hardware.md) currently confirms which topology
-the Tab5 actually has. This must be confirmed during M1 (alongside the
-already-flagged need for real power measurements above), and could change
-which of the two cost models this design should even be tuned against —
-not just what the tuned numbers turn out to be.
+`NotificationSeverity`'s `kDeferred`/`kAlertPriority` distinction
+(`src/core/notification.h`) still exists and needs no change, but its
+original justification (gating a periodic wake cycle) no longer applies —
+it remains available as a presentation-layer distinction (e.g. a
+different sound) whenever a real consumer needs one, per
+[ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md#decision).
 
 ## Hardware capabilities involved
 
@@ -119,8 +93,11 @@ See [hardware.md](hardware.md) for full details and sourcing. Summary of
 what's confirmed as of 2026-07:
 
 - **Wake sources:** none of touch, IMU motion, or RTC timed wake has a
-  confirmed GPIO path capable of waking the P4 from deep sleep — see
-  [hardware.md](hardware.md#power) for the schematic-traced detail.
+  confirmed GPIO path capable of waking the P4 from deep sleep, which is
+  why `Sleeping` doesn't use deep sleep at all — see
+  [hardware.md](hardware.md#power) for the schematic-traced detail and
+  [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for the
+  design consequence.
 - Display timeout and automatic brightness (ambient light behavior — no
   dedicated ambient light sensor has been confirmed on the BOM; verify
   before designing automatic brightness around one).
@@ -134,13 +111,10 @@ what's confirmed as of 2026-07:
 These are accessed through the [hardware abstraction
 layer](overview.md#hardware-abstraction), not directly, so power management
 logic can run identically against the simulator (with a mocked/simulated
-battery and wake sources) and real hardware. See
-[simulator.md](simulator.md#how-it-works) for how power states are
-visually represented in the simulator (dimming, blackout, debug-triggered
-wake sources) so power-related UI work doesn't require real hardware —
-deep sleep itself has no meaningful desktop equivalent, so this is a
-visual simulation of observable behavior, not an attempt to actually
-suspend the simulator process.
+battery) and real hardware. See [simulator.md](simulator.md#how-it-works)
+for how power states are visually represented in the simulator (dimming,
+blackout, a debug-triggered touch-wake poll) so power-related UI work
+doesn't require real hardware.
 
 ## State transition policy
 
@@ -195,14 +169,9 @@ an intentionally deferred scope decision, not a gap, since there's
 barely any background-task activity today to suppress.
 
 `Sleeping`/`Error` exist in the `PowerState` enum but have no real
-trigger. Real ESP32 deep sleep is blocked on more than tuning: none of
-touch, IMU, or RTC has a confirmed GPIO path capable of waking the
-device at all (see [hardware
-capabilities](#hardware-capabilities-involved)), which also undercuts
-a foundational premise of the alert-priority wake cycle's design (see
-[ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)).
-The ESP-Hosted/SDIO reassociation-vs-modem-sleep question above is
-still separately open too. The urgency concept
-the wake cycle needs from Core's notification service
-(`NotificationSeverity`, `src/core/notification.h`) already exists,
-since a low-battery notification needed it independently.
+trigger yet. Unlike `Idle`/`Updating`, this isn't blocked on hardware
+investigation — [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)
+settles the design (display off, CPU stays active, touch-wake by
+polling, no deep sleep) — it's simply not implemented yet. `Error` has
+no trigger either; no power-specific fault condition (critical low
+battery, charging fault, thermal fault) has a real detector built yet.

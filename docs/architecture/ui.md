@@ -117,10 +117,11 @@ possible outputs; each maps onto something HomeDeck already has, or
 explicitly doesn't yet:
 
 - **Screen banners** — a transient overlay on whatever screen is currently
-  active (including the dashboard), not a navigation change. Deferred
-  notifications (see
-  [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping))
-  surface this way on next wake.
+  active (including the dashboard), not a navigation change. A
+  notification published while the display is off (Sleeping) becomes
+  visible this way once it's back on, whether that's an immediate
+  render that was simply invisible with the backlight off, or a
+  deliberate replay — an implementation detail not yet decided.
 - **Sound** — uses the confirmed ES8388 codec and onboard speaker (see
   [hardware.md](hardware.md#audio)) via `AudioOutput`
   (`src/platform/audio_output.h`), the portable audio-out hardware

@@ -160,13 +160,14 @@ are the standard interface modules contribute dashboard content through
 — see [dashboard.md](dashboard.md#status) for what's built and what
 (weather, the first real widget) is still a follow-up.
 
-**Notifications** are partly real: the urgency concept ADR-0005 requires
-(`NotificationSeverity`, `src/core/notification.h`) and the `EventBus`-based
-publish path exist, with `LowBatteryMonitor` (`src/core/`) as the first
-real publisher and `NotificationBanner` (`src/ui/`) as the first real
-presentation output — see [ui.md](ui.md#notification-presentation) for
-what's still open (sound, the dashboard indicator, and the alert-priority
-wake cycle itself, which is Power Management scope).
+**Notifications** are real: the urgency concept ADR-0005 requires
+(`NotificationSeverity`, `src/core/notification.h`), the `EventBus`-based
+publish path, and all three presentation outputs (`NotificationBanner`,
+`NotificationSound`, `NotificationWidget`, all `src/ui/`) exist, with
+`LowBatteryMonitor` (`src/core/`) as the first real publisher — see
+[ui.md](ui.md#notification-presentation) for detail. No wake-cycle
+mechanism gates any of this — see
+[ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md).
 
 **Networking** is partly real: Wi-Fi provisioning and mDNS
 self-advertisement both work on hardware (see

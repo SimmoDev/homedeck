@@ -77,26 +77,12 @@ it: veto delays *entering* Sleeping for something happening right now;
 alert-priority checking periodically re-enters a brief awake window *during*
 Sleeping.
 
-**Open hardware question this decision rests on:** the "reassociation cost"
-above assumes the C6 co-processor loses its Wi-Fi association entirely
-during P4 deep sleep. Whether that's actually true — versus the C6
-possibly staying in a lower-power associated state on an independent power
-domain — isn't confirmed (see
-[hardware.md](../architecture/hardware.md#wireless)). This affects the
-cost *model* this wake cycle should be tuned against, not just the
-interval's tuned value; resolving it is M2 scope, tracked against this
-decision under M2's "Power management state model" item in
-[docs/roadmap.md](../roadmap.md).
-
-**Second open hardware question this decision also rests on:** this
-decision's "RTC's timed interrupt wake" premise itself isn't confirmed
-either. The RX8130's own interrupt pin appears to have no net reaching
-the P4, and the one P4-facing GPIO nearby (PMS150G-U06's `BOOT_GPIO35`,
-a power-button controller) sits outside the P4's GPIO0-15 deep-sleep-
-wake-capable range — see
-[hardware.md](../architecture/hardware.md#power) for the full detail.
-Touch and IMU have the same problem. Until this is resolved, the wake
-cycle this section decides on has no confirmed way to actually fire.
+**Superseded by [ADR-0024](ADR-0024-sleeping-wake-mechanism.md).** The RTC
+wake premise this decision rests on was never confirmed on this hardware,
+and M5Stack's own official Tab5 firmware turns out not to depend on it
+either — see ADR-0024 for the finding and the replacement design. The
+decision text above is left as the historical record of what was
+originally decided and why; it is no longer current.
 
 ## Decision: Error state scope
 
@@ -140,6 +126,10 @@ hardware — see
 
 ## Consequences
 
+- The "Alert-priority wake cycle during Sleeping" decision above is
+  superseded by [ADR-0024](ADR-0024-sleeping-wake-mechanism.md); the
+  sleep-veto mechanism, `Error` state scope, and OTA gate decisions in
+  this ADR are unaffected.
 - [power-management.md](../architecture/power-management.md) states the
   resulting design (the five states, the wake-cycle mechanics, the gate
   conditions) without repeating the rejected alternatives — this ADR is

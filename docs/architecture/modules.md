@@ -21,8 +21,10 @@ behind it.
 - API endpoints (exposed through Core's networking layer)
 - Notifications (published to Core's notification service, with an urgency
   level that drives presentation — see
-  [power-management.md](power-management.md#notifications-during-sleeping)
-  for what alert-priority notifications specifically require of a module)
+  [power-management.md](power-management.md#notifications-during-sleeping);
+  a module's normal background task is sufficient for this, since Core
+  keeps running through `Sleeping` the same as `Idle`, no special
+  Sleeping-specific hook needed)
 
 ## Registration, not coupling
 

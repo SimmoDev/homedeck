@@ -69,16 +69,16 @@ if a fact drifts.
   isolation. No automatic hardware coupling to the P4's own sleep state
   exists in that BSP source — the C6's power rail is independently
   switchable, not wired to collapse whenever the P4 sleeps. This answers
-  the specific "are they wired together" question,
-  but **does not by itself confirm** the practical question the
-  alert-priority wake cycle actually cares about: whether ESP-Hosted/SDIO
-  can meaningfully keep the C6 "associated, low duty cycle" while the
-  *P4 itself* is in deep sleep and unable to service the SDIO link —
-  that's a protocol/software behavior question, not a wiring one, and
-  still needs real testing during M2/M5's power work, not assumed from
-  this alone. See
-  [power-management.md](power-management.md#notifications-during-sleeping)
-  for where this feeds into the wake-cycle cost model.
+  the "are they wired together" question the alert-priority wake cycle's
+  original design once cared about — see
+  [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for why
+  that design no longer applies, which makes whether the C6 can stay
+  associated through P4 deep sleep moot for `Sleeping` (P4 never sleeps
+  in the redefined design). Whether it would still matter for a possible
+  future full board power-off feature depends on what `VDD_STBY` on the
+  PMS150G-U06 actually powers, which isn't confirmed — see [Wake
+  sources](#power) under Power above; that feature would need its own
+  investigation, not an inherited assumption from this paragraph.
 
 ### Wi-Fi bring-up
 
@@ -266,19 +266,17 @@ second, conflicting one on the same physical pins.
 
 ## IMU
 
-- **BMI270** (6-axis accelerometer + gyroscope). Supports interrupt-based
-  wake-up, which confirms wake-on-motion from deep sleep is a real hardware
-  capability, not just an assumption — see
-  [power-management.md](power-management.md).
+- **BMI270** (6-axis accelerometer + gyroscope). The chip itself supports
+  interrupt-based wake-up, but that's a datasheet capability, not a
+  confirmation about this board's wiring — its `INT1`/`INT2` pins have no
+  confirmed path to the P4, see [Wake sources](#power) under Power below.
 
 ## RTC
 
-- **RX8130CE**, with supercapacitor backup (70000µF/3.3V). Supports timed
-  interrupt wake-up — this is a second confirmed wake source beyond touch/
-  IMU, and one that doesn't require the Wi-Fi co-processor to be involved at
-  all. Worth keeping in mind if a future revisit of the sleep model (see
-  [power-management.md](power-management.md#notifications-during-sleeping))
-  wants a lightweight periodic check-in without full reconnect cost.
+- **RX8130CE**, with supercapacitor backup (70000µF/3.3V). The chip itself
+  supports timed interrupt wake-up, but that's a datasheet capability, not a
+  confirmation about this board's wiring — its `nIRQ` pin has no confirmed
+  path to the P4, see [Wake sources](#power) under Power below.
 - **Never been set:** the reference unit's RTC reads a meaningless
   factory/power-on date (see [On-device
   dashboard](#on-device-dashboard) below) - expected, not a fault. No
@@ -374,10 +372,11 @@ second, conflicting one on the same physical pins.
   (`SOC_RTCIO_PIN_COUNT=16`, i.e. GPIO0-15), which neither pin is. Net
   effect: as currently understood, none of touch, IMU, or RTC have a
   confirmed path to a P4 GPIO capable of waking the device from deep
-  sleep via the standard ESP-IDF wake APIs - see
-  [power-management.md](power-management.md#status) and
-  [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
-  for what this means for the wake-cycle design.
+  sleep via the standard ESP-IDF wake APIs. M5Stack's own official Tab5
+  firmware doesn't route around this with wiring we missed - it doesn't
+  use these APIs either, for the same three sources - see
+  [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for what
+  it does instead and what that means for this project's design.
 
 ### Battery-optional operation
 

@@ -68,8 +68,9 @@ management state model" item instead.
       to P4 sleep state — see
       [hardware.md](architecture/hardware.md#wireless)). Whether
       ESP-Hosted/SDIO can actually keep the C6 usefully associated while
-      the P4 itself is asleep is a separate protocol question, tracked
-      under M2's "Power management state model" item below.
+      the P4 itself is asleep turned out to be moot: the P4 never enters
+      deep sleep in this project's design at all — see
+      [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md).
 - [x] Display and touch bring-up — real pixels and working touch input
       confirmed on the Tab5 panel via `espressif/m5stack_tab5`, not
       M5GFX/M5Unified (see
@@ -323,10 +324,11 @@ simulator.
       the simulator (the existing low-battery test trigger exercises all
       three outputs together) and confirmed on the K145 reference unit
       via a temporary debug publish (banner, tone, and tile all fired
-      together; removed afterward). Still open: the alert-priority wake
-      cycle itself (Power Management scope, still unbuilt) - correctly
-      out of this item's scope per its own description above, not a gap
-      in this pass
+      together; removed afterward). The alert-priority/deferred urgency
+      distinction this service carries no longer gates any wake-cycle
+      behavior (see [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md))
+      - it remains available for a future presentation difference, not a
+      gap in this pass
 - [x] Widget framework (general dashboard widget interface), including
       the weather widget (Core `WeatherProvider` interface, Open-Meteo
       as the direct provider — see
@@ -388,29 +390,26 @@ simulator.
       `Updating` is real too, driven by the actual OTA upload's flash
       write (also confirmed on the K145 unit) — see
       [power-management.md](architecture/power-management.md#status)
-      for the full detail. Still open: real ESP32 deep sleep and the
-      alert-priority wake-check cycle during Sleeping - blocked on more
-      than tuning, since none of touch, IMU, or RTC currently has a
-      confirmed GPIO path capable of waking the device at all (see
-      [hardware.md](architecture/hardware.md#power)), with the
-      simulator's blackout/debug-triggered-wake-source visual
-      representation built alongside whichever of these turns out to be
-      reachable, not as an afterthought — see
-      [simulator.md](architecture/simulator.md#how-it-works). Also still
-      open, moved from M1: whether ESP-Hosted/SDIO can keep the
-      ESP32-C6 usefully associated while the P4 is asleep — the C6's
-      power rail is already confirmed independently switchable (M1, see
-      [hardware.md](architecture/hardware.md#wireless)), but this
-      protocol-level question is what actually determines the alert-
-      priority wake cycle's cost model here (full re-association vs.
-      modem-sleep resume), not just its tuned interval (see
-      [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)).
-      Also still open, separate from automatic brightness (CLAUDE.md's
-      own Power Management capability list): on-device manual brightness
-      control - the display-side analogue of the Audio bring-up item's
-      still-open volume control above, same open question of where the
-      control actually lives (dashboard/status-bar quick-access vs.
-      something else), deliberately not decided here either
+      for the full detail. Still open, but no longer blocked on hardware
+      investigation: `Sleeping` itself isn't implemented yet. Its design
+      is settled — display off, CPU stays active, touch-wake by polling,
+      no ESP32 deep sleep — because none of touch, IMU, or RTC has a
+      confirmed GPIO path capable of waking the device from real deep
+      sleep, and M5Stack's own official Tab5 firmware turns out not to
+      depend on one either, for the same three sources (see
+      [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)). This
+      also resolves the ESP-Hosted/SDIO reassociation-vs-modem-sleep
+      question moved from M1: it's moot for `Sleeping`, since the P4
+      never disconnects in this design (see
+      [hardware.md](architecture/hardware.md#wireless)). The simulator's
+      blackout/touch-wake-poll visual representation is still to build
+      alongside this. Also still open, separate from automatic
+      brightness (CLAUDE.md's own Power Management capability list):
+      on-device manual brightness control - the display-side analogue of
+      the Audio bring-up item's still-open volume control above, same
+      open question of where the control actually lives (dashboard/
+      status-bar quick-access vs. something else), deliberately not
+      decided here either
 - [x] Simulator physical-keyboard input (dev tooling, not product scope) —
       `lv_sdl_keyboard_create()` plus a default `lv_group` for focus/Tab
       routing (`UiTask`, `src/ui/ui_task.cpp`), so typing into a text
@@ -463,11 +462,10 @@ day-to-day usage with HomeDeck.
 
 - [ ] Uptime Kuma integration
 - [ ] Service status dashboard
-- [ ] Notifications integration, including the alert-priority state-check
-      hook used during the Sleeping wake cycle (see
-      [power-management.md](architecture/power-management.md#notifications-during-sleeping))
-      — this module is the reference implementation for that hook, same
-      role Harmony plays for the general module contract
+- [ ] Notifications integration - publishing `NotificationEvent`s from a
+      monitor going down, through the module's normal background task
+      (no special Sleeping-specific hook needed, see
+      [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md))
 
 ## M6 — Home Automation
 
@@ -489,6 +487,15 @@ day-to-day usage with HomeDeck.
 - [ ] Accessibility
 - [ ] Performance optimisation
 - [ ] Battery optimisation
+- [ ] Full board power-off with RTC-alarm cold-boot wake, matching
+      M5Stack's own official Tab5 firmware pattern
+      (`sleepAndRtcWakeup()`/`powerOff()` via the PMS150G-U06 power
+      controller) - a real, standalone feature, deliberately decoupled
+      from `Sleeping` rather than something it depends on, since it
+      needs its own from-scratch hardware driver (the PMS150G's
+      power-off pulse timing isn't in any official spec, only
+      reverse-engineered by the community so far) - see
+      [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)
 - [ ] User customisation (dashboard widget/layout customization — see
       [dashboard.md](architecture/dashboard.md#customization-future))
 - [ ] Standard-tier security hardening: activate NVS encryption via the
@@ -590,9 +597,10 @@ index — decision name, ADR, one-line outcome.
 | UI philosophy, state-management pattern | [ADR-0004](decisions/ADR-0004-ui-philosophy.md) | Touch UI vs. Web UI split; dashboard-as-home; lightweight per-screen controllers |
 | Return-home affordance | [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance) | Persistent on-screen home icon, not a gesture or power-button long-press |
 | Sleep-veto mechanism | [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-sleep-veto-mechanism) | Event-based, time-limited |
-| Alert-priority wake cycle | [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping) | Periodic RTC wake (~2-5 min), alert-priority notifications only |
+| Alert-priority wake cycle | [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping) | Periodic RTC wake (~2-5 min), alert-priority notifications only — superseded, see ADR-0024 |
 | Power state 'Error' scope | [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-error-state-scope) | Narrowed to power-specific faults |
 | OTA battery/power gate | [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-ota-batterypower-gate) | Battery threshold OR USB-C power required |
+| Sleeping's wake mechanism | [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md) | No ESP32 deep sleep — CPU stays active, display off, touch-wake by polling, matching M5Stack's own official firmware |
 | Retry/backoff ownership | [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership) | Shared Core utility by default |
 | LAN discovery shape | [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape) | Thin Core mDNS wrapper only |
 | Initial Wi-Fi provisioning | [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow) | SoftAP + captive portal, Touch UI keyboard as fallback |
