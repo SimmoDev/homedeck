@@ -1,6 +1,7 @@
 #include "core/power_manager.h"
 
 #include "core/clock.h"
+#include "core/critical_battery_monitor.h"
 #include "core/ota_routes.h"
 
 #include <gtest/gtest.h>
@@ -366,4 +367,119 @@ TEST(PowerManager, OtaFinishedReturnsToActive) {
 
     EXPECT_EQ(manager.State(), homedeck::PowerState::kActive);
     EXPECT_EQ(brightness.last_percent, 100);
+}
+
+TEST(PowerManager, CriticalBatteryTransitionsToError) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    std::vector<homedeck::PowerState> events;
+    auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
+        [&events](const homedeck::PowerStateChangedEvent& event) { events.push_back(event.state); });
+
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kError);
+    EXPECT_EQ(brightness.last_percent, 100);
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0], homedeck::PowerState::kError);
+}
+
+TEST(PowerManager, CriticalBatteryClearsBackToActiveOnRecovery) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kError);
+
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{false});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kActive);
+    EXPECT_EQ(brightness.last_percent, 100);
+}
+
+TEST(PowerManager, ClearingCriticalBatteryWhileNotInErrorDoesNothing) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    std::vector<homedeck::PowerState> events;
+    auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
+        [&events](const homedeck::PowerStateChangedEvent& event) { events.push_back(event.state); });
+
+    // Never entered kError - a stray {false} must not force a
+    // transition (would otherwise still "work" here since kActive is
+    // already the state, but this locks in the guard rather than
+    // leaving it untested).
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{false});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kActive);
+    EXPECT_TRUE(events.empty());
+}
+
+TEST(PowerManager, IdleTimeoutDoesNotFireWhileInError) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kError);
+
+    // Would trigger kIdle on any other tick (see
+    // TransitionsToIdleOnceInactiveLongEnough) - must not while in
+    // Error. Leaving kError is exclusively the battery recovering.
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kError);
+}
+
+TEST(PowerManager, CriticalBatteryInterruptsUpdating) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kUpdating);
+
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kError);
+}
+
+TEST(PowerManager, OtaFinishingDoesNotClobberErrorState) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kError);
+
+    // The write finishing (success or failure - ota_routes.cpp publishes
+    // {false} either way) must not silently override the still-critical
+    // battery back to kActive.
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{false});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kError);
 }

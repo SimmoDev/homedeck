@@ -1,6 +1,7 @@
 #include "core/power_manager.h"
 
 #include "core/clock.h"
+#include "core/critical_battery_monitor.h"
 #include "core/ota_routes.h"
 
 namespace homedeck {
@@ -33,14 +34,35 @@ PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activit
     clock_subscription_ = event_bus_.SubscribeUi<ClockTickEvent>([this](const ClockTickEvent&) { OnTick(); });
     ota_subscription_ = event_bus_.SubscribeUi<OtaUpdateStateChangedEvent>(
         [this](const OtaUpdateStateChangedEvent& event) {
-            TransitionTo(event.in_progress ? PowerState::kUpdating : PowerState::kActive);
+            if (event.in_progress) {
+                TransitionTo(PowerState::kUpdating);
+            } else if (state_ != PowerState::kError) {
+                // Not unconditional: if a critical battery forced kError
+                // during the write, the write finishing must not clobber
+                // that back to kActive - the battery is still critical
+                // regardless of how the OTA attempt ended.
+                TransitionTo(PowerState::kActive);
+            }
+        });
+    critical_battery_subscription_ = event_bus_.SubscribeUi<CriticalBatteryStateChangedEvent>(
+        [this](const CriticalBatteryStateChangedEvent& event) {
+            if (event.critical) {
+                // Unconditional, deliberately preempting kUpdating too -
+                // see docs/architecture/power-management.md#status for
+                // why an in-progress OTA write doesn't get priority here.
+                TransitionTo(PowerState::kError);
+            } else if (state_ == PowerState::kError) {
+                TransitionTo(PowerState::kActive);
+            }
         });
 }
 
 void PowerManager::OnTick() {
-    // The Idle timeout doesn't apply while an OTA write is in progress -
-    // see OtaUpdateStateChangedEvent's own comment for why.
-    if (state_ == PowerState::kUpdating) {
+    // The Idle timeout doesn't apply while an OTA write is in progress
+    // (see OtaUpdateStateChangedEvent's own comment for why) or while in
+    // Error - leaving kError is exclusively the battery recovering, not
+    // user activity.
+    if (state_ == PowerState::kUpdating || state_ == PowerState::kError) {
         return;
     }
     uint32_t inactive_ms = user_activity_source_.MillisecondsSinceLastActivity();

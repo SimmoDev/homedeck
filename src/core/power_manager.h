@@ -10,9 +10,12 @@
 
 namespace homedeck {
 
-// See docs/architecture/power-management.md for the full model.
-// kActive/kIdle/kUpdating/kSleeping are reachable via real transitions -
-// kError exists in the type but has no trigger wired up yet.
+// See docs/architecture/power-management.md for the full model. All
+// five states are reachable via real transitions. kError is scoped
+// narrowly to a critical-low-battery fault (see ADR-0005's Error-state-
+// scope decision) - a charging fault and a thermal fault are explicitly
+// still open, deferred items; neither has a hardware-confirmed
+// detection signal yet.
 enum class PowerState { kActive, kIdle, kSleeping, kUpdating, kError };
 
 // Published on every real transition.
@@ -59,6 +62,7 @@ private:
     std::optional<std::chrono::system_clock::time_point> sleep_veto_until_;
     EventBus::ScopedSubscription clock_subscription_;
     EventBus::ScopedSubscription ota_subscription_;
+    EventBus::ScopedSubscription critical_battery_subscription_;
 };
 
 }  // namespace homedeck

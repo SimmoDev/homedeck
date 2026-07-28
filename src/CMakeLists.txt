@@ -79,6 +79,7 @@ add_library(homedeck_core
   core/clock.cpp
   core/storage.cpp
   core/low_battery_monitor.cpp
+  core/critical_battery_monitor.cpp
   core/network_status_monitor.cpp
   core/power_manager.cpp
   core/weather_provider.cpp
