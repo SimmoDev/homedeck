@@ -386,13 +386,14 @@ simulator.
       confirmed on the K145 reference unit, plus the sleep-veto API
       (unit-tested, unused until a real module exists to call it) — see
       [power-management.md](architecture/power-management.md#status)
-      for the full detail. Still open: real ESP32 deep sleep, touch/IMU
-      wake sources, and the alert-priority wake-check cycle during
-      Sleeping (interval tuned against real reconnect-cost/battery
-      measurements on hardware — see
-      [power-management.md](architecture/power-management.md#notifications-during-sleeping)),
-      with the simulator's blackout/debug-triggered-wake-source visual
-      representation built alongside it, not as an afterthought — see
+      for the full detail. Still open: real ESP32 deep sleep and the
+      alert-priority wake-check cycle during Sleeping - blocked on more
+      than tuning, since none of touch, IMU, or RTC currently has a
+      confirmed GPIO path capable of waking the device at all (see
+      [hardware.md](architecture/hardware.md#power)), with the
+      simulator's blackout/debug-triggered-wake-source visual
+      representation built alongside whichever of these turns out to be
+      reachable, not as an afterthought — see
       [simulator.md](architecture/simulator.md#how-it-works). Also still
       open, moved from M1: whether ESP-Hosted/SDIO can keep the
       ESP32-C6 usefully associated while the P4 is asleep — the C6's

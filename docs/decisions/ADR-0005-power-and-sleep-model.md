@@ -88,6 +88,16 @@ interval's tuned value; resolving it is M2 scope, tracked against this
 decision under M2's "Power management state model" item in
 [docs/roadmap.md](../roadmap.md).
 
+**Second open hardware question this decision also rests on:** this
+decision's "RTC's timed interrupt wake" premise itself isn't confirmed
+either. The RX8130's own interrupt pin appears to have no net reaching
+the P4, and the one P4-facing GPIO nearby (PMS150G-U06's `BOOT_GPIO35`,
+a power-button controller) sits outside the P4's GPIO0-15 deep-sleep-
+wake-capable range — see
+[hardware.md](../architecture/hardware.md#power) for the full detail.
+Touch and IMU have the same problem. Until this is resolved, the wake
+cycle this section decides on has no confirmed way to actually fire.
+
 ## Decision: Error state scope
 
 **Options:**

@@ -23,12 +23,14 @@ logic:
   activity.
 - **Idle** — user hasn't interacted recently; the display dims as its
   timeout approaches, and background polling reduces in frequency.
-- **Sleeping** — ESP32 deep sleep, display off. Touch and IMU motion wake
-  the device (see [hardware capabilities](#hardware-capabilities-involved)),
-  and a periodic RTC-timer wake additionally checks alert-priority module
-  state before returning to deep sleep — see [Notifications during
-  Sleeping](#notifications-during-sleeping). FreeRTOS halts between these
-  windows.
+- **Sleeping** — ESP32 deep sleep, display off. Intended wake sources are
+  touch, IMU motion, and a periodic RTC-timer check of alert-priority
+  module state (see [Notifications during
+  Sleeping](#notifications-during-sleeping)), but none of the three
+  currently has a confirmed GPIO path capable of triggering that wake —
+  see [hardware capabilities](#hardware-capabilities-involved). FreeRTOS
+  halts entirely during deep sleep, between whichever wake windows turn
+  out to be reachable.
 - **Updating** — an OTA update is in progress; behavior favors stability
   over responsiveness (e.g. suppressing non-critical background tasks).
   Entry is gated on a minimum battery threshold (e.g. 30%, tuned in M2) or
@@ -79,9 +81,11 @@ behaves.
 alerts — starting with Uptime Kuma monitors going down, plausibly extended
 to specific urgent Home Assistant events later — participate in a periodic
 wake cycle instead: the RX8130CE RTC's timed interrupt wake (see
-[hardware.md](hardware.md#rtc)) wakes the device on a ~2-5 minute interval
-(exact value tuned in M2/M5 against real reconnect-cost and battery
-measurements), it briefly reconnects (paying the Wi-Fi co-processor
+[hardware.md](hardware.md#rtc); whether this RTC wake actually has a
+confirmed path to the P4 at all is a separate open question, see
+[hardware.md](hardware.md#power)) wakes the device on a ~2-5 minute
+interval (exact value tuned in M2/M5 against real reconnect-cost and
+battery measurements), it briefly reconnects (paying the Wi-Fi co-processor
 reassociation cost each time — see [hardware.md](hardware.md#wireless)),
 asks alert-priority modules to report current state, surfaces anything
 newly bad, and returns to deep sleep. This requires Core's notification
@@ -114,11 +118,9 @@ not just what the tuned numbers turn out to be.
 See [hardware.md](hardware.md) for full details and sourcing. Summary of
 what's confirmed as of 2026-07:
 
-- **Wake sources:** BMI270 IMU (interrupt-based motion wake), RX8130CE RTC
-  (timed interrupt wake), and touch, all aggregated through a dedicated
-  PMS150G-U06 interrupt controller. This confirms deep-sleep wake-on-touch,
-  wake-on-motion, and timed wake are real hardware capabilities, not
-  assumptions — see [hardware.md](hardware.md#power) for the source.
+- **Wake sources:** none of touch, IMU motion, or RTC timed wake has a
+  confirmed GPIO path capable of waking the P4 from deep sleep — see
+  [hardware.md](hardware.md#power) for the schematic-traced detail.
 - Display timeout and automatic brightness (ambient light behavior — no
   dedicated ambient light sensor has been confirmed on the BOM; verify
   before designing automatic brightness around one).
@@ -181,11 +183,14 @@ and unit-tested, though nothing calls it yet — no module exists to
 call it until M3+.
 
 `Sleeping`/`Updating`/`Error` exist in the `PowerState` enum but have
-no real trigger. Real ESP32 deep sleep, the alert-priority wake cycle,
-touch/IMU wake sources, and the ESP-Hosted/SDIO reassociation-vs-
-modem-sleep question above are all still open — deep sleep needs that
-question answered on real hardware before its wake cycle can be tuned
-against the right cost model, not just implemented. The Updating
+no real trigger. Real ESP32 deep sleep is blocked on more than tuning:
+none of touch, IMU, or RTC has a confirmed GPIO path capable of waking
+the device at all (see [hardware
+capabilities](#hardware-capabilities-involved)), which also undercuts
+a foundational premise of the alert-priority wake cycle's design (see
+[ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)).
+The ESP-Hosted/SDIO reassociation-vs-modem-sleep question above is
+still separately open too. The Updating
 state's own gate check (`src/core/ota_gate.h`, `EvaluateOtaGate()`) is
 real and confirmed on hardware — the 30%/external-power condition
 itself, not the full `Updating` state (background-task suppression,

@@ -347,11 +347,37 @@ second, conflicting one on the same physical pins.
   not 100%, on a pack that had been on USB power long enough to be
   fully charged. A real state-of-charge estimate is still M2
   power-management scope, not fixed here.
-- **Wake-source aggregation:** a PMS150G-U06 interrupt controller aggregates
-  wake interrupts (touch, IMU, RTC, power button) for the P4. This confirms
-  the deep-sleep wake architecture described in
-  [power-management.md](power-management.md) is real hardware, not
-  speculative.
+- **Wake sources - no confirmed GPIO path for touch/IMU/RTC:** traced
+  directly against M5Stack's official schematic
+  ([`Tab5_Schematics_PDF.pdf`](https://m5stack-doc.oss-cn-shenzhen.aliyuncs.com/1132/Tab5_Schematics_PDF.pdf),
+  linked from the [product page](https://docs.m5stack.com/en/core/Tab5),
+  same source as the pinmap above). **PMS150G-U06 (U28) is a
+  power-button/status-LED controller, not a wake aggregator** - pin 1
+  is `SW_PWR` (the physical power button), pin 5 is `LED_GREEN`, pin 6
+  is `VDD_STBY`, and pin 4 is its only connection to the P4: net
+  `BOOT_GPIO35` (confirmed by the same net name at the P4's own GPIO35
+  pin elsewhere in the schematic). **Touch's `TP_INT` connects directly
+  to the P4 at GPIO23**, bypassing PMS150 entirely - confirmed twice in
+  the schematic and matching
+  `firmware/components/m5stack_tab5/include/bsp/m5stack_tab5.h`'s
+  `BSP_LCD_TOUCH_INT` (`GPIO_NUM_23`). **BMI270's `INT1`/`INT2` pins and
+  the RX8130's `nIRQ` pin each appear with no net name reaching
+  anywhere else in the document** - every genuinely-wired net in this
+  schematic (e.g. `BOOT_GPIO35`, `TP_INT_GPIO23`) shows up at both its
+  source and destination; these don't, which is real but not certain
+  evidence (noisy PDF-text extraction, not an explicit "NC" label) that
+  they're unconnected on this board. **Both P4-side pins actually found
+  (GPIO35, GPIO23) sit outside GPIO0-15** - confirmed against this
+  project's own generated `sdkconfig.h` for the `esp32p4` target:
+  `esp_sleep_enable_ext1_wakeup_io()`/`esp_deep_sleep_enable_gpio_wakeup()`
+  both require the wake pin to be in the RTC-IO domain
+  (`SOC_RTCIO_PIN_COUNT=16`, i.e. GPIO0-15), which neither pin is. Net
+  effect: as currently understood, none of touch, IMU, or RTC have a
+  confirmed path to a P4 GPIO capable of waking the device from deep
+  sleep via the standard ESP-IDF wake APIs - see
+  [power-management.md](power-management.md#status) and
+  [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
+  for what this means for the wake-cycle design.
 
 ### Battery-optional operation
 
