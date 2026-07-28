@@ -7,8 +7,8 @@
 
 namespace homedeck {
 
-void RegisterOtaRoutes(HttpServer& server, AdminAuthService& auth, BatteryReader& battery_reader, OtaWriter writer,
-                        OtaRebootFn reboot) {
+void RegisterOtaRoutes(HttpServer& server, EventBus& event_bus, AdminAuthService& auth, BatteryReader& battery_reader,
+                        OtaWriter writer, OtaRebootFn reboot) {
     server.RegisterHandler(
         HttpMethod::kGet, "/api/ota/status",
         auth.RequireAuth([&battery_reader, writer](const HttpRequest&) {
@@ -26,7 +26,7 @@ void RegisterOtaRoutes(HttpServer& server, AdminAuthService& auth, BatteryReader
 
     server.RegisterHandler(
         HttpMethod::kPost, "/api/ota/upload",
-        auth.RequireAuth([&battery_reader, writer](const HttpRequest& request) {
+        auth.RequireAuth([&event_bus, &battery_reader, writer](const HttpRequest& request) {
             OtaGateStatus gate = EvaluateOtaGate(battery_reader);
             if (!gate.open) {
                 nlohmann::json body = {{"error", "gate_closed"}, {"reason", gate.reason}};
@@ -36,7 +36,10 @@ void RegisterOtaRoutes(HttpServer& server, AdminAuthService& auth, BatteryReader
                 nlohmann::json body = {{"error", "image_too_large"}};
                 return HttpResponse{400, "application/json", body.dump(), {}};
             }
-            if (!writer.write_image(request.body)) {
+            event_bus.Publish(OtaUpdateStateChangedEvent{true});
+            bool write_succeeded = writer.write_image(request.body);
+            event_bus.Publish(OtaUpdateStateChangedEvent{false});
+            if (!write_succeeded) {
                 nlohmann::json body = {{"error", "write_failed"}};
                 return HttpResponse{500, "application/json", body.dump(), {}};
             }

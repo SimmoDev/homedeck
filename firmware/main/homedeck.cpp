@@ -230,7 +230,7 @@ homedeck::OtaWriter BuildOtaWriter() {
 // stopped, so there's no port/lifecycle overlap between the two.
 // battery_reader is the same Ina226BatteryReader instance the dashboard
 // already reads.
-void StartWebServer(homedeck::HttpServer& web_server, homedeck::Storage& storage,
+void StartWebServer(homedeck::HttpServer& web_server, homedeck::EventBus& event_bus, homedeck::Storage& storage,
                      homedeck::AdminAuthService& admin_auth, homedeck::BatteryReader& battery_reader,
                      homedeck::Logger& logger, homedeck::HttpClient& http_client,
                      homedeck::OpenMeteoWeatherProvider& weather_provider, homedeck::OtaWriter ota_writer) {
@@ -265,7 +265,7 @@ void StartWebServer(homedeck::HttpServer& web_server, homedeck::Storage& storage
         }
         return buffer;
     });
-    homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer, ScheduleReboot);
+    homedeck::RegisterOtaRoutes(web_server, event_bus, admin_auth, battery_reader, ota_writer, ScheduleReboot);
     homedeck::RegisterSettingsRoutes(web_server, storage, admin_auth, [&logger](const std::string& value) -> bool {
         if (!IsValidHostnameLabel(value)) {
             return false;
@@ -470,7 +470,7 @@ extern "C" void app_main(void) {
     // Declared here (not in a narrower scope) so it stays alive for the
     // rest of app_main's life, which never returns.
     homedeck::FirmwareHttpServer web_server;
-    StartWebServer(web_server, storage, admin_auth, battery_reader, logger, http_client, weather_provider,
+    StartWebServer(web_server, event_bus, storage, admin_auth, battery_reader, logger, http_client, weather_provider,
                    BuildOtaWriter());
 
     // A real, meaningful "this boot actually worked" checkpoint - see

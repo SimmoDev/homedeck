@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/admin_auth_service.h"
+#include "core/event_bus.h"
 #include "platform/battery_reader.h"
 #include "platform/http_server.h"
 
@@ -9,6 +10,15 @@
 #include <string>
 
 namespace homedeck {
+
+// Published immediately around the actual flash write in
+// POST /api/ota/upload (not the whole handler - gate/size rejections
+// return immediately and don't need this) - see PowerManager, the one
+// current subscriber, for why: it needs to know when to suspend its own
+// Idle-timeout dimming.
+struct OtaUpdateStateChangedEvent {
+    bool in_progress;
+};
 
 // Platform-specific OTA write mechanics, injected the same way
 // CoreDumpReader is (see core/diagnostics_routes.h) - firmware drives
@@ -44,7 +54,7 @@ using OtaRebootFn = std::function<void()>;
 // any handler runs (see platform/http_server.h's Handler contract), so
 // the size check against max_image_size() happens against the received
 // body, before write_image() is called - not before receiving it.
-void RegisterOtaRoutes(HttpServer& server, AdminAuthService& auth, BatteryReader& battery_reader, OtaWriter writer,
-                        OtaRebootFn reboot);
+void RegisterOtaRoutes(HttpServer& server, EventBus& event_bus, AdminAuthService& auth, BatteryReader& battery_reader,
+                        OtaWriter writer, OtaRebootFn reboot);
 
 }  // namespace homedeck

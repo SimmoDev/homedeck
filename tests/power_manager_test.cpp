@@ -1,6 +1,7 @@
 #include "core/power_manager.h"
 
 #include "core/clock.h"
+#include "core/ota_routes.h"
 
 #include <gtest/gtest.h>
 
@@ -206,4 +207,59 @@ TEST(PowerManager, ActiveSleepVetoDoesNotBlockIdleTransitionThisPhase) {
     // this phase, so it has nothing to veto yet - this asserts that
     // real, current behavior explicitly rather than leaving it implicit.
     EXPECT_EQ(manager.State(), homedeck::PowerState::kIdle);
+}
+
+TEST(PowerManager, OtaInProgressTransitionsToUpdating) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    std::vector<homedeck::PowerState> events;
+    auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
+        [&events](const homedeck::PowerStateChangedEvent& event) { events.push_back(event.state); });
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kUpdating);
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0], homedeck::PowerState::kUpdating);
+}
+
+TEST(PowerManager, IdleTimeoutDoesNotFireWhileUpdating) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kUpdating);
+
+    // Would trigger kIdle on any other tick (see
+    // TransitionsToIdleOnceInactiveLongEnough) - must not while Updating.
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kUpdating);
+}
+
+TEST(PowerManager, OtaFinishedReturnsToActive) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kUpdating);
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{false});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kActive);
+    EXPECT_EQ(brightness.last_percent, 100);
 }

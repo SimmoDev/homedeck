@@ -1,6 +1,7 @@
 #include "core/power_manager.h"
 
 #include "core/clock.h"
+#include "core/ota_routes.h"
 
 namespace homedeck {
 
@@ -21,9 +22,18 @@ PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activit
       display_brightness_(display_brightness),
       time_source_(time_source) {
     clock_subscription_ = event_bus_.SubscribeUi<ClockTickEvent>([this](const ClockTickEvent&) { OnTick(); });
+    ota_subscription_ = event_bus_.SubscribeUi<OtaUpdateStateChangedEvent>(
+        [this](const OtaUpdateStateChangedEvent& event) {
+            TransitionTo(event.in_progress ? PowerState::kUpdating : PowerState::kActive);
+        });
 }
 
 void PowerManager::OnTick() {
+    // The Idle timeout doesn't apply while an OTA write is in progress -
+    // see OtaUpdateStateChangedEvent's own comment for why.
+    if (state_ == PowerState::kUpdating) {
+        return;
+    }
     uint32_t inactive_ms = user_activity_source_.MillisecondsSinceLastActivity();
     if (state_ == PowerState::kActive && inactive_ms >= kIdleTimeoutMs) {
         TransitionTo(PowerState::kIdle);

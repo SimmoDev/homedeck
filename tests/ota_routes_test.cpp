@@ -17,6 +17,7 @@
 #include <cstring>
 #include <filesystem>
 #include <memory>
+#include <vector>
 
 namespace {
 
@@ -128,6 +129,7 @@ protected:
     homedeck::HostTimeSource time_source_;
     std::unique_ptr<homedeck::AdminAuthService> auth_;
     homedeck::HostBatteryReader battery_reader_;
+    homedeck::EventBus event_bus_;
 };
 
 homedeck::OtaWriter MakeWriter(size_t max_size, bool write_should_succeed, std::string* written_image = nullptr) {
@@ -150,7 +152,7 @@ TEST_F(OtaRoutesTest, AllThreeEndpointsRequireAuthentication) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     bool rebooted = false;
-    homedeck::RegisterOtaRoutes(server, *auth_, battery_reader_, MakeWriter(1024, true),
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true),
                                  [&rebooted]() { rebooted = true; });
     ASSERT_TRUE(server.Start(18201));
 
@@ -175,7 +177,7 @@ TEST_F(OtaRoutesTest, StatusReflectsBatteryGateAndVersion) {
 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterOtaRoutes(server, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
     ASSERT_TRUE(server.Start(18202));
     std::string cookie = Login(18202);
 
@@ -194,7 +196,8 @@ TEST_F(OtaRoutesTest, UploadRejectedWithReasonWhenGateClosed) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     std::string written_image;
-    homedeck::RegisterOtaRoutes(server, *auth_, battery_reader_, MakeWriter(1024, true, &written_image), []() {});
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_,
+                                 MakeWriter(1024, true, &written_image), []() {});
     ASSERT_TRUE(server.Start(18203));
     std::string cookie = Login(18203);
 
@@ -210,7 +213,8 @@ TEST_F(OtaRoutesTest, UploadRejectedWhenLargerThanMaxImageSize) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     std::string written_image;
-    homedeck::RegisterOtaRoutes(server, *auth_, battery_reader_, MakeWriter(4, true, &written_image), []() {});
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_,
+                                 MakeWriter(4, true, &written_image), []() {});
     ASSERT_TRUE(server.Start(18204));
     std::string cookie = Login(18204);
 
@@ -225,7 +229,8 @@ TEST_F(OtaRoutesTest, UploadSucceedsAgainstASmallFakeImageWhenGateOpen) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     std::string written_image;
-    homedeck::RegisterOtaRoutes(server, *auth_, battery_reader_, MakeWriter(1024, true, &written_image), []() {});
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_,
+                                 MakeWriter(1024, true, &written_image), []() {});
     ASSERT_TRUE(server.Start(18205));
     std::string cookie = Login(18205);
 
@@ -239,7 +244,7 @@ TEST_F(OtaRoutesTest, UploadReturns500WhenWriteFails) {
 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterOtaRoutes(server, *auth_, battery_reader_, MakeWriter(1024, false), []() {});
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, false), []() {});
     ASSERT_TRUE(server.Start(18206));
     std::string cookie = Login(18206);
 
@@ -253,7 +258,7 @@ TEST_F(OtaRoutesTest, ExternalPowerOpensGateEvenAtLowBattery) {
 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterOtaRoutes(server, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
     ASSERT_TRUE(server.Start(18207));
     std::string cookie = Login(18207);
 
@@ -270,7 +275,7 @@ TEST_F(OtaRoutesTest, RebootCallsTheInjectedRebootFunction) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     bool rebooted = false;
-    homedeck::RegisterOtaRoutes(server, *auth_, battery_reader_, MakeWriter(1024, true),
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true),
                                  [&rebooted]() { rebooted = true; });
     ASSERT_TRUE(server.Start(18208));
     std::string cookie = Login(18208);
@@ -278,4 +283,63 @@ TEST_F(OtaRoutesTest, RebootCallsTheInjectedRebootFunction) {
     auto reboot = HttpRequestRaw(18208, "POST", "/api/ota/reboot", "", cookie);
     EXPECT_EQ(reboot.status_code, 200);
     EXPECT_TRUE(rebooted);
+}
+
+TEST_F(OtaRoutesTest, SuccessfulUploadPublishesInProgressThenFinished) {
+    battery_reader_.SetPercent(100);
+
+    std::vector<bool> events;
+    auto sub = event_bus_.Subscribe<homedeck::OtaUpdateStateChangedEvent>(
+        [&events](const homedeck::OtaUpdateStateChangedEvent& event) { events.push_back(event.in_progress); });
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
+    ASSERT_TRUE(server.Start(18209));
+    std::string cookie = Login(18209);
+
+    auto upload = HttpRequestRaw(18209, "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
+    EXPECT_EQ(upload.status_code, 200);
+    ASSERT_EQ(events.size(), 2u);
+    EXPECT_TRUE(events[0]);
+    EXPECT_FALSE(events[1]);
+}
+
+TEST_F(OtaRoutesTest, FailedWriteStillPublishesFinishedNotLeftStuckInProgress) {
+    battery_reader_.SetPercent(100);
+
+    std::vector<bool> events;
+    auto sub = event_bus_.Subscribe<homedeck::OtaUpdateStateChangedEvent>(
+        [&events](const homedeck::OtaUpdateStateChangedEvent& event) { events.push_back(event.in_progress); });
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, false), []() {});
+    ASSERT_TRUE(server.Start(18210));
+    std::string cookie = Login(18210);
+
+    auto upload = HttpRequestRaw(18210, "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
+    EXPECT_EQ(upload.status_code, 500);
+    ASSERT_EQ(events.size(), 2u);
+    EXPECT_TRUE(events[0]);
+    EXPECT_FALSE(events[1]);
+}
+
+TEST_F(OtaRoutesTest, GateClosedRejectionPublishesNeitherEvent) {
+    battery_reader_.SetPercent(5);
+    battery_reader_.SetExternalPowerConnected(false);
+
+    int event_count = 0;
+    auto sub = event_bus_.Subscribe<homedeck::OtaUpdateStateChangedEvent>(
+        [&event_count](const homedeck::OtaUpdateStateChangedEvent&) { event_count++; });
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
+    ASSERT_TRUE(server.Start(18211));
+    std::string cookie = Login(18211);
+
+    auto upload = HttpRequestRaw(18211, "POST", "/api/ota/upload", "firmware bytes", cookie);
+    EXPECT_EQ(upload.status_code, 403);
+    EXPECT_EQ(event_count, 0);
 }

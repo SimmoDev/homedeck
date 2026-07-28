@@ -10,10 +10,9 @@
 
 namespace homedeck {
 
-// See docs/architecture/power-management.md for the full model. Only
-// kActive/kIdle are reachable via real transitions in this phase -
-// kSleeping/kUpdating/kError exist in the type but have no trigger
-// wired up yet.
+// See docs/architecture/power-management.md for the full model.
+// kActive/kIdle/kUpdating are reachable via real transitions -
+// kSleeping/kError exist in the type but have no trigger wired up yet.
 enum class PowerState { kActive, kIdle, kSleeping, kUpdating, kError };
 
 // Published on every real transition.
@@ -58,6 +57,7 @@ private:
     PowerState state_ = PowerState::kActive;
     std::optional<std::chrono::system_clock::time_point> sleep_veto_until_;
     EventBus::ScopedSubscription clock_subscription_;
+    EventBus::ScopedSubscription ota_subscription_;
 };
 
 }  // namespace homedeck

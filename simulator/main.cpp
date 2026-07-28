@@ -545,7 +545,7 @@ int main() {
             [&force_ota_failure](const std::string& /*image*/) -> bool { return !force_ota_failure; },
         .running_version = []() -> std::string { return "simulator-dev"; },
     };
-    homedeck::RegisterOtaRoutes(web_server, admin_auth, battery_reader, ota_writer,
+    homedeck::RegisterOtaRoutes(web_server, event_bus, admin_auth, battery_reader, ota_writer,
                                  []() { std::printf("OTA reboot requested (no-op in simulator)\n"); });
     // No device-name-changed callback - there's no mDNS to re-announce
     // on the simulator, so a device name change just persists to
