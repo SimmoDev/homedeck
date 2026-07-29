@@ -413,6 +413,11 @@ extern "C" void app_main(void) {
     wifi_ui_callbacks.on_connected = [&app_core]() {
         homedeck::PostToUiThread([&app_core]() { app_core.GetNavigation().GoHome(); });
     };
+    wifi_ui_callbacks.on_connect_failed = [&app_core]() {
+        homedeck::PostToUiThread([&app_core]() {
+            app_core.GetWifiSetupScreen().SetConnectError("Couldn't connect - check the password and try again.");
+        });
+    };
     homedeck::ConnectToWifi(wifi_ui_callbacks);
     printf("Wi-Fi connected\n");
     app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");

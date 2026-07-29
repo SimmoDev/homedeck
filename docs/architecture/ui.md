@@ -189,7 +189,10 @@ genuine second screen registered alongside the dashboard on both
 targets (it omits the home affordance itself - see the Navigation model
 section above). Below its Connect button it shows instructions for
 setting up from a phone/laptop instead (join the SoftAP SSID, then
-browse to the gateway IP) - all screen text, including
+browse to the gateway IP), and a connect-failure message once
+`wifi_setup.cpp` gives up retrying a freshly-submitted set of credentials
+(`SetConnectError`, cleared again as soon as the user retries) - all
+screen text, including
 `OnScreenKeyboard`'s key labels (`src/ui/keyboard_input.h`/`.cpp` - a
 reusable on-screen keyboard that attaches to any `lv_textarea`, with no
 knowledge of what the text is for, so future screens needing text entry

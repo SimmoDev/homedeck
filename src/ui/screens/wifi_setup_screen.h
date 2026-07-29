@@ -49,6 +49,12 @@ public:
     // constructor parameter.
     void SetApInfo(const std::string& ap_ssid, const std::string& ap_ip);
 
+    // Shows a connect-failure message (see WifiUiCallbacks::on_connect_failed) -
+    // the only feedback this screen gives on a failed attempt, since
+    // wifi_setup.cpp gives up silently otherwise. Cleared again as soon
+    // as the user retries (see OnConnectClicked).
+    void SetConnectError(const std::string& message);
+
 private:
     static void OnConnectClicked(lv_event_t* e);
 
@@ -58,6 +64,7 @@ private:
     lv_obj_t* ap_info_label_;
     lv_obj_t* ssid_field_;
     lv_obj_t* password_field_;
+    lv_obj_t* error_label_;
     SubmitCallback on_submit_;
 };
 

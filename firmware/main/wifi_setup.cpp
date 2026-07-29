@@ -203,6 +203,9 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                 if (state.setup_server != nullptr && state.reconnect_attempts >= kMaxSetupReconnectAttempts) {
                     ESP_LOGW(kTag, "Giving up after %d failed attempts - submit the setup form again to retry",
                              kMaxSetupReconnectAttempts);
+                    if (state.ui_callbacks.on_connect_failed) {
+                        state.ui_callbacks.on_connect_failed();
+                    }
                     break;
                 }
                 ++state.reconnect_attempts;

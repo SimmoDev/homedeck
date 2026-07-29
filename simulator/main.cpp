@@ -248,12 +248,13 @@ void OnTestBackToDashboardClicked(lv_event_t* e) {
 
 void CreateTestBackToDashboardButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
     lv_obj_t* button = lv_button_create(parent);
-    // Below the "To configure Wi-Fi..." instructions text (the last
-    // real content on this screen) with a visible gap - a fixed offset
-    // rather than flex-flowed alongside it, since that text is owned by
-    // the portable WifiSetupScreen (wifi_setup_screen.cpp) and not
-    // exposed for a simulator-only debug button to attach to.
-    lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 460);
+    // Below the "To configure Wi-Fi..." instructions text and the
+    // connect-error message beneath it (the last real content on this
+    // screen, when SetConnectError has fired) with a visible gap - a
+    // fixed offset rather than flex-flowed alongside it, since that text
+    // is owned by the portable WifiSetupScreen (wifi_setup_screen.cpp)
+    // and not exposed for a simulator-only debug button to attach to.
+    lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 540);
     lv_obj_add_event_cb(button, OnTestBackToDashboardClicked, LV_EVENT_CLICKED, &navigation);
 
     lv_obj_t* label = lv_label_create(button);

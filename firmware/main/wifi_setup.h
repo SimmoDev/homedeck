@@ -21,6 +21,15 @@ struct WifiUiCallbacks {
     // Fires once Wi-Fi actually connects - the caller should dismiss the
     // setup screen. May be empty.
     std::function<void()> on_connected;
+    // Fires when a freshly-submitted set of credentials gives up after
+    // kMaxSetupReconnectAttempts failed attempts (wrong password, AP out
+    // of range, etc.) - the SoftAP and setup HTTP server both stay up
+    // regardless, so resubmitting the form is always still possible; this
+    // just tells a caller that already showed the Touch UI fallback
+    // screen to surface that the last attempt didn't work. Never fires
+    // once already connected (see OnEvent's own comment for why normal
+    // post-setup reconnects don't have this cap). May be empty.
+    std::function<void()> on_connect_failed;
 };
 
 // The outcome of checking stored credentials, without yet attempting to

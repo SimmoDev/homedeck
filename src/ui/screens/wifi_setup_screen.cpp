@@ -61,6 +61,16 @@ WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_rea
     // reads as a distinct secondary block rather than another field
     // stacked at the same spacing as everything above it.
     lv_obj_set_style_pad_top(ap_info_label_, 24, 0);
+
+    error_label_ = lv_label_create(container);
+    lv_label_set_text(error_label_, "");  // LVGL defaults a new label's text to "Text" otherwise.
+    lv_label_set_long_mode(error_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(error_label_, LV_PCT(90));
+    lv_obj_set_style_text_align(error_label_, LV_TEXT_ALIGN_CENTER, 0);
+    // Plain red, not a considered choice - same placeholder-styling
+    // rationale as NotificationBanner's own accent color; real severity
+    // styling is M7 scope.
+    lv_obj_set_style_text_color(error_label_, lv_palette_main(LV_PALETTE_RED), 0);
 }
 
 WifiSetupScreen::~WifiSetupScreen() { lv_obj_del(root_); }
@@ -72,8 +82,14 @@ void WifiSetupScreen::SetApInfo(const std::string& ap_ssid, const std::string& a
                            ap_ssid.c_str(), ap_ip.c_str());
 }
 
+void WifiSetupScreen::SetConnectError(const std::string& message) { lv_label_set_text(error_label_, message.c_str()); }
+
 void WifiSetupScreen::OnConnectClicked(lv_event_t* e) {
     auto* self = static_cast<WifiSetupScreen*>(lv_event_get_user_data(e));
+    // A previous attempt's error no longer applies to this one. Empty
+    // text is enough to make an LV_LABEL_LONG_WRAP label take no visible
+    // space - no need for a second, redundant hidden/visible flag.
+    lv_label_set_text(self->error_label_, "");
     if (!self->on_submit_) {
         return;
     }
