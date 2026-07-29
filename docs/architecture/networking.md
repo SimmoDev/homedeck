@@ -75,7 +75,11 @@ is unavailable. Per [CLAUDE.md](../../CLAUDE.md), this requires:
   offline state at the UI level (see
   [dashboard.md](dashboard.md#data-freshness))
 - Retry with backoff for reconnection attempts, rather than tight polling
-  loops that waste battery and flood a recovering service
+  loops that waste battery and flood a recovering service. This is the
+  module-level contract described below, distinct from `wifi_setup.cpp`'s
+  own radio-level reconnect (a fixed retry interval, not exponential
+  backoff — see its own comments for why that's an accepted simplification
+  at this layer).
 
 This is a Core-level contract that modules build on: a module fetching data
 from its external service should go through a pattern that naturally

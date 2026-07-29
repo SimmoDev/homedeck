@@ -29,6 +29,12 @@ constexpr int kConnectedBit = BIT0;
 // with no Wi-Fi and no way back into setup mode. Resubmitting the setup
 // form resets the count, so a mistyped password is always recoverable.
 constexpr int kMaxSetupReconnectAttempts = 5;
+// Fixed, not exponential - this is a single always-on-battery-or-mains
+// device reconnecting to one specific already-trusted AP, not a fleet of
+// clients that could pile up and overwhelm a recovering service (the
+// scenario docs/architecture/networking.md's module-level retry/backoff
+// contract exists for). A short fixed interval recovers from a router
+// reboot quickly without meaningfully affecting battery life.
 constexpr int kReconnectBackoffMs = 500;
 
 // esp_netif's default AP gateway - not currently derived from
