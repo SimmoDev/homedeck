@@ -231,4 +231,9 @@ seconds after showing. `NotificationSound`
 (`src/core/notification_sound.h`/`.cpp`) is the sound output, and
 `NotificationWidget` (`src/ui/notification_widget.h`/`.cpp`) is the
 dashboard-indicator output — see [Notification
-presentation](#notification-presentation) above for both.
+presentation](#notification-presentation) above for both. All three
+outputs replace rather than queue: a notification arriving before the
+previous one has finished showing/playing simply overwrites it (one
+banner, one tone, one dashboard tile), the same "nothing today fires
+more than one notification per episode" reasoning the last-notification
+tile above already documents, applied consistently across all three.
