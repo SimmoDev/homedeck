@@ -1,6 +1,5 @@
 #include "wifi_setup.h"
 
-#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -114,9 +113,19 @@ esp_err_t HandleGetSetupPage(httpd_req_t* req) {
 }
 
 esp_err_t HandlePostConnect(httpd_req_t* req) {
-    char body[192] = {};
-    size_t to_read = std::min(static_cast<size_t>(req->content_len), sizeof(body) - 1);
-    int received = httpd_req_recv(req, body, to_read);
+    // Worst case is a fully percent-encoded SSID (32 raw bytes -> up to
+    // 96) plus password (64 raw bytes -> up to 192, WPA2's own max PSK
+    // length), plus "ssid=" and "&password=" field-name overhead - a
+    // smaller fixed buffer that just truncated whatever didn't fit
+    // silently corrupted long/complex passwords instead of rejecting
+    // them outright.
+    constexpr size_t kMaxBodyBytes = 320;
+    if (req->content_len <= 0 || static_cast<size_t>(req->content_len) > kMaxBodyBytes) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Request body missing or too large");
+        return ESP_FAIL;
+    }
+    char body[kMaxBodyBytes + 1] = {};
+    int received = httpd_req_recv(req, body, static_cast<size_t>(req->content_len));
     if (received <= 0) {
         httpd_resp_send_500(req);
         return ESP_FAIL;
