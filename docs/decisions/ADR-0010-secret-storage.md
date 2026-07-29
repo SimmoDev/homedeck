@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Accepted — **when** the HMAC-peripheral NVS encryption scheme activates
+is decided separately by
+[ADR-0018](ADR-0018-staged-security-hardening.md); the scheme choice and
+`SecretStore` interface decisions below stand as originally accepted.
 
 ## Context
 
