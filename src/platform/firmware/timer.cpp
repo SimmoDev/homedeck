@@ -4,6 +4,7 @@
 #include "freertos/semphr.h"
 #include "freertos/timers.h"
 
+#include <cstdlib>
 #include <utility>
 
 namespace homedeck {
@@ -49,6 +50,13 @@ Timer::Timer(const char* name, std::chrono::milliseconds period, Callback callba
     impl_->context->callback = std::move(callback);
     impl_->context->handle = xTimerCreate(name, pdMS_TO_TICKS(period.count()), pdTRUE,
                                            impl_->context.get(), TimerTrampoline);
+    // No meaningful degraded mode - see Task::Task's identical guard
+    // (platform/firmware/task.cpp) for why this aborts rather than
+    // silently returning a Timer that never fires and whose destructor
+    // would call xTimerStart()/xTimerDelete() on a null handle.
+    if (impl_->context->handle == nullptr) {
+        abort();
+    }
     xTimerStart(impl_->context->handle, portMAX_DELAY);
 }
 

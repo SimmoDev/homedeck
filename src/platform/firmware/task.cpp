@@ -4,6 +4,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
+#include <cstdlib>
 #include <utility>
 
 namespace homedeck {
@@ -55,7 +56,20 @@ struct Task::Impl {
 Task::Task(const char* name, Function function) : impl_(std::make_unique<Impl>()) {
     impl_->context->function = std::move(function);
     impl_->context->finished = xSemaphoreCreateBinary();
-    xTaskCreate(TaskTrampoline, name, kStackSizeBytes, impl_->context.get(), kPriority, nullptr);
+    // No meaningful degraded mode for either failure: a Task that's
+    // silently never created leaves its caller believing background work
+    // is running when it isn't, and ~Task()'s xSemaphoreTake() below would
+    // block forever - no task would ever exist to give a null/unusable
+    // semaphore. Matches AdminAuthService's identical "abort, don't limp
+    // on" precedent for a broken platform primitive
+    // (core/admin_auth_service.cpp's mbedtls_ctr_drbg_seed() check).
+    if (impl_->context->finished == nullptr) {
+        abort();
+    }
+    BaseType_t created = xTaskCreate(TaskTrampoline, name, kStackSizeBytes, impl_->context.get(), kPriority, nullptr);
+    if (created != pdPASS) {
+        abort();
+    }
 }
 
 Task::~Task() {
