@@ -122,29 +122,6 @@ correctly but only takes effect on the next reboot, since making restore
 aware of per-key semantics would tangle a deliberately generic replay
 loop for a rare, self-inflicted-only case.
 
-## A pre-existing bug this work exposed and fixed
-
-Real-hardware verification of the reserved-key rejection (`POST
-/api/settings` targeting `admin_pw_hash`) intermittently returned no
-HTTP response at all - curl: *"Unsupported HTTP/1 subversion in
-response"* - while the identical request against the simulator worked
-correctly every time. `FirmwareHttpServer::DispatchTrampoline`
-(`src/platform/firmware/http_server.cpp`) was calling
-`httpd_resp_set_status(req, StatusLine(response.status_code).c_str())`.
-ESP-IDF's `httpd_resp_set_status()` only stores the pointer it's given
-(`ra->status = (char *)status`, `esp_http_server/src/httpd_txrx.c`) -
-nothing is sent until `httpd_resp_send()` runs afterward. `StatusLine(...)`
-returns a temporary `std::string`, destroyed at the end of that
-statement - `httpd_resp_send()` then read an already-freed pointer. This
-affected every response from every route on firmware, not just this
-one - it simply hadn't been caught before because the freed memory
-usually still held valid-looking bytes by the time it was read, an
-unreliable use-after-free rather than a consistent failure. Fixed by
-storing the status line in a named local that lives past
-`httpd_resp_send()`. Confirmed on hardware: the same request that
-previously failed intermittently now returns a clean `500` reliably
-(5/5 retries).
-
 ## Consequences
 
 - This project now carries an interim, explicitly-scoped security

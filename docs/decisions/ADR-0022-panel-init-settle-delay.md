@@ -60,15 +60,6 @@ that no longer touches `managed_components/` for this component at all.
   re-applying this delay to a fresh copy (or reconfirming it's no
   longer needed, if a future upstream release fixes it directly).
   Worth filing upstream at some point, but not blocking on that.
-- A pre-existing, unrelated bug surfaced once the background rendered
-  correctly and quickly: `StatusBar`'s clock label showed LVGL's default
-  `"Text"` placeholder until the first `ClockTickEvent` arrived, up to
-  one Clock period late. Fixed by setting it to blank at construction,
-  matching how the battery label already reads its value immediately
-  rather than waiting for the first tick. A real initial value (not
-  blank) would require threading `TimeSource` through `StatusBar` and
-  both its callers - deferred, tracked in
-  [roadmap.md](../roadmap.md)'s Status bar item.
 - [hardware.md](../architecture/hardware.md) doesn't get a new entry for
   this - the panel's settling behavior is now fully accounted for by the
   init sequence, not a standing characteristic a reader needs to know

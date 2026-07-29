@@ -141,26 +141,24 @@ a load that doesn't exist.
   LVGL core constraint independent of the display driver — no divergence
   risk of the kind flagged for the HTTP/WebSocket transport in
   [ADR-0002](ADR-0002-technology-stack.md#3-embedded-webwebsocket-server).
-- **Resolved (M2):** `lv_async_call()` hands off *when* a callback runs
-  safely, not *whether* the subscriber it belongs to still exists by
-  then — see `EventBus`'s own header comment
-  (`src/core/event_bus.h`) for the mechanism, and
-  `tests/event_bus_test.cpp`'s
-  `DeferredUiCallbackIsSkippedIfUnsubscribedBeforeTheTickRuns` for the
-  regression test.
-- **Resolved (M2):** `lv_async_call()` itself doesn't guarantee FIFO
-  order across repeated calls — this LVGL version schedules each one as
-  a fresh one-shot timer inserted at the *head* of LVGL's internal timer
-  list, so two calls made back-to-back run in reverse order. `PostToUiThread`
-  (`src/ui/ui_dispatch.h`/`.cpp`) now queues through its own `Queue<T>`
-  and drains it via a single recurring timer instead, restoring real
-  FIFO order independent of `lv_async_call`'s internal behavior.
-- **Found during that same fix:** `bsp_display_start()`
-  (`firmware/main/homedeck.cpp`) already spawns its own dedicated
-  `taskLVGL` (`esp_lvgl_port`'s `lvgl_port_init()`) that's running its
-  own `lv_timer_handler()` loop by the time it returns — any `lv_*` call
-  made from `app_main()` after that point, including one-time
-  initialization calls, needs the same `bsp_display_lock()`/
-  `bsp_display_unlock()` wrapping the splash screen and dashboard
-  construction already use. Easy to miss for a call that looks like
-  simple startup sequencing rather than a concurrent-access site.
+- `lv_async_call()`'s hand-off guarantees *when* a callback runs safely,
+  not *whether* the subscriber it belongs to still exists by then —
+  `EventBus`'s UI dispatch checks subscriber liveness before invoking a
+  deferred callback (see its own header comment, `src/core/event_bus.h`,
+  and `tests/event_bus_test.cpp`'s
+  `DeferredUiCallbackIsSkippedIfUnsubscribedBeforeTheTickRuns`).
+- `lv_async_call()` itself does not guarantee FIFO order across repeated
+  calls — this LVGL version schedules each one as a fresh one-shot timer
+  inserted at the *head* of LVGL's internal timer list, so two calls made
+  back-to-back run in reverse order. `PostToUiThread`
+  (`src/ui/ui_dispatch.h`/`.cpp`) queues through its own `Queue<T>` and
+  drains it via a single recurring timer instead, restoring real FIFO
+  order independent of `lv_async_call`'s internal behavior.
+- Every `lv_*` call made from `app_main()` after `bsp_display_start()`
+  returns — including one-time initialization calls, not just ongoing UI
+  updates — is a concurrent-access site, not ordinary startup sequencing,
+  and must go through the same `bsp_display_lock()`/`bsp_display_unlock()`
+  wrapping already used around splash-screen and dashboard construction:
+  `bsp_display_start()` (`firmware/main/homedeck.cpp`) spawns its own
+  dedicated `taskLVGL` (`esp_lvgl_port`'s `lvgl_port_init()`), already
+  running its own `lv_timer_handler()` loop by the time it returns.
