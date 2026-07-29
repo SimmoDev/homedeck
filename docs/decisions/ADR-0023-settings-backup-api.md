@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Accepted — the durable fix this ADR's Decision section named and
+deferred (giving `SecretStore` its own NVS partition) is delivered by
+[ADR-0027](ADR-0027-secret-store-partition-separation.md); the reserved-
+key guard described below stays in place as a second-layer safeguard,
+not because it's still the only protection.
 
 ## Context
 

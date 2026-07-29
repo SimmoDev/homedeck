@@ -37,12 +37,13 @@ public:
 
     // Every stored entry across every namespace - the settings/backup
     // API's enumeration primitive (docs/decisions/ADR-0023-settings-backup-api.md).
-    // Deliberately not mirrored on SecretStore: on firmware both stores
-    // share the same physical NVS partition (see
-    // platform/firmware/secret_store.h's own comment), so the absence of
-    // this method there - plus Storage's reserved-key guard - is what
-    // keeps secrets out of a generic listing/backup, not a convention
-    // callers have to remember.
+    // Deliberately not mirrored on SecretStore: on firmware
+    // FirmwareSettingsStore's own implementation scopes this to its own
+    // partition, physically separate from FirmwareSecretStore's (see
+    // docs/decisions/ADR-0027-secret-store-partition-separation.md), so
+    // the absence of this method there is what structurally keeps
+    // secrets out of a generic listing/backup, not a convention callers
+    // have to remember.
     virtual std::vector<SettingsEntry> ListAll() = 0;
 };
 

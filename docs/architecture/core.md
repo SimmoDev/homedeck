@@ -120,10 +120,10 @@ general settings, per
 `HostSecretStore`/`FirmwareSecretStore`
 (`src/platform/host/`/`src/platform/firmware/`): `HostSecretStore`
 stores under a separate `secrets/` directory from `HostSettingsStore`'s
-`settings/`, so the two never collide on disk; `FirmwareSecretStore`
-shares NVS's per-`ns` namespace with `FirmwareSettingsStore` (a
-documented caller constraint, not structurally prevented - see
-`FirmwareSecretStore`'s own comment). NVS encryption
+`settings/`, and `FirmwareSecretStore` similarly has its own dedicated
+NVS partition, separate from `FirmwareSettingsStore`'s — see
+[ADR-0027](../decisions/ADR-0027-secret-store-partition-separation.md).
+NVS encryption
 itself is deliberately not built yet, not silently dropped: it's plain
 storage for now by design — see
 [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for the

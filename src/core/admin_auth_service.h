@@ -40,10 +40,10 @@ class AdminAuthService {
 public:
     // Public so Storage's reserved-key guard (docs/decisions/ADR-0023-settings-backup-api.md)
     // can reference the exact (module_id, key) the admin password hash
-    // is stored at, rather than duplicating the literal strings - the
-    // guard exists precisely because SecretStore and SettingsStore share
-    // the same physical NVS namespace on firmware (see
-    // platform/firmware/secret_store.h's own comment).
+    // is stored at, rather than duplicating the literal strings - a
+    // second-layer safeguard now that SecretStore and SettingsStore live
+    // on physically separate NVS partitions on firmware (see
+    // docs/decisions/ADR-0027-secret-store-partition-separation.md).
     static constexpr const char* kModuleId = "core";
     static constexpr const char* kPasswordKey = "admin_pw_hash";
 

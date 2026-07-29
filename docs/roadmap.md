@@ -546,7 +546,8 @@ index — decision name, ADR, one-line outcome.
 | Async log persistence | [ADR-0020](decisions/ADR-0020-async-log-persistence.md) | `Logger::Log()` never blocks on flash I/O — a background `Task`/`Queue<T>` owns all writes |
 | XIP from PSRAM | [ADR-0021](decisions/ADR-0021-xip-from-psram.md) | `CONFIG_SPIRAM_XIP_FROM_PSRAM=y` — resolves a flash-write-stalls-display-DMA glitch |
 | Panel init settle delay | [ADR-0022](decisions/ADR-0022-panel-init-settle-delay.md) | Added delays after Sleep Out/Display On in the ST7123 init table, fixing an intermittent grey/fade-in on boot |
-| Settings/backup reserved-key guard | [ADR-0023](decisions/ADR-0023-settings-backup-api.md) | A reserved-key guard, not a partition split, keeps the admin password hash out of the generic settings API |
+| Settings/backup reserved-key guard | [ADR-0023](decisions/ADR-0023-settings-backup-api.md) | A reserved-key guard keeps the admin password hash out of the generic settings API — since superseded as the sole protection by ADR-0027's partition split |
 | Wi-Fi provisioning mechanism | [ADR-0026](decisions/ADR-0026-wifi-provisioning-mechanism.md) | HomeDeck-owned SoftAP + HTTP form, not ESP-IDF's `wifi_provisioning` — no usable transport on this project's `esp_wifi_remote` stack |
+| SecretStore partition separation | [ADR-0027](decisions/ADR-0027-secret-store-partition-separation.md) | A dedicated `secrets` NVS partition, not a shared one with SettingsStore — structurally excludes secrets from `ListAll()`/backups, not just the reserved-key guard |
 | Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol specifics investigated in M3 |
 | Module interface (exact API) | [modules.md](architecture/modules.md#status) | Deferred by design — defined when Harmony (M3) is built |

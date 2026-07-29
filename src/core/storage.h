@@ -64,12 +64,13 @@ public:
     Storage(SettingsStore& settings_store, CacheStore& cache_store, SecretStore& secret_store);
 
     // Both check a small reserved-key guard against the admin password's
-    // exact (module_id, key) - see storage.cpp - since SettingsStore and
-    // SecretStore share the same physical NVS namespace on firmware
-    // (platform/firmware/secret_store.h's own comment), so an unguarded
-    // generic settings write could otherwise silently overwrite it
-    // through the wrong door. SetSetting returns false for that key;
-    // ListAllSettings silently excludes it.
+    // exact (module_id, key) - see storage.cpp. SettingsStore and
+    // SecretStore now live on physically separate NVS partitions on
+    // firmware (docs/decisions/ADR-0027-secret-store-partition-separation.md),
+    // so this is a second-layer safeguard against a confusing namespace
+    // collision, not the only thing preventing an overwrite through the
+    // wrong door. SetSetting returns false for that key; ListAllSettings
+    // silently excludes it.
     bool SetSetting(const std::string& module_id, const std::string& key, int schema_version,
                      const std::string& value);
     std::optional<VersionedValue> GetSetting(const std::string& module_id, const std::string& key);

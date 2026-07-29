@@ -8,12 +8,16 @@ namespace homedeck {
 
 namespace {
 
-// SettingsStore and SecretStore share the same physical NVS
-// namespace-per-module_id on firmware (no partition-level separation
-// yet - see docs/decisions/ADR-0023-settings-backup-api.md), so a
-// generic settings write/list could otherwise reach the admin password
-// hash through the wrong door. Interim guard until that partition split
-// lands; extend this whenever a new SecretStore key is introduced.
+// SettingsStore and SecretStore now live on physically separate NVS
+// partitions on firmware (see
+// docs/decisions/ADR-0027-secret-store-partition-separation.md), so a
+// generic settings write/list can no longer reach the admin password
+// hash through the wrong door regardless of this check. Kept as a
+// second-layer safeguard against a confusing namespace collision (a
+// settings entry literally named "admin_pw_hash" would otherwise be
+// misleading, even though it can no longer overwrite the real secret) -
+// see docs/decisions/ADR-0023-settings-backup-api.md#decision for the
+// original reasoning this guard was introduced under.
 bool IsReservedForSecrets(const std::string& module_id, const std::string& key) {
     return module_id == AdminAuthService::kModuleId && key == AdminAuthService::kPasswordKey;
 }

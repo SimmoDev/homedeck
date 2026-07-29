@@ -31,12 +31,12 @@ src/
 │                real files under a caller-supplied scratch directory
 │                (SecretStore under a separate `secrets/` subdirectory
 │                from SettingsStore's `settings/`, so the two never
-│                collide on disk), firmware/ wraps NVS (SettingsStore,
-│                SecretStore - same partition and per-`ns` namespace as
-│                each other, a documented caller constraint rather than a
-│                structural guarantee, see
-│                platform/firmware/secret_store.h) and the `storage` FAT
-│                partition (CacheStore, see ADR-0017). Also HttpServer -
+│                collide on disk), firmware/ wraps NVS (SettingsStore
+│                on the default partition, SecretStore on its own
+│                dedicated `secrets` partition - see
+│                docs/decisions/ADR-0027-secret-store-partition-separation.md)
+│                and the `storage` FAT partition (CacheStore, see
+│                ADR-0017). Also HttpServer -
 │                the Web Management UI's server primitive (see
 │                docs/architecture/web-ui.md#status), another small
 │                virtual interface; host/ implements it with civetweb

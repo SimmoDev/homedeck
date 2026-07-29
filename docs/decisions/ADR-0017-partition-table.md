@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Accepted — extended by
+[ADR-0027](ADR-0027-secret-store-partition-separation.md), which adds a
+dedicated `secrets` partition carved out of `storage`'s budget. The
+table below is left as originally decided; ADR-0027 is the reference
+for that addition.
 
 ## Context
 
