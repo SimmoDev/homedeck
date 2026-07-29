@@ -21,8 +21,18 @@ socket), `LowBatteryMonitor` (`low_battery_monitor_test.cpp`), and
 delivering in FIFO order, a timer actually firing on schedule and
 stopping promptly on destruction, `SubscribeUi` actually routing through
 an injected dispatcher — plus `smoke_test.cpp` proving the framework
-itself builds, links, and runs. Real module tests arrive alongside the
-modules they test, not before they exist.
+itself builds, links, and runs. Every other M2 Web UI endpoint has its
+own equally real `*_routes_test.cpp` alongside it (`settings_routes_test.cpp`,
+`ota_routes_test.cpp`, `diagnostics_routes_test.cpp`,
+`weather_routes_test.cpp`), each driving auth-required, input-validation,
+and error-path cases over the same real socket `HostHttpServer` uses;
+`static_assets_test.cpp`, `power_manager_test.cpp`,
+`critical_battery_monitor_test.cpp`, `notification_sound_test.cpp`,
+`network_status_monitor_test.cpp`, `weather_provider_test.cpp`,
+`grid_occupancy_test.cpp`, `time_format_test.cpp`, `http_client_test.cpp`,
+`logger_test.cpp`, and `battery_reader_test.cpp` round out coverage for
+their respective subsystems. Real module tests arrive alongside the modules they test,
+not before they exist.
 
 Build and run locally:
 
