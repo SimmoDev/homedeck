@@ -104,7 +104,7 @@ RPC timeouts under heavier use remain a real, deferred risk.
 
 The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
-see [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)
+see [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md)
 for why. Confirmed working end to end on hardware: SoftAP up, a real
 phone submitting credentials through the form, the device connecting and
 getting a real IP, SoftAP torn down afterward.

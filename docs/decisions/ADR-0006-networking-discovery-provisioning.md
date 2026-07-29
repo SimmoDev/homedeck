@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted — the Initial Wi-Fi provisioning flow decision's *mechanism* is
+superseded by [ADR-0026](ADR-0026-wifi-provisioning-mechanism.md); its
+SoftAP + captive-portal *architecture* stands.
 
 ## Context
 
@@ -58,13 +60,13 @@ it means genuine duplicated mDNS-browsing code between at least two modules
 that would otherwise want identical logic. Harmony's discovery logic stays
 entirely inside the Harmony module either way.
 
-**Implementation note (M2):** this decision covers mDNS *browsing*, which
-remains unbuilt — it still has no real consumer until Kodi (M4) or Home
-Assistant (M6) exists. A separate, smaller thing shipped in the meantime:
-firmware self-advertises as `homedeck.local` via the same `espressif/mdns`
+This decision covers mDNS *browsing*, which remains unbuilt — it has no
+real consumer until Kodi (M4) or Home Assistant (M6) exists. Self-
+advertisement is a separate, smaller capability that does exist: firmware
+self-advertises as `homedeck.local` via the same `espressif/mdns`
 component, so the device is reachable by name instead of only via a
-serial-logged IP. That's direct calls in `firmware/main/homedeck.cpp`, not
-a Core abstraction — see
+serial-logged IP. That's a direct call in `firmware/main/homedeck.cpp`,
+not a Core abstraction — see
 [networking.md](../architecture/networking.md#status).
 
 ## Decision: Initial Wi-Fi provisioning flow
@@ -107,35 +109,11 @@ narrowly to collecting Wi-Fi credentials only, not the Web UI's admin
 password — see [ADR-0007](ADR-0007-web-management-ui-policies.md#decision-when-the-admin-password-is-set)
 for that sequencing decision.
 
-**Amendment (M2):** `wifi_provisioning`'s transport implementations (e.g.
-`wifi_prov_scheme_softap`) only compile when `CONFIG_ESP_WIFI_ENABLED` or
-`CONFIG_ESP_HOST_WIFI_ENABLED` is set, and neither applies to this
-project's `esp_wifi_remote`/`esp_hosted` Wi-Fi stack (see
-[hardware.md#wireless](../architecture/hardware.md#wireless)) — the
-component has no usable transport on this hardware. The SoftAP +
-captive-portal *decision* above stands; only the *mechanism* changes.
-Instead of `wifi_provisioning`/`protocomm`, the device runs a minimal,
-HomeDeck-owned SoftAP + HTTP server: plain `esp_wifi` AP+STA mode plus
-`esp_http_server` serving a small SSID/password form that calls
-`esp_wifi_set_config`/`esp_wifi_connect` directly.
-
-Two consequences of that mechanism, stated plainly:
-- **No protocomm-level encryption of the credential exchange.** The
-  original design's payload security (`WIFI_PROV_SECURITY_1`'s X25519 +
-  proof-of-possession) came from `protocomm`, which this approach doesn't
-  use. The SoftAP itself is unauthenticated (open), matching the common
-  consumer-IoT pattern for a brief, physically-local setup window — an
-  attacker needs proximity and precise timing, and a leaked Wi-Fi
-  password only grants LAN access, not this device. A WPA2-protected AP
-  with a per-device password shown on the Tab5's own screen is a natural
-  follow-up once the Touch UI has a setup screen to show it on.
-- **Credential storage is `esp_wifi`'s own default persistence,
-  unencrypted**, on the C6 co-processor's own flash rather than the P4's,
-  since `esp_wifi_remote` proxies `esp_wifi_get_config`/
-  `esp_wifi_set_config` to the C6 (see
-  [hardware.md#wi-fi-bring-up](../architecture/hardware.md#wi-fi-bring-up)).
-  Wiring this into Core's Configuration/Storage service is separate,
-  not-yet-built M2 scope.
+**The mechanism behind this decision was superseded by
+[ADR-0026](ADR-0026-wifi-provisioning-mechanism.md):** `wifi_provisioning`
+turned out to have no usable transport on this project's Wi-Fi stack, so
+the device runs a minimal, HomeDeck-owned SoftAP + HTTP server instead.
+The SoftAP + captive-portal *architecture* decided above is unchanged.
 
 ## Consequences
 

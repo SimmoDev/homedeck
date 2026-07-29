@@ -43,10 +43,11 @@ remains available as a fallback for users without a second device handy,
 but SoftAP + setup form is the primary, documented path. See
 [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)
 for why this was chosen over a Touch-UI-first flow or a camera-based
-QR-code alternative, and for why the setup form is a small HomeDeck-owned
-HTTP handler rather than ESP-IDF's `wifi_provisioning` component (a real
-incompatibility with this project's `esp_wifi_remote` stack, not a design
-preference).
+QR-code alternative, and
+[ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md) for why
+the setup form is a small HomeDeck-owned HTTP handler rather than
+ESP-IDF's `wifi_provisioning` component (a real incompatibility with
+this project's `esp_wifi_remote` stack, not a design preference).
 
 ## LAN discovery
 
@@ -88,8 +89,8 @@ for why.
 ## Status
 
 Wi-Fi provisioning and the embedded HTTP server (see [web-ui.md](web-ui.md#status))
-are real and confirmed on hardware. Self-advertisement is also real,
-**confirmed on hardware** — firmware calls ESP-IDF's `mdns` component
+are implemented and confirmed on hardware. Self-advertisement is also
+implemented, **confirmed on hardware** — firmware calls ESP-IDF's `mdns` component
 directly (`mdns_init`/`mdns_hostname_set`/`mdns_service_add` in
 `firmware/main/homedeck.cpp`) to advertise the device as `homedeck.local`
 with an `_http._tcp` service record for the Web UI, once Wi-Fi connects.
