@@ -55,8 +55,8 @@ void DashboardGrid::EnsureRowExists(int row) {
 
     while (static_cast<int>(occupancy_.size()) <= row) {
         occupancy_.emplace_back();
-        row_dsc_.back() = kRowHeight;  // overwrite the old terminator with a real row
-        row_dsc_.push_back(LV_GRID_TEMPLATE_LAST);  // re-terminate
+        row_dsc_.back() = kRowHeight;
+        row_dsc_.push_back(LV_GRID_TEMPLATE_LAST);
     }
 
     // LVGL's grid style property stores this pointer directly rather

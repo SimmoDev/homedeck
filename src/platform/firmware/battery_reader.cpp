@@ -4,16 +4,17 @@
 
 #include "bsp/m5stack_tab5.h"
 #include "esp_io_expander.h"
+#include "esp_log.h"
 #include "ina226.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <cstdio>
 
 namespace homedeck {
 
 namespace {
 
+constexpr char kTag[] = "battery_reader";
 constexpr uint8_t kIna226Address = 0x41;
 
 // NP-F550 is a 2S Li-ion pack (7.4V nominal, see hardware.md#power) -
@@ -23,8 +24,8 @@ constexpr float kMinVoltage = 6.4f;  // ~0%: 2 x 3.2V, a conservative cutoff
 constexpr float kMaxVoltage = 8.4f;  // 100%: 2 x 4.2V, full charge
 
 // IsBatteryPresent() uses current as its primary signal, not voltage -
-// confirmed on hardware that bus_voltage_volts() alone cannot
-// distinguish "no battery" from "battery present": with the IP2326
+// bus_voltage_volts() alone cannot distinguish "no battery" from
+// "battery present": with the IP2326
 // charge IC enabled (see the constructor below) and nothing connected
 // to charge, the charger hunts for its regulation target on the
 // unloaded output, swinging between roughly 4V and kMaxVoltage (8.4V)
@@ -38,14 +39,14 @@ constexpr float kBatteryPresentCurrentThresholdAmps = 0.005f;
 // Current alone still isn't sufficient once a battery reaches full
 // charge: the IP2326 stops driving any current once charging
 // terminates, so a fully-charged idle battery also reads a literal
-// 0.000000A - confirmed on hardware, indistinguishable from "no
-// battery" by current alone. Voltage is the only remaining signal in
-// that state, and unlike the no-battery case above, it's usable there:
-// an installed battery clamps the rail via its own chemistry, so
-// consecutive readings stay within tens of mV of each other even right
-// at the charging-terminates transition (confirmed on hardware: ~0.02V
-// between samples), nowhere near the multi-volt hunting swing a truly
-// empty charge path produces every tick. This is a >60x margin between
+// 0.000000A - indistinguishable from "no battery" by current alone.
+// Voltage is the only remaining signal in that state, and unlike the
+// no-battery case above, it's usable there: an installed battery clamps
+// the rail via its own chemistry, so consecutive readings stay within
+// tens of mV of each other even right at the charging-terminates
+// transition (~0.02V between samples on the reference unit), nowhere
+// near the multi-volt hunting swing a truly empty charge path produces
+// every tick. This is a >60x margin between
 // the two cases, wide enough for a single-sample delta check.
 constexpr float kVoltageStabilityThresholdVolts = 0.5f;
 
@@ -93,7 +94,7 @@ Ina226BatteryReader::Ina226BatteryReader(i2c_master_bus_handle_t i2c_bus)
     // even while connected.
     esp_io_expander_handle_t io_expander = bsp_io_expander1_init();
     if (io_expander == nullptr) {
-        printf("Ina226BatteryReader: bsp_io_expander1_init() failed - charging not enabled\n");
+        ESP_LOGE(kTag, "bsp_io_expander1_init() failed - charging not enabled");
         return;
     }
     esp_err_t err = esp_io_expander_set_dir(io_expander, kChargeEnablePin, IO_EXPANDER_OUTPUT);
@@ -104,7 +105,7 @@ Ina226BatteryReader::Ina226BatteryReader(i2c_master_bus_handle_t i2c_bus)
     err |= esp_io_expander_set_output_mode(io_expander, kChargeEnablePin, IO_EXPANDER_OUTPUT_MODE_PUSH_PULL);
     err |= esp_io_expander_set_level(io_expander, kChargeEnablePin, 1);
     if (err != ESP_OK) {
-        printf("Ina226BatteryReader: failed to enable charging (err=%d)\n", err);
+        ESP_LOGE(kTag, "Failed to enable charging (err=%d)", err);
     }
 
     // Set once here, not on every IsExternalPowerConnected() call, matching
@@ -114,11 +115,10 @@ Ina226BatteryReader::Ina226BatteryReader(i2c_master_bus_handle_t i2c_bus)
     // M5Tab5-UserDemo reference firmware (bsp_io_expander_pi4ioe_init() in
     // its m5stack_tab5.c), which explicitly enables one on this exact pin.
     // Without it, an idle input floats and can read a brief spurious high
-    // from ESD/EMI right as a USB-C connector mates, then decay back down
-    // - observed on hardware before this was added.
+    // from ESD/EMI right as a USB-C connector mates, then decay back down.
     status_err |= esp_io_expander_set_pullupdown(io_expander, kChargeStatusPin, IO_EXPANDER_PULL_DOWN);
     if (status_err != ESP_OK) {
-        printf("Ina226BatteryReader: failed to configure charge status pin\n");
+        ESP_LOGE(kTag, "Failed to configure charge status pin");
     }
 }
 
