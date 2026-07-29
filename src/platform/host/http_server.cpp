@@ -53,7 +53,13 @@ void HostHttpServer::RegisterHandler(HttpMethod method, const std::string& path,
 
 bool HostHttpServer::Start(uint16_t port) {
     std::string port_str = std::to_string(port);
-    const char* options[] = {"listening_ports", port_str.c_str(), "num_threads", "2", nullptr};
+    // request_timeout_ms bounds mg_read()'s wait for a client that sends
+    // Content-Length then stalls mid-body - civetweb already defaults to
+    // this same 30s value, made explicit here so it isn't relying on an
+    // undocumented library default (matches the firmware server's own
+    // explicit stalled-client bound, kMaxConsecutiveRecvTimeouts).
+    const char* options[] = {"listening_ports", port_str.c_str(), "num_threads", "2", "request_timeout_ms", "30000",
+                              nullptr};
     ctx_ = mg_start(nullptr, this, options);
     if (ctx_ == nullptr) {
         return false;
