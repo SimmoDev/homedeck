@@ -52,7 +52,21 @@ PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activit
                 // during the write, the write finishing must not clobber
                 // that back to kActive - the battery is still critical
                 // regardless of how the OTA attempt ended.
-                TransitionTo(PowerState::kActive);
+                //
+                // Not a bare TransitionTo(kActive) either - OnTick() was
+                // suppressed for the whole write (see its own comment),
+                // so a write that outlasted kIdleTimeoutMs would otherwise
+                // flash to full Active brightness for one tick before the
+                // very next OnTick() immediately dims/sleeps it again.
+                // Land directly on the state inactivity already calls for.
+                uint32_t inactive_ms = user_activity_source_.MillisecondsSinceLastActivity();
+                if (inactive_ms >= kSleepTimeoutMs && !HasActiveSleepVeto()) {
+                    TransitionTo(PowerState::kSleeping);
+                } else if (inactive_ms >= kIdleTimeoutMs) {
+                    TransitionTo(PowerState::kIdle);
+                } else {
+                    TransitionTo(PowerState::kActive);
+                }
             }
         });
     critical_battery_subscription_ = event_bus_.SubscribeUi<CriticalBatteryStateChangedEvent>(

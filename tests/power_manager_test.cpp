@@ -369,6 +369,50 @@ TEST(PowerManager, OtaFinishedReturnsToActive) {
     EXPECT_EQ(brightness.last_percent, 100);
 }
 
+TEST(PowerManager, OtaFinishedLandsOnIdleIfInactivityAlreadyExceedsIdleTimeout) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kUpdating);
+
+    // Past the idle threshold (accumulated during the write, since
+    // OnTick()'s idle timeout is suppressed the whole time - see its own
+    // comment) but not the sleep one.
+    activity.SetMs(60000);
+    int calls_before_finish = brightness.call_count;
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{false});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kIdle);
+    // Exactly one more SetPercent call landing directly on Idle's
+    // brightness - not a flash to Active's brightness followed
+    // immediately by a second call back down once OnTick() next fires.
+    EXPECT_EQ(brightness.call_count, calls_before_finish + 1);
+}
+
+TEST(PowerManager, OtaFinishedLandsOnSleepingIfInactivityAlreadyExceedsSleepTimeout) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kUpdating);
+
+    activity.SetMs(UINT32_MAX);
+    int calls_before_finish = brightness.call_count;
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{false});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kSleeping);
+    EXPECT_EQ(brightness.call_count, calls_before_finish + 1);
+}
+
 TEST(PowerManager, CriticalBatteryTransitionsToError) {
     homedeck::EventBus bus;
     RunDispatcherInline(bus);
