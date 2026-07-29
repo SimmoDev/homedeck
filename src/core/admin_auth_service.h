@@ -83,6 +83,9 @@ private:
     SessionToken GenerateSessionToken();
     std::vector<unsigned char> GenerateSalt();
     std::string HashPasswordHex(const std::string& password, const std::vector<unsigned char>& salt);
+    // Erases every expired entry from sessions_ - see its own comment
+    // for why this is needed at all. Caller must already hold mutex_.
+    void SweepExpiredSessions();
 
     Storage& storage_;
     TimeSource& time_source_;

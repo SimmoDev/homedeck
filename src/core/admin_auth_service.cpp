@@ -179,6 +179,24 @@ std::string AdminAuthService::HashPasswordHex(const std::string& password,
     return ToHex(output, sizeof(output));
 }
 
+void AdminAuthService::SweepExpiredSessions() {
+    // A session nobody ever re-validates after it expires (e.g. a
+    // browser tab closed) would otherwise sit in sessions_ forever -
+    // ValidateSession() only ever erases the one token it was asked
+    // about, never sweeps the rest. Triggered by the same events that
+    // grow the map (a new session being issued), so the map can't grow
+    // unboundedly between sweeps regardless of whether anything ever
+    // calls ValidateSession() again.
+    auto now = time_source_.Now();
+    for (auto it = sessions_.begin(); it != sessions_.end();) {
+        if (now >= it->second) {
+            it = sessions_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 bool AdminAuthService::IsPasswordSet() {
     std::lock_guard<std::mutex> lock(mutex_);
     return storage_.GetSecret(kModuleId, kPasswordKey).has_value();
@@ -196,6 +214,7 @@ std::optional<SessionToken> AdminAuthService::SetInitialPassword(const std::stri
     if (!storage_.SetSecret(kModuleId, kPasswordKey, kPasswordSchemaVersion, encoded)) {
         return std::nullopt;
     }
+    SweepExpiredSessions();
     SessionToken token = GenerateSessionToken();
     sessions_[token] = time_source_.Now() + kSessionLifetime;
     return token;
@@ -240,6 +259,7 @@ std::optional<SessionToken> AdminAuthService::Login(const std::string& password)
     }
 
     failed_login_attempts_ = 0;
+    SweepExpiredSessions();
     SessionToken token = GenerateSessionToken();
     sessions_[token] = time_source_.Now() + kSessionLifetime;
     return token;
