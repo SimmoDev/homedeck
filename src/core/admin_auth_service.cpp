@@ -49,6 +49,17 @@ constexpr long kSessionLifetimeSeconds = 24 * 60 * 60;
 // composition rules), consistent with this being a single-user LAN
 // device rather than an internet-facing account system.
 constexpr size_t kMinPasswordLength = 8;
+// PBKDF2's ~2s-per-attempt cost (see kPbkdf2Iterations above) is not by
+// itself a brute-force throttle - it bounds an *offline* attacker who
+// already has the hash, not an *online* one submitting guesses through
+// this same endpoint, which could otherwise still grind at ~0.5
+// attempts/sec indefinitely. Global, not per-client (see
+// admin_auth_service.h's failed_login_attempts_ comment for why): five
+// consecutive failures locks Login() out for a minute regardless of who's
+// asking, a real but not user-hostile cost for the occasional mistyped
+// password on a single-admin LAN device.
+constexpr int kMaxFailedLoginAttempts = 5;
+constexpr std::chrono::seconds kLoginLockoutDuration{60};
 
 std::string ToHex(const unsigned char* data, size_t len) {
     static const char kDigits[] = "0123456789abcdef";
@@ -192,37 +203,51 @@ std::optional<SessionToken> AdminAuthService::SetInitialPassword(const std::stri
 
 std::optional<SessionToken> AdminAuthService::Login(const std::string& password) {
     std::lock_guard<std::mutex> lock(mutex_);
+    // Locked out entirely - don't even spend the ~2s PBKDF2 cost on a
+    // request that's going to be rejected regardless, and don't let a
+    // flood of attempts during the lockout window extend it further.
+    if (time_source_.Now() < locked_until_) {
+        return std::nullopt;
+    }
+
+    bool authenticated = false;
     auto stored = storage_.GetSecret(kModuleId, kPasswordKey);
-    if (!stored.has_value()) {
+    if (stored.has_value()) {
+        // Format: pbkdf2-sha256$<iterations>$<salt_hex>$<hash_hex>.
+        // iterations_str is parsed and discarded, not used - verification
+        // always hashes at the current kPbkdf2Iterations constant.
+        std::istringstream stream(stored->value);
+        std::string algorithm, iterations_str, salt_hex, hash_hex;
+        std::getline(stream, algorithm, '$');
+        std::getline(stream, iterations_str, '$');
+        std::getline(stream, salt_hex, '$');
+        std::getline(stream, hash_hex, '$');
+        if (algorithm == "pbkdf2-sha256" && !salt_hex.empty() && !hash_hex.empty()) {
+            auto salt = FromHex(salt_hex);
+            auto expected = FromHex(hash_hex);
+            if (salt.has_value() && expected.has_value()) {
+                auto computed = FromHex(HashPasswordHex(password, *salt));
+                authenticated = computed.has_value() && ConstantTimeEquals(*computed, *expected);
+            }
+        }
+    }
+
+    if (!authenticated) {
+        if (++failed_login_attempts_ >= kMaxFailedLoginAttempts) {
+            locked_until_ = time_source_.Now() + kLoginLockoutDuration;
+        }
         return std::nullopt;
     }
 
-    // Format: pbkdf2-sha256$<iterations>$<salt_hex>$<hash_hex>.
-    // iterations_str is parsed and discarded, not used - verification
-    // always hashes at the current kPbkdf2Iterations constant.
-    std::istringstream stream(stored->value);
-    std::string algorithm, iterations_str, salt_hex, hash_hex;
-    std::getline(stream, algorithm, '$');
-    std::getline(stream, iterations_str, '$');
-    std::getline(stream, salt_hex, '$');
-    std::getline(stream, hash_hex, '$');
-    if (algorithm != "pbkdf2-sha256" || salt_hex.empty() || hash_hex.empty()) {
-        return std::nullopt;
-    }
-
-    auto salt = FromHex(salt_hex);
-    auto expected = FromHex(hash_hex);
-    if (!salt.has_value() || !expected.has_value()) {
-        return std::nullopt;
-    }
-    auto computed = FromHex(HashPasswordHex(password, *salt));
-    if (!computed.has_value() || !ConstantTimeEquals(*computed, *expected)) {
-        return std::nullopt;
-    }
-
+    failed_login_attempts_ = 0;
     SessionToken token = GenerateSessionToken();
     sessions_[token] = time_source_.Now() + kSessionLifetime;
     return token;
+}
+
+bool AdminAuthService::IsLoginLockedOut() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return time_source_.Now() < locked_until_;
 }
 
 bool AdminAuthService::ValidateSession(const SessionToken& token) {
@@ -328,6 +353,9 @@ void RegisterAdminAuthRoutes(HttpServer& server, AdminAuthService& auth) {
     });
 
     server.RegisterHandler(HttpMethod::kPost, "/api/auth/login", [&auth](const HttpRequest& request) {
+        if (auth.IsLoginLockedOut()) {
+            return HttpResponse{429, "application/json", R"({"error":"too_many_attempts"})", {}};
+        }
         auto password = ReadPasswordField(request.body);
         if (!password.has_value()) {
             return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};

@@ -34,6 +34,7 @@ describe("describeAuthError", () => {
       `Password must be at least ${kMinPasswordLength} characters.`,
     );
     expect(describeAuthError("storage_write_failed", 500)).toBe("Could not save the password - try again.");
+    expect(describeAuthError("too_many_attempts", 429)).toBe("Too many failed attempts. Try again in a minute.");
   });
 
   it("falls back to a generic message carrying the status code for unknown codes", () => {

@@ -81,6 +81,47 @@ TEST_F(AdminAuthServiceTest, LoginWithWrongPasswordFails) {
     EXPECT_FALSE(auth.Login("wrong password").has_value());
 }
 
+TEST_F(AdminAuthServiceTest, LoginLocksOutAfterRepeatedFailuresThenRecoversOnceItExpires) {
+    homedeck::AdminAuthService auth(*storage_, time_source_);
+    ASSERT_TRUE(auth.SetInitialPassword("correct horse battery staple").has_value());
+
+    // kMaxFailedLoginAttempts (5, admin_auth_service.cpp) consecutive
+    // wrong guesses.
+    for (int i = 0; i < 5; i++) {
+        EXPECT_FALSE(auth.Login("wrong password").has_value());
+    }
+    EXPECT_TRUE(auth.IsLoginLockedOut());
+
+    // Locked out now - even the correct password is rejected without a
+    // real check, not just another wrong-password miss.
+    EXPECT_FALSE(auth.Login("correct horse battery staple").has_value());
+
+    time_source_.fixed_time += std::chrono::seconds(61);  // past kLoginLockoutDuration (60s)
+
+    EXPECT_FALSE(auth.IsLoginLockedOut());
+    auto token = auth.Login("correct horse battery staple");
+    ASSERT_TRUE(token.has_value());
+    EXPECT_TRUE(auth.ValidateSession(*token));
+}
+
+TEST_F(AdminAuthServiceTest, SuccessfulLoginResetsTheFailureCounter) {
+    homedeck::AdminAuthService auth(*storage_, time_source_);
+    ASSERT_TRUE(auth.SetInitialPassword("correct horse battery staple").has_value());
+
+    for (int i = 0; i < 4; i++) {  // one under the lockout threshold
+        EXPECT_FALSE(auth.Login("wrong password").has_value());
+    }
+    ASSERT_TRUE(auth.Login("correct horse battery staple").has_value());
+    EXPECT_FALSE(auth.IsLoginLockedOut());
+
+    // Counter restarted from zero, not just paused at 4 - four more
+    // failures alone must not re-trigger the lockout.
+    for (int i = 0; i < 4; i++) {
+        EXPECT_FALSE(auth.Login("wrong password").has_value());
+    }
+    EXPECT_FALSE(auth.IsLoginLockedOut());
+}
+
 TEST_F(AdminAuthServiceTest, LoginBeforeAnyPasswordIsSetFails) {
     homedeck::AdminAuthService auth(*storage_, time_source_);
     EXPECT_FALSE(auth.Login("anything").has_value());

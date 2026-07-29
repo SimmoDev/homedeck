@@ -26,6 +26,8 @@ export function describeAuthError(code: unknown, status: number): string {
       return `Password must be at least ${kMinPasswordLength} characters.`;
     case "invalid_credentials":
       return "Incorrect password.";
+    case "too_many_attempts":
+      return "Too many failed attempts. Try again in a minute.";
     case "invalid_request":
       return "Invalid request.";
     case "storage_write_failed":

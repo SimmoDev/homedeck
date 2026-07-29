@@ -62,6 +62,12 @@ public:
     std::optional<SessionToken> SetInitialPassword(const std::string& password);
 
     std::optional<SessionToken> Login(const std::string& password);
+    // True while Login() is throttling after repeated failures - see
+    // admin_auth_service.cpp's kMaxFailedLoginAttempts/kLoginLockoutDuration.
+    // Exposed so the route layer can respond 429 rather than a plain 401,
+    // which would otherwise be indistinguishable from just typing the
+    // password wrong.
+    bool IsLoginLockedOut();
     bool ValidateSession(const SessionToken& token);
     void Logout(const SessionToken& token);
 
@@ -92,6 +98,12 @@ private:
     std::unique_ptr<mbedtls_entropy_context> entropy_;
     std::unique_ptr<mbedtls_ctr_drbg_context> ctr_drbg_;
     std::unordered_map<SessionToken, std::chrono::system_clock::time_point> sessions_;
+    // Login()'s brute-force throttle - see admin_auth_service.cpp's
+    // kMaxFailedLoginAttempts/kLoginLockoutDuration. Global, not per-client,
+    // since HttpRequest carries no client address (see platform/http_server.h)
+    // and this device has exactly one admin account.
+    int failed_login_attempts_ = 0;
+    std::chrono::system_clock::time_point locked_until_{};
 };
 
 // Registers the four endpoints web-ui.md's authentication mechanism

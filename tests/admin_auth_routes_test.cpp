@@ -172,3 +172,26 @@ TEST_F(AdminAuthRoutesTest, FullSetupLoginProtectedRouteLogoutFlow) {
     auto protected_after_logout = HttpRequestRaw(18190, "GET", "/api/test/protected", "", cookie);
     EXPECT_EQ(protected_after_logout.status_code, 401);
 }
+
+// Brute-force throttle (AdminAuthService::kMaxFailedLoginAttempts) -
+// recovery-after-lockout itself is covered at the service level
+// (admin_auth_service_test.cpp, with a fake clock); this confirms the
+// route layer surfaces it as a distinct 429, not just another 401.
+TEST_F(AdminAuthRoutesTest, LoginIsThrottledAfterRepeatedFailures) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    ASSERT_TRUE(server.Start(18191));
+
+    auto setup = HttpRequestRaw(18191, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    ASSERT_EQ(setup.status_code, 200);
+
+    for (int i = 0; i < 5; i++) {
+        auto bad_login = HttpRequestRaw(18191, "POST", "/api/auth/login", R"({"password":"wrong"})");
+        EXPECT_EQ(bad_login.status_code, 401);
+    }
+
+    // Locked out now - even the correct password gets 429, not 200.
+    auto locked_out = HttpRequestRaw(18191, "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
+    EXPECT_EQ(locked_out.status_code, 429);
+    EXPECT_NE(locked_out.body.find("too_many_attempts"), std::string::npos);
+}
