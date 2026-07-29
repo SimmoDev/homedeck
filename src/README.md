@@ -54,7 +54,7 @@ src/
 │                asset list from EMBED_FILES-linked flash data,
 │                simulator/main.cpp reads webui/dist/ off disk once at
 │                startup (see
-│                ADR-0002#6-web-management-ui-static-asset-storage for
+│                docs/decisions/ADR-0025-webui-static-asset-storage.md for
 │                why assets live in the app image, not a partition). Also
 │                SteadyTimeSource - a portable (no host/firmware split)
 │                TimeSource backed by std::chrono::steady_clock rather

@@ -5,7 +5,7 @@ import { svelte } from "@sveltejs/vite-plugin-svelte";
 // splitting) - the firmware side embeds the built files individually via
 // ESP-IDF's EMBED_FILES, which needs a known, stable file list rather
 // than Vite's default content-hashed many-chunk output. See
-// docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage.
+// docs/decisions/ADR-0025-webui-static-asset-storage.md.
 export default defineConfig({
   plugins: [svelte()],
   build: {

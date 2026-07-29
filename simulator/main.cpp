@@ -594,7 +594,7 @@ int main() {
     // Read once at startup, not per-request - matches firmware's
     // EMBED_FILES approach (data available for the process's lifetime),
     // see homedeck.cpp's identical wiring and
-    // docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage.
+    // docs/decisions/ADR-0025-webui-static-asset-storage.md.
     // HOMEDECK_WEBUI_DIR is a source-tree-relative path (webui/dist)
     // baked in by CMakeLists.txt, so this works regardless of the
     // simulator's current working directory when launched.

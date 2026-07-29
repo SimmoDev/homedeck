@@ -73,7 +73,7 @@ namespace {
 // webui/dist/{index.html,app.js,app.css} - the built Svelte/Vite bundle,
 // linked into the app image via EMBED_FILES (see CMakeLists.txt), not
 // the storage FAT partition - see
-// docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage
+// docs/decisions/ADR-0025-webui-static-asset-storage.md
 // for why. Symbol names are derived from each embedded file's basename by
 // ESP-IDF's build system (dots become underscores), not chosen here.
 extern const uint8_t webui_index_html_start[] asm("_binary_index_html_start");

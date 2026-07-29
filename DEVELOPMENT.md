@@ -5,7 +5,7 @@ This document describes the development workflow for HomeDeck. See
 
 ## Where to start
 
-The architecture documentation has grown large (12 architecture docs, 23
+The architecture documentation has grown large (12 architecture docs, 26
 ADRs) across M0's design work and the hardware/platform-services work
 since. Not all of it is relevant to starting M1 — most of it covers M2+
 services and later modules. If you're implementing M1, this is the
@@ -108,7 +108,7 @@ trying to hold all of it in mind now.
   downstream one. See
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)
   for the framework choice and
-  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
+  [ADR-0025](docs/decisions/ADR-0025-webui-static-asset-storage.md)
   for why this is a separate, explicit build step rather than
   auto-invoked from CMake.
 
@@ -256,7 +256,7 @@ Once the simulator target exists (M1):
   ```
   Produces `webui/dist/` (`index.html`/`app.js`/`app.css`, fixed
   non-hashed names — see
-  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)),
+  [ADR-0025](docs/decisions/ADR-0025-webui-static-asset-storage.md)),
   which both the firmware and simulator builds below embed/read.
   `npm run check` runs `svelte-check` for type errors and `npm run test`
   runs Vitest unit tests (currently just `passwordValidation.ts`'s pure

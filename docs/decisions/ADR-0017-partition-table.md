@@ -24,7 +24,7 @@ encryption ([ADR-0010](ADR-0010-secret-storage.md)); and a FAT +
 `wear_levelling` partition for cached data and rotating logs
 ([ADR-0012](ADR-0012-storage-tiers.md)) — the Web Management UI's
 compiled Svelte bundle does not live here, see
-[ADR-0002](ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage).
+[ADR-0025](ADR-0025-webui-static-asset-storage.md).
 Repartitioning once now, with real headroom reserved for each, avoids
 revisiting the layout piecemeal as each of those features actually gets
 built.
@@ -48,7 +48,7 @@ built-in single-app table, on the confirmed 16MB flash:
 | `ota_0`    | app/ota_0        | 4MB       | OTA slot A |
 | `ota_1`    | app/ota_1        | 4MB       | OTA slot B |
 | `coredump` | data/coredump    | 256KB     | Panic core dumps (ADR-0013) — real, written to by `firmware/main/crash_diagnostics.cpp` |
-| `storage`  | data/fat         | 7.625MB   | Cached data, rotating logs (ADR-0012) — mounted and in real use by `FirmwareCacheStore`. The Web UI static bundle is embedded in the app image instead, not stored here (see [ADR-0002](ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)) |
+| `storage`  | data/fat         | 7.625MB   | Cached data, rotating logs (ADR-0012) — mounted and in real use by `FirmwareCacheStore`. The Web UI static bundle is embedded in the app image instead, not stored here (see [ADR-0025](ADR-0025-webui-static-asset-storage.md)) |
 
 **`ota_0`/`ota_1` sized at 4MB each — options considered:**
 - 2MB (~1.35x current ~1.48MB usage) — tighter; the largest planned M3-M6
@@ -113,7 +113,7 @@ reintroduce silently otherwise.
 - [hardware.md](../architecture/hardware.md#wireless) and
   [docs/roadmap.md](../roadmap.md) no longer describe the OTA A/B scheme
   as pending — the table exists. Core dump capture and the FAT filesystem
-  mount are real, built against this table's `coredump`/`storage`
+  mount are implemented, built against this table's `coredump`/`storage`
   partitions; the OTA client itself and NVS encryption remain separate,
   not-yet-built work against the space reserved here.
 - Flashing this table changes partition offsets (new partitions
@@ -127,5 +127,5 @@ reintroduce silently otherwise.
   modules, not a measurement — worth revisiting if a future module turns
   out to need meaningfully more than 4MB, or if the Web UI's embedded
   static bundle (see
-  [ADR-0002](ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage))
+  [ADR-0025](ADR-0025-webui-static-asset-storage.md))
   grows large enough to matter against the app-partition budget.

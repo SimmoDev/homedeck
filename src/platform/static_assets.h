@@ -13,7 +13,7 @@ namespace homedeck {
 // firmware/main/homedeck.cpp; simulator: read from webui/ on disk at
 // startup - see simulator/main.cpp) but the serving mechanism itself is
 // portable - see
-// docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage
+// docs/decisions/ADR-0025-webui-static-asset-storage.md
 // for why assets are embedded/loaded once rather than served from a
 // filesystem/partition.
 struct StaticAsset {

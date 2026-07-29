@@ -12,7 +12,7 @@
 # EMBED_FILES needs these to exist at CMake configure time, and the Vite
 # build is a deliberately separate, explicit step (not auto-invoked from
 # CMake - see
-# docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage),
+# docs/decisions/ADR-0025-webui-static-asset-storage.md),
 # so a stale/missing build here is a real, easy-to-hit case, not a
 # hypothetical - fail with a clear message rather than EMBED_FILES'
 # own opaque "file not found" error.

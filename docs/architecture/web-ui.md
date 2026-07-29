@@ -112,7 +112,7 @@ automated test (a raw-socket HTTP client against `HostHttpServer` in
 `tests/http_server_test.cpp`) and manually against the running
 simulator.
 
-**The [authentication mechanism](#authentication-mechanism) is real** —
+**The [authentication mechanism](#authentication-mechanism) is implemented** —
 `AdminAuthService` (`src/core/admin_auth_service.h`/`.cpp`) implements
 ADR-0007's single-admin-password/session-login design and its
 first-login-sets-the-password flow: `GET /api/auth/status`,
@@ -161,11 +161,11 @@ pass as new, not-yet-hardware-verified auth logic. The password itself
 is still never stored reversibly regardless (PBKDF2-SHA256 hashed before
 it reaches Storage).
 
-**Static asset serving is real on both targets** — `ServeStaticFiles`
+**Static asset serving is implemented on both targets** — `ServeStaticFiles`
 (`src/platform/static_assets.h`/`.cpp`) registers one exact-path GET
 handler per asset. Firmware embeds assets directly into the app image
 via ESP-IDF's `EMBED_FILES` (see
-[ADR-0002](../decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
+[ADR-0025](../decisions/ADR-0025-webui-static-asset-storage.md)
 for why, not the `storage` FAT partition); the simulator reads the same
 built files from `webui/dist/` on disk once at startup — **confirmed on
 real hardware** (Tab5 K145 reference unit), reachable over the LAN at
@@ -173,8 +173,8 @@ real hardware** (Tab5 K145 reference unit), reachable over the LAN at
 request against the simulator and a clean Docker firmware build with the
 embedded symbols linking correctly.
 
-**The Svelte + Vite frontend is real, and the first-login/session flow
-is now real UI, not scaffolding** (`webui/`, see
+**The Svelte + Vite frontend is implemented, and the first-login/session
+flow is now real UI, not scaffolding** (`webui/`, see
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)
 for the framework decision). `App.svelte` drives three states directly
 off `GET /api/auth/status` — password setup (`PasswordForm.svelte` in
@@ -202,12 +202,12 @@ maps to "Incorrect password."). Basic layout/spacing styling exists
 exist, not a design system built ahead of having more screens to
 standardize across.
 
-**The diagnostics screen is real too** — see
+**The diagnostics screen is implemented too** — see
 [diagnostics.md#status](diagnostics.md#status) for the full detail
 (crash/reboot reset reason and a downloadable core dump; the only
 diagnostic data that exists yet).
 
-**OTA update support is real, confirmed on hardware** — see
+**OTA update support is implemented, confirmed on hardware** — see
 [hardware.md#power](hardware.md#power) for the battery/external-power
 gate it's built on. `GET /api/ota/status`, `POST /api/ota/upload`, and
 `POST /api/ota/reboot` (`src/core/ota_routes.h`/`.cpp`), gated by

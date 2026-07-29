@@ -42,7 +42,7 @@ the simulator - both fail at configure time with a clear error if
 `dist/` doesn't exist. See
 [DEVELOPMENT.md](../DEVELOPMENT.md#buildtest-workflow) for the full
 build order and
-[ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
+[ADR-0025](../docs/decisions/ADR-0025-webui-static-asset-storage.md)
 for why this isn't auto-invoked from CMake/`idf.py`, and why `vite.config.ts`
 forces fixed, non-hashed output filenames (`index.html`/`app.js`/`app.css`)
 instead of Vite's default.

@@ -33,7 +33,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_BINARY_DIR}/
 
 # The Vite build is a deliberately separate, explicit step (not
 # auto-invoked from CMake - see
-# docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage),
+# docs/decisions/ADR-0025-webui-static-asset-storage.md),
 # so a stale/missing build here is a real, easy-to-hit case, not a
 # hypothetical - fail at configure time with a clear message rather than
 # main.cpp's ReadFile() silently warning and serving nothing at runtime.
