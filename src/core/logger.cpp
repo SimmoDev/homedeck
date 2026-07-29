@@ -3,6 +3,7 @@
 #include "third_party/nlohmann/json.hpp"
 
 #include <future>
+#include <vector>
 
 namespace homedeck {
 
@@ -25,6 +26,37 @@ const char* LevelToString(LogLevel level) {
             return "error";
     }
     return "unknown";
+}
+
+// Keeps only whichever suffix of `blob` (a newline-separated run of
+// complete JSON lines) fits within max_bytes, dropping the oldest
+// entries rather than exceeding the cap - without this, a single batch
+// larger than max_log_file_bytes_ on its own (e.g. many Log() calls
+// coalesced into one write, per ADR-0020) would become the new current
+// blob uncapped, since it's already smaller than `updated` was. Always
+// keeps at least the final line intact, even if that one line alone is
+// bigger than max_bytes - losing the single most recent entry entirely
+// would be worse than a one-off cap overshoot (see logger_test.cpp's
+// RotatesOnceSizeThresholdIsExceeded, which deliberately configures a
+// cap smaller than one entry's real size, and still expects that entry
+// to survive).
+std::string TrimToTail(const std::string& blob, size_t max_bytes) {
+    if (blob.size() <= max_bytes) {
+        return blob;
+    }
+    std::vector<size_t> line_starts{0};
+    for (size_t pos = blob.find('\n'); pos != std::string::npos && pos + 1 < blob.size();
+         pos = blob.find('\n', pos + 1)) {
+        line_starts.push_back(pos + 1);
+    }
+    size_t cut = line_starts.back();
+    for (auto it = line_starts.rbegin() + 1; it != line_starts.rend(); ++it) {
+        if (blob.size() - *it > max_bytes) {
+            break;
+        }
+        cut = *it;
+    }
+    return blob.substr(cut);
 }
 
 // The stored blobs are newline-separated JSON objects, one per Log()
@@ -156,8 +188,10 @@ void Logger::WriteBatch(const std::vector<Record>& batch) {
         // The content before this batch becomes the rotated backup
         // (overwriting any earlier one); this batch starts the fresh
         // current blob - see ADR-0019's size-based rotation decision.
+        // TrimToTail is a no-op unless this one batch is itself larger
+        // than the cap.
         storage_.WriteCache(kModuleId, kRotatedKey, kSchemaVersion, previous);
-        storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, lines);
+        storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, TrimToTail(lines, max_log_file_bytes_));
     } else {
         storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, updated);
     }

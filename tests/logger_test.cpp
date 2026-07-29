@@ -129,6 +129,37 @@ TEST_F(LoggerTest, RotationOverwritesThePreviousRotatedEntry) {
     EXPECT_EQ(parsed[1]["message"], "three");
 }
 
+TEST_F(LoggerTest, OneOversizedBatchIsTrimmedToTheCapNotStoredInFull) {
+    // Big enough to hold one serialized entry (~97 bytes each below) but
+    // well under all three combined (~291 bytes), so the whole coalesced
+    // batch (all three, landing together with no ReadAll() flush between
+    // them) is guaranteed to exceed it as a single write - the scenario
+    // WriteBatch's own size check (measured against the combined
+    // `updated`, not the batch alone) doesn't catch on its own.
+    constexpr size_t kCapBytes = 150;
+    homedeck::Logger logger(*storage_, time_source_, kCapBytes);
+
+    logger.Log(homedeck::LogLevel::kInfo, "core", "first-entry-in-the-batch");
+    logger.Log(homedeck::LogLevel::kInfo, "core", "second-entry-in-the-batch");
+    logger.Log(homedeck::LogLevel::kInfo, "core", "third-entry-in-the-batch");
+
+    // ReadAll() blocks until the background worker has actually written
+    // the batch - checking storage_ directly beforehand would race it.
+    std::string read_all_result = logger.ReadAll();
+
+    auto current = storage_->ReadCache("core", "log_current");
+    ASSERT_TRUE(current.has_value());
+    EXPECT_LE(current->value.size(), kCapBytes);
+    ASSERT_FALSE(current->value.empty());
+
+    // Only a suffix of the batch survives (oldest entries dropped, not
+    // the whole oversized blob kept intact) - and whatever did survive
+    // is still a complete, parseable JSON line, not cut mid-entry.
+    auto parsed = nlohmann::json::parse(read_all_result);
+    EXPECT_LT(parsed.size(), 3u);
+    EXPECT_EQ(parsed[parsed.size() - 1]["message"], "third-entry-in-the-batch");
+}
+
 TEST_F(LoggerTest, ConcurrentLogCallsAreCoalescedIntoOneBatch) {
     // The whole point of ADR-0020's redesign: Log() calls that land
     // close together (no flush between them) are written together, not
