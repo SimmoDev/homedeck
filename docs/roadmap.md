@@ -164,7 +164,7 @@ simulator.
       not M2 scope (see
       [ADR-0018](decisions/ADR-0018-staged-security-hardening.md)); the
       optional microSD tier is a separate M7 item below.
-- [x] Web Management UI (settings, module configuration, diagnostics,
+- [x] Web Management UI (settings, diagnostics,
       backups as a downloadable JSON export —
       *not* initial Wi-Fi setup, which is the SoftAP flow above; see
       [web-ui.md](architecture/web-ui.md#relationship-to-wi-fi-provisioning)),
@@ -175,8 +175,8 @@ simulator.
       settings, backups, and weather-location search are all implemented
       and confirmed on both the simulator and hardware — see
       [web-ui.md](architecture/web-ui.md#status) for the full detail.
-      Module configuration is tracked as its own M3 item below (no real
-      module exists yet to configure); WebSockets, Wi-Fi management, and
+      Module configuration is tracked as its own M3 item below (no module
+      exists yet to configure); WebSockets, Wi-Fi management, and
       a factory-reset option are tracked as their own M7 items below.
 - [x] OTA update support, gated on battery threshold or external USB-C
       power (see
