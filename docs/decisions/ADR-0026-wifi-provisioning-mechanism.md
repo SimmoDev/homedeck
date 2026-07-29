@@ -54,3 +54,11 @@ Two consequences of this mechanism, stated plainly:
 - The Touch UI keyboard fallback (`WifiSetupScreen`) submits through the
   same `ApplyWifiCredentials()` entry point as this HTTP form, so neither
   path reimplements `esp_wifi_set_config`/`connect` independently.
+- `wifi_setup.cpp` holds its state (`WifiSetupState`, the reconnect
+  policy, the mutex guarding both) in file-scope globals rather than an
+  owned object a caller constructs - a deliberate exception to
+  [CLAUDE.md](../../CLAUDE.md)'s "avoid global mutable state" standard,
+  not an oversight. There is exactly one Wi-Fi radio on this hardware, so
+  a second instance is never a real possibility the way it would be for,
+  say, a module type; `esp_wifi`'s own C API is itself global/singleton
+  underneath regardless of how this file's state is shaped.

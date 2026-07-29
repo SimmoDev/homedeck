@@ -43,8 +43,9 @@ constexpr int kReconnectBackoffMs = 500;
 // overridden here.
 constexpr char kApGatewayIp[] = "192.168.4.1";
 
-// Single-instance by hardware necessity (one Wi-Fi radio), not a
-// convenience shortcut. Passed explicitly through
+// Global mutable state - a deliberate exception, see
+// docs/decisions/ADR-0026-wifi-provisioning-mechanism.md's own
+// Consequences for why. Passed explicitly through
 // esp_event_handler_register()'s event_handler_arg slot to OnEvent()
 // below, rather than reached by name, so its dependency on this state
 // is visible in the callback's own signature.
