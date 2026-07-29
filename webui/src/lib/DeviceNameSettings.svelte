@@ -1,17 +1,10 @@
 <script lang="ts">
-  import { loadJson, readErrorBody } from "./api";
+  import { loadJson, readErrorBody, type SettingEntry } from "./api";
 
   // Device name (see docs/architecture/web-ui.md#scope and
   // docs/decisions/ADR-0023-settings-backup-api.md) - the mDNS hostname
   // a user can set via the Web UI. Backed by the generic /api/settings
   // endpoint, same as WeatherSettings.svelte.
-  interface SettingEntry {
-    module: string;
-    key: string;
-    value: string;
-    schemaVersion: number;
-  }
-
   const kModuleId = "core";
   const kDeviceNameKey = "device_name";
   const kDeviceNameSchemaVersion = 1;

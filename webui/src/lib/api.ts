@@ -23,6 +23,15 @@ export async function readErrorBody(response: Response): Promise<ApiErrorBody> {
 
 export type LoadResult<T> = { data: T; error?: undefined } | { data?: undefined; error: string };
 
+// One entry from GET /api/settings (core/settings_routes.cpp's
+// EntryToJson) - the shape every settings-backed component reads.
+export interface SettingEntry {
+  module: string;
+  key: string;
+  value: string;
+  schemaVersion: number;
+}
+
 // Used for GET loads - the fetch/response.ok/json() sequence nearly
 // every load()-style function repeated. Network failures (fetch()
 // itself throwing) and non-ok HTTP responses both resolve to

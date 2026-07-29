@@ -1,18 +1,11 @@
 <script lang="ts">
-  import { loadJson } from "./api";
+  import { loadJson, type SettingEntry } from "./api";
 
   // The dashboard's weather source (see docs/architecture/dashboard.md's
   // Weather source section and ADR-0008). Backed by the generic
   // /api/settings endpoint (three plain keys: latitude/longitude/
   // display_name), not a dedicated weather-config endpoint - no
   // per-module schema exists or is needed.
-  interface SettingEntry {
-    module: string;
-    key: string;
-    value: string;
-    schemaVersion: number;
-  }
-
   interface GeocodeResult {
     name: string;
     admin1: string;
