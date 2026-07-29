@@ -136,6 +136,20 @@ TEST(HostHttpServer, UnregisteredPathReturns404) {
     EXPECT_NE(response.find("404"), std::string::npos);
 }
 
+TEST(HostHttpServer, ResponseStatusLineIncludesARealReasonPhrase) {
+    homedeck::HostHttpServer server;
+    server.RegisterHandler(homedeck::HttpMethod::kGet, "/unauthorized", [](const homedeck::HttpRequest&) {
+        return homedeck::HttpResponse{401, "application/json", "{}", {}};
+    });
+    server.RegisterHandler(homedeck::HttpMethod::kGet, "/throttled", [](const homedeck::HttpRequest&) {
+        return homedeck::HttpResponse{429, "application/json", "{}", {}};
+    });
+    ASSERT_TRUE(server.Start(18185));
+
+    EXPECT_NE(HttpGet(18185, "/unauthorized").find("401 Unauthorized"), std::string::npos);
+    EXPECT_NE(HttpGet(18185, "/throttled").find("429 Too Many Requests"), std::string::npos);
+}
+
 TEST(HostHttpServer, LargeRequestBodyIsReadInFull) {
     // Big enough that mg_read() cannot satisfy it in a single call -
     // exercises the read loop rather than the (already-covered) single-

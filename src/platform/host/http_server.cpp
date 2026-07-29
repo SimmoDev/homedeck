@@ -28,8 +28,14 @@ const char* ReasonPhrase(int status_code) {
             return "Not Found";
         case 405:
             return "Method Not Allowed";
+        case 409:
+            return "Conflict";
+        case 429:
+            return "Too Many Requests";
         case 500:
             return "Internal Server Error";
+        case 502:
+            return "Bad Gateway";
         default:
             return "Unknown";
     }

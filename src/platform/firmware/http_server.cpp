@@ -7,20 +7,52 @@ namespace homedeck {
 
 namespace {
 
+// httpd_resp_set_status() sends this string as-is after "HTTP/1.1 " - the
+// fallback below must never be a bare number (e.g. "409"), since RFC
+// 7230's status-line grammar requires a reason-phrase after the status
+// code and some HTTP clients handle a missing one poorly (see
+// DispatchTrampoline's own comment on this same status line for a
+// different malformed-status-line failure this project already hit on
+// real hardware). Every status code this project's handlers actually
+// return needs a real case, not just the generic fallback -
+// AdminAuthService::RequireAuth() in particular returns 401/403 on the
+// majority of requests to any protected endpoint.
 std::string StatusLine(int status_code) {
     switch (status_code) {
         case 200:
             return "200 OK";
+        case 400:
+            return "400 Bad Request";
+        case 401:
+            return "401 Unauthorized";
+        case 403:
+            return "403 Forbidden";
         case 404:
             return "404 Not Found";
         case 405:
             return "405 Method Not Allowed";
+        case 409:
+            return "409 Conflict";
+        case 429:
+            return "429 Too Many Requests";
         case 500:
             return "500 Internal Server Error";
+        case 502:
+            return "502 Bad Gateway";
         default:
-            return std::to_string(status_code);
+            return std::to_string(status_code) + " Unknown";
     }
 }
+
+// httpd_req_recv()'s HTTPD_SOCK_ERR_TIMEOUT is retryable, but retrying it
+// forever isn't: a client that opens a connection, sends Content-Length,
+// then goes silent would otherwise stall this loop indefinitely, blocking
+// the one httpd worker thread from serving any other request (auth, OTA,
+// diagnostics - everything shares this single server instance). At the
+// default 5s recv_wait_timeout (HTTPD_DEFAULT_CONFIG()), this allows 15s
+// of total silence - generous for a slow but alive multi-MB OTA upload,
+// since the counter resets on every call that actually receives data.
+constexpr int kMaxConsecutiveRecvTimeouts = 3;
 
 }  // namespace
 
@@ -86,16 +118,22 @@ esp_err_t FirmwareHttpServer::DispatchTrampoline(httpd_req_t* req) {
         // esp_http_server's own documented recv() contract, any other
         // negative result is a real failure.
         size_t total_received = 0;
+        int consecutive_timeouts = 0;
         while (total_received < request.body.size()) {
             int received = httpd_req_recv(req, request.body.data() + total_received,
                                            request.body.size() - total_received);
             if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+                if (++consecutive_timeouts > kMaxConsecutiveRecvTimeouts) {
+                    httpd_resp_send_500(req);
+                    return ESP_FAIL;
+                }
                 continue;
             }
             if (received <= 0) {
                 httpd_resp_send_500(req);
                 return ESP_FAIL;
             }
+            consecutive_timeouts = 0;
             total_received += static_cast<size_t>(received);
         }
     }
