@@ -10,6 +10,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_netif.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
@@ -58,13 +59,29 @@ struct WifiSetupState {
 };
 
 // Guards every WifiSetupState field below that's touched after boot -
-// OnEvent() runs on the ESP event-loop task, while ApplyWifiCredentials()
-// is called from either the SoftAP HTTP form's own worker task or the
-// Touch UI's LVGL task (see wifi_setup.h's own comment), so pending_ssid/
-// reconnect_attempts genuinely have two unsynchronized writers/readers
-// without this.
+// OnEvent() runs on the ESP event-loop task, while ApplyWifiCredentials()/
+// ConnectToWifi() are called from either the SoftAP HTTP form's own worker
+// task, the Touch UI's LVGL task, or app startup (see wifi_setup.h's own
+// comment), so pending_ssid/reconnect_attempts genuinely have multiple
+// unsynchronized writers/readers without this. Never held across a wait -
+// see g_reconnect_timer below for why the reconnect delay isn't a
+// vTaskDelay() inside this lock.
 std::mutex g_state_mutex;
 WifiSetupState g_state;
+
+// Schedules a delayed esp_wifi_connect() retry without blocking the
+// caller. OnEvent() runs on the shared ESP-IDF default event-loop task
+// while holding g_state_mutex - sleeping there (a prior version of this
+// file used vTaskDelay()) would stall every other event on that loop and
+// every other g_state_mutex waiter for the full retry interval, for as
+// long as the outage lasts. esp_timer's own callback runs on a dedicated
+// task, and esp_timer_start_once()/esp_timer_stop() are safe to call from
+// any task, so scheduling one is a fast, non-blocking operation. Created
+// once in InitWifiAndCheckStoredCredentials(), before Wi-Fi can generate
+// its first disconnect event.
+esp_timer_handle_t g_reconnect_timer = nullptr;
+
+void ReconnectTimerCallback(void* /*arg*/) { esp_wifi_connect(); }
 
 void GetApSsid(char* ssid, size_t max_len) {
     uint8_t mac[6];
@@ -174,15 +191,22 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                     break;
                 }
                 ++state.reconnect_attempts;
-                ESP_LOGI(kTag, "Disconnected, retrying...");
-                vTaskDelay(pdMS_TO_TICKS(kReconnectBackoffMs));
-                esp_wifi_connect();
+                ESP_LOGI(kTag, "Disconnected, retrying in %dms...", kReconnectBackoffMs);
+                // Ignore the return - ESP_ERR_INVALID_STATE just means no
+                // previous retry was pending, which is the common case.
+                esp_timer_stop(g_reconnect_timer);
+                ESP_ERROR_CHECK(esp_timer_start_once(g_reconnect_timer,
+                                                      static_cast<uint64_t>(kReconnectBackoffMs) * 1000));
                 break;
             default:
                 break;
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         auto* event = static_cast<ip_event_got_ip_t*>(event_data);
+        // A retry scheduled just before this connection succeeded would
+        // otherwise still fire later and call esp_wifi_connect() again
+        // while already connected - harmless, but pointless.
+        esp_timer_stop(g_reconnect_timer);
         ESP_LOGI(kTag, "Connected, IP: " IPSTR, IP2STR(&event->ip_info.ip));
         if (state.network_status != nullptr) {
             char ip_str[16];
@@ -213,6 +237,9 @@ void ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     ESP_LOGI(kTag, "Applying credentials, SSID: %s", sta_config.sta.ssid);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
     g_state.reconnect_attempts = 0;
+    // Connecting immediately below supersedes any retry a previous
+    // disconnect already scheduled.
+    esp_timer_stop(g_reconnect_timer);
     esp_wifi_connect();
 }
 
@@ -228,6 +255,12 @@ WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& ne
     bsp_feature_enable(BSP_FEATURE_WIFI, true);
 
     g_state.event_group = xEventGroupCreate();
+
+    esp_timer_create_args_t reconnect_timer_args = {};
+    reconnect_timer_args.callback = &ReconnectTimerCallback;
+    reconnect_timer_args.name = "wifi_reconnect";
+    ESP_ERROR_CHECK(esp_timer_create(&reconnect_timer_args, &g_reconnect_timer));
+
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &OnEvent, &g_state));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &OnEvent, &g_state));
 
@@ -248,11 +281,13 @@ WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& ne
 }
 
 void ConnectToWifi(const WifiUiCallbacks& ui_callbacks) {
-    g_state.ui_callbacks = ui_callbacks;
-
     wifi_config_t sta_config = {};
     ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &sta_config));
-    g_state.pending_ssid = reinterpret_cast<const char*>(sta_config.sta.ssid);
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        g_state.ui_callbacks = ui_callbacks;
+        g_state.pending_ssid = reinterpret_cast<const char*>(sta_config.sta.ssid);
+    }
 
     if (sta_config.sta.ssid[0] != '\0') {
         ESP_LOGI(kTag, "Stored credentials found for '%s', connecting", sta_config.sta.ssid);
