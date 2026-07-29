@@ -329,7 +329,7 @@ extern "C" void app_main(void) {
             .time_source = time_source,
             .wifi_submit =
                 [](const std::string& ssid, const std::string& password) {
-                    homedeck::ApplyWifiCredentials(ssid, password);
+                    return homedeck::ApplyWifiCredentials(ssid, password);
                 },
             .ota_writer = BuildOtaWriter(),
             .ota_reboot = ScheduleReboot,

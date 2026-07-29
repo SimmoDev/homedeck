@@ -473,7 +473,15 @@ int main() {
             .time_source = time_source,
             .wifi_submit =
                 [](const std::string& ssid, const std::string& /*password*/) {
+                    // No real esp_wifi to validate against here, but the
+                    // same empty-SSID rejection ApplyWifiCredentials
+                    // enforces on firmware, so the Touch UI's error-
+                    // display path is exercisable in the simulator too.
+                    if (ssid.empty()) {
+                        return false;
+                    }
                     std::printf("Wi-Fi setup submitted (no-op in simulator): SSID=%s\n", ssid.c_str());
+                    return true;
                 },
             .ota_writer = ota_writer,
             .ota_reboot = []() { std::printf("OTA reboot requested (no-op in simulator)\n"); },

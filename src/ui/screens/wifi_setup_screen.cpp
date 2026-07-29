@@ -93,7 +93,11 @@ void WifiSetupScreen::OnConnectClicked(lv_event_t* e) {
     if (!self->on_submit_) {
         return;
     }
-    self->on_submit_(lv_textarea_get_text(self->ssid_field_), lv_textarea_get_text(self->password_field_));
+    bool accepted =
+        self->on_submit_(lv_textarea_get_text(self->ssid_field_), lv_textarea_get_text(self->password_field_));
+    if (!accepted) {
+        self->SetConnectError("Network name (SSID) is required.");
+    }
 }
 
 }  // namespace homedeck

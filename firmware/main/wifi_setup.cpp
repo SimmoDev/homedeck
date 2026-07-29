@@ -142,7 +142,10 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     char password[65] = {};
     httpd_query_key_value(body, "ssid", ssid, sizeof(ssid));
     httpd_query_key_value(body, "password", password, sizeof(password));
-    ApplyWifiCredentials(ssid, password);
+    if (!ApplyWifiCredentials(ssid, password)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Network name (SSID) is required");
+        return ESP_FAIL;
+    }
 
     static const char kResponse[] =
         "<!DOCTYPE html><html><body style=\"font-family:sans-serif;max-width:400px;"
@@ -251,7 +254,11 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
 
 }  // namespace
 
-void ApplyWifiCredentials(const std::string& ssid, const std::string& password) {
+bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) {
+    if (ssid.empty()) {
+        ESP_LOGW(kTag, "Rejecting empty SSID submission");
+        return false;
+    }
     std::lock_guard<std::mutex> lock(g_state_mutex);
     g_state.pending_ssid = ssid;
     wifi_config_t sta_config = {};
@@ -265,6 +272,7 @@ void ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     // disconnect already scheduled.
     esp_timer_stop(g_reconnect_timer);
     esp_wifi_connect();
+    return true;
 }
 
 WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& network_status) {

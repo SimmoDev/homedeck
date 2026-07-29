@@ -29,7 +29,11 @@ namespace homedeck {
 // docs/architecture/ui.md#status for this documented exception.
 class WifiSetupScreen {
 public:
-    using SubmitCallback = std::function<void(const std::string& ssid, const std::string& password)>;
+    // Returns false if the submission was rejected outright (e.g. an
+    // empty SSID) - see OnConnectClicked, which shows that back to the
+    // user via SetConnectError rather than proceeding as if it had
+    // worked.
+    using SubmitCallback = std::function<bool(const std::string& ssid, const std::string& password)>;
 
     WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                      SubmitCallback on_submit);
