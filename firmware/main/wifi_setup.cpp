@@ -1,5 +1,7 @@
 #include "wifi_setup.h"
 
+#include "core/wifi_reconnect_policy.h"
+
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -49,7 +51,11 @@ constexpr char kApGatewayIp[] = "192.168.4.1";
 struct WifiSetupState {
     EventGroupHandle_t event_group = nullptr;
     httpd_handle_t setup_server = nullptr;
-    int reconnect_attempts = 0;
+    // The reconnect-attempt-counting/give-up decision logic itself lives
+    // in the portable, host-testable WifiReconnectPolicy
+    // (src/core/wifi_reconnect_policy.h) - this file just executes
+    // whatever it decides via the ESP-IDF APIs it can't be tested with.
+    WifiReconnectPolicy reconnect_policy{kMaxSetupReconnectAttempts};
     WifiUiCallbacks ui_callbacks;
     FirmwareNetworkStatus* network_status = nullptr;
     // The SSID we're configured/attempting to connect to - captured from
@@ -67,7 +73,7 @@ struct WifiSetupState {
 // OnEvent() runs on the ESP event-loop task, while ApplyWifiCredentials()/
 // ConnectToWifi() are called from either the SoftAP HTTP form's own worker
 // task, the Touch UI's LVGL task, or app startup (see wifi_setup.h's own
-// comment), so pending_ssid/reconnect_attempts genuinely have multiple
+// comment), so pending_ssid/reconnect_policy genuinely have multiple
 // unsynchronized writers/readers without this. Never held across a wait -
 // see g_reconnect_timer below for why the reconnect delay isn't a
 // vTaskDelay() inside this lock.
@@ -200,7 +206,8 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                 if (state.network_status != nullptr) {
                     state.network_status->SetConnectionState(false, "", "");
                 }
-                if (state.setup_server != nullptr && state.reconnect_attempts >= kMaxSetupReconnectAttempts) {
+                if (state.reconnect_policy.OnDisconnected(state.setup_server != nullptr) ==
+                    WifiReconnectPolicy::Decision::kGiveUp) {
                     ESP_LOGW(kTag, "Giving up after %d failed attempts - submit the setup form again to retry",
                              kMaxSetupReconnectAttempts);
                     if (state.ui_callbacks.on_connect_failed) {
@@ -208,7 +215,6 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                     }
                     break;
                 }
-                ++state.reconnect_attempts;
                 ESP_LOGI(kTag, "Disconnected, retrying in %dms...", kReconnectBackoffMs);
                 // Ignore the return - ESP_ERR_INVALID_STATE just means no
                 // previous retry was pending, which is the common case.
@@ -254,7 +260,7 @@ void ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
                   password.c_str());
     ESP_LOGI(kTag, "Applying credentials, SSID: %s", sta_config.sta.ssid);
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
-    g_state.reconnect_attempts = 0;
+    g_state.reconnect_policy.ResetAttempts();
     // Connecting immediately below supersedes any retry a previous
     // disconnect already scheduled.
     esp_timer_stop(g_reconnect_timer);
