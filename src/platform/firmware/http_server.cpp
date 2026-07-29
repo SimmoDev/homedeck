@@ -109,6 +109,11 @@ esp_err_t FirmwareHttpServer::DispatchTrampoline(httpd_req_t* req) {
     }
 
     if (req->content_len > 0) {
+        if (static_cast<size_t>(req->content_len) > kMaxHttpRequestBodyBytes) {
+            httpd_resp_set_status(req, "413 Payload Too Large");
+            httpd_resp_send(req, nullptr, 0);
+            return ESP_FAIL;
+        }
         request.body.resize(req->content_len);
         // A single httpd_req_recv() call is not guaranteed to return the
         // full body - fine for the small JSON bodies used so far, a real

@@ -51,9 +51,11 @@ using OtaRebootFn = std::function<void()>;
 //
 // POST /api/ota/upload takes the raw firmware image as the full request
 // body. Handler::body is already fully buffered in memory by the time
-// any handler runs (see platform/http_server.h's Handler contract), so
-// the size check against max_image_size() happens against the received
-// body, before write_image() is called - not before receiving it.
+// any handler runs (see platform/http_server.h's Handler contract) -
+// both backends reject a request against kMaxHttpRequestBodyBytes before
+// attempting that allocation, but max_image_size()'s own tighter,
+// partition-sized check below still only happens against the received
+// body, before write_image() is called.
 void RegisterOtaRoutes(HttpServer& server, EventBus& event_bus, AdminAuthService& auth, BatteryReader& battery_reader,
                         OtaWriter writer, OtaRebootFn reboot);
 

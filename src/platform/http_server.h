@@ -9,6 +9,15 @@
 
 namespace homedeck {
 
+// A hard ceiling both backends reject a request against (via its
+// Content-Length header) before allocating any buffer for the body -
+// an attacker-controlled Content-Length shouldn't be able to force a
+// large allocation attempt just by claiming one. Comfortably above the
+// largest legitimate body this project has (a ~4MB OTA image - see
+// core/ota_gate.h's own tighter, partition-sized check, which still
+// applies on top of this for that specific endpoint).
+constexpr size_t kMaxHttpRequestBodyBytes = 8 * 1024 * 1024;
+
 enum class HttpMethod { kGet, kPost };
 
 struct HttpRequest {

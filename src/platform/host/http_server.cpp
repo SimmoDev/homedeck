@@ -104,6 +104,10 @@ int HostHttpServer::Dispatch(mg_connection* conn) {
     request.path = info->request_uri;
     request.query = info->query_string != nullptr ? info->query_string : "";
     if (info->content_length > 0) {
+        if (static_cast<size_t>(info->content_length) > kMaxHttpRequestBodyBytes) {
+            mg_send_http_error(conn, 413, "Payload Too Large");
+            return 1;
+        }
         request.body.resize(static_cast<size_t>(info->content_length));
         // A single mg_read() call is not guaranteed to return the full
         // body - fine for the small JSON bodies used so far, a real bug

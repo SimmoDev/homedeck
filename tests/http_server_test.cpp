@@ -150,6 +150,43 @@ TEST(HostHttpServer, ResponseStatusLineIncludesARealReasonPhrase) {
     EXPECT_NE(HttpGet(18185, "/throttled").find("429 Too Many Requests"), std::string::npos);
 }
 
+TEST(HostHttpServer, RejectsOversizedRequestBodyBeforeReadingIt) {
+    homedeck::HostHttpServer server;
+    bool handler_called = false;
+    server.RegisterHandler(homedeck::HttpMethod::kPost, "/upload", [&handler_called](const homedeck::HttpRequest&) {
+        handler_called = true;
+        return homedeck::HttpResponse{200, "text/plain", "ok", {}};
+    });
+    ASSERT_TRUE(server.Start(18186));
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_GE(sock, 0);
+    sockaddr_in addr = {};
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(18186);
+    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    ASSERT_EQ(connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)), 0);
+
+    // Claims a body far larger than kMaxHttpRequestBodyBytes but never
+    // actually sends one - proving the rejection happens against the
+    // Content-Length header alone, before any read attempt, not only
+    // after receiving (and thus allocating a buffer for) that much data.
+    std::string request =
+        "POST /upload HTTP/1.1\r\nHost: localhost\r\nContent-Length: 100000000\r\nConnection: close\r\n\r\n";
+    send(sock, request.data(), request.size(), 0);
+
+    std::string response;
+    char buffer[4096];
+    ssize_t received;
+    while ((received = recv(sock, buffer, sizeof(buffer), 0)) > 0) {
+        response.append(buffer, static_cast<size_t>(received));
+    }
+    close(sock);
+
+    EXPECT_NE(response.find("413"), std::string::npos);
+    EXPECT_FALSE(handler_called);
+}
+
 TEST(HostHttpServer, LargeRequestBodyIsReadInFull) {
     // Big enough that mg_read() cannot satisfy it in a single call -
     // exercises the read loop rather than the (already-covered) single-
