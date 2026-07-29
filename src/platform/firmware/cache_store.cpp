@@ -1,5 +1,7 @@
 #include "platform/firmware/cache_store.h"
 
+#include "platform/store_key_validation.h"
+
 #include "esp_log.h"
 #include "esp_vfs_fat.h"
 
@@ -43,7 +45,7 @@ std::string FirmwareCacheStore::PathFor(const std::string& ns, const std::string
 }
 
 bool FirmwareCacheStore::Write(const std::string& ns, const std::string& key, const std::string& content) {
-    if (!mounted_) {
+    if (!mounted_ || !IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
         return false;
     }
     std::string dir = std::string(kMountPoint) + "/" + ns;
@@ -62,7 +64,7 @@ bool FirmwareCacheStore::Write(const std::string& ns, const std::string& key, co
 }
 
 std::optional<std::string> FirmwareCacheStore::Read(const std::string& ns, const std::string& key) {
-    if (!mounted_) {
+    if (!mounted_ || !IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
         return std::nullopt;
     }
     FILE* file = fopen(PathFor(ns, key).c_str(), "rb");
@@ -86,7 +88,7 @@ std::optional<std::string> FirmwareCacheStore::Read(const std::string& ns, const
 }
 
 bool FirmwareCacheStore::Erase(const std::string& ns, const std::string& key) {
-    if (!mounted_) {
+    if (!mounted_ || !IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
         return false;
     }
     // A file that's already gone is a successful erase, not a failure.

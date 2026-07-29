@@ -201,6 +201,23 @@ TEST_F(SettingsRoutesTest, PostSettingsRejectsOversizedModuleOrKey) {
     EXPECT_NE(post.body.find("invalid_key"), std::string::npos);
 }
 
+TEST_F(SettingsRoutesTest, PostSettingsRejectsPathTraversalInModuleOrKey) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
+    ASSERT_TRUE(server.Start(18218));
+    std::string cookie = Login(18218);
+
+    auto post = HttpRequestRaw(18218, "POST", "/api/settings",
+                                R"({"module":"..","key":"../../secrets","value":"x","schemaVersion":1})", cookie);
+    EXPECT_EQ(post.status_code, 400);
+    EXPECT_NE(post.body.find("invalid_key"), std::string::npos);
+
+    // Confirms the rejection is real, not just a satisfied response code -
+    // nothing escaped root_dir_ onto disk.
+    EXPECT_FALSE(std::filesystem::exists(root_dir_.parent_path() / "secrets"));
+}
+
 TEST_F(SettingsRoutesTest, EraseRemovesAKey) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);

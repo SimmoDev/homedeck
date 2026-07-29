@@ -1,5 +1,6 @@
 #include "core/settings_routes.h"
 
+#include "platform/store_key_validation.h"
 #include "third_party/nlohmann/json.hpp"
 
 #include <utility>
@@ -16,8 +17,13 @@ constexpr const char* kDeviceNameKey = "device_name";
 // on both targets instead of diverging.
 constexpr size_t kMaxNvsKeyLength = 15;
 
-bool KeyTooLong(const std::string& module_id, const std::string& key) {
-    return module_id.size() > kMaxNvsKeyLength || key.size() > kMaxNvsKeyLength;
+// Length plus the same path-segment safety check every SettingsStore
+// backend enforces (platform/store_key_validation.h) - checked here too so
+// a rejected module/key surfaces as a clean 400 instead of falling through
+// to the store's own failure path and a generic 500.
+bool InvalidKey(const std::string& module_id, const std::string& key) {
+    return module_id.size() > kMaxNvsKeyLength || key.size() > kMaxNvsKeyLength || !IsValidStoreSegment(module_id) ||
+           !IsValidStoreSegment(key);
 }
 
 nlohmann::json EntryToJson(const SettingEntry& entry) {
@@ -72,7 +78,7 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             std::string module = module_it->get<std::string>();
             std::string key = key_it->get<std::string>();
             std::string value = value_it->get<std::string>();
-            if (KeyTooLong(module, key)) {
+            if (InvalidKey(module, key)) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_key"})", {}};
             }
             if (module == AdminAuthService::kModuleId && key == kDeviceNameKey && on_device_name_changed) {
@@ -98,7 +104,12 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 !key_it->is_string()) {
                 return HttpResponse{400, "application/json", R"({"error":"missing_field"})", {}};
             }
-            storage.EraseSetting(module_it->get<std::string>(), key_it->get<std::string>());
+            std::string module = module_it->get<std::string>();
+            std::string key = key_it->get<std::string>();
+            if (InvalidKey(module, key)) {
+                return HttpResponse{400, "application/json", R"({"error":"invalid_key"})", {}};
+            }
+            storage.EraseSetting(module, key);
             return HttpResponse{200, "application/json", R"({"status":"ok"})", {}};
         }));
 
@@ -139,7 +150,7 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 }
                 std::string module = module_it->get<std::string>();
                 std::string key = key_it->get<std::string>();
-                bool ok = !KeyTooLong(module, key) &&
+                bool ok = !InvalidKey(module, key) &&
                           storage.SetSetting(module, key, schema_it->get<int>(), value_it->get<std::string>());
                 if (ok) {
                     ++applied;

@@ -1,11 +1,16 @@
 #include "platform/firmware/nvs_blob_store.h"
 
+#include "platform/store_key_validation.h"
+
 #include "esp_log.h"
 #include "nvs.h"
 
 namespace homedeck {
 
 bool NvsSetBlob(const char* tag, const std::string& ns, const std::string& key, const std::string& value) {
+    if (!IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
+        return false;
+    }
     nvs_handle_t handle;
     esp_err_t err = nvs_open(ns.c_str(), NVS_READWRITE, &handle);
     if (err != ESP_OK) {
@@ -25,6 +30,9 @@ bool NvsSetBlob(const char* tag, const std::string& ns, const std::string& key, 
 }
 
 std::optional<std::string> NvsGetBlob(const char* tag, const std::string& ns, const std::string& key) {
+    if (!IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
+        return std::nullopt;
+    }
     nvs_handle_t handle;
     // A namespace that's never been written to yet fails to open in
     // read-only mode - a normal "no value" case, not an error worth
@@ -52,6 +60,9 @@ std::optional<std::string> NvsGetBlob(const char* tag, const std::string& ns, co
 }
 
 bool NvsEraseBlob(const std::string& ns, const std::string& key) {
+    if (!IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
+        return false;
+    }
     nvs_handle_t handle;
     esp_err_t err = nvs_open(ns.c_str(), NVS_READWRITE, &handle);
     if (err != ESP_OK) {

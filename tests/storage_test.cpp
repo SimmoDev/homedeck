@@ -203,6 +203,36 @@ TEST_F(StorageTest, SetSettingRejectsTheReservedAdminPasswordKey) {
                      .has_value());
 }
 
+// Path-traversal guard (platform/store_key_validation.h) - `ns`/`key` map
+// directly onto a filesystem path segment on every host-backed store, so
+// ".." or an embedded separator must be rejected rather than silently
+// escaping root_dir_.
+TEST_F(StorageTest, SetSettingRejectsPathTraversalSegments) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    EXPECT_FALSE(storage.SetSetting("..", "hub_ip", 1, "escape-attempt"));
+    EXPECT_FALSE(storage.SetSetting("harmony", "../../etc/passwd", 1, "escape-attempt"));
+    EXPECT_FALSE(storage.GetSetting("..", "hub_ip").has_value());
+    EXPECT_FALSE(storage.EraseSetting("harmony", "../secret"));
+
+    // Confirms the rejection is real, not just a false return - nothing
+    // escaped root_dir_ onto disk.
+    EXPECT_FALSE(std::filesystem::exists(root_dir_.parent_path() / "etc"));
+}
+
+TEST_F(StorageTest, SecretAndCacheAlsoRejectPathTraversalSegments) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    EXPECT_FALSE(storage.SetSecret("..", "admin_pw_hash", 1, "escape-attempt"));
+    EXPECT_FALSE(storage.WriteCache("harmony", "../../etc/passwd", 1, "escape-attempt"));
+}
+
 TEST_F(StorageTest, ListAllSettingsExcludesTheReservedAdminPasswordKeyEvenIfPresent) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
