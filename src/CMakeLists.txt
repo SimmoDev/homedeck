@@ -90,6 +90,12 @@ add_library(homedeck_core
   core/settings_routes.cpp
   core/logger.cpp
   core/notification_sound.cpp
+  # Lives in ui/ (it's a UI-formatting concern, called from
+  # ClockWidget/StatusBar), but is genuinely LVGL-free - built here
+  # instead of homedeck_ui below so it's covered by tests/, which never
+  # fetches LVGL. homedeck_ui already links homedeck_core, so this is
+  # still reachable identically from every existing call site.
+  ui/time_format.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 
@@ -102,7 +108,6 @@ if(TARGET lvgl)
     ui/ui_dispatch.cpp
     ui/navigation.cpp
     ui/home_affordance.cpp
-    ui/time_format.cpp
     ui/status_bar.cpp
     ui/dashboard_grid.cpp
     ui/clock_widget.cpp

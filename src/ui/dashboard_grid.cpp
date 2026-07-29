@@ -31,8 +31,7 @@ constexpr int32_t kRowHeight =
 
 }  // namespace
 
-DashboardGrid::DashboardGrid(lv_obj_t* parent)
-    : row_dsc_{kRowHeight, LV_GRID_TEMPLATE_LAST}, occupancy_(1) {
+DashboardGrid::DashboardGrid(lv_obj_t* parent) : row_dsc_{kRowHeight, LV_GRID_TEMPLATE_LAST} {
     grid_ = lv_obj_create(parent);
     lv_obj_set_grid_dsc_array(grid_, kColumnTemplate, row_dsc_.data());
     lv_obj_set_size(grid_, LV_PCT(100), LV_SIZE_CONTENT);
@@ -51,10 +50,9 @@ DashboardGrid::DashboardGrid(lv_obj_t* parent)
 }
 
 void DashboardGrid::EnsureRowExists(int row) {
-    if (row < static_cast<int>(occupancy_.size())) return;
+    if (row < static_cast<int>(row_dsc_.size()) - 1) return;
 
-    while (static_cast<int>(occupancy_.size()) <= row) {
-        occupancy_.emplace_back();
+    while (static_cast<int>(row_dsc_.size()) - 1 <= row) {
         row_dsc_.back() = kRowHeight;
         row_dsc_.push_back(LV_GRID_TEMPLATE_LAST);
     }
@@ -66,26 +64,6 @@ void DashboardGrid::EnsureRowExists(int row) {
     // this after a reallocation would leave LVGL holding a dangling
     // pointer into freed memory.
     lv_obj_set_grid_dsc_array(grid_, kColumnTemplate, row_dsc_.data());
-}
-
-bool DashboardGrid::Fits(int row, int col, int col_span, int row_span) const {
-    if (col + col_span > kColumns) return false;
-    for (int r = row; r < row + row_span; r++) {
-        if (r >= static_cast<int>(occupancy_.size())) continue;  // not-yet-declared rows are free
-        for (int c = col; c < col + col_span; c++) {
-            if (occupancy_[r][c]) return false;
-        }
-    }
-    return true;
-}
-
-void DashboardGrid::MarkOccupied(int row, int col, int col_span, int row_span) {
-    EnsureRowExists(row + row_span - 1);
-    for (int r = row; r < row + row_span; r++) {
-        for (int c = col; c < col + col_span; c++) {
-            occupancy_[r].set(c);
-        }
-    }
 }
 
 void DashboardGrid::AddWidget(Widget& widget) {
@@ -100,17 +78,10 @@ void DashboardGrid::AddWidget(Widget& widget) {
         col_span = kColumns;
     }
 
-    int row = 0;
-    int col = 0;
-    while (!Fits(row, col, col_span, row_span)) {
-        col++;
-        if (col >= kColumns) {
-            col = 0;
-            row++;
-        }
-    }
+    auto [row, col] = occupancy_.FindPlacement(col_span, row_span);
+    occupancy_.MarkOccupied(row, col, col_span, row_span);
+    EnsureRowExists(row + row_span - 1);
 
-    MarkOccupied(row, col, col_span, row_span);
     lv_obj_set_grid_cell(widget.Root(), LV_GRID_ALIGN_STRETCH, col, col_span, LV_GRID_ALIGN_STRETCH,
                           row, row_span);
     // lv_obj_create() is scrollable by default, which produces an

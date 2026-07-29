@@ -1,9 +1,9 @@
 #pragma once
 
 #include "lvgl.h"
+#include "ui/grid_occupancy.h"
 #include "ui/widget.h"
 
-#include <bitset>
 #include <vector>
 
 namespace homedeck {
@@ -48,21 +48,19 @@ public:
     void AddWidget(Widget& widget);
 
 private:
-    // Grows row_dsc_/occupancy_ to include row `row` if they don't
-    // already, re-pointing LVGL at the (possibly reallocated) row
-    // template buffer - see dashboard_grid.cpp for why that's required.
+    // Grows row_dsc_ to include row `row` if it doesn't already,
+    // re-pointing LVGL at the (possibly reallocated) row template buffer
+    // - see dashboard_grid.cpp for why that's required. Called with the
+    // same row index passed to occupancy_'s own growth, from the same
+    // call site (AddWidget), so the two stay in lockstep without one
+    // owning the other.
     void EnsureRowExists(int row);
-
-    bool Fits(int row, int col, int col_span, int row_span) const;
-    void MarkOccupied(int row, int col, int col_span, int row_span);
 
     lv_obj_t* grid_;
     // N kRowHeight entries (one per declared row) followed by one
     // LV_GRID_TEMPLATE_LAST terminator.
     std::vector<int32_t> row_dsc_;
-    // One entry per declared row; occupancy_[r][c] is true once some
-    // widget's span covers (r, c).
-    std::vector<std::bitset<kColumns>> occupancy_;
+    GridOccupancy<kColumns> occupancy_;
 };
 
 }  // namespace homedeck

@@ -31,6 +31,8 @@ add_executable(homedeck_tests
   event_bus_test.cpp
   battery_reader_test.cpp
   clock_test.cpp
+  time_format_test.cpp
+  grid_occupancy_test.cpp
   storage_test.cpp
   http_server_test.cpp
   http_client_test.cpp
