@@ -120,6 +120,7 @@ if(TARGET lvgl)
     ui/screens/dashboard_screen.cpp
     ui/screens/wifi_setup_screen.cpp
     ui/lvgl_user_activity_source.cpp
+    ui/app_core.cpp
     # None of these three is a portable UI file - HostAudioOutput
     # (platform/host/audio_output.h, SDL2), UiTask
     # (platform/host/ui_task.h, SDL2), and HostDisplayBrightness

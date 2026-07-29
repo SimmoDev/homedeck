@@ -1,5 +1,4 @@
 #include <cctype>
-#include <charconv>
 #include <cstdio>
 
 #include "bsp/m5stack_tab5.h"
@@ -20,20 +19,8 @@
 #include "nvs_flash.h"
 
 #include "core/admin_auth_service.h"
-#include "core/clock.h"
-#include "core/critical_battery_monitor.h"
-#include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
-#include "core/logger.h"
-#include "core/low_battery_monitor.h"
-#include "core/network_status_monitor.h"
-#include "core/notification_sound.h"
-#include "core/ota_routes.h"
-#include "core/power_manager.h"
-#include "core/settings_routes.h"
 #include "core/storage.h"
-#include "core/weather_provider.h"
-#include "core/weather_routes.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/audio_output.h"
 #include "platform/firmware/battery_reader.h"
@@ -46,18 +33,9 @@
 #include "platform/firmware/settings_store.h"
 #include "platform/firmware/time_source.h"
 #include "platform/static_assets.h"
-#include "platform/steady_time_source.h"
-#include "ui/clock_widget.h"
+#include "ui/app_core.h"
 #include "ui/lvgl_user_activity_source.h"
-#include "ui/navigation.h"
-#include "ui/network_status_widget.h"
-#include "ui/notification_banner.h"
-#include "ui/notification_widget.h"
-#include "ui/quick_settings_panel.h"
-#include "ui/screens/dashboard_screen.h"
-#include "ui/screens/wifi_setup_screen.h"
 #include "ui/ui_dispatch.h"
-#include "ui/weather_widget.h"
 #include "wifi_setup.h"
 
 // The real HomeDeck firmware entry point - the dashboard (see
@@ -82,25 +60,6 @@ extern const uint8_t webui_app_js_start[] asm("_binary_app_js_start");
 extern const uint8_t webui_app_js_end[] asm("_binary_app_js_end");
 extern const uint8_t webui_app_css_start[] asm("_binary_app_css_start");
 extern const uint8_t webui_app_css_end[] asm("_binary_app_css_end");
-
-// Shared shape with simulator/main.cpp's identical helper - duplicated
-// rather than factored into Core, same reasoning as
-// notification_sound.cpp's own tone generator: small enough that a
-// shared abstraction for two call sites isn't worth it. std::from_chars,
-// not std::stoi - firmware builds with exceptions disabled (see
-// storage.cpp's Decode() for the same reasoning).
-int ReadIntSetting(homedeck::Storage& storage, const char* module_id, const char* key, int fallback) {
-    std::optional<homedeck::VersionedValue> setting = storage.GetSetting(module_id, key);
-    if (!setting) {
-        return fallback;
-    }
-    int value = 0;
-    auto [ptr, ec] = std::from_chars(setting->value.data(), setting->value.data() + setting->value.size(), value);
-    if (ec != std::errc{} || ptr != setting->value.data() + setting->value.size()) {
-        return fallback;
-    }
-    return value;
-}
 
 // The first thing app_main() does, before anything else can fail and
 // leave no trace of what was even running.
@@ -260,17 +219,11 @@ homedeck::OtaWriter BuildOtaWriter() {
     };
 }
 
-// The Web Management UI's server primitive (see
-// docs/architecture/web-ui.md#status) - the built Svelte/Vite scaffold
-// plus admin auth. Called after Wi-Fi connects, and after
-// wifi_setup.cpp's own temporary SoftAP-setup server has already
-// stopped, so there's no port/lifecycle overlap between the two.
-// battery_reader is the same Ina226BatteryReader instance the dashboard
-// already reads.
-void StartWebServer(homedeck::HttpServer& web_server, homedeck::EventBus& event_bus, homedeck::Storage& storage,
-                     homedeck::AdminAuthService& admin_auth, homedeck::BatteryReader& battery_reader,
-                     homedeck::Logger& logger, homedeck::HttpClient& http_client,
-                     homedeck::OpenMeteoWeatherProvider& weather_provider, homedeck::OtaWriter ota_writer) {
+// Static asset serving stays here rather than in AppCore - the embedded
+// EMBED_FILES byte arrays above are firmware-only (the simulator reads
+// webui/dist/ off disk instead, see simulator/main.cpp), so this is the
+// one piece of Web UI wiring that's genuinely not shared.
+void ServeEmbeddedWebUi(homedeck::HttpServer& web_server) {
     homedeck::ServeStaticFiles(
         web_server,
         {{"/", "text/html",
@@ -282,46 +235,6 @@ void StartWebServer(homedeck::HttpServer& web_server, homedeck::EventBus& event_
          {"/app.css", "text/css",
           std::string(reinterpret_cast<const char*>(webui_app_css_start),
                        webui_app_css_end - webui_app_css_start)}});
-    homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
-    // Real flash read against the coredump partition (see
-    // docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md) - mirrors
-    // crash_diagnostics.cpp's own esp_core_dump_image_check() gate rather
-    // than trusting esp_core_dump_image_get() alone to signal absence.
-    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader, logger,
-                                         []() -> std::optional<std::string> {
-        if (esp_core_dump_image_check() != ESP_OK) {
-            return std::nullopt;
-        }
-        size_t addr = 0, size = 0;
-        if (esp_core_dump_image_get(&addr, &size) != ESP_OK || size == 0) {
-            return std::nullopt;
-        }
-        std::string buffer(size, '\0');
-        if (esp_flash_read(esp_flash_default_chip, buffer.data(), addr, size) != ESP_OK) {
-            return std::nullopt;
-        }
-        return buffer;
-    });
-    homedeck::RegisterOtaRoutes(web_server, event_bus, admin_auth, battery_reader, ota_writer, ScheduleReboot);
-    homedeck::RegisterSettingsRoutes(web_server, storage, admin_auth, [&logger](const std::string& value) -> bool {
-        if (!IsValidHostnameLabel(value)) {
-            return false;
-        }
-        bool ok = mdns_hostname_set(value.c_str()) == ESP_OK;
-        if (ok) {
-            printf("mDNS re-announced as %s.local\n", value.c_str());
-            logger.Log(homedeck::LogLevel::kInfo, "mdns", "Re-announced as " + value + ".local");
-        }
-        return ok;
-    });
-    homedeck::RegisterWeatherRoutes(web_server, http_client, weather_provider, admin_auth);
-    if (web_server.Start(80)) {
-        printf("Web UI listening on port 80\n");
-        logger.Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");
-    } else {
-        printf("Web UI failed to start\n");
-        logger.Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
-    }
 }
 
 }  // namespace
@@ -365,7 +278,7 @@ extern "C" void app_main(void) {
     homedeck::Rx8130TimeSource time_source(i2c_bus);
     homedeck::FirmwareNetworkStatus network_status;
     homedeck::FirmwareAudioOutput audio_output;
-    // Safe to construct here, ahead of the dashboard below - neither
+    // Safe to construct here, ahead of AppCore below - neither
     // constructor touches LVGL/BSP state itself, only their later-called
     // methods do, and those only ever run from PowerManager's own
     // SubscribeUi tick (see ui/lvgl_user_activity_source.h), already
@@ -375,99 +288,80 @@ extern "C" void app_main(void) {
 
     InitNvs();
 
-    // Moved ahead of the dashboard's construction below (unlike Logger
-    // further down, which doesn't need to be) so WeatherWidget can be
-    // constructed alongside ClockWidget/NetworkStatusWidget - requires
-    // nvs_flash_init() above to have already run (see
+    // Requires nvs_flash_init() above to have already run (see
     // platform/firmware/settings_store.h's and secret_store.h's own
-    // "Requires nvs_flash_init()" comments); moving this any earlier,
-    // e.g. alongside battery_reader/network_status above, would
-    // silently break every nvs_open() call in both backing stores.
+    // "Requires nvs_flash_init()" comments).
     homedeck::FirmwareSettingsStore settings_store;
     homedeck::FirmwareCacheStore cache_store;
     homedeck::FirmwareSecretStore secret_store;
-    homedeck::Storage storage(settings_store, cache_store, secret_store);
-    // Outlives OpenMeteoWeatherProvider's own poll Task, which holds a
-    // reference to it for the rest of app_main's life.
+    // Outlives AppCore's own OpenMeteoWeatherProvider poll Task, which
+    // holds a reference to it for the rest of app_main's life.
     homedeck::FirmwareHttpClient http_client;
-    homedeck::OpenMeteoWeatherProvider weather_provider(http_client, storage, event_bus);
+    // Declared here (not narrower) so it stays alive for the rest of
+    // app_main's life, which never returns.
+    homedeck::FirmwareHttpServer web_server;
+    ServeEmbeddedWebUi(web_server);
 
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     homedeck::WifiCredentialsCheck wifi_check = homedeck::InitWifiAndCheckStoredCredentials(network_status);
 
+    // Builds the full shared object graph (dashboard, widgets,
+    // notifications, PowerManager, Web UI routes, ...) - see
+    // ui/app_core.h. Still inside the bsp_display_lock() span below -
+    // its constructor creates LVGL objects directly, the same
+    // requirement every other direct LVGL call in this function already
+    // has (see ADR-0011).
     bsp_display_lock(0);
-    homedeck::DashboardScreen dashboard(event_bus, battery_reader, network_status);
-    homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
-    dashboard.Grid().AddWidget(clock_widget);
-    homedeck::NetworkStatusWidget network_status_widget(dashboard.Grid().Container(), event_bus, network_status);
-    dashboard.Grid().AddWidget(network_status_widget);
-    homedeck::WeatherWidget weather_widget(dashboard.Grid().Container(), event_bus, weather_provider);
-    dashboard.Grid().AddWidget(weather_widget);
-    homedeck::NotificationWidget notification_widget(dashboard.Grid().Container(), event_bus);
-    dashboard.Grid().AddWidget(notification_widget);
-    // Read once at startup, before constructing the objects these seed -
-    // see quick_settings_panel.h for where they're subsequently
-    // controlled. Falls back to the pre-existing hardcoded defaults
-    // (100/70) if unset (first boot) or unparsable.
-    int initial_active_brightness_percent = ReadIntSetting(storage, "power", "brightness", 100);
-    int initial_volume_percent = ReadIntSetting(storage, "audio", "volume", 70);
-
-    // NotificationBanner and NotificationSound must exist before
-    // LowBatteryMonitor, which must exist before Clock (the
-    // ClockTickEvent publisher) - see simulator/main.cpp's identical
-    // ordering note. Unlike the simulator, there's no manual trigger
-    // here - Ina226BatteryReader is real, so this only actually fires
-    // once the pack genuinely runs low.
-    homedeck::NotificationBanner notification_banner(event_bus);
-    homedeck::NotificationSound notification_sound(event_bus, audio_output, initial_volume_percent);
-    homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
-    // Same ordering rule as LowBatteryMonitor above - also a
-    // ClockTickEvent subscriber, must exist before Clock. PowerManager's
-    // own CriticalBatteryStateChangedEvent subscription is set up in its
-    // constructor below, before Clock's first tick, so its position
-    // relative to this doesn't matter beyond that.
-    homedeck::CriticalBatteryMonitor critical_battery_monitor(event_bus, battery_reader);
-    // Same "subscriber before publisher" ordering as LowBatteryMonitor -
-    // NetworkStatusMonitor is also a ClockTickEvent subscriber, so it
-    // must exist before Clock too (see below).
-    homedeck::NetworkStatusMonitor network_status_monitor(event_bus, network_status);
-    // Grouped here for readability, not a real ordering dependency on
-    // NotificationBanner/NotificationSound the way LowBatteryMonitor has
-    // - PowerManager neither consumes nor publishes NotificationEvent,
-    // it just shares the same "must exist before Clock" rule every
-    // ClockTickEvent subscriber does. A second SteadyTimeSource instance
-    // (stateless, see platform/steady_time_source.h) rather than sharing
-    // auth_time_source below, which is constructed later and named for
-    // AdminAuthService specifically.
-    homedeck::SteadyTimeSource power_time_source;
-    homedeck::PowerManager power_manager(event_bus, user_activity_source, display_brightness,
-                                          power_time_source, initial_active_brightness_percent);
-    // Needs PowerManager/NotificationSound/Storage all already
-    // constructed above - see quick_settings_panel.h. Still inside the
-    // bsp_display_lock() span above - its constructor creates LVGL
-    // objects directly, the same requirement as every other direct LVGL
-    // call in this function (see ADR-0011).
-    homedeck::QuickSettingsPanel quick_settings_panel(event_bus, power_manager, notification_sound, storage);
-    // Navigation's constructor loads home_screen itself (see
-    // ui/navigation.h), so no explicit lv_scr_load() call is needed here.
-    // wifi_setup_screen is the Touch UI fallback for initial Wi-Fi setup
-    // (see docs/architecture/networking.md#initial-wi-fi-provisioning).
-    // Declared here (not narrower) so both stay alive for the rest of
-    // app_main's life, which never returns.
-    homedeck::Navigation navigation("dashboard", dashboard.Root());
-    homedeck::WifiSetupScreen wifi_setup_screen(
-        event_bus, battery_reader, network_status, [](const std::string& ssid, const std::string& password) {
-            homedeck::ApplyWifiCredentials(ssid, password);
+    homedeck::AppCore app_core(
+        event_bus,
+        {
+            .battery_reader = battery_reader,
+            .network_status = network_status,
+            .audio_output = audio_output,
+            .display_brightness = display_brightness,
+            .user_activity_source = user_activity_source,
+            .settings_store = settings_store,
+            .cache_store = cache_store,
+            .secret_store = secret_store,
+            .http_client = http_client,
+            .http_server = web_server,
+            .time_source = time_source,
+            .wifi_submit =
+                [](const std::string& ssid, const std::string& password) {
+                    homedeck::ApplyWifiCredentials(ssid, password);
+                },
+            .ota_writer = BuildOtaWriter(),
+            .ota_reboot = ScheduleReboot,
+            .read_core_dump =
+                []() -> std::optional<std::string> {
+                    // Real flash read against the coredump partition (see
+                    // docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md)
+                    // - mirrors crash_diagnostics.cpp's own
+                    // esp_core_dump_image_check() gate rather than
+                    // trusting esp_core_dump_image_get() alone to signal
+                    // absence.
+                    if (esp_core_dump_image_check() != ESP_OK) {
+                        return std::nullopt;
+                    }
+                    size_t addr = 0, size = 0;
+                    if (esp_core_dump_image_get(&addr, &size) != ESP_OK || size == 0) {
+                        return std::nullopt;
+                    }
+                    std::string buffer(size, '\0');
+                    if (esp_flash_read(esp_flash_default_chip, buffer.data(), addr, size) != ESP_OK) {
+                        return std::nullopt;
+                    }
+                    return buffer;
+                },
         });
-    navigation.Register("wifi-setup", wifi_setup_screen.Root());
     // wifi_check (above) already knows whether setup is needed, so the
     // correct screen loads immediately - never the dashboard first,
     // followed a moment later by a redirect once ConnectToWifi() below
     // gets around to it.
     if (!wifi_check.has_stored_credentials) {
-        wifi_setup_screen.SetApInfo(wifi_check.ap_ssid, wifi_check.ap_ip);
-        navigation.GoTo("wifi-setup");
+        app_core.GetWifiSetupScreen().SetApInfo(wifi_check.ap_ssid, wifi_check.ap_ip);
+        app_core.GetNavigation().GoTo("wifi-setup");
     }
     lv_obj_delete(splash);
     bsp_display_unlock();
@@ -477,26 +371,28 @@ extern "C" void app_main(void) {
         printf("Wi-Fi setup screen loaded\n");
     }
 
-    // Clock (the ClockTickEvent publisher) must exist after the
-    // dashboard (the subscriber) is already listening - see
-    // simulator/main.cpp's identical ordering note. Clock publishes one
-    // tick immediately at construction so subscribers get a real value
-    // right away rather than sitting blank for up to a full tick period.
-    homedeck::Clock clock(time_source, event_bus);
+    // Every ClockTickEvent subscriber above is already constructed, so
+    // this can't miss the first tick regardless of the order they were
+    // built in - see clock.h's own comment on why this is a separate
+    // call.
+    app_core.Start();
 
-    homedeck::LogCrashDiagnostics(storage);
+    homedeck::LogCrashDiagnostics(app_core.GetStorage());
 
-    // Constructed here, ahead of Wi-Fi/mDNS below, so Logger - built on
-    // Storage (constructed earlier above, see its own comment there),
-    // see docs/decisions/ADR-0019-structured-logging.md - can record
-    // those as real boot-sequence events rather than starting its
-    // persisted log only once the Web UI's own setup begins. See
-    // docs/architecture/web-ui.md#admin-password for why the password
-    // hash storage this also backs stays plain NVS/FAT for now, per
-    // ADR-0018's staged security model. The password hash itself goes
-    // through secret_store, not settings_store - see
-    // docs/decisions/ADR-0010-secret-storage.md#decision-secret-storage-interface.
-    homedeck::Logger logger(storage, time_source);
+    // See settings_routes.h/AppCore::SetOnDeviceNameChanged()'s own
+    // comments - deferred until after AppCore's construction so this can
+    // safely reference GetLogger().
+    app_core.SetOnDeviceNameChanged([&app_core](const std::string& value) -> bool {
+        if (!IsValidHostnameLabel(value)) {
+            return false;
+        }
+        bool ok = mdns_hostname_set(value.c_str()) == ESP_OK;
+        if (ok) {
+            printf("mDNS re-announced as %s.local\n", value.c_str());
+            app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "mdns", "Re-announced as " + value + ".local");
+        }
+        return ok;
+    });
 
     // Continues from InitWifiAndCheckStoredCredentials() above - blocks
     // until connected, either immediately (stored credentials), until a
@@ -508,36 +404,35 @@ extern "C" void app_main(void) {
     // ui/ui_dispatch.h), since they fire from ConnectToWifi()'s own
     // task, not the UI task (see ADR-0011).
     homedeck::WifiUiCallbacks wifi_ui_callbacks;
-    wifi_ui_callbacks.on_setup_needed = [&navigation, &wifi_setup_screen](const std::string& ap_ssid,
-                                                                            const std::string& ap_ip) {
-        homedeck::PostToUiThread([&navigation, &wifi_setup_screen, ap_ssid, ap_ip]() {
-            wifi_setup_screen.SetApInfo(ap_ssid, ap_ip);
-            navigation.GoTo("wifi-setup");
+    wifi_ui_callbacks.on_setup_needed = [&app_core](const std::string& ap_ssid, const std::string& ap_ip) {
+        homedeck::PostToUiThread([&app_core, ap_ssid, ap_ip]() {
+            app_core.GetWifiSetupScreen().SetApInfo(ap_ssid, ap_ip);
+            app_core.GetNavigation().GoTo("wifi-setup");
         });
     };
-    wifi_ui_callbacks.on_connected = [&navigation]() {
-        homedeck::PostToUiThread([&navigation]() { navigation.GoHome(); });
+    wifi_ui_callbacks.on_connected = [&app_core]() {
+        homedeck::PostToUiThread([&app_core]() { app_core.GetNavigation().GoHome(); });
     };
     homedeck::ConnectToWifi(wifi_ui_callbacks);
     printf("Wi-Fi connected\n");
-    logger.Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
+    app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
 
     // "homedeck" by default, or whatever a user has set via the Web
     // UI's Settings page (see docs/decisions/ADR-0023-settings-backup-api.md).
-    std::string device_name = ResolveDeviceName(storage);
-    RegisterMdns(device_name, logger);
+    std::string device_name = ResolveDeviceName(app_core.GetStorage());
+    RegisterMdns(device_name, app_core.GetLogger());
 
-    // A monotonic clock, not the shared wall-clock time_source above -
-    // see platform/steady_time_source.h for why session expiry can't
-    // trust Rx8130TimeSource yet.
-    homedeck::SteadyTimeSource auth_time_source;
-    homedeck::AdminAuthService admin_auth(storage, auth_time_source);
-
-    // Declared here (not in a narrower scope) so it stays alive for the
-    // rest of app_main's life, which never returns.
-    homedeck::FirmwareHttpServer web_server;
-    StartWebServer(web_server, event_bus, storage, admin_auth, battery_reader, logger, http_client, weather_provider,
-                   BuildOtaWriter());
+    // Started only now, after Wi-Fi connects and wifi_setup.cpp's own
+    // temporary SoftAP-setup server has already stopped, so there's no
+    // port/lifecycle overlap between the two. Routes were already
+    // registered against web_server inside AppCore's constructor above.
+    if (web_server.Start(80)) {
+        printf("Web UI listening on port 80\n");
+        app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");
+    } else {
+        printf("Web UI failed to start\n");
+        app_core.GetLogger().Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
+    }
 
     // A real, meaningful "this boot actually worked" checkpoint - see
     // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.

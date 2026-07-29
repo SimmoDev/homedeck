@@ -25,7 +25,20 @@ public:
     explicit Clock(TimeSource& time_source, EventBus& event_bus,
                     std::chrono::milliseconds tick_period = std::chrono::seconds(1));
 
+    // Publishes the first tick immediately, rather than leaving
+    // subscribers - e.g. a freshly created clock label - showing
+    // nothing meaningful for up to tick_period. Deliberately not done
+    // in the constructor: that would make every ClockTickEvent
+    // subscriber's construction-order relative to Clock's own load-
+    // bearing (a subscriber constructed after Clock silently misses this
+    // tick, with nothing to catch the mistake). Call once, after every
+    // subscriber that needs this first tick already exists - construction
+    // order no longer matters as long as this call comes last.
+    void Start();
+
 private:
+    TimeSource& time_source_;
+    EventBus& event_bus_;
     Timer timer_;
 };
 

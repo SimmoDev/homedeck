@@ -113,7 +113,7 @@ src/
                  owns LVGL on-device - only the `lv_async_call()`
                  hand-off pattern itself is replicated in
                  firmware/main/homedeck.cpp, not the whole class. Also
-                 Navigation - a minimal real route registry
+                 Navigation - a minimal route registry
                  (Core's Navigation responsibility conceptually, but lives
                  here since lv_scr_load() is a UI-layer implementation
                  detail, same reasoning as EventBus staying LVGL-free);
@@ -125,7 +125,7 @@ src/
                  (see dashboard.md#widget-system); NotificationBanner -
                  the screen-banner notification output, parented to
                  LVGL's top layer so it renders above whatever screen is
-                 active. Also the real dashboard widgets: ClockWidget
+                 active. Also the dashboard widgets: ClockWidget
                  (the large clock tile, distinct from StatusBar's compact
                  one), NetworkStatusWidget (SSID/IP detail beyond the
                  status bar's Wi-Fi icon), WeatherWidget (see
@@ -138,7 +138,16 @@ src/
                  screen (see docs/architecture/dashboard.md), and
                  WifiSetupScreen, the Touch UI fallback for initial
                  Wi-Fi provisioning (see networking.md) - both reused
-                 directly by both the simulator and firmware.
+                 directly by both the simulator and firmware. Also
+                 AppCore - the composition root every one of the above
+                 (plus most of core/, see above) is built and wired
+                 through, shared by firmware/main/homedeck.cpp's
+                 app_main() and simulator/main.cpp's main() so the same
+                 ~20-object graph isn't hand-duplicated across both entry
+                 points. Two-phase on purpose (construct, then an
+                 explicit Start()) so EventBus subscription order no
+                 longer depends on construction order - see its own
+                 header comment.
 ```
 
 `third_party/` sits alongside these three - vendored header-only dependencies

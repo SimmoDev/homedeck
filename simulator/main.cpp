@@ -1,18 +1,6 @@
-#include "core/admin_auth_service.h"
-#include "core/clock.h"
-#include "core/critical_battery_monitor.h"
-#include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
-#include "core/logger.h"
-#include "core/low_battery_monitor.h"
-#include "core/network_status_monitor.h"
-#include "core/notification_sound.h"
 #include "core/ota_routes.h"
-#include "core/power_manager.h"
-#include "core/settings_routes.h"
 #include "core/storage.h"
-#include "core/weather_provider.h"
-#include "core/weather_routes.h"
 #include "platform/host/audio_output.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/cache_store.h"
@@ -26,20 +14,11 @@
 #include "platform/host/time_source.h"
 #include "platform/host/ui_task.h"
 #include "platform/static_assets.h"
-#include "platform/steady_time_source.h"
-#include "ui/clock_widget.h"
+#include "ui/app_core.h"
 #include "ui/lvgl_user_activity_source.h"
 #include "ui/navigation.h"
-#include "ui/network_status_widget.h"
-#include "ui/notification_banner.h"
-#include "ui/notification_widget.h"
-#include "ui/quick_settings_panel.h"
-#include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
-#include "ui/status_bar.h"
-#include "ui/weather_widget.h"
 
-#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -72,28 +51,6 @@ static constexpr float kDefaultWindowZoom = 0.75f;
 static constexpr uint16_t kDefaultWebPort = 8080;
 
 namespace {
-
-// Shared shape with firmware/main/homedeck.cpp's identical helper -
-// duplicated rather than factored into Core, same reasoning as
-// notification_sound.cpp's own tone generator: small enough that a
-// shared abstraction for two call sites isn't worth it. std::from_chars,
-// not std::stoi - matches Storage's own internal parsing (see
-// storage.cpp's Decode()) for the same firmware-builds-without-
-// exceptions reason, even though only the simulator strictly needs it
-// here - keeping both call sites identical is worth more than exploiting
-// a target-specific shortcut.
-int ReadIntSetting(homedeck::Storage& storage, const char* module_id, const char* key, int fallback) {
-    std::optional<homedeck::VersionedValue> setting = storage.GetSetting(module_id, key);
-    if (!setting) {
-        return fallback;
-    }
-    int value = 0;
-    auto [ptr, ec] = std::from_chars(setting->value.data(), setting->value.data() + setting->value.size(), value);
-    if (ec != std::errc{} || ptr != setting->value.data() + setting->value.size()) {
-        return fallback;
-    }
-    return value;
-}
 
 float ResolveWindowZoom() {
     const char* override_str = std::getenv("HOMEDECK_SIM_ZOOM");
@@ -447,21 +404,14 @@ void CreateTestTriggerActiveButton(lv_obj_t* parent, DebugOverridableUserActivit
 
 }  // namespace
 
-// The dashboard shell, StatusBar, and DashboardGrid widget framework -
-// see dashboard.md's Status for what's real. Plus a minimal Navigation
-// manager and persistent home affordance, proven via a deliberately
-// throwaway second screen (see screens/placeholder_screen.h).
+// The simulator entry point - platform backends and debug-only wiring
+// live here; the dashboard, Navigation, and every other shared Core/UI
+// object are built by AppCore (see ui/app_core.h), the same class
+// firmware/main/homedeck.cpp's app_main() constructs.
 int main() {
     homedeck::EventBus event_bus;
     homedeck::UiTask ui_task(kWindowWidth, kWindowHeight, event_bus, ResolveWindowZoom());
 
-    // DashboardScreen (whose StatusBar and ClockWidget members are both
-    // ClockTickEvent subscribers) must exist before Clock (the
-    // publisher) - Clock publishes one tick immediately at construction
-    // (see clock.cpp) so subscribers get a real value right away rather
-    // than sitting blank for up to a full tick period; that only
-    // reaches anyone if the subscription already exists when it
-    // happens.
     homedeck::HostBatteryReader battery_reader;
     homedeck::HostNetworkStatus network_status;
     homedeck::HostAudioOutput audio_output;
@@ -472,125 +422,109 @@ int main() {
     homedeck::LvglUserActivitySource real_user_activity_source;
     DebugOverridableUserActivitySource user_activity_source(real_user_activity_source);
 
-    // Moved ahead of the dashboard's construction below (unlike Logger
-    // further down, which doesn't need to be) so WeatherWidget can be
-    // constructed alongside ClockWidget/NetworkStatusWidget - see
-    // homedeck.cpp's identical reordering note (no equivalent OS-init
-    // constraint here, HostSettingsStore/HostSecretStore are plain
-    // filesystem paths).
+    // HostSettingsStore/HostSecretStore are plain filesystem paths - no
+    // OS-init constraint like firmware's nvs_flash_init() to order
+    // around here.
     std::filesystem::path storage_root = std::filesystem::temp_directory_path() / "homedeck_simulator";
     homedeck::HostSettingsStore settings_store(storage_root);
     homedeck::HostCacheStore cache_store(storage_root);
     homedeck::HostSecretStore secret_store(storage_root);
-    homedeck::Storage storage(settings_store, cache_store, secret_store);
     homedeck::HostHttpClient http_client;
-    homedeck::OpenMeteoWeatherProvider weather_provider(http_client, storage, event_bus);
+    // The Web Management UI's server primitive (see
+    // docs/architecture/web-ui.md#status) - the built Svelte/Vite
+    // scaffold plus admin auth, settings, and diagnostics.
+    homedeck::HostHttpServer web_server;
+    homedeck::HostTimeSource time_source;
 
-    homedeck::DashboardScreen dashboard(event_bus, battery_reader, network_status);
-    homedeck::ClockWidget clock_widget(dashboard.Grid().Container(), event_bus);
-    dashboard.Grid().AddWidget(clock_widget);
-    homedeck::NetworkStatusWidget network_status_widget(dashboard.Grid().Container(), event_bus, network_status);
-    dashboard.Grid().AddWidget(network_status_widget);
-    homedeck::WeatherWidget weather_widget(dashboard.Grid().Container(), event_bus, weather_provider);
-    dashboard.Grid().AddWidget(weather_widget);
-    homedeck::NotificationWidget notification_widget(dashboard.Grid().Container(), event_bus);
-    dashboard.Grid().AddWidget(notification_widget);
+    // Declared here, not narrower - captured by reference into
+    // ota_writer.write_image below, which must stay valid for the
+    // server's lifetime.
+    bool force_ota_failure = false;
+    // No real OTA partition here - matches firmware's 4MB ota_0/ota_1
+    // sizing (see docs/decisions/ADR-0017-partition-table.md) so an
+    // oversized-upload rejection is exercisable identically on both
+    // targets. write_image reads the body (exercising the same read
+    // path as firmware) and discards it - no real partition writes, per
+    // docs/architecture/simulator.md's OTA mock description.
+    homedeck::OtaWriter ota_writer{
+        .max_image_size = []() -> size_t { return 4 * 1024 * 1024; },
+        .write_image =
+            [&force_ota_failure](const std::string& /*image*/) -> bool { return !force_ota_failure; },
+        .running_version = []() -> std::string { return "simulator-dev"; },
+    };
 
-    homedeck::Navigation navigation("dashboard", dashboard.Root());
-
-    // Touch UI fallback for initial Wi-Fi setup (see
-    // docs/architecture/networking.md#initial-wi-fi-provisioning) - built
-    // and exercisable here like any other screen, per this project's
-    // "simulator as primary UI dev environment" philosophy, even though
-    // there's no real esp_wifi call to make on this target.
-    homedeck::WifiSetupScreen wifi_setup_screen(
-        event_bus, battery_reader, network_status, [](const std::string& ssid, const std::string& password) {
-            std::printf("Wi-Fi setup submitted (no-op in simulator): SSID=%s\n", ssid.c_str());
+    // Builds the full shared object graph (dashboard, widgets,
+    // notifications, PowerManager, Web UI routes, ...) - see
+    // ui/app_core.h.
+    homedeck::AppCore app_core(
+        event_bus,
+        {
+            .battery_reader = battery_reader,
+            .network_status = network_status,
+            .audio_output = audio_output,
+            .display_brightness = display_brightness,
+            .user_activity_source = user_activity_source,
+            .settings_store = settings_store,
+            .cache_store = cache_store,
+            .secret_store = secret_store,
+            .http_client = http_client,
+            .http_server = web_server,
+            .time_source = time_source,
+            .wifi_submit =
+                [](const std::string& ssid, const std::string& /*password*/) {
+                    std::printf("Wi-Fi setup submitted (no-op in simulator): SSID=%s\n", ssid.c_str());
+                },
+            .ota_writer = ota_writer,
+            .ota_reboot = []() { std::printf("OTA reboot requested (no-op in simulator)\n"); },
+            .read_core_dump =
+                []() -> std::optional<std::string> {
+                    return std::string(
+                        "This is a simulator-only stub core dump for Web UI development - "
+                        "see docs/architecture/diagnostics.md.");
+                },
+            // No device-name-changed callback - there's no mDNS to
+            // re-announce on the simulator, so a device name change just
+            // persists to storage like any other setting (see
+            // AppCore::SetOnDeviceNameChanged()'s own comment on why the
+            // callback is optional).
         });
+
     // No real SoftAP here to derive these from - a fixed placeholder is
     // enough to exercise the layout (see wifi_setup_screen.h's SetApInfo).
-    wifi_setup_screen.SetApInfo("HomeDeck-SIM01", "192.168.4.1");
-    navigation.Register("wifi-setup", wifi_setup_screen.Root());
-    CreateTestBackToDashboardButton(wifi_setup_screen.Root(), navigation);
+    app_core.GetWifiSetupScreen().SetApInfo("HomeDeck-SIM01", "192.168.4.1");
+    CreateTestBackToDashboardButton(app_core.GetWifiSetupScreen().Root(), app_core.GetNavigation());
 
-    lv_obj_t* test_button_panel = CreateTestButtonPanel(dashboard.Root());
-    CreateTestWifiSetupNavButton(test_button_panel, navigation);
+    lv_obj_t* test_button_panel = CreateTestButtonPanel(app_core.GetDashboard().Root());
+    CreateTestWifiSetupNavButton(test_button_panel, app_core.GetNavigation());
     CreateTestWifiDisconnectButton(test_button_panel, network_status);
     CreateTestPlayToneButton(test_button_panel, audio_output);
     CreateTestLowBatteryButton(test_button_panel, battery_reader);
     CreateTestCriticalBatteryButton(test_button_panel, battery_reader);
     CreateTestExternalPowerButton(test_button_panel, battery_reader);
     CreateTestBatteryPresentButton(test_button_panel, battery_reader);
-    // Declared here, not narrower - captured by reference into
-    // ota_writer.write_image below, which must stay valid for the
-    // server's lifetime.
-    bool force_ota_failure = false;
     CreateTestForceOtaFailureButton(test_button_panel, force_ota_failure);
     CreateTestTriggerIdleButton(test_button_panel, user_activity_source);
     CreateTestTriggerSleepingButton(test_button_panel, user_activity_source);
     CreateTestTriggerActiveButton(test_button_panel, user_activity_source);
+    CreateTestLogEntryButton(test_button_panel, app_core.GetLogger());
 
-    // Read once at startup, before constructing the objects these seed -
-    // see quick_settings_panel.h for where they're subsequently
-    // controlled. Falls back to the pre-existing hardcoded defaults
-    // (100/70) if unset (first boot) or unparsable.
-    int initial_active_brightness_percent = ReadIntSetting(storage, "power", "brightness", 100);
-    int initial_volume_percent = ReadIntSetting(storage, "audio", "volume", 70);
+    // Every ClockTickEvent subscriber above is already constructed, so
+    // this can't miss the first tick regardless of the order they were
+    // built in - see clock.h's own comment on why this is a separate
+    // call.
+    app_core.Start();
 
-    // NotificationBanner and NotificationSound must exist before
-    // LowBatteryMonitor, which must exist before Clock (the
-    // ClockTickEvent publisher) - the same "subscriber before publisher"
-    // ordering StatusBar's own comment above already explains, extended
-    // one step further: LowBatteryMonitor itself publishes
-    // NotificationEvent, so both subscribers need to already be
-    // registered before that first tick could fire one.
-    homedeck::NotificationBanner notification_banner(event_bus);
-    homedeck::NotificationSound notification_sound(event_bus, audio_output, initial_volume_percent);
-    homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
-    // Same ordering rule as LowBatteryMonitor above - also a
-    // ClockTickEvent subscriber, and also publishes NotificationEvent,
-    // so it needs NotificationBanner/NotificationSound already
-    // registered too.
-    homedeck::CriticalBatteryMonitor critical_battery_monitor(event_bus, battery_reader);
-    // Same "subscriber before publisher" ordering as LowBatteryMonitor -
-    // NetworkStatusMonitor is also a ClockTickEvent subscriber.
-    homedeck::NetworkStatusMonitor network_status_monitor(event_bus, network_status);
-    // Grouped here for readability, not a real ordering dependency on
-    // NotificationBanner/NotificationSound - see homedeck.cpp's identical
-    // note. A second SteadyTimeSource instance (stateless, see
-    // platform/steady_time_source.h) rather than sharing auth_time_source
-    // below, which is constructed later and named for AdminAuthService
-    // specifically.
-    homedeck::SteadyTimeSource power_time_source;
-    homedeck::PowerManager power_manager(event_bus, user_activity_source, display_brightness,
-                                          power_time_source, initial_active_brightness_percent);
-    // Needs PowerManager/NotificationSound/Storage all already
-    // constructed above - see quick_settings_panel.h.
-    homedeck::QuickSettingsPanel quick_settings_panel(event_bus, power_manager, notification_sound, storage);
+    // Diagnostics needs real Storage-resident data to read (see
+    // firmware/main/crash_diagnostics.cpp for the real, firmware-only
+    // equivalent) - mock values here so the Web UI's diagnostics page is
+    // exercisable in dev without real hardware, per
+    // docs/architecture/diagnostics.md's "Firmware-only mechanism" note.
+    // Read at request time by the diagnostics route AppCore's
+    // constructor already registered, so setting these after
+    // construction (but before the server starts below) is enough.
+    app_core.GetStorage().SetSetting("core", "reset_reason", 1, "power-on");
+    app_core.GetStorage().SetSetting("core", "has_core_dump", 1, "true");
 
-    homedeck::HostTimeSource time_source;
-    homedeck::Clock clock(time_source, event_bus);
-
-    // Storage (constructed earlier above, see its own comment there)
-    // backs both AdminAuthService's password hash - a fixed location
-    // under the OS temp directory rather than a fresh one per run, so
-    // the simulator's admin password persists across restarts the same
-    // way NVS would on real hardware, instead of demanding first-login
-    // setup again every time the simulator relaunches - and Logger here.
-    homedeck::Logger logger(storage, time_source);
-    CreateTestLogEntryButton(test_button_panel, logger);
-    // A monotonic clock, not the shared wall-clock time_source above -
-    // matches firmware's identical choice (see
-    // platform/steady_time_source.h) so AdminAuthService behaves the
-    // same on both targets, rather than the simulator's forgiving host
-    // wall clock accidentally masking a real firmware-only issue.
-    homedeck::SteadyTimeSource auth_time_source;
-    homedeck::AdminAuthService admin_auth(storage, auth_time_source);
-
-    // The Web Management UI's server primitive (see
-    // docs/architecture/web-ui.md#status) - the built Svelte/Vite
-    // scaffold plus admin auth, settings, and diagnostics.
-    homedeck::HostHttpServer web_server;
     // Read once at startup, not per-request - matches firmware's
     // EMBED_FILES approach (data available for the process's lifetime),
     // see homedeck.cpp's identical wiring and
@@ -610,47 +544,16 @@ int main() {
         }
     }
     homedeck::ServeStaticFiles(web_server, std::move(webui_assets));
-    homedeck::RegisterAdminAuthRoutes(web_server, admin_auth);
-    // Diagnostics needs real Storage-resident data to read (see
-    // firmware/main/crash_diagnostics.cpp for the real, firmware-only
-    // equivalent) - mock values here so the Web UI's diagnostics page is
-    // exercisable in dev without real hardware, per
-    // docs/architecture/diagnostics.md's "Firmware-only mechanism" note.
-    storage.SetSetting("core", "reset_reason", 1, "power-on");
-    storage.SetSetting("core", "has_core_dump", 1, "true");
-    homedeck::RegisterDiagnosticsRoutes(web_server, storage, admin_auth, battery_reader, logger,
-                                         []() -> std::optional<std::string> {
-        return std::string(
-            "This is a simulator-only stub core dump for Web UI development - "
-            "see docs/architecture/diagnostics.md.");
-    });
-    // No real OTA partition here - matches firmware's 4MB ota_0/ota_1
-    // sizing (see docs/decisions/ADR-0017-partition-table.md) so an
-    // oversized-upload rejection is exercisable identically on both
-    // targets. write_image reads the body (exercising the same read
-    // path as firmware) and discards it - no real partition writes, per
-    // docs/architecture/simulator.md's OTA mock description.
-    homedeck::OtaWriter ota_writer{
-        .max_image_size = []() -> size_t { return 4 * 1024 * 1024; },
-        .write_image =
-            [&force_ota_failure](const std::string& /*image*/) -> bool { return !force_ota_failure; },
-        .running_version = []() -> std::string { return "simulator-dev"; },
-    };
-    homedeck::RegisterOtaRoutes(web_server, event_bus, admin_auth, battery_reader, ota_writer,
-                                 []() { std::printf("OTA reboot requested (no-op in simulator)\n"); });
-    // No device-name-changed callback - there's no mDNS to re-announce
-    // on the simulator, so a device name change just persists to
-    // storage like any other setting (see settings_routes.h's own
-    // comment on why the callback is optional).
-    homedeck::RegisterSettingsRoutes(web_server, storage, admin_auth);
-    homedeck::RegisterWeatherRoutes(web_server, http_client, weather_provider, admin_auth);
+
     uint16_t web_port = ResolveWebPort();
     if (web_server.Start(web_port)) {
         std::printf("Web UI listening on http://localhost:%u/\n", web_port);
-        logger.Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port " + std::to_string(web_port));
+        app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "web_server",
+                                  "Listening on port " + std::to_string(web_port));
     } else {
         std::printf("Web UI failed to start on port %u\n", web_port);
-        logger.Log(homedeck::LogLevel::kError, "web_server", "Failed to start on port " + std::to_string(web_port));
+        app_core.GetLogger().Log(homedeck::LogLevel::kError, "web_server",
+                                  "Failed to start on port " + std::to_string(web_port));
     }
 
     ui_task.Run();

@@ -18,20 +18,23 @@ public:
 
 }  // namespace
 
-TEST(Clock, PublishesAnImmediateTickAtConstruction) {
-    // Subscribe *before* constructing Clock - this is the scenario the
-    // immediate-publish behavior exists for (see clock.cpp): a screen
-    // subscribing and then being handed current time right away, not
-    // left showing nothing until the first periodic tick.
+TEST(Clock, StartPublishesAnImmediateTick) {
+    // Subscribe *before* calling Start() - this is the scenario Start()
+    // exists for (see clock.h): a screen subscribing and then being
+    // handed current time right away, not left showing nothing until
+    // the first periodic tick.
     homedeck::EventBus bus;
     std::optional<homedeck::ClockTickEvent> received;
     auto sub = bus.Subscribe<homedeck::ClockTickEvent>(
         [&received](const homedeck::ClockTickEvent& e) { received = e; });
 
     FakeTimeSource time_source;
-    // Long period - if this test passes, it's because of the immediate
+    // Long period - if this test passes, it's because of Start()'s
     // publish, not a periodic tick arriving during the test.
     homedeck::Clock clock(time_source, bus, std::chrono::seconds(60));
+    EXPECT_FALSE(received.has_value());
+
+    clock.Start();
 
     ASSERT_TRUE(received.has_value());
     EXPECT_EQ(received->time, time_source.fixed_time);
