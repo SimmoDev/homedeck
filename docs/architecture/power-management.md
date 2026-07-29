@@ -178,10 +178,14 @@ and `PowerManager` transitions into `kError` (and back to `kActive` on
 recovery) accordingly, through the `Ina226BatteryReader` path. `kError`
 takes priority over `kUpdating` if both are true at once, per ADR-0005's
 "force a safe shutdown right now regardless of what the UI is doing" -
-deliberately interrupting an in-progress OTA write rather than
-deferring to it, since `esp_ota_end()` already validates an image
-before it can become bootable, so an interrupted write fails safe. Of
-the other two fault types ADR-0005 originally scoped Error to cover:
+the power *state* flips to `kError` immediately even mid-upload, though
+`PowerManager` has no mechanism to actually halt the in-progress
+`esp_ota_write()` call itself, which keeps running on its own thread
+regardless. Safety here comes from `esp_ota_end()` already validating an
+image before it can become bootable, not from PowerManager stopping the
+write: a genuine power loss during the write leaves that image
+unvalidated and un-bootable, which is what fails safe. Of the other two
+fault types ADR-0005 originally scoped Error to cover:
 charging-fault detection is a permanent limitation of this board
 revision, not outstanding work - `CHG_STAT` (see [hardware.md](hardware.md#power))
 can't distinguish a stalled charge from a simply-unplugged or
