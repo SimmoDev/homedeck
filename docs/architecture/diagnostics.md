@@ -93,7 +93,7 @@ with no way to be exercised before real hardware exists.
 
 ## Status
 
-**Crash and reboot diagnostics are real**, confirmed on real hardware
+**Crash and reboot diagnostics are implemented**, confirmed on real hardware
 including a real triggered panic (`firmware/main/crash_diagnostics.cpp`):
 a deliberate `abort()` produced a real panic printout, the device
 rebooted cleanly rather than halting (repeatedly, across several cycles),
@@ -153,5 +153,7 @@ tier's bounded retention - the one concrete use
 - is not built.
 
 Still not implemented: module status and connection state (no modules
-exist to report on), and error reporting (routes through
-Notifications, a separate not-yet-built item).
+exist to report on yet). Error reporting's mechanism is ready —
+Notifications is implemented (see [core.md](core.md#status)) — but nothing
+publishes an error through it yet, since no module exists to report
+one.

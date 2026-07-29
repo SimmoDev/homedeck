@@ -155,12 +155,12 @@ hand-off. The rest of Diagnostics (module status, connection state,
 error reporting) remains unbuilt — see
 [diagnostics.md](diagnostics.md#status) for the full breakdown.
 
-**The widget system** is real: `Widget` and `DashboardGrid` (`src/ui/`)
+**The widget system** is implemented: `Widget` and `DashboardGrid` (`src/ui/`)
 are the standard interface modules contribute dashboard content through
 — see [dashboard.md](dashboard.md#status) for what's built and what
 (weather, the first real widget) is still a follow-up.
 
-**Notifications** are real: the urgency concept ADR-0005 requires
+**Notifications** are implemented: the urgency concept ADR-0005 requires
 (`NotificationSeverity`, `src/core/notification.h`), the `EventBus`-based
 publish path, and all three presentation outputs (`NotificationBanner`,
 `NotificationSound`, `NotificationWidget`, all `src/ui/`) exist, with
@@ -175,11 +175,29 @@ self-advertisement both work on hardware (see
 modules to discover Home Assistant/Kodi remains unbuilt, with no real
 consumer until one of those modules exists.
 
-Everything else in the Responsibilities list above — Application
-lifecycle, OTA updates (the A/B partition table exists, per
-[ADR-0017](../decisions/ADR-0017-partition-table.md), but not the update
-flow itself), Power management, Weather services — is still just the
-required responsibility, not a finalized API; that design happens
-starting at M2 (Platform Services), informed by the concrete needs of
-the Harmony module in M3 rather than designed speculatively ahead of a
-real consumer.
+**OTA updates** are implemented: `POST /api/ota/upload`/`POST /api/ota/reboot`
+(`src/core/ota_routes.h`/`.cpp`), gated by `EvaluateOtaGate()`
+(`src/core/ota_gate.h`) per
+[ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-ota-batterypower-gate)
+on top of the A/B partition table
+([ADR-0017](../decisions/ADR-0017-partition-table.md)) — see
+[web-ui.md](web-ui.md#status) for the full detail. Image signing remains a
+known, deliberately deferred gap — see
+[security.md](security.md#ota-image-integrity).
+
+**Power management** is implemented: `PowerManager`
+(`src/core/power_manager.h`/`.cpp`) implements the full
+`Active`/`Idle`/`Sleeping`/`Updating`/`Error` state model — see
+[power-management.md](power-management.md#status) for the full detail.
+
+**Weather services** are implemented: the `WeatherProvider` interface
+(`src/core/weather_provider.h`/`.cpp`), with `OpenMeteoWeatherProvider` as
+the direct implementation feeding `WeatherWidget` — see
+[dashboard.md](dashboard.md#weather-source).
+
+**Application lifecycle** is still just the required responsibility, not
+a finalized API: module init/start/stop/teardown has no real consumer
+until a module exists (see
+[ADR-0003](../decisions/ADR-0003-module-architecture.md)), so this stays
+deferred to M3 by design rather than designed speculatively ahead of
+Harmony's concrete needs.
