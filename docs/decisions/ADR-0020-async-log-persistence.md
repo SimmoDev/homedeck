@@ -61,7 +61,7 @@ act on.
   structurally correct fix, since it avoids the shared-bus mechanism
   entirely, and already the intended future role for that tier (see
   [ADR-0012](ADR-0012-storage-tiers.md)). Deliberately deferred:
-  CLAUDE.md requires HomeDeck work fully on stock hardware without a
+  [CLAUDE.md](../../CLAUDE.md) requires HomeDeck work fully on stock hardware without a
   card present, so this can only ever be a fallback-guarded enhancement
   layered on top of internal-flash logging, not a standalone fix, and
   the SDMMC bring-up plus presence-detection/fallback logic is real,

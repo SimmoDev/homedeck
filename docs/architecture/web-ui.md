@@ -9,7 +9,7 @@ tradeoffs and rejected alternatives behind the decisions referenced below.
 
 ## Scope
 
-Per CLAUDE.md, the Web UI provides:
+Per [CLAUDE.md](../../CLAUDE.md), the Web UI provides:
 
 - Wi-Fi management (post-provisioning — viewing/changing an already-connected
   network; *not* first-run setup, see [Relationship to Wi-Fi
@@ -43,7 +43,7 @@ requirement for pushing live updates to a WebSocket from Core's event bus
 
 ## Diagnostics
 
-The Web UI is the primary surface for the diagnostics CLAUDE.md requires as
+The Web UI is the primary surface for the diagnostics [CLAUDE.md](../../CLAUDE.md) requires as
 a first-class feature — see [diagnostics.md](diagnostics.md) for the full
 design (structured logs, module status, connection state, error reporting,
 crash/reboot diagnostics). Diagnostics data is produced by Core (see
@@ -66,7 +66,7 @@ so on, not first-run bootstrapping.
 ## Security
 
 See [security.md](security.md) for the cross-cutting picture against all
-of CLAUDE.md's security requirements. What's specific to the Web UI:
+of [CLAUDE.md](../../CLAUDE.md)'s security requirements. What's specific to the Web UI:
 
 - The SoftAP captive portal (unauthenticated by nature — there's no
   credential to check yet) is scoped narrowly to collecting Wi-Fi

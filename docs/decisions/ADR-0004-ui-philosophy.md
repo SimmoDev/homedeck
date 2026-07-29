@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-CLAUDE.md defines two distinct interfaces (Touch UI and Web Management UI)
+[CLAUDE.md](../../CLAUDE.md) defines two distinct interfaces (Touch UI and Web Management UI)
 with different priorities, and a dashboard-centric home screen fed by
 modules through a standard widget interface. It establishes the goal of
 making HomeDeck "feel like a living-room command centre rather than just a
@@ -93,7 +93,7 @@ to it (e.g. a horizontal swipe through a media carousel, a vertical scroll
 gesture near an edge) — the framework can't rule this out for screens that
 don't exist yet. A power-button long-press depends on hardware behavior
 (whether the button is readable as a general input outside its wake-source
-role) that hasn't been verified. Given CLAUDE.md requires this to hold
+role) that hasn't been verified. Given [CLAUDE.md](../../CLAUDE.md) requires this to hold
 universally, not just usually, the option with the fewest unverified
 assumptions wins. This doesn't preclude also supporting an edge-swipe
 shortcut later as a power-user convenience (M7 — Polish) once the baseline
@@ -102,7 +102,7 @@ affordance, not a gesture.
 
 ## Decision: UI state-management pattern
 
-CLAUDE.md does not specify how individual screens should manage local UI
+[CLAUDE.md](../../CLAUDE.md) does not specify how individual screens should manage local UI
 state beyond "event-driven" and "widgets provided through a standard
 interface."
 

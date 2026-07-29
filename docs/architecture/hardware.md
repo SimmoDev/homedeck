@@ -171,7 +171,7 @@ the detailed technical evidence and results that decision summarizes.
 **M5Unified/M5GFX's Arduino-based path is avoided, not used.** M5Unified
 has a confirmed, open, unresolved crash on ESP32-P4/Tab5 specifically
 when used via ESP-IDF's Arduino-as-Component integration (the only way to
-use it outside the Arduino IDE, which CLAUDE.md rules out) —
+use it outside the Arduino IDE, which [CLAUDE.md](../../CLAUDE.md) rules out) —
 [m5stack/M5Unified#231](https://github.com/m5stack/M5Unified/issues/231),
 a "Load access fault" panic on `M5.Display.width()`. The issue itself
 notes it isn't specific to this chip (references
@@ -392,7 +392,7 @@ second, conflicting one on the same physical pins.
 ### Battery-optional operation
 
 HomeDeck should run fully on a battery-less C145 unit powered from USB-C
-alone — CLAUDE.md's "work fully using stock Tab5 hardware" requirement,
+alone — [CLAUDE.md](../../CLAUDE.md)'s "work fully using stock Tab5 hardware" requirement,
 applied to both SKUs, not just the K145 reference unit. This is a real,
 not hypothetical, gap in what's currently verified:
 
@@ -445,7 +445,7 @@ Confirmed against the project's own reference unit:
 
 ## Camera (out of current scope)
 
-- SC2356 2MP, MIPI-CSI interface. Not part of CLAUDE.md's target hardware
+- SC2356 2MP, MIPI-CSI interface. Not part of [CLAUDE.md](../../CLAUDE.md)'s target hardware
   capability list — recorded here for completeness only. If a future use
   case wants it (e.g. a camera-based feature), this is available on the
   BOM; no current milestone plans to use it.
@@ -459,13 +459,13 @@ Confirmed against the project's own reference unit:
 
 ## microSD
 
-Present on the BOM and explicitly named in CLAUDE.md's target hardware
+Present on the BOM and explicitly named in [CLAUDE.md](../../CLAUDE.md)'s target hardware
 capability list — unlike the items below, this is not out of scope. Used
 for extended log archival (not backups, which are a Web UI download
 instead, and not cached data, which lives on internal flash) — see
 [core.md](core.md#responsibilities) and
 [ADR-0012](../decisions/ADR-0012-storage-tiers.md#decision) for what's
-stored where and why. Per CLAUDE.md's Target Hardware requirement that the
+stored where and why. Per [CLAUDE.md](../../CLAUDE.md)'s Target Hardware requirement that the
 device "work fully using stock Tab5 hardware," and since a card is not
 guaranteed to be present even when the slot is, microSD-backed features
 must degrade gracefully when no card is inserted, not be required.
@@ -474,6 +474,6 @@ must degrade gracefully when no card is inserted, not be required.
 
 RS-485, USB Type-A host, USB-C OTG, HY2.0-4P, M5-Bus, and STAMP pads
 (Cat-M/NB-IoT/LoRaWAN cellular expansion). None of these are used by any
-current milestone or named in CLAUDE.md's target hardware list; recorded
+current milestone or named in [CLAUDE.md](../../CLAUDE.md)'s target hardware list; recorded
 for completeness since they affect what "future hardware capability" could
 mean without a rewrite.

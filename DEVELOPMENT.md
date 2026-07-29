@@ -33,7 +33,7 @@ essential reading, in order:
    [ADR-0015](docs/decisions/ADR-0015-display-orientation.md) — the
    M1-specific decisions with real implementation consequences: touch/
    display detection, LVGL thread safety, the hardware support library
-   actually used for display/touch and for battery/RTC (not CLAUDE.md's
+   actually used for display/touch and for battery/RTC (not [CLAUDE.md](CLAUDE.md)'s
    originally-named one), and display orientation.
 8. [docs/architecture/core.md](docs/architecture/core.md) — the Event bus
    and Time/date services sections describe `EventBus`/`Clock`, which

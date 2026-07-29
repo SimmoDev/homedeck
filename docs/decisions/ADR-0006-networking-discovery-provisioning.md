@@ -9,7 +9,7 @@ SoftAP + captive-portal *architecture* stands.
 ## Context
 
 [networking.md](../architecture/networking.md) describes Core's networking
-responsibilities under CLAUDE.md's local-first philosophy. Three decisions
+responsibilities under [CLAUDE.md](../../CLAUDE.md)'s local-first philosophy. Three decisions
 within that scope involved real tradeoffs and rejected alternatives: how a
 module's external-service calls retry after a failure, whether Core
 provides a shared LAN discovery mechanism, and how the device gets onto

@@ -41,7 +41,7 @@ finished standard.
 
 ## Decision: License
 
-CLAUDE.md establishes HomeDeck as open-source but did not specify a license.
+[CLAUDE.md](../../CLAUDE.md) establishes HomeDeck as open-source but did not specify a license.
 
 **Options considered:**
 
@@ -69,7 +69,7 @@ licensed too. See the root [LICENSE](../../LICENSE) file.
   a special-case integration path.
 - Scope creep is an explicit risk given the breadth of "general-purpose smart
   home controller." The roadmap (see [roadmap.md](../roadmap.md)) and the
-  scope control section of CLAUDE.md are the guardrails against this.
+  scope control section of [CLAUDE.md](../../CLAUDE.md) are the guardrails against this.
 - The MIT `LICENSE` file at the repo root reflects the license decision
   above; any dependency added later should be checked for MIT compatibility
   before being pulled in, not after.

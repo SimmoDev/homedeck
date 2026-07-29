@@ -81,12 +81,12 @@ the module boundary does for it.
 Each module-specific architecture document (e.g. a future
 `docs/architecture/harmony.md`) should be written once that module's design
 is actually being implemented, not speculatively ahead of it — see the
-scope-control guidance in CLAUDE.md.
+scope-control guidance in [CLAUDE.md](../../CLAUDE.md).
 
 ## Status
 
 The concrete module interface (exact base class/lifecycle methods, exact
-registration API) is intentionally undefined here. CLAUDE.md instructs
+registration API) is intentionally undefined here. [CLAUDE.md](../../CLAUDE.md) instructs
 against making assumptions about APIs before implementation; the interface
 will be defined when Harmony (the reference module) is built in M3, and this
 document updated to reflect the real contract rather than a speculative one.

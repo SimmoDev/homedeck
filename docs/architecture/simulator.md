@@ -1,7 +1,7 @@
 # Desktop Simulator
 
 The desktop simulator is the primary environment for rapid UI development,
-per CLAUDE.md. It exists so UI and Core/module logic can be iterated on
+per [CLAUDE.md](../../CLAUDE.md). It exists so UI and Core/module logic can be iterated on
 without flashing a Tab5 for every change.
 
 ## Design principle
@@ -10,11 +10,8 @@ The simulator must run the **same** Core, UI, and module source code as
 firmware — not a reimplementation or visual approximation. This is only
 possible because business logic is written against the [hardware
 abstraction layer](overview.md#hardware-abstraction) rather than directly
-against the hardware BSP or ESP-IDF APIs — CLAUDE.md originally named
-M5Unified/M5GFX as that BSP, but display/touch specifically use
-`espressif/m5stack_tab5` instead, per
-[ADR-0014](../decisions/ADR-0014-hardware-support-library.md); the
-abstraction-layer principle here is unaffected either way. See
+against the hardware BSP (see that section for which library that
+actually is) or ESP-IDF APIs. See
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#1-simulator-rendering-backend)
 for why this ruled out a separate web-based mock UI.
 

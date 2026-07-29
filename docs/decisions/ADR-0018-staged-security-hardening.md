@@ -91,5 +91,5 @@ on the record rather than being reinvented later.
 - A future Standard-tier pass is real implementation work with its own
   eFuse-burn confirmation, not something to fold into an unrelated change
   — it gets its own review and explicit go-ahead when undertaken, per
-  CLAUDE.md's standing requirement to confirm irreversible actions before
+  [CLAUDE.md](../../CLAUDE.md)'s standing requirement to confirm irreversible actions before
   taking them.

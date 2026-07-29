@@ -8,7 +8,7 @@ other decision below stands as originally accepted.
 
 ## Context
 
-CLAUDE.md requires explicit power states (Active, Idle, Sleeping, Updating,
+[CLAUDE.md](../../CLAUDE.md) requires explicit power states (Active, Idle, Sleeping, Updating,
 Error) rather than scattered sleep logic, with battery life treated as a
 primary feature. [power-management.md](../architecture/power-management.md)
 describes the resulting state model. This ADR records the four decisions
@@ -34,7 +34,7 @@ because it would sleep the device out from under active playback, a real
 regression from a physical remote. Unlimited veto was rejected because it
 has no protection against a stuck or buggy module silently preventing sleep
 and draining the battery, directly undercutting the battery-life priority
-CLAUDE.md sets. Any module providing background tasks must be built against
+[CLAUDE.md](../../CLAUDE.md) sets. Any module providing background tasks must be built against
 this constraint from the start — see
 [modules.md](../architecture/modules.md#what-a-module-may-provide).
 

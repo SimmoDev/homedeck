@@ -77,7 +77,7 @@ hardware-facing interface layer, for two reasons:
    same Core/module/UI code runs against a desktop-backed implementation of
    that interface instead of real hardware.
 2. It keeps the door open for future hardware variants without a rewrite,
-   per CLAUDE.md's hardware abstraction requirement, even though no
+   per [CLAUDE.md](../../CLAUDE.md)'s hardware abstraction requirement, even though no
    alternate hardware target is planned or committed to today.
 
 This abstraction is intentionally minimal — it should expose what Core and

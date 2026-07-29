@@ -1,7 +1,7 @@
 # Power Management
 
 Battery life is a primary feature of HomeDeck, not an afterthought. This
-document describes the power state model required by CLAUDE.md and how
+document describes the power state model required by [CLAUDE.md](../../CLAUDE.md) and how
 other subsystems must respect it. See
 [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md) and
 [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for the
@@ -55,7 +55,7 @@ right now."
 
 ## Why centralized, not scattered
 
-CLAUDE.md explicitly calls out "avoid scattered sleep logic." If each
+[CLAUDE.md](../../CLAUDE.md) explicitly calls out "avoid scattered sleep logic." If each
 module independently decided when to reduce activity, there would be no way
 to guarantee consistent battery behavior, and every new module would need
 to reimplement power-awareness correctly. Centralizing the state model in
@@ -103,11 +103,9 @@ what's confirmed as of 2026-07:
   dedicated ambient light sensor has been confirmed on the BOM; verify
   before designing automatic brightness around one).
 - **Battery monitoring:** INA226 (I2C) provides real-time voltage and
-  current monitoring — better than raw ADC voltage sampling, but it is not
-  a dedicated fuel-gauge/coulomb-counter IC. An accurate state-of-charge
-  percentage still needs coulomb-counting or a voltage/current curve model
-  implemented in firmware, not a direct read of INA226's instantaneous
-  values.
+  current monitoring, not a dedicated fuel-gauge/coulomb-counter reading —
+  see [hardware.md](hardware.md#power) for why an accurate state-of-charge
+  percentage needs more than reading it directly.
 
 These are accessed through the [hardware abstraction
 layer](overview.md#hardware-abstraction), not directly, so power management

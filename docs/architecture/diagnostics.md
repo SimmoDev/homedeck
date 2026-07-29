@@ -1,8 +1,8 @@
 # Diagnostics
 
-CLAUDE.md calls diagnostics "a first-class feature," with five specific
+[CLAUDE.md](../../CLAUDE.md) calls diagnostics "a first-class feature," with five specific
 requirements. This document is the cross-cutting reference for how each is
-addressed — the same role [security.md](security.md) plays for CLAUDE.md's
+addressed — the same role [security.md](security.md) plays for [CLAUDE.md](../../CLAUDE.md)'s
 Security section, which uses the same "first-class" framing.
 
 ## Requirement: structured logs
@@ -58,7 +58,7 @@ does not surface diagnostic detail; this is explicitly a Web UI concern per
 
 ## Crash and reboot diagnostics
 
-Not named explicitly in CLAUDE.md's requirement list, but a real gap
+Not named explicitly in [CLAUDE.md](../../CLAUDE.md)'s requirement list, but a real gap
 without it: normal structured logs don't survive a crash, panic, watchdog
 timeout, or brownout, since those are exactly the situations where ordinary
 execution — including flushing a log entry — doesn't complete. Every boot

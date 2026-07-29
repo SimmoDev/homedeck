@@ -1,6 +1,6 @@
 # Security
 
-CLAUDE.md requires security to be "considered from the beginning," with
+[CLAUDE.md](../../CLAUDE.md) requires security to be "considered from the beginning," with
 five explicit requirements. This document is the cross-cutting reference
 for how each is addressed — most of the actual mechanisms live in the
 docs/ADRs that own the relevant subsystem; this page exists so "is security
@@ -77,7 +77,7 @@ only barrier to pushing an arbitrary firmware image is the Web UI's admin
 authentication gating the OTA endpoint (see
 [web-ui.md](web-ui.md#security)) — so the realistic exposure is an
 authenticated LAN attacker, not an open one, but it is still a real gap
-against a first-class CLAUDE.md feature.
+against a first-class [CLAUDE.md](../../CLAUDE.md) feature.
 
 ESP-IDF supports signed app image verification independent of full secure
 boot, which would close this. It was deliberately not adopted now because

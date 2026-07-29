@@ -24,7 +24,7 @@ current design without carrying the full rationale inline.
 
 **Decided: a fixed grid.** It's simpler to implement well for M1/M2,
 constrains modules to a predictable widget footprint (easier to keep the
-"polished, consumer-quality" bar CLAUDE.md sets), and doesn't foreclose
+"polished, consumer-quality" bar [CLAUDE.md](../../CLAUDE.md) sets), and doesn't foreclose
 moving to a more flexible layout later once there's a real widget catalog
 to design against. The freeform option was rejected for now because it's
 harder to keep visually coherent across widgets built independently by
@@ -47,7 +47,7 @@ offline freshness reporting yet (see
 
 ## Decision: Weather data source
 
-**Context:** CLAUDE.md lists weather as a Core-provided widget, but weather
+**Context:** [CLAUDE.md](../../CLAUDE.md) lists weather as a Core-provided widget, but weather
 data has no local source on this hardware — it's inherently either a
 direct third-party API call or data proxied through another integration.
 
@@ -58,14 +58,14 @@ direct third-party API call or data proxied through another integration.
   [networking.md](../architecture/networking.md)) for a feature that isn't
   unavoidable.
 - Home-Assistant-only — no direct cloud dependency, but contradicts
-  CLAUDE.md's explicit "Weather services" Core-responsibility listing and
+  [CLAUDE.md](../../CLAUDE.md)'s explicit "Weather services" Core-responsibility listing and
   delays the widget until the HA module (M6).
 - A pluggable `WeatherProvider` interface owned by Core, with a
   no-API-key direct provider and an HA-sourced provider as interchangeable,
   user-selectable implementations.
 
 **Decided:** the third option. Core owns the `WeatherProvider` interface
-and renders the widget — satisfying CLAUDE.md's Core listing as written —
+and renders the widget — satisfying [CLAUDE.md](../../CLAUDE.md)'s Core listing as written —
 but the data source is pluggable and user-selectable in the Web Management
 UI, with no default enabled:
 
@@ -88,7 +88,7 @@ without accepting either.
 
 ## Decision: Status bar vs. dashboard-only widgets
 
-**Context:** CLAUDE.md's example widget list treats date/time and battery
+**Context:** [CLAUDE.md](../../CLAUDE.md)'s example widget list treats date/time and battery
 status as ordinary dashboard widgets, living in the same fixed grid as
 weather, Home Assistant states, and every module-contributed widget. That
 scoping means they're only visible while the user happens to be looking at
@@ -110,7 +110,7 @@ they treat a home-screen widget.
 
 **Decided:** the persistent top bar. It hosts a *compact* date/time and
 battery status at minimum. Network status (also listed as an example
-widget in CLAUDE.md) is a natural additional candidate for the bar, but
+widget in [CLAUDE.md](../../CLAUDE.md)) is a natural additional candidate for the bar, but
 which widgets beyond date/time/battery belong there is an M2
 implementation detail, not decided by this ADR.
 

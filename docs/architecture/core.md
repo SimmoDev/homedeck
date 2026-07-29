@@ -80,7 +80,7 @@ also want to react to). Centralizing them means:
 **Known gap:** the event bus and module lifecycle have no defined capacity
 budget — nothing today bounds memory or scheduling cost as module count
 grows. This is acceptable while only 4 modules are actually scoped through
-M6 (see [roadmap.md](../roadmap.md)); CLAUDE.md's longer future-modules
+M6 (see [roadmap.md](../roadmap.md)); [CLAUDE.md](../../CLAUDE.md)'s longer future-modules
 list is aspirational, not committed. Revisit once module count starts
 actually growing past what's scoped today, rather than guessing at a
 budget now without real modules to measure against.

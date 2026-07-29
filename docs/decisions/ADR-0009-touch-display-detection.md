@@ -48,7 +48,7 @@ hardware revision it shipped with. A compile-time flag would mean either
 maintaining separate firmware images per revision (real ongoing OTA
 routing complexity) or accepting that an OTA update silently breaks touch/
 display on units with the "wrong" compiled-in variant — neither is
-acceptable for a feature CLAUDE.md treats as first-class. Probing on every
+acceptable for a feature [CLAUDE.md](../../CLAUDE.md) treats as first-class. Probing on every
 boot without persistence was rejected as unnecessary latency for a fact
 that never changes on a given physical unit.
 

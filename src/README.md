@@ -8,7 +8,7 @@ SDL2/LVGL-driver APIs directly; each target links its own hardware-facing
 implementation against the interfaces declared here. (Not M5Unified/M5GFX
 specifically — see
 [ADR-0014](../docs/decisions/ADR-0014-hardware-support-library.md) for
-why firmware's actual hardware support library differs from CLAUDE.md's
+why firmware's actual hardware support library differs from [CLAUDE.md](../CLAUDE.md)'s
 originally-named one.)
 
 ```

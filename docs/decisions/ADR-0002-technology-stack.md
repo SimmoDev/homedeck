@@ -11,7 +11,7 @@ below stands as originally accepted.
 
 ## Context
 
-CLAUDE.md fixes the high-level firmware stack: ESP-IDF, modern C++, FreeRTOS,
+[CLAUDE.md](../../CLAUDE.md) fixes the high-level firmware stack: ESP-IDF, modern C++, FreeRTOS,
 LVGL, M5Unified, M5GFX, with the Arduino framework explicitly excluded. It
 also establishes that business logic should be shareable between the ESP32
 target and a desktop simulator. It does not specify several supporting
@@ -26,14 +26,14 @@ decisions, together with the alternatives considered for each.
   partition/OTA APIs, and the native `esp_http_server`, without the
   additional abstraction layer and version lag that the Arduino core for
   ESP32 introduces. HomeDeck's power management and OTA requirements
-  (first-class features per CLAUDE.md) are easier to implement correctly
+  (first-class features per [CLAUDE.md](../../CLAUDE.md)) are easier to implement correctly
   against ESP-IDF directly.
 - **Language:** Modern C++ (C++17/C++20, exact standard pinned at M1 when the
   ESP-IDF/toolchain version is chosen). RAII, dependency injection, small
-  focused types, const-correctness per the coding standards in CLAUDE.md.
+  focused types, const-correctness per the coding standards in [CLAUDE.md](../../CLAUDE.md).
 - **RTOS:** FreeRTOS, as bundled with ESP-IDF. Module background tasks and
   Core scheduling are built on top of it rather than a custom scheduler.
-- **UI toolkit:** LVGL. Chosen (implicitly, by being named in CLAUDE.md) over
+- **UI toolkit:** LVGL. Chosen (implicitly, by being named in [CLAUDE.md](../../CLAUDE.md)) over
   a bespoke rendering stack because it is mature, actively maintained,
   touch-first, has an existing SDL2-based desktop simulator story (see
   [Simulator rendering backend](#1-simulator-rendering-backend) below), and
@@ -116,7 +116,7 @@ of it.
 
 ## Supporting Library and Tooling Decisions
 
-The following were not specified in CLAUDE.md. Each records the options
+The following were not specified in [CLAUDE.md](../../CLAUDE.md). Each records the options
 considered and the reasoning for the choice made.
 
 ### 1. Simulator rendering backend
@@ -129,7 +129,7 @@ considered and the reasoning for the choice made.
   device but does not run the real C++ code.
 
 **Decided: SDL2 + LVGL desktop backend.** This is the only option that
-satisfies CLAUDE.md's requirement that the simulator run *shared* code
+satisfies [CLAUDE.md](../../CLAUDE.md)'s requirement that the simulator run *shared* code
 rather than a re-implementation, and it is LVGL's officially supported path
 for desktop simulation. A separate web mock would inevitably drift from
 firmware behavior and duplicate UI logic. See
@@ -248,7 +248,7 @@ command.
 **Options:**
 - GoogleTest (+ GoogleMock) only, run against the host-native simulator
   build — richer C++ assertions and mocking, well suited to the
-  dependency-injected, interface-based design CLAUDE.md calls for.
+  dependency-injected, interface-based design [CLAUDE.md](../../CLAUDE.md) calls for.
 - GoogleTest for host-side tests, plus Unity for a separate on-target test
   suite run through ESP-IDF's own test runner.
 - Catch2 instead of GoogleTest — header-only, pleasant syntax, but no

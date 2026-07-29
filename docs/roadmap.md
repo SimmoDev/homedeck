@@ -1,6 +1,6 @@
 # Roadmap
 
-This roadmap tracks the milestones defined in CLAUDE.md. Milestones are
+This roadmap tracks the milestones defined in [CLAUDE.md](../CLAUDE.md). Milestones are
 sequential — scope is not expanded until the current milestone's goal is
 complete, per the project's scope-control philosophy.
 
@@ -438,7 +438,7 @@ day-to-day usage with HomeDeck.
       [ADR-0012](decisions/ADR-0012-storage-tiers.md) decides this is
       the microSD tier's purpose, degrading gracefully (clearly
       indicating "no card present") when none is inserted, per
-      CLAUDE.md's "work fully using stock Tab5 hardware" requirement
+      [CLAUDE.md](../CLAUDE.md)'s "work fully using stock Tab5 hardware" requirement
 - [ ] Gesture navigation (Android-style): swipe up from the bottom edge
       to go home, swipe in from the left/right edge to go back. The
       home-swipe would be an addition alongside the persistent home

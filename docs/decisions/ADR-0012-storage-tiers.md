@@ -13,7 +13,7 @@ reasons, not just tidiness: NVS (already committed to for credentials in
 [ADR-0010](ADR-0010-secret-storage.md)) is designed for small key-value
 data, not general blob storage — mixing in larger cached datasets (e.g. a
 Home Assistant entity list, which can run to tens of KB) would be a real
-anti-pattern, not just inefficient. Separately, CLAUDE.md's target hardware
+anti-pattern, not just inefficient. Separately, [CLAUDE.md](../../CLAUDE.md)'s target hardware
 list explicitly names microSD as a capability the firmware should use, but
 [hardware.md](../architecture/hardware.md) had miscategorized it as out of
 scope alongside genuinely-unused expansion hardware — corrected alongside
@@ -26,7 +26,7 @@ this ADR.
   access pattern of cached device lists or dashboard data, and forcing it
   would be a real anti-pattern, not a simplification.
 - A single internal flash filesystem for everything (no SD tier) — simpler
-  (one mechanism to implement), but ignores microSD despite CLAUDE.md
+  (one mechanism to implement), but ignores microSD despite [CLAUDE.md](../../CLAUDE.md)
   explicitly wanting it used, and would put cached data and backups in
   competition with firmware and dual OTA partitions for the same 16MB
   internal flash budget.
@@ -46,7 +46,7 @@ convenience:
   choice](#decision-internal-flash-filesystem-choice) below for which one):
   structured data that needs to survive reboots but isn't large or
   inherently removable — cached dashboard/device-list data (the "cached
-  configuration," "cached device lists," "cached dashboard data" CLAUDE.md's
+  configuration," "cached device lists," "cached dashboard data" [CLAUDE.md](../../CLAUDE.md)'s
   Offline Behaviour requirements ask for), and bounded/rotating logs. This
   is why the cache survives a reboot while offline rather than only
   surviving while the device happens to stay powered — a plain in-RAM
@@ -60,7 +60,7 @@ convenience:
   (see above), so older diagnostic history that would otherwise be evicted
   can optionally be archived to microSD if present, genuinely benefiting
   from being larger-capacity and removable the way the internal tier isn't.
-  Per CLAUDE.md's "work fully using stock Tab5 hardware" requirement, and
+  Per [CLAUDE.md](../../CLAUDE.md)'s "work fully using stock Tab5 hardware" requirement, and
   since a card is not guaranteed present even when the slot is, nothing on
   this tier is required for core functionality — SD-backed features
   degrade gracefully (clearly indicating "no card present," not silently

@@ -9,7 +9,7 @@ screen specifically.
 
 ## Priorities
 
-Per CLAUDE.md, the Touch UI prioritizes:
+Per [CLAUDE.md](../../CLAUDE.md), the Touch UI prioritizes:
 
 - Speed
 - Simplicity
@@ -87,10 +87,8 @@ now, not a followup:
 ## Rendering
 
 LVGL is the rendering toolkit, driven through the hardware BSP on-device
-(`espressif/m5stack_tab5` for display/touch specifically — not
-M5Unified/M5GFX, CLAUDE.md's originally-named library, see
-[ADR-0014](../decisions/ADR-0014-hardware-support-library.md)) and
-through the SDL2 desktop backend in the [simulator](simulator.md). UI
+(see [overview.md](overview.md#hardware-abstraction) for which library)
+and through the SDL2 desktop backend in the [simulator](simulator.md). UI
 code should target LVGL's widget APIs and the hardware-facing interfaces
 described in [overview.md](overview.md#hardware-abstraction), not the
 BSP or ESP-IDF APIs directly — this is what keeps UI code portable to
@@ -138,7 +136,7 @@ doesn't run until the next LVGL tick, not immediately.
 
 Core's notification service (see [core.md](core.md#responsibilities))
 deliberately decouples modules from how a notification is shown — this
-section is that "how," for the Touch UI specifically. CLAUDE.md names four
+section is that "how," for the Touch UI specifically. [CLAUDE.md](../../CLAUDE.md) names four
 possible outputs; each maps onto something HomeDeck already has, or
 explicitly doesn't yet:
 
@@ -166,7 +164,7 @@ explicitly doesn't yet:
   separate, deliberately deferred M7 follow-up (see
   [roadmap.md](../roadmap.md)), since nothing today fires more than one
   notification per episode.
-- **Vibration** — CLAUDE.md names this as explicitly "future," and
+- **Vibration** — [CLAUDE.md](../../CLAUDE.md) names this as explicitly "future," and
   correctly so: no haptic motor exists on the confirmed Tab5 BOM (see
   [hardware.md](hardware.md)). Not planned until hardware exists to support
   it, and not a gap in the current design.

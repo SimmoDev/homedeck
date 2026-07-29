@@ -18,7 +18,7 @@ hardcoded into the dashboard. Widgets are arranged in a fixed grid — see
 for why a fixed grid was chosen over a freeform layout.
 
 A compact date/time and battery status are *not* dashboard widgets,
-despite being listed as example widgets in CLAUDE.md — see [Status
+despite being listed as example widgets in [CLAUDE.md](../../CLAUDE.md) — see [Status
 bar](#status-bar) below for why they live in persistent screen chrome
 instead. This doesn't rule out a separate, optional *large clock* widget
 also living in the grid — the same way Android pairs a compact status-bar
@@ -86,14 +86,14 @@ visually distinguish, at minimum:
 - Cached data
 - Offline/unavailable state
 
-This follows directly from the offline-behavior requirements in CLAUDE.md
+This follows directly from the offline-behavior requirements in [CLAUDE.md](../../CLAUDE.md)
 (see also [networking.md](networking.md#offline-behaviour)) — a widget
 showing stale Home Assistant state during a Wi-Fi outage must not look
 identical to one showing current state.
 
 ## Customization (future)
 
-CLAUDE.md establishes an eventual goal of user-customizable:
+[CLAUDE.md](../../CLAUDE.md) establishes an eventual goal of user-customizable:
 
 - Enabled widgets
 - Widget order
@@ -256,7 +256,7 @@ instance with no coordination between them.
 
 **The notification indicator widget is also real**: `NotificationWidget`
 (`src/ui/notification_widget.h`/`.cpp`) is the dashboard-indicator
-output CLAUDE.md's notification requirements name (see
+output [CLAUDE.md](../../CLAUDE.md)'s notification requirements name (see
 [ui.md](ui.md#notification-presentation)) - a 2-column tile always
 echoing the most recent `NotificationEvent`'s message ("No
 notifications yet" until the first one arrives), not an unread-count

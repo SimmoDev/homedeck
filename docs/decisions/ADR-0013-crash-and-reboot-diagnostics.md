@@ -6,10 +6,10 @@ Accepted
 
 ## Context
 
-CLAUDE.md calls Diagnostics "a first-class feature," the same framing given
+[CLAUDE.md](../../CLAUDE.md) calls Diagnostics "a first-class feature," the same framing given
 to Security before [security.md](../architecture/security.md) was written.
 Diagnostics has not had equivalent design treatment — [core.md](../architecture/core.md)
-and [web-ui.md](../architecture/web-ui.md) each restate CLAUDE.md's
+and [web-ui.md](../architecture/web-ui.md) each restate [CLAUDE.md](../../CLAUDE.md)'s
 requirement list without designing any of it.
 
 One gap is specific to embedded devices and worth its own ADR: normal

@@ -9,7 +9,7 @@ is decided separately by
 
 ## Context
 
-CLAUDE.md's Security section requires HomeDeck to "avoid insecure secret
+[CLAUDE.md](../../CLAUDE.md)'s Security section requires HomeDeck to "avoid insecure secret
 storage." The Web UI admin password (see
 [ADR-0007](ADR-0007-web-management-ui-policies.md)) is the first secret
 this project stores; module credentials (Harmony hub auth, a Home
@@ -45,7 +45,7 @@ separate unencrypted development flow), which is a real ongoing cost for a
 project still establishing its build/bring-up process — more than a Wi-Fi
 password and one password hash actually require. NVS encryption targets
 the same secrets without that cost. Plaintext storage was rejected outright
-as a direct violation of an explicit CLAUDE.md requirement, not a genuine
+as a direct violation of an explicit [CLAUDE.md](../../CLAUDE.md) requirement, not a genuine
 option.
 
 **Which NVS encryption scheme, specifically — confirmed against current

@@ -6,14 +6,14 @@ Accepted
 
 ## Context
 
-CLAUDE.md fixes the high-level firmware stack, naming M5Unified and M5GFX
+[CLAUDE.md](../../CLAUDE.md) fixes the high-level firmware stack, naming M5Unified and M5GFX
 specifically for "Tab5 peripheral access (display, touch, IMU, RTC,
 battery, speaker, mic)."
 [ADR-0014](ADR-0014-hardware-support-library.md) already rejected
 M5Unified/M5GFX categorically for this project — not just for
 display/touch — because of a confirmed, unresolved crash on this exact
 chip via ESP-IDF's Arduino-as-Component integration, the only way to use
-it outside the Arduino IDE, which CLAUDE.md's "Do not use the Arduino
+it outside the Arduino IDE, which [CLAUDE.md](../../CLAUDE.md)'s "Do not use the Arduino
 framework" instruction already rules out. ADR-0014 explicitly scoped its
 own decision to display/touch only, and left battery and RTC as an open
 question: *"`espressif/m5stack_tab5` does appear to bundle IMU and audio
@@ -34,7 +34,7 @@ choice was needed, not just a reuse of an already-decided answer.
 ## Decision
 
 **Options considered:**
-- M5Unified/M5GFX, as CLAUDE.md originally named for these peripherals —
+- M5Unified/M5GFX, as [CLAUDE.md](../../CLAUDE.md) originally named for these peripherals —
   not re-litigated here; already rejected project-wide by ADR-0014 for a
   confirmed crash risk, not a decision specific to battery/RTC.
 - Hand-write INA226 (power monitor) and RX8130CE (RTC) drivers directly
@@ -67,12 +67,12 @@ driver once and is reused by both, rather than duplicated. Both reuse the
 BSP's existing shared I2C bus (`bsp_i2c_get_handle()`) instead of
 creating a second, conflicting one on the same physical pins.
 
-This is a further deviation from CLAUDE.md's named libraries, in the same
-spirit as ADR-0014: CLAUDE.md's Technology Stack section fixes
+This is a further deviation from [CLAUDE.md](../../CLAUDE.md)'s named libraries, in the same
+spirit as ADR-0014: [CLAUDE.md](../../CLAUDE.md)'s Technology Stack section fixes
 M5Unified/M5GFX as the *route* to peripheral access; for battery and RTC
 specifically, that route was never viable project-wide (per ADR-0014),
 and the BSP that replaced it for display/touch doesn't cover these two
-peripherals either. `espp` is what actually delivers the outcome CLAUDE.md
+peripherals either. `espp` is what actually delivers the outcome [CLAUDE.md](../../CLAUDE.md)
 wants (real hardware access to these peripherals), not a rejection of the
 underlying intent.
 

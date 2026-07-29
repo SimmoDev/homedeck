@@ -64,7 +64,7 @@ for why a universal abstraction was rejected.
 ## Offline behaviour
 
 HomeDeck must degrade gracefully when Wi-Fi or a specific external service
-is unavailable. Per CLAUDE.md, this requires:
+is unavailable. Per [CLAUDE.md](../../CLAUDE.md), this requires:
 
 - Cached configuration, device lists, and dashboard data (via Core's
   storage service — see [ADR-0012](../decisions/ADR-0012-storage-tiers.md)

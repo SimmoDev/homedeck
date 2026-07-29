@@ -18,4 +18,4 @@ DEVELOPMENT.md for the build/test commands for each target. -->
 ## Anything reviewers should know
 
 <!-- Deliberate scope cuts, known follow-ups, things you're unsure
-about - see CLAUDE.md for the project's architecture/scope philosophy. -->
+about - see [CLAUDE.md](../CLAUDE.md) for the project's architecture/scope philosophy. -->

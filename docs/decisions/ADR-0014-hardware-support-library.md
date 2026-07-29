@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-CLAUDE.md fixes the high-level firmware stack, naming M5Unified and M5GFX
+[CLAUDE.md](../../CLAUDE.md) fixes the high-level firmware stack, naming M5Unified and M5GFX
 specifically. [ADR-0002](ADR-0002-technology-stack.md#decision-firmware-core-fixed)
 carried this into a concrete decision: "Hardware support library: M5Unified
 + M5GFX for Tab5 peripheral access (display, touch, IMU, RTC, battery,
@@ -23,7 +23,7 @@ project on this exact chip:
   [m5stack/M5Unified#231](https://github.com/m5stack/M5Unified/issues/231),
   a "Load access fault" panic on `M5.Display.width()`. It occurs
   specifically via ESP-IDF's Arduino-as-Component integration — the *only*
-  way to use M5Unified outside the Arduino IDE, which CLAUDE.md's "Do not
+  way to use M5Unified outside the Arduino IDE, which [CLAUDE.md](../../CLAUDE.md)'s "Do not
   use the Arduino framework" instruction already rules out. The issue's
   own report references a second, similar crash on different M5Stack
   hardware ([#199](https://github.com/m5stack/M5Unified/issues/199)),
@@ -68,8 +68,8 @@ initialized successfully in the same pass. Uses the BSP's LVGL-integrated
 API (`bsp_display_start()`) directly, matching this project's own LVGL
 commitment, rather than bypassing it with lower-level panel APIs.
 
-This is a deviation from CLAUDE.md's named libraries, not a rejection of
-the underlying intent behind naming them. CLAUDE.md's Technology Stack
+This is a deviation from [CLAUDE.md](../../CLAUDE.md)'s named libraries, not a rejection of
+the underlying intent behind naming them. [CLAUDE.md](../../CLAUDE.md)'s Technology Stack
 section fixes M5Unified/M5GFX as the *route* to reliable, non-Arduino Tab5
 hardware support; on this exact chip, that named route doesn't currently
 deliver that outcome, and a different official, non-Arduino, actively

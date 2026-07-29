@@ -7,13 +7,13 @@ implementation, not defined here.
 
 ## Context
 
-CLAUDE.md requires that integrations (Harmony, Kodi, Uptime Kuma, Home
+[CLAUDE.md](../../CLAUDE.md) requires that integrations (Harmony, Kodi, Uptime Kuma, Home
 Assistant, and future ones) be implemented internally as isolated modules
 that present themselves to the user as Apps, that Core know as little as
 possible about individual modules, and that modules never communicate with
 each other directly. This ADR records the shape of that contract at an
 architectural level. It intentionally does not define C++ interfaces,
-method signatures, or protocol details — CLAUDE.md instructs against making
+method signatures, or protocol details — [CLAUDE.md](../../CLAUDE.md) instructs against making
 assumptions about APIs before the first module is actually built, since that
 tends to produce speculative abstractions that don't fit real
 implementation needs.
@@ -40,7 +40,7 @@ A module is a self-contained unit that:
 
 Direct calls between modules (e.g. Harmony module calling into a
 hypothetical notification-specific method on another module) would
-reintroduce the tight coupling CLAUDE.md explicitly warns against, and would
+reintroduce the tight coupling [CLAUDE.md](../../CLAUDE.md) explicitly warns against, and would
 make modules impossible to test or ship independently. The event
 bus + shared Core services (notifications, storage, widgets) are the only
 sanctioned communication paths between a module and the rest of the system.
@@ -66,7 +66,7 @@ Every module is expected to support a consistent lifecycle managed by Core
 uniformly (e.g. from the Web Management UI) without bespoke per-module
 startup code. Background tasks a module runs must respect this lifecycle —
 a stopped module should not continue polling in the background, per the
-background task requirements in CLAUDE.md.
+background task requirements in [CLAUDE.md](../../CLAUDE.md).
 
 ## Consequences
 
