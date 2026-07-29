@@ -60,7 +60,11 @@ bool FirmwareCacheStore::Write(const std::string& ns, const std::string& key, co
     }
     size_t written = fwrite(content.data(), 1, content.size(), file);
     fclose(file);
-    return written == content.size();
+    if (written != content.size()) {
+        ESP_LOGE(kTag, "Short write to '%s/%s': %zu of %zu bytes", ns.c_str(), key.c_str(), written, content.size());
+        return false;
+    }
+    return true;
 }
 
 std::optional<std::string> FirmwareCacheStore::Read(const std::string& ns, const std::string& key) {
