@@ -160,6 +160,18 @@ bool IsValidHostnameLabel(const std::string& label) {
     return true;
 }
 
+// Shared by both InitNvs() partitions below - a fresh/corrupt partition
+// (no-free-pages, or a version bump) needs one erase-and-retry, not a
+// hard failure.
+void InitNvsPartition(esp_err_t (*init)(), esp_err_t (*erase)()) {
+    esp_err_t result = init();
+    if (result == ESP_ERR_NVS_NO_FREE_PAGES || result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ESP_ERROR_CHECK(erase());
+        result = init();
+    }
+    ESP_ERROR_CHECK(result);
+}
+
 // General system init required by Wi-Fi (and later, other Core services
 // that need NVS/the event loop) - see
 // docs/architecture/networking.md#initial-wi-fi-provisioning. Called
@@ -167,14 +179,16 @@ bool IsValidHostnameLabel(const std::string& label) {
 // of Wi-Fi bring-up, which stays deferred until after first paint) so
 // InitWifiAndCheckStoredCredentials() can answer "is setup needed"
 // before any real screen is shown - the splash shown just before this
-// call is what keeps first paint fast despite that.
+// call is what keeps first paint fast despite that. Also initializes
+// FirmwareSecretStore's own dedicated partition (see
+// docs/decisions/ADR-0027-secret-store-partition-separation.md) - must
+// run before secret_store's first use, same requirement as the default
+// partition below.
 void InitNvs() {
-    esp_err_t nvs_result = nvs_flash_init();
-    if (nvs_result == ESP_ERR_NVS_NO_FREE_PAGES || nvs_result == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        nvs_result = nvs_flash_init();
-    }
-    ESP_ERROR_CHECK(nvs_result);
+    InitNvsPartition(&nvs_flash_init, &nvs_flash_erase);
+    InitNvsPartition(
+        [] { return nvs_flash_init_partition(homedeck::FirmwareSecretStore::kPartitionName); },
+        [] { return nvs_flash_erase_partition(homedeck::FirmwareSecretStore::kPartitionName); });
 }
 
 // Not written back here, only read, so an unset name stays genuinely

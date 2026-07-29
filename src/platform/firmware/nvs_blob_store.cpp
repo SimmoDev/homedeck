@@ -7,14 +7,16 @@
 
 namespace homedeck {
 
-bool NvsSetBlob(const char* tag, const std::string& ns, const std::string& key, const std::string& value) {
+bool NvsSetBlob(const char* partition_name, const char* tag, const std::string& ns, const std::string& key,
+                 const std::string& value) {
     if (!IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
         return false;
     }
     nvs_handle_t handle;
-    esp_err_t err = nvs_open(ns.c_str(), NVS_READWRITE, &handle);
+    esp_err_t err = nvs_open_from_partition(partition_name, ns.c_str(), NVS_READWRITE, &handle);
     if (err != ESP_OK) {
-        ESP_LOGE(tag, "nvs_open(%s) failed: %s", ns.c_str(), esp_err_to_name(err));
+        ESP_LOGE(tag, "nvs_open_from_partition(%s, %s) failed: %s", partition_name, ns.c_str(),
+                 esp_err_to_name(err));
         return false;
     }
     err = nvs_set_blob(handle, key.c_str(), value.data(), value.size());
@@ -29,7 +31,8 @@ bool NvsSetBlob(const char* tag, const std::string& ns, const std::string& key, 
     return true;
 }
 
-std::optional<std::string> NvsGetBlob(const char* tag, const std::string& ns, const std::string& key) {
+std::optional<std::string> NvsGetBlob(const char* partition_name, const char* tag, const std::string& ns,
+                                       const std::string& key) {
     if (!IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
         return std::nullopt;
     }
@@ -37,7 +40,7 @@ std::optional<std::string> NvsGetBlob(const char* tag, const std::string& ns, co
     // A namespace that's never been written to yet fails to open in
     // read-only mode - a normal "no value" case, not an error worth
     // logging.
-    esp_err_t err = nvs_open(ns.c_str(), NVS_READONLY, &handle);
+    esp_err_t err = nvs_open_from_partition(partition_name, ns.c_str(), NVS_READONLY, &handle);
     if (err != ESP_OK) {
         return std::nullopt;
     }
@@ -59,12 +62,12 @@ std::optional<std::string> NvsGetBlob(const char* tag, const std::string& ns, co
     return value;
 }
 
-bool NvsEraseBlob(const std::string& ns, const std::string& key) {
+bool NvsEraseBlob(const char* partition_name, const std::string& ns, const std::string& key) {
     if (!IsValidStoreSegment(ns) || !IsValidStoreSegment(key)) {
         return false;
     }
     nvs_handle_t handle;
-    esp_err_t err = nvs_open(ns.c_str(), NVS_READWRITE, &handle);
+    esp_err_t err = nvs_open_from_partition(partition_name, ns.c_str(), NVS_READWRITE, &handle);
     if (err != ESP_OK) {
         return true;
     }

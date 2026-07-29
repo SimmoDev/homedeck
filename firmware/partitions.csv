@@ -14,4 +14,10 @@ phy_init,   data, phy,      ,        0x1000,
 ota_0,      app,  ota_0,    ,        4M,
 ota_1,      app,  ota_1,    ,        4M,
 coredump,   data, coredump, ,        0x40000,
-storage,    data, fat,      ,        0x7A0000,
+storage,    data, fat,      ,        0x79C000,
+# Dedicated to SecretStore (FirmwareSecretStore) only - see
+# docs/decisions/ADR-0027-secret-store-partition-separation.md. Carved
+# out of storage's own budget, appended last, so it needs no realignment
+# of ota_0/ota_1's 64KB boundary above. 16KB is generous for small
+# key-value blobs (today: one PBKDF2 hash).
+secrets,    data, nvs,      ,        0x4000,

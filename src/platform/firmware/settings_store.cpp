@@ -11,16 +11,21 @@ constexpr char kTag[] = "settings_store";
 }  // namespace
 
 bool FirmwareSettingsStore::Set(const std::string& ns, const std::string& key, const std::string& value) {
-    return NvsSetBlob(kTag, ns, key, value);
+    return NvsSetBlob(NVS_DEFAULT_PART_NAME, kTag, ns, key, value);
 }
 
 std::optional<std::string> FirmwareSettingsStore::Get(const std::string& ns, const std::string& key) {
-    return NvsGetBlob(kTag, ns, key);
+    return NvsGetBlob(NVS_DEFAULT_PART_NAME, kTag, ns, key);
 }
 
 std::vector<SettingsEntry> FirmwareSettingsStore::ListAll() {
-    // nvs_entry_info only yields (namespace, key, type), not the value
-    // itself - the actual read reuses Get() below rather than
+    // Scoped to the default partition explicitly - SecretStore lives on
+    // its own separate partition now (see
+    // docs/decisions/ADR-0027-secret-store-partition-separation.md), so
+    // this structurally never sees a secret, not just via the
+    // module_id/key guard Storage's own reserved-key check still applies
+    // on top. nvs_entry_info only yields (namespace, key, type), not the
+    // value itself - the actual read reuses Get() below rather than
     // duplicating nvs_get_blob's size-probe-then-read dance here.
     std::vector<std::pair<std::string, std::string>> ns_keys;
     nvs_iterator_t it = nullptr;
@@ -42,7 +47,7 @@ std::vector<SettingsEntry> FirmwareSettingsStore::ListAll() {
 }
 
 bool FirmwareSettingsStore::Erase(const std::string& ns, const std::string& key) {
-    return NvsEraseBlob(ns, key);
+    return NvsEraseBlob(NVS_DEFAULT_PART_NAME, ns, key);
 }
 
 }  // namespace homedeck
