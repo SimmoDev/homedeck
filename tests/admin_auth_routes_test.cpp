@@ -6,82 +6,18 @@
 #include "platform/host/settings_store.h"
 #include "platform/host/time_source.h"
 
+#include "http_test_helpers.h"
+
 #include <gtest/gtest.h>
 
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <unistd.h>
-
-#include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <memory>
 
 namespace {
 
-// A minimal real HTTP/1.1 client over a raw socket, extended from
-// http_server_test.cpp's HttpGet to support POST bodies and to hand
-// back the response headers - AdminAuthService's routes need both
-// (setting/reading the session cookie), where the existing helper's
-// return-the-whole-response-as-one-string approach isn't enough.
-struct HttpResult {
-    int status_code = 0;
-    std::string set_cookie;
-    std::string body;
-};
-
-HttpResult HttpRequestRaw(uint16_t port, const std::string& method, const std::string& path,
-                           const std::string& body, const std::string& cookie_header = "") {
-    HttpResult result;
-    int sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock < 0) {
-        return result;
-    }
-
-    sockaddr_in addr = {};
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-
-    if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
-        close(sock);
-        return result;
-    }
-
-    std::string request = method + " " + path + " HTTP/1.1\r\nHost: localhost\r\n";
-    if (!cookie_header.empty()) {
-        request += "Cookie: " + cookie_header + "\r\n";
-    }
-    if (!body.empty()) {
-        request += "Content-Length: " + std::to_string(body.size()) + "\r\n";
-    }
-    request += "Connection: close\r\n\r\n" + body;
-    send(sock, request.data(), request.size(), 0);
-
-    std::string response;
-    char buffer[4096];
-    ssize_t received;
-    while ((received = recv(sock, buffer, sizeof(buffer), 0)) > 0) {
-        response.append(buffer, static_cast<size_t>(received));
-    }
-    close(sock);
-
-    size_t header_end = response.find("\r\n\r\n");
-    std::string headers = header_end == std::string::npos ? response : response.substr(0, header_end);
-    result.body = header_end == std::string::npos ? "" : response.substr(header_end + 4);
-
-    size_t status_start = headers.find(' ');
-    if (status_start != std::string::npos) {
-        result.status_code = std::atoi(headers.c_str() + status_start + 1);
-    }
-    size_t cookie_pos = headers.find("Set-Cookie: ");
-    if (cookie_pos != std::string::npos) {
-        size_t value_start = cookie_pos + std::strlen("Set-Cookie: ");
-        size_t line_end = headers.find("\r\n", value_start);
-        result.set_cookie = headers.substr(value_start, line_end - value_start);
-    }
-    return result;
-}
+using homedeck::testing::HttpRequestRaw;
+using homedeck::testing::HttpResult;
+using homedeck::testing::SessionCookieOnly;
 
 class AdminAuthRoutesTest : public ::testing::Test {
 protected:
@@ -98,14 +34,6 @@ protected:
     }
 
     void TearDown() override { std::filesystem::remove_all(root_dir_); }
-
-    // Extracts just the "session=<token>" part of a Set-Cookie value
-    // (which also carries HttpOnly/SameSite/Path/Max-Age) for use as a
-    // request's Cookie header.
-    static std::string SessionCookieOnly(const std::string& set_cookie) {
-        size_t semicolon = set_cookie.find(';');
-        return semicolon == std::string::npos ? set_cookie : set_cookie.substr(0, semicolon);
-    }
 
     std::filesystem::path root_dir_;
     std::unique_ptr<homedeck::HostSettingsStore> settings_store_;
