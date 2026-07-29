@@ -53,6 +53,11 @@ NotificationBanner::NotificationBanner(EventBus& event_bus) {
         [this](const NotificationEvent& event) { Show(event.message); });
 }
 
+NotificationBanner::~NotificationBanner() {
+    lv_timer_del(dismiss_timer_);
+    lv_obj_del(banner_);
+}
+
 void NotificationBanner::Show(const std::string& message) {
     lv_label_set_text(label_, message.c_str());
     lv_obj_clear_flag(banner_, LV_OBJ_FLAG_HIDDEN);

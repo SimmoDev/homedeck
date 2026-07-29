@@ -51,12 +51,38 @@ get the home affordance.
 A separate, independent piece of persistent chrome exists alongside the
 home affordance — a status bar (`StatusBar`, `src/ui/status_bar.h`/`.cpp`)
 showing date/time and battery on every screen, dashboard included; it's
-not part of the navigation manager and doesn't route anywhere. **Real**,
-constructed by each screen the same way each screen constructs its own
-home affordance — see [dashboard.md](dashboard.md#status) for
-implementation status and [ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)
+not part of the navigation manager and doesn't route anywhere.
+**Implemented**, constructed by each screen the same way each screen
+constructs its own home affordance — see [dashboard.md](dashboard.md#status)
+for implementation status and [ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)
 for why it exists and why it's kept separate from the home affordance for
 now.
+
+## Object lifecycle
+
+Every screen and module-registered screens alike are constructed once for
+the program's lifetime today, so no LVGL object built on this codebase
+has ever actually been torn down in practice. That won't hold once a
+module screen is created and later navigated away from (e.g. a Harmony
+activity detail screen), so the ownership rule below is a requirement
+now, not a followup:
+
+- An LVGL object created as a child of another object the same class
+  already owns (directly or transitively) needs no cleanup of its own —
+  `lv_obj_del()` on the owning root recurses through every child
+  automatically. This covers most widgets and screen chrome (e.g.
+  `DashboardGrid`'s widgets, `StatusBar`, `OnScreenKeyboard`), since they
+  take a `parent` and construct themselves as its child.
+- A class that creates an LVGL object with no such longer-lived owner —
+  a screen's own root via `lv_obj_create(nullptr)`, or a `lv_layer_top()`
+  overlay like `NotificationBanner`/`QuickSettingsPanel` — must delete
+  that object in its own destructor. Nothing else will.
+- An `lv_timer_t*` is a separate resource from LVGL's object tree —
+  deleting a parent object does not delete a timer, even one whose user
+  data points at that object. A class holding one (e.g.
+  `NotificationBanner`'s `dismiss_timer_`) must delete it in its own
+  destructor too, and before deleting the object the timer's callback
+  reads, not after.
 
 ## Rendering
 

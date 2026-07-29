@@ -33,6 +33,13 @@ public:
 
     WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                      SubmitCallback on_submit);
+    // root_ has no owning parent (see ui.md#object-lifecycle) - deleting
+    // it recursively deletes status_bar_/keyboard_'s LVGL objects too,
+    // since both are its children.
+    ~WifiSetupScreen();
+
+    WifiSetupScreen(const WifiSetupScreen&) = delete;
+    WifiSetupScreen& operator=(const WifiSetupScreen&) = delete;
 
     lv_obj_t* Root() const { return root_; }
 

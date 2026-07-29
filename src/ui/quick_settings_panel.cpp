@@ -138,6 +138,11 @@ QuickSettingsPanel::QuickSettingsPanel(EventBus& event_bus, PowerManager& power_
         [this](const QuickSettingsRequestedEvent&) { Show(); });
 }
 
+QuickSettingsPanel::~QuickSettingsPanel() {
+    lv_obj_del(panel_);
+    lv_obj_del(scrim_);
+}
+
 void QuickSettingsPanel::Show() {
     lv_slider_set_value(brightness_slider_, power_manager_.ActiveBrightnessPercent(), LV_ANIM_OFF);
     lv_slider_set_value(volume_slider_, notification_sound_.VolumePercent(), LV_ANIM_OFF);

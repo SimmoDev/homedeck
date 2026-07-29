@@ -27,6 +27,13 @@ class QuickSettingsPanel {
 public:
     QuickSettingsPanel(EventBus& event_bus, PowerManager& power_manager,
                         NotificationSound& notification_sound, Storage& storage);
+    // scrim_/panel_ have no owning parent (see ui.md#object-lifecycle) -
+    // both are direct, sibling children of lv_layer_top(), so deleting
+    // one doesn't delete the other; both need their own call.
+    ~QuickSettingsPanel();
+
+    QuickSettingsPanel(const QuickSettingsPanel&) = delete;
+    QuickSettingsPanel& operator=(const QuickSettingsPanel&) = delete;
 
     // Called from the scrim's click callback (a free function, not a
     // member - matches home_affordance.cpp's existing LVGL event-bridging

@@ -16,6 +16,15 @@ namespace homedeck {
 class NotificationBanner {
 public:
     explicit NotificationBanner(EventBus& event_bus);
+    // banner_ has no owning parent (see ui.md#object-lifecycle) - it's a
+    // direct child of lv_layer_top(), which is never itself destroyed.
+    // dismiss_timer_ must go first: it's a separate LVGL resource from
+    // the object tree and its callback reads banner_, so deleting banner_
+    // first would leave it pointing at freed memory until it next fires.
+    ~NotificationBanner();
+
+    NotificationBanner(const NotificationBanner&) = delete;
+    NotificationBanner& operator=(const NotificationBanner&) = delete;
 
 private:
     void Show(const std::string& message);

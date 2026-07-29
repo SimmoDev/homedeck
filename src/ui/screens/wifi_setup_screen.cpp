@@ -63,6 +63,8 @@ WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_rea
     lv_obj_set_style_pad_top(ap_info_label_, 24, 0);
 }
 
+WifiSetupScreen::~WifiSetupScreen() { lv_obj_del(root_); }
+
 void WifiSetupScreen::SetApInfo(const std::string& ap_ssid, const std::string& ap_ip) {
     lv_label_set_text_fmt(ap_info_label_,
                            "To configure Wi-Fi from a computer or phone, connect to SSID \"%s\" and then "

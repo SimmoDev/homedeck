@@ -7,4 +7,6 @@ DashboardScreen::DashboardScreen(EventBus& event_bus, BatteryReader& battery_rea
       status_bar_(root_, event_bus, battery_reader, network_status),
       grid_(root_) {}
 
+DashboardScreen::~DashboardScreen() { lv_obj_del(root_); }
+
 }  // namespace homedeck

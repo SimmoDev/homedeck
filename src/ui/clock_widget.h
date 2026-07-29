@@ -8,9 +8,8 @@ namespace homedeck {
 
 // Large clock (Core, optional) - see docs/architecture/dashboard.md's
 // Android-style pairing of a compact status-bar clock with an optional
-// larger clock widget on the home screen. The first real grid widget -
-// replaces the throwaway placeholder widgets that previously proved
-// DashboardGrid's mixed-span placement.
+// larger clock widget on the home screen. The first real grid widget
+// built on DashboardGrid's mixed-span placement mechanism.
 class ClockWidget : public Widget {
 public:
     explicit ClockWidget(lv_obj_t* parent, EventBus& event_bus);

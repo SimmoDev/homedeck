@@ -18,6 +18,13 @@ namespace homedeck {
 class DashboardScreen {
 public:
     DashboardScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status);
+    // root_ has no owning parent (see ui.md#object-lifecycle) - deleting
+    // it recursively deletes status_bar_/grid_'s LVGL objects too, since
+    // both are its children.
+    ~DashboardScreen();
+
+    DashboardScreen(const DashboardScreen&) = delete;
+    DashboardScreen& operator=(const DashboardScreen&) = delete;
 
     // Owns its own root (rather than taking an externally-provided
     // parent) so Navigation can lv_scr_load() it directly and switch to
