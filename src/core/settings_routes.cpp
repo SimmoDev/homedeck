@@ -10,20 +10,13 @@ namespace homedeck {
 namespace {
 
 constexpr const char* kDeviceNameKey = "device_name";
-// NVS_KEY_NAME_MAX_SIZE - 1 (see platform/firmware/settings_store.h). A
-// longer key silently fails on firmware but not on the simulator
-// (HostSettingsStore's file-per-key storage has no equivalent limit) -
-// checked explicitly here so this new public endpoint behaves the same
-// on both targets instead of diverging.
-constexpr size_t kMaxNvsKeyLength = 15;
 
-// Length plus the same path-segment safety check every SettingsStore
+// The same length-plus-path-segment-safety check every SettingsStore
 // backend enforces (platform/store_key_validation.h) - checked here too so
 // a rejected module/key surfaces as a clean 400 instead of falling through
 // to the store's own failure path and a generic 500.
 bool InvalidKey(const std::string& module_id, const std::string& key) {
-    return module_id.size() > kMaxNvsKeyLength || key.size() > kMaxNvsKeyLength || !IsValidStoreSegment(module_id) ||
-           !IsValidStoreSegment(key);
+    return !IsValidStoreSegment(module_id) || !IsValidStoreSegment(key);
 }
 
 nlohmann::json EntryToJson(const SettingEntry& entry) {

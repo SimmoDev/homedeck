@@ -233,6 +233,24 @@ TEST_F(StorageTest, SecretAndCacheAlsoRejectPathTraversalSegments) {
     EXPECT_FALSE(storage.WriteCache("harmony", "../../etc/passwd", 1, "escape-attempt"));
 }
 
+// A ns/key over 15 characters (NVS_KEY_NAME_MAX_SIZE - 1) would silently
+// fail on firmware's NVS-backed stores but succeed on these host-backed
+// ones without this - IsValidStoreSegment (platform/store_key_validation.h)
+// enforces the same cap on both targets so the failure mode doesn't
+// diverge.
+TEST_F(StorageTest, RejectsNamespaceOrKeyLongerThanTheNvsLimit) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    std::string exactly_15 = "123456789012345";
+    std::string sixteen = "1234567890123456";
+    EXPECT_TRUE(storage.SetSetting(exactly_15, "key", 1, "ok"));
+    EXPECT_FALSE(storage.SetSetting(sixteen, "key", 1, "too-long-namespace"));
+    EXPECT_FALSE(storage.SetSetting("module", sixteen, 1, "too-long-key"));
+}
+
 TEST_F(StorageTest, ListAllSettingsExcludesTheReservedAdminPasswordKeyEvenIfPresent) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
