@@ -148,6 +148,30 @@ TEST_F(WeatherRoutesTest, GeocodeParsesUpstreamResultsAndSkipsIncompleteEntries)
     EXPECT_EQ(result.body.find("Incomplete"), std::string::npos);
 }
 
+TEST_F(WeatherRoutesTest, GeocodeSkipsEntriesWithNonNumericLatitudeOrLongitude) {
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{
+        true, 200,
+        R"({"results":[)"
+        R"({"name":"Berlin","admin1":"Berlin","country":"Germany","latitude":52.52,"longitude":13.41},)"
+        // Present but wrong-typed - must be skipped, not abort the
+        // process (nlohmann's .get<double>() on a non-numeric value
+        // calls std::abort() since exceptions are disabled on the
+        // firmware target).
+        R"({"name":"WrongType","latitude":"not-a-number","longitude":13.41})"
+        R"(]})"});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18320));
+    std::string cookie = Login(18320);
+
+    auto result = HttpRequestRaw(18320, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 200);
+    EXPECT_NE(result.body.find(R"("name":"Berlin")"), std::string::npos);
+    EXPECT_EQ(result.body.find("WrongType"), std::string::npos);
+}
+
 TEST_F(WeatherRoutesTest, GeocodeUrlEncodesTheQueryBeforeForwarding) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);

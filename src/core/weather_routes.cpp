@@ -94,8 +94,9 @@ void RegisterWeatherRoutes(HttpServer& server, HttpClient& http_client, OpenMete
             auto upstream_results = parsed.find("results");
             if (upstream_results != parsed.end() && upstream_results->is_array()) {
                 for (const auto& entry : *upstream_results) {
-                    if (!entry.is_object() || !entry.contains("latitude") || !entry.contains("longitude") ||
-                        !entry.contains("name")) {
+                    if (!entry.is_object() || !entry.contains("name") || !entry.contains("latitude") ||
+                        !entry.contains("longitude") || !entry.at("latitude").is_number() ||
+                        !entry.at("longitude").is_number()) {
                         continue;
                     }
                     results.push_back({
