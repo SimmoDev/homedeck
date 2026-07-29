@@ -25,6 +25,7 @@
   let uploadProgress = $state(0);
   let uploadError: string | undefined = $state(undefined);
   let rebooting = $state(false);
+  let rebootError: string | undefined = $state(undefined);
 
   async function loadStatus() {
     const result = await loadJson<OtaStatus>("/api/ota/status");
@@ -73,7 +74,19 @@
 
   async function reboot() {
     rebooting = true;
-    await fetch("/api/ota/reboot", { method: "POST" });
+    rebootError = undefined;
+    try {
+      const response = await fetch("/api/ota/reboot", { method: "POST" });
+      if (!response.ok) {
+        rebooting = false;
+        rebootError = `Reboot request failed: ${response.status}`;
+      }
+    } catch {
+      // A network-level failure (as opposed to a real HTTP error
+      // response above) usually means the device already rebooted and
+      // cut the connection - the expected outcome, not a real failure -
+      // so `rebooting` stays true rather than resetting to an error.
+    }
   }
 
   loadStatus();
@@ -103,6 +116,9 @@
       <button onclick={reboot} disabled={rebooting}>
         {rebooting ? "Rebooting..." : "Reboot now"}
       </button>
+      {#if rebootError}
+        <p class="error">{rebootError}</p>
+      {/if}
     {:else}
       <input type="file" accept=".bin" onchange={onFileChange} disabled={uploadState === "uploading"} />
       <button
