@@ -104,7 +104,7 @@ Standard tier activates NVS encryption, `SecretStore`'s backing
 implementation is the one place that changes; callers (`AdminAuthService`
 today, module credential storage from M3 on) don't.
 
-`SecretStore` is real on both targets — see
+`SecretStore` is implemented on both targets — see
 [core.md](../architecture/core.md#status) for the implementation.
 
 ## Consequences

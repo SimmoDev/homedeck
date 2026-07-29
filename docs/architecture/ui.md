@@ -196,11 +196,11 @@ accessed without a Wi-Fi connection - relevant once a network-dependent
 widget (e.g. weather) exists - is covered by the existing
 offline-behaviour contract (see
 [networking.md](networking.md#offline-behaviour)), not something new
-this screen needed to solve. The status bar described above is real,
-confirmed on hardware (see [dashboard.md](dashboard.md#status)).
+this screen needed to solve. The status bar described above is
+implemented, confirmed on hardware (see [dashboard.md](dashboard.md#status)).
 
-Notification presentation is real, all three built outputs confirmed on
-hardware: `NotificationBanner` (`src/ui/notification_banner.h`/`.cpp`)
+Notification presentation is implemented, all three built outputs
+confirmed on hardware: `NotificationBanner` (`src/ui/notification_banner.h`/`.cpp`)
 is the screen-banner output — parented to LVGL's own top layer
 (`lv_layer_top()`), not any particular screen, since it renders above
 whatever screen Navigation currently has loaded; a single instance

@@ -91,7 +91,7 @@ LAN, gated by admin auth" — not a default either way.
 
 ## Status
 
-**Admin auth is real** — see [web-ui.md](web-ui.md#status) for
+**Admin auth is implemented** — see [web-ui.md](web-ui.md#status) for
 `AdminAuthService`'s design and verification status, including its
 password hashing (satisfying the "avoid insecure secret storage"
 requirement's hashing half) and the `RequireAuth()` gate (satisfying

@@ -37,7 +37,7 @@ LVGL's native grid layout (`lv_obj_set_grid_dsc_array`/
 `lv_obj_set_grid_cell`). `DashboardGrid::kColumns` (4) — the exact
 dimension this decision left open — is provisional, sized with no real
 widget catalog to size against yet; rows have no fixed count, growing on
-demand as widgets are added. Cell-span is real: widgets can occupy more
+demand as widgets are added. Cell-span is implemented: widgets can occupy more
 than one column and/or row (`Widget::ColumnSpan()`/`RowSpan()`,
 `src/ui/widget.h`, both defaulting to 1), placed by first-fit scanning
 against a per-row occupancy bitset, since multi-row spans need to know
