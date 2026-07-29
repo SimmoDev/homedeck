@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted — the Alert-priority wake cycle during Sleeping decision is
+superseded by [ADR-0024](ADR-0024-sleeping-wake-mechanism.md); every
+other decision below stands as originally accepted.
 
 ## Context
 

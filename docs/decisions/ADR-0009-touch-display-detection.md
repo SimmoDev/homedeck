@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted
+Accepted — superseded by [ADR-0014](ADR-0014-hardware-support-library.md),
+which built the runtime detection this ADR calls for directly into the
+hardware support library it chose, rather than the persisted-result/
+manual-override design decided below.
 
 ## Context
 
