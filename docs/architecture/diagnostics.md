@@ -93,18 +93,13 @@ with no way to be exercised before real hardware exists.
 
 ## Status
 
-**Crash and reboot diagnostics are implemented**, confirmed on real hardware
-including a real triggered panic (`firmware/main/crash_diagnostics.cpp`):
-a deliberate `abort()` produced a real panic printout, the device
-rebooted cleanly rather than halting (repeatedly, across several cycles),
-and the next boot correctly logged `Last reset reason: panic` and
-detected the core dump (valid checksum, correct crashing task name and
-program counter). Every boot reads
+**Crash and reboot diagnostics are implemented**
+(`firmware/main/crash_diagnostics.cpp`): every boot reads
 `esp_reset_reason()` and checks for a core dump from a preceding panic,
-logging and persisting both via [Storage](core.md#responsibilities) (see
-[ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md)).
+logging and persisting both via [Storage](core.md#responsibilities) —
+see [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md).
 
-**Web UI presentation of crash/reboot diagnostics is also real**
+**Web UI presentation of crash/reboot diagnostics is also implemented**
 (`src/core/diagnostics_routes.h`/`.cpp`, `webui/src/lib/Diagnostics.svelte`)
 — `GET /api/diagnostics` (reset reason, core dump presence, plus live
 battery/external-power state - see [hardware.md](hardware.md#power) -
@@ -117,38 +112,22 @@ writes mock values (`reset_reason: "power-on"`, a stub downloadable
 blob) into `Storage` at startup exactly as this document's own
 "Firmware-only mechanism" note above calls for, so the same request-
 handling code path is exercised identically on both targets — only the
-mock-vs-real data source differs. Confirmed end to end on the simulator,
-including a real click-driven browser session (Chrome DevTools Protocol)
-proving the actual page transitions from login to the rendered
-diagnostics view, not just that the API returns correct JSON.
-**Confirmed on real hardware too** (Tab5 K145 reference unit, over the
-LAN) — `resetReason` reflecting the device's actual last reset, and a
-real core dump downloading as genuine ELF-format bytes via
-`esp_core_dump_image_get()` + `esp_flash_read()` against the `coredump`
-partition.
+mock-vs-real data source differs.
 
-**Structured logs are also real** (`Logger`, `src/core/logger.h`/`.cpp`,
-`GET /api/diagnostics/logs`) — JSON-lines entries (timestamp, level,
-component, message) persisted through `Storage`'s existing cache tier
-with size-based rotation, per
+**Structured logs are also implemented** (`Logger`,
+`src/core/logger.h`/`.cpp`, `GET /api/diagnostics/logs`) — JSON-lines
+entries (timestamp, level, component, message) persisted through
+`Storage`'s existing cache tier with size-based rotation, per
 [ADR-0019](../decisions/ADR-0019-structured-logging.md) for the full
 format/rotation design. Unlike crash/reboot diagnostics, this isn't a
-firmware-only mechanism - the simulator runs the same real `Logger`,
-not mock data. `Log()` persists asynchronously on a background task,
-batching entries that arrive close together into one write — see
-[ADR-0020](../decisions/ADR-0020-async-log-persistence.md) for the
-full design rationale. **Confirmed on real hardware** (Tab5
-K145 reference unit):
-real boot-sequence events (Wi-Fi connect, mDNS advertising, Web UI
-listening) appear correctly through the endpoint, including entries
-that landed in the same batch sharing an identical persisted timestamp
-where they genuinely happened at the same moment. The Web UI's Logs
-section (`webui/src/lib/Diagnostics.svelte`) fetches once and filters
-by level/component client-side; confirmed against the simulator's real
-HTTP API and a real page load, though not yet via the same
-click-driven browser session the crash/reboot diagnostics view above
-was confirmed with. Extended log archival to microSD past the internal
-tier's bounded retention - the one concrete use
+firmware-only mechanism - the simulator runs the same `Logger`, not mock
+data. `Log()` persists asynchronously on a background task, batching
+entries that arrive close together into one write — see
+[ADR-0020](../decisions/ADR-0020-async-log-persistence.md) for the full
+design rationale. The Web UI's Logs section
+(`webui/src/lib/Diagnostics.svelte`) fetches once and filters by
+level/component client-side. Extended log archival to microSD past the
+internal tier's bounded retention - the one concrete use
 [ADR-0012](../decisions/ADR-0012-storage-tiers.md) names for that tier
 - is not built.
 

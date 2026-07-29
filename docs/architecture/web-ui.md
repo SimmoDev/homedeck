@@ -99,18 +99,12 @@ or compromised network.
 
 ## Status
 
-The `HttpServer` primitive is implemented and real on both targets —
+The `HttpServer` primitive is implemented on both targets —
 `FirmwareHttpServer` (`esp_http_server`) and `HostHttpServer` (civetweb),
-each serving one real route (`GET /`, a plain-text placeholder body) on
+each serving one route (`GET /`, a plain-text placeholder body) on
 their target's default port. On firmware, it starts after
 `ConnectToWifi()` returns, once `wifi_setup.cpp`'s own temporary SoftAP
-server has already stopped. **Confirmed on real hardware** (Tab5 K145
-reference unit) — the log shows `Web UI listening on port 80` right
-after Wi-Fi connects, and the route is reachable over the LAN from a
-browser. Also confirmed with a real request/response round trip in an
-automated test (a raw-socket HTTP client against `HostHttpServer` in
-`tests/http_server_test.cpp`) and manually against the running
-simulator.
+server has already stopped.
 
 **The [authentication mechanism](#authentication-mechanism) is implemented** —
 `AdminAuthService` (`src/core/admin_auth_service.h`/`.cpp`) implements
@@ -138,14 +132,7 @@ of target, and specifically necessary on firmware, where the wall-clock
 a known, pre-existing never-calibrated gap (see
 [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)).
 
-**Confirmed on real hardware** (Tab5 K145 reference unit), as well as
-end to end on the simulator (an automated raw-socket test,
-`tests/admin_auth_routes_test.cpp`, drives the actual setup → protected
-route → login → wrong-password → logout sequence over real HTTP against
-`HostHttpServer`) and via a clean Docker rebuild with host tests
-passing — `status`, `login` against a password that survives a reboot
-(it's in NVS), and the protected route all behave correctly on the
-Tab5. `esp_http_server`'s task stack is raised to 8KB
+`esp_http_server`'s task stack is raised to 8KB
 (`FirmwareHttpServer::Start()`, `src/platform/firmware/http_server.cpp`)
 from its 4KB default, and ESP-IDF's hardware-accelerated SHA256 is
 disabled project-wide (`CONFIG_MBEDTLS_HARDWARE_SHA=n` in
@@ -167,14 +154,10 @@ handler per asset. Firmware embeds assets directly into the app image
 via ESP-IDF's `EMBED_FILES` (see
 [ADR-0025](../decisions/ADR-0025-webui-static-asset-storage.md)
 for why, not the `storage` FAT partition); the simulator reads the same
-built files from `webui/dist/` on disk once at startup — **confirmed on
-real hardware** (Tab5 K145 reference unit), reachable over the LAN at
-`http://homedeck.local/` once Wi-Fi connects, as well as via a real HTTP
-request against the simulator and a clean Docker firmware build with the
-embedded symbols linking correctly.
+built files from `webui/dist/` on disk once at startup.
 
-**The Svelte + Vite frontend is implemented, and the first-login/session
-flow is now real UI, not scaffolding** (`webui/`, see
+**The Svelte + Vite frontend is implemented**, including the
+first-login/session flow (`webui/`, see
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)
 for the framework decision). `App.svelte` drives three states directly
 off `GET /api/auth/status` — password setup (`PasswordForm.svelte` in
@@ -184,46 +167,32 @@ single field), and an authenticated view with a working logout button —
 matching ADR-0007's first-login-sets-password design exactly, including
 its accepted race-condition handling (an `already_set` response from a
 losing setup request re-checks status rather than treating it as this
-form's own error). Confirmed on both targets: the setup and login form
-renders confirmed via headless Chromium against the real running
-server (correct fields, `autocomplete` attributes, button text per
-mode); the full session lifecycle (wrong password → 401, correct
-password → session cookie → `authenticated: true`, logout → cookie
-cleared → `authenticated: false`) confirmed against the actual
-`AdminAuthService` endpoints on the simulator, matching exactly what
-the form code depends on. **Confirmed on real hardware** (Tab5 K145
-reference unit) too — the full three-file bundle
-(`index.html`/`app.js`/`app.css`) served correctly over the LAN at
-`http://homedeck.local/`, and the wrong-password path specifically
-(401/`invalid_credentials`, the same response `PasswordForm.svelte`
-maps to "Incorrect password."). Basic layout/spacing styling exists
-(Svelte component-scoped `<style>` blocks plus a small global reset in
-`index.html`) — a plain, functional look for the real screens that
-exist, not a design system built ahead of having more screens to
-standardize across.
+form's own error). Basic layout/spacing styling exists (Svelte
+component-scoped `<style>` blocks plus a small global reset in
+`index.html`) — a plain, functional look for the screens that exist, not
+a design system built ahead of having more screens to standardize
+across.
 
 **The diagnostics screen is implemented too** — see
 [diagnostics.md#status](diagnostics.md#status) for the full detail
 (crash/reboot reset reason and a downloadable core dump; the only
 diagnostic data that exists yet).
 
-**OTA update support is implemented, confirmed on hardware** — see
+**OTA update support is implemented** — see
 [hardware.md#power](hardware.md#power) for the battery/external-power
 gate it's built on. `GET /api/ota/status`, `POST /api/ota/upload`, and
 `POST /api/ota/reboot` (`src/core/ota_routes.h`/`.cpp`), gated by
 `EvaluateOtaGate()` (`src/core/ota_gate.h`) per
 [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-ota-batterypower-gate),
 all admin-only via `RequireAuth()`. `webui/src/lib/Ota.svelte` shows
-current version, the gate's reason if closed, an upload with real
-progress (`XMLHttpRequest`, not `fetch` - see the component's own
-comment for why), and an explicit "Reboot now" step, not an automatic
-reboot after upload. Confirmed end to end on the K145 reference unit: a
-real multi-MB image uploaded and booted into over the LAN, and
-app-rollback (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) automatically
-reverting to the previous slot after a deliberately-bad image was
-uploaded and rebooted into.
+current version, the gate's reason if closed, an upload with progress
+(`XMLHttpRequest`, not `fetch` - see the component's own comment for
+why), and an explicit "Reboot now" step, not an automatic reboot after
+upload. App-rollback (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`)
+automatically reverts to the previous slot if a bad image is uploaded
+and rebooted into.
 
-**Settings and backups are also real** - `GET`/`POST /api/settings`,
+**Settings and backups are also implemented** - `GET`/`POST /api/settings`,
 `POST /api/settings/erase`, `GET /api/backup`, `POST
 /api/backup/restore` (`src/core/settings_routes.h`/`.cpp`), all
 admin-only, built directly on `Storage::SetSetting/GetSetting/EraseSetting`
@@ -233,38 +202,31 @@ enumeration mechanism and the security finding that originally shaped
 it, and [ADR-0027](../decisions/ADR-0027-secret-store-partition-separation.md)
 for why `SettingsStore` and `SecretStore` no longer share physical NVS
 storage on firmware - the admin password hash still keeps its explicit
-reserved-key guard as a second-layer safeguard, confirmed via a
-dedicated regression test). `webui/src/lib/Settings.svelte` shows a concrete
-device name field (the first real setting - replaces the previously
-hardcoded `"homedeck"` mDNS hostname, applied live via
+reserved-key guard as a second-layer safeguard, covered by a dedicated
+regression test). `webui/src/lib/Settings.svelte` shows a concrete
+device name field (the first setting exposed this way - replaces the
+previously hardcoded `"homedeck"` mDNS hostname, applied live via
 `mdns_hostname_set()` without a reboot) plus backup download/restore -
 deliberately not a generic raw settings editor, since device name alone
-gave the design nothing to check itself against. Confirmed
-end to end against both the simulator and the K145 reference unit
-(`curl` against a real running server, including the
-admin-password-exclusion regression scenario and the live mDNS
-re-announce, with no reboot).
+gave the design nothing to check itself against.
 
-**Weather location is the second real setting** - a place-name search
-box backed by a new `GET /api/weather/geocode?query=<name>` endpoint
+**Weather location is the second setting exposed this way** - a
+place-name search box backed by a new
+`GET /api/weather/geocode?query=<name>` endpoint
 (`src/core/weather_routes.h`/`.cpp`, admin-only like every other
 endpoint here), proxying Open-Meteo's own free geocoding API rather
 than the browser calling it directly, so the Web UI stays a client of
 only the device's own API surface. Selecting a search result saves
 `latitude`/`longitude`/`display_name` through the existing generic
-settings endpoints above - no dedicated save endpoint needed, confirming
-the generic API's design holds up against a second real consumer - then
+settings endpoints above - no dedicated save endpoint needed - then
 calls a second new endpoint, `POST /api/weather/refresh`, which wakes
 `OpenMeteoWeatherProvider`'s poll loop immediately (see
 [dashboard.md](dashboard.md#status)) rather than leaving the dashboard
-to wait out the rest of a real 30-minute poll interval before showing
-anything for the location just chosen. Confirmed end to end (search,
-select, save, refresh, and the dashboard's weather widget picking up
-the change within a couple of seconds) against the simulator, a real
-desktop browser session, and the K145 reference unit.
+to wait out the rest of a 30-minute poll interval before showing
+anything for the location just chosen.
 
 Still open, each its own future pass: WebSockets for live updates,
-module configuration specifically (no real module exists yet to
-configure - the generic settings API above is ready for one), Wi-Fi
-management (view/change post-provisioning), factory-reset, and the
-NVS-encryption follow-up named above.
+module configuration specifically (no module exists yet to configure -
+the generic settings API above is ready for one), Wi-Fi management
+(view/change post-provisioning), factory-reset, and the NVS-encryption
+follow-up named above.

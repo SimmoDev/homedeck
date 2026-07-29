@@ -142,66 +142,62 @@ measurements rather than decided abstractly:**
 ## Status
 
 **`PowerManager` (`src/core/power_manager.h`/`.cpp`) is implemented** for
-`Active`/`Idle`/`Sleeping` — confirmed on the K145 reference unit: the
-display dims after the idle timeout, goes fully off (0% brightness)
-after the sleep timeout, and restores directly to full brightness on
-touch from either state. It reads user inactivity through
-`UserActivitySource` (`src/platform/user_activity_source.h`, backed by
-`src/ui/lvgl_user_activity_source.h`/`.cpp` on both targets) and drives
-`DisplayBrightness` (`src/platform/display_brightness.h`, real PWM on
-firmware via `src/platform/firmware/display_brightness.h`/`.cpp`, an
+`Active`/`Idle`/`Sleeping`: the display dims after the idle timeout, goes
+fully off (0% brightness) after the sleep timeout, and restores directly
+to full brightness on touch from either state. It reads user inactivity
+through `UserActivitySource` (`src/platform/user_activity_source.h`,
+backed by `src/ui/lvgl_user_activity_source.h`/`.cpp` on both targets)
+and drives `DisplayBrightness` (`src/platform/display_brightness.h`, PWM
+on firmware via `src/platform/firmware/display_brightness.h`/`.cpp`, an
 LVGL overlay on the simulator via
 `src/platform/host/display_brightness.h`/`.cpp` — see
 [simulator.md](simulator.md#how-it-works)). `Idle -> Sleeping` is
 gated by the sleep-veto mechanism (`PowerManager::RequestSleepVeto`/
-`HasActiveSleepVeto`) — `HasActiveSleepVeto()` is now consulted for
-real by that transition, though `RequestSleepVeto()` itself still has
-no module caller until M3+.
+`HasActiveSleepVeto`) — `HasActiveSleepVeto()` is consulted by that
+transition, though `RequestSleepVeto()` itself still has no module
+caller until M3+.
 
-`Updating` is also real: `POST /api/ota/upload` publishes
+`Updating` is also implemented: `POST /api/ota/upload` publishes
 `OtaUpdateStateChangedEvent` immediately around the actual flash write,
 `PowerManager` transitions into `kUpdating` and back to `kActive`
 accordingly, and `OnTick()` skips the Idle timeout entirely while
-`kUpdating` so the display can't dim mid-write — confirmed on the K145
-reference unit. The Updating state's own gate check
-(`src/core/ota_gate.h`, `EvaluateOtaGate()`) is separately real and
-confirmed on hardware too — the 30%/external-power condition. What
-`Updating` does *not* do yet is suppress other background tasks; that's
-an intentionally deferred scope decision, not a gap, since there's
-barely any background-task activity today to suppress.
+`kUpdating` so the display can't dim mid-write. The Updating state's own
+gate check (`src/core/ota_gate.h`, `EvaluateOtaGate()`) — the
+30%/external-power condition — is implemented too. What `Updating` does
+*not* do yet is suppress other background tasks; that's an
+intentionally deferred scope decision, not a gap, since there's barely
+any background-task activity today to suppress.
 
-`Error` is now real for one of its three scoped fault types:
+`Error` is implemented for one of its three scoped fault types:
 `CriticalBatteryMonitor` (`src/core/critical_battery_monitor.h`/`.cpp`,
 structural twin of `LowBatteryMonitor`) publishes
 `CriticalBatteryStateChangedEvent` once the battery crosses below its
 critical threshold while not on external power (the same
 threshold-OR-external-power reasoning `EvaluateOtaGate` already uses),
 and `PowerManager` transitions into `kError` (and back to `kActive` on
-recovery) accordingly — confirmed on the K145 reference unit through the
-real `Ina226BatteryReader` path. `kError` takes priority over
-`kUpdating` if both are true at once, per ADR-0005's "force a safe
-shutdown right now regardless of what the UI is doing" - deliberately
-interrupting an in-progress OTA write rather than deferring to it,
-since `esp_ota_end()` already validates an image before it can become
-bootable, so an interrupted write fails safe. Of the other two fault
-types ADR-0005 originally scoped Error to cover: charging-fault
-detection is a permanent limitation of this board revision, not
-outstanding work - `CHG_STAT` (see [hardware.md](hardware.md#power))
+recovery) accordingly, through the `Ina226BatteryReader` path. `kError`
+takes priority over `kUpdating` if both are true at once, per ADR-0005's
+"force a safe shutdown right now regardless of what the UI is doing" -
+deliberately interrupting an in-progress OTA write rather than
+deferring to it, since `esp_ota_end()` already validates an image
+before it can become bootable, so an interrupted write fails safe. Of
+the other two fault types ADR-0005 originally scoped Error to cover:
+charging-fault detection is a permanent limitation of this board
+revision, not outstanding work - `CHG_STAT` (see [hardware.md](hardware.md#power))
 can't distinguish a stalled charge from a simply-unplugged or
 already-full battery, and no independent cable-presence signal exists
 to disambiguate (see [roadmap.md](../roadmap.md) for the detail).
 Thermal fault is the same: no battery-temperature signal exists in this
-design at any level, confirmed against the schematic - the IP2326's
-`NTC` pin is permanently spoofed to "normal" by a fixed resistor
-network rather than fed by a real thermistor, and the battery
-connector's only candidate thermistor pin is unconnected on the board.
-The ESP32-P4's own die temperature was considered and rejected as a
-stand-in: it reflects board/CPU heat, not battery chemistry, and
-wouldn't catch a failing cell before it heats the rest of the board
-(see [hardware.md](hardware.md#power)). Both are closed as permanent
-hardware limitations, not outstanding work.
+design at any level - the IP2326's `NTC` pin is permanently spoofed to
+"normal" by a fixed resistor network rather than fed by a real
+thermistor, and the battery connector's only candidate thermistor pin
+is unconnected on the board. The ESP32-P4's own die temperature was
+considered and rejected as a stand-in: it reflects board/CPU heat, not
+battery chemistry, and wouldn't catch a failing cell before it heats
+the rest of the board (see [hardware.md](hardware.md#power)). Both are
+closed as permanent hardware limitations, not outstanding work.
 
-Manual brightness control is also real now, alongside on-device volume
+Manual brightness control is implemented, alongside on-device volume
 control (Audio bring-up's own open item, see
 [hardware.md](hardware.md#audio) for where `AudioOutput` lives) - both
 exposed through one `QuickSettingsPanel` (`src/ui/quick_settings_panel.h`/
@@ -222,11 +218,8 @@ Active brightness below the normal 20% dim level can't dim "up" past
 it. Both settings apply live on every slider drag tick and persist to
 `Storage` once on release (`module="power"/"brightness"`,
 `module="audio"/"volume"`), read back on boot rather than resetting to
-the previous hardcoded 100%/70% defaults. Confirmed on the K145
-reference unit: the physical backlight dims/brightens live while
-dragging, a triggered test notification's chime is audibly
-quieter/louder after adjusting volume, and both settings survive a real
-power cycle. `NotificationBanner` and `QuickSettingsPanel` share LVGL's
-top layer with no other stacking order between them, so
-`NotificationBanner::Show()` calls `lv_obj_move_foreground()` to ensure a
-notification arriving while the panel is open still renders above it.
+the previous hardcoded 100%/70% defaults. `NotificationBanner` and
+`QuickSettingsPanel` share LVGL's top layer with no other stacking
+order between them, so `NotificationBanner::Show()` calls
+`lv_obj_move_foreground()` to ensure a notification arriving while the
+panel is open still renders above it.

@@ -89,4 +89,4 @@ The concrete module interface (exact base class/lifecycle methods, exact
 registration API) is intentionally undefined here. [CLAUDE.md](../../CLAUDE.md) instructs
 against making assumptions about APIs before implementation; the interface
 will be defined when Harmony (the reference module) is built in M3, and this
-document updated to reflect the real contract rather than a speculative one.
+document updated to reflect the actual contract rather than a speculative one.

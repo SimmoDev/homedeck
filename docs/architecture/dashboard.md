@@ -109,21 +109,19 @@ enough real widgets to make customization meaningful.
 
 ## Status
 
-The initial dashboard shell exists and runs for real on both targets: the
-simulator, and real Tab5 hardware (see
-[hardware.md](hardware.md#on-device-dashboard)). The status bar is
-implemented, confirmed on hardware — `StatusBar` (`src/ui/status_bar.h`/`.cpp`) is
-fixed, non-scrolling chrome, constructed by every screen
-(`DashboardScreen` and, proving the "every screen" mechanism on both
-targets, `WifiSetupScreen` — see [ui.md](ui.md#status)), rendered as a
-solid black bar with
-white text: compact date/time (subscribed to `Clock`'s existing
-`ClockTickEvent`, publishing once a second; blank until the first tick
-arrives rather than showing a fabricated time) and battery percentage,
-both refreshed on that same tick rather than a second timer, per
+The dashboard shell runs on both targets — the simulator and real Tab5
+hardware (see [hardware.md](hardware.md#on-device-dashboard)).
+`StatusBar` (`src/ui/status_bar.h`/`.cpp`) is fixed, non-scrolling
+chrome, constructed by every screen (`DashboardScreen` and
+`WifiSetupScreen`, proving the "every screen" mechanism — see
+[ui.md](ui.md#status)): a solid black bar with white text showing
+compact date/time (subscribed to `Clock`'s `ClockTickEvent`, blank
+until the first tick rather than a fabricated time) and battery
+percentage, both refreshed on that same tick rather than a second
+timer, per
 [ADR-0008](../decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)'s
 "relocate, don't rebuild" framing. Black/white styling matches the
-Android/iOS convention that ADR already referenced.
+Android/iOS convention that ADR references.
 
 Font size is Montserrat 24: on the panel's ~294 PPI (from its 5"
 720×1280 spec, see [hardware.md](hardware.md#display-and-touch)), that's
@@ -135,19 +133,19 @@ enabled identically on both targets (see `simulator/lv_conf.h` and
 `BatteryReader` is mocked in the simulator (a fixed value, adjustable via
 debug buttons — see [simulator.md](simulator.md#how-it-works)) but real on
 firmware, reading the INA226 power monitor. The status bar reflects three
-real states, confirmed on hardware (see [hardware.md](hardware.md#power)
-for how each is derived): battery percentage alone; a charge icon plus
-percentage while a present battery is actually charging; and a USB icon
-with no percentage when no battery is installed, since the percentage
-reading isn't meaningful in that state. `ReadPercent()`'s own approximation
-accuracy (confirmed slightly inaccurate, e.g. reading ~90% on a pack
-already fully charged) is unchanged by this — a real state-of-charge
-estimate is still Power Management scope, not the status bar's.
+states (see [hardware.md](hardware.md#power) for how each is derived):
+battery percentage alone; a charge icon plus percentage while a present
+battery is actually charging; and a USB icon with no percentage when no
+battery is installed, since the percentage reading isn't meaningful in
+that state. `ReadPercent()`'s own approximation accuracy is unchanged
+by this — see [hardware.md](hardware.md#power) for its known margin; a
+real state-of-charge estimate is still Power Management scope, not the
+status bar's.
 
-The status bar's Wi-Fi connectivity icon is also real, confirmed on
-hardware: `StatusBar` prepends `LV_SYMBOL_WIFI` to the same label as the
-battery icon/percentage (present or absent, not glyph-swapped) rather
-than a separately-positioned object, so LVGL's own text layout keeps the
+The status bar's Wi-Fi connectivity icon works the same way:
+`StatusBar` prepends `LV_SYMBOL_WIFI` to the same label as the battery
+icon/percentage (present or absent, not glyph-swapped) rather than a
+separately-positioned object, so LVGL's own text layout keeps the
 spacing between every symbol uniform. The tracked connected state
 updates on the portable `WifiConnectivityChangedEvent` (see
 [networking.md](networking.md#status)) rather than the 1Hz clock tick,
@@ -164,40 +162,21 @@ accessor plus a `ColumnSpan()`/`RowSpan()` footprint (both default to 1,
 override to occupy more); no live/cached/offline freshness reporting
 yet, left out as ADR-0008 says it should be until a real widget exists
 to design against. `DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`)
-hosts widgets on a fixed grid — `DashboardGrid::kColumns` (4) columns,
-genuinely arbitrary pending real content to size against, not a
-considered choice — with rows growing on demand as widgets are added (no
-paging concept exists, so the grid stays scrollable for when content
-exceeds the visible screen, unlike the deliberately non-scrolling status
-bar). Rows are a fixed height matched to column width, so a 1×1 cell is
-square rather than sized to its own content. Placement is first-fit:
-scan cells top-to-bottom, left-to-right, and use the first position a
-widget's full footprint fits without overlapping an already-placed
-widget, tracked via a real per-row occupancy bitset, not just a simple
-left-to-right cursor (multi-row spans need to know which cells further
-down are already taken), including the 8px gap between cells (folded
-into the same row-height calculation, not applied separately, since it
-eats into the same available width the column size comes from). Built
-into `DashboardScreen` on both targets, confirmed on hardware (Tab5 K145
-reference unit): first-fit placement of mixed spans, square 1×1 cells,
-and cell spacing all render correctly on the real panel.
+hosts widgets on a fixed, first-fit-packed grid — see its own header
+comment for the column count, row-growth, and placement-algorithm
+rationale. Built into `DashboardScreen` on both targets.
 
-**The first real grid widget is built**: `ClockWidget`
-(`src/ui/clock_widget.h`/`.cpp`) - a large time/date display, the
+`ClockWidget` (`src/ui/clock_widget.h`/`.cpp`) is the first grid widget
+built on that placement mechanism: a large time/date display, the
 "optional larger clock widget" this doc's own [Widget
 system](#widget-system) section named, distinct from the always-on
 status bar clock. Portable and target-agnostic, the same
 `EventBus::SubscribeUi<ClockTickEvent>` mechanism `StatusBar` already
 uses, just a bigger font (Montserrat 48, enabled identically on both
 targets alongside the status bar's own Montserrat 24) and a 2-column
-span — the first real widget built on `DashboardGrid`'s mixed-span
-placement mechanism. **Confirmed on hardware** (Tab5 K145 reference
-unit): renders centered and legible, with no clipping or overlap.
-Weather (see [Weather
-source](#weather-source) above) is also real - see below.
+span.
 
-**The network status widget is also real**: `NetworkStatusWidget`
-(`src/ui/network_status_widget.h`/`.cpp`) is the
+`NetworkStatusWidget` (`src/ui/network_status_widget.h`/`.cpp`) is the
 "fuller network status grid widget for detail beyond what an icon can
 show" this doc's [Status bar](#status-bar) section names above - a
 2-column tile showing the Wi-Fi icon plus connected/disconnected state,
@@ -208,33 +187,25 @@ with an ellipsis at its real 32-character maximum rather than wrapped,
 since a wrapped second line would push the IP label out of the tile.
 When disconnected, the SSID/IP labels are hidden rather than blanked,
 so a lone "Disconnected" line stays centered in the tile instead of
-leaving dead space below it. **Confirmed in the simulator**: renders
-correctly alongside `ClockWidget`, both connected (real SSID/IP) and
-disconnected (exercised via a simulator debug button) states.
-**Confirmed on the Tab5 K145 reference unit**, including the rendered
-layout on the real panel: boots without a crash, the real Wi-Fi SSID/IP
-reach it (`Dashboard loaded` followed by a clean heartbeat, confirmed
-via serial log), and it renders correctly alongside `ClockWidget`. Known
-gap: `NetworkStatusMonitor` only publishes on a
-connected/disconnected transition, so an IP change that doesn't pass
-through a disconnect (e.g. a DHCP lease renewal while still associated)
-won't refresh this widget's IP label - not observed in practice and not
-worth a second event/poll path until it is.
+leaving dead space below it. Known gap: `NetworkStatusMonitor` only
+publishes on a connected/disconnected transition, so an IP change that
+doesn't pass through a disconnect (e.g. a DHCP lease renewal while
+still associated) won't refresh this widget's IP label - not observed
+in practice and not worth a second event/poll path until it is.
 
-**The weather widget is also real**: `WeatherWidget`
-(`src/ui/weather_widget.h`/`.cpp`), backed by `OpenMeteoWeatherProvider`
-(`src/core/weather_provider.h`/`.cpp` - see [Weather
-source](#weather-source) below and
-[networking.md](networking.md#status) for the new outbound `HttpClient`
+`WeatherWidget` (`src/ui/weather_widget.h`/`.cpp`) is backed by
+`OpenMeteoWeatherProvider` (`src/core/weather_provider.h`/`.cpp` - see
+[Weather source](#weather-source) below and
+[networking.md](networking.md#status) for the outbound `HttpClient`
 interface it's built on). A 2-column tile showing temperature and a WMO
 condition-code text mapping (no custom icons yet - see the roadmap's M7
 polish item), plus the configured location's display name. Renders one
 of three states: not configured ("Set a location in Settings"), a live
 reading, or a cached/stale reading marked as such - the first widget to
-exercise this doc's own [Data freshness](#data-freshness) requirement
-for real, per ADR-0008's note that it was left undesigned until a real
-widget existed to design against. Polls Open-Meteo every 30 minutes on
-a dedicated background `Task` (`src/platform/task.h`), not `Timer` -
+exercise this doc's own [Data freshness](#data-freshness) requirement,
+per ADR-0008's note that it was left undesigned until a real widget
+existed to design against. Polls Open-Meteo every 30 minutes on a
+dedicated background `Task` (`src/platform/task.h`), not `Timer` -
 FreeRTOS's software timers share one timer-service task sized for
 lightweight callbacks (`Clock`'s own tick), and a multi-second HTTPS
 fetch would stall every other timer system-wide if run there. A
@@ -244,28 +215,22 @@ immediately, so choosing a new location doesn't leave the dashboard
 waiting out the rest of a real 30-minute interval in silence; the
 Web UI's Settings page calls this (via `POST /api/weather/refresh`, see
 [web-ui.md](web-ui.md#status)) right after saving a newly-selected
-location. Confirmed end to end, including location search via
-Open-Meteo's own geocoding API (proxied through an admin-gated
-`GET /api/weather/geocode` endpoint), against the simulator, a real
-browser session, and the Tab5 K145 reference unit. `Storage`
-(`src/core/storage.h`) is internally
-thread-safe (a single mutex guarding every method) - genuinely needed,
-not defensive: app_main's boot sequence, the Web UI's httpd worker
-thread, and this widget's poll `Task` all call into the same `Storage`
-instance with no coordination between them.
+location. Location search goes through Open-Meteo's own geocoding API,
+proxied through an admin-gated `GET /api/weather/geocode` endpoint.
+`Storage` (`src/core/storage.h`) is internally thread-safe (a single
+mutex guarding every method) - genuinely needed, not defensive:
+app_main's boot sequence, the Web UI's httpd worker thread, and this
+widget's poll `Task` all call into the same `Storage` instance with no
+coordination between them.
 
-**The notification indicator widget is also real**: `NotificationWidget`
-(`src/ui/notification_widget.h`/`.cpp`) is the dashboard-indicator
-output [CLAUDE.md](../../CLAUDE.md)'s notification requirements name (see
-[ui.md](ui.md#notification-presentation)) - a 2-column tile always
-echoing the most recent `NotificationEvent`'s message ("No
-notifications yet" until the first one arrives), not an unread-count
-badge - see [roadmap.md](../roadmap.md)'s M7 list for that variant,
-deliberately deferred since nothing today fires more than one
+`NotificationWidget` (`src/ui/notification_widget.h`/`.cpp`) is the
+dashboard-indicator output [CLAUDE.md](../../CLAUDE.md)'s notification
+requirements name (see [ui.md](ui.md#notification-presentation)) - a
+2-column tile always echoing the most recent `NotificationEvent`'s
+message ("No notifications yet" until the first one arrives), not an
+unread-count badge - see [roadmap.md](../roadmap.md)'s M7 list for that
+variant, deliberately deferred since nothing today fires more than one
 notification per episode. Subscribes directly to `NotificationEvent`,
 the same as `NotificationBanner`'s own screen-banner presentation of
 the same event - no new Core-owned state exists purely to back this
-widget. Confirmed in the simulator (renders alongside the other three
-widgets, updates on the existing low-battery test trigger) and on the
-Tab5 K145 reference unit (via a temporary debug publish, removed
-afterward).
+widget.

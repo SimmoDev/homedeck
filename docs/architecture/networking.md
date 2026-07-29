@@ -89,13 +89,11 @@ for why.
 ## Status
 
 Wi-Fi provisioning and the embedded HTTP server (see [web-ui.md](web-ui.md#status))
-are implemented and confirmed on hardware. Self-advertisement is also
-implemented, **confirmed on hardware** — firmware calls ESP-IDF's `mdns` component
-directly (`mdns_init`/`mdns_hostname_set`/`mdns_service_add` in
-`firmware/main/homedeck.cpp`) to advertise the device as `homedeck.local`
-with an `_http._tcp` service record for the Web UI, once Wi-Fi connects.
-Verified from a phone's browser, reaching `http://homedeck.local/`
-successfully over the LAN (a desktop Linux client without `nss-mdns`/
+are implemented. Self-advertisement is also implemented — firmware calls
+ESP-IDF's `mdns` component directly (`mdns_init`/`mdns_hostname_set`/
+`mdns_service_add` in `firmware/main/homedeck.cpp`) to advertise the
+device as `homedeck.local` with an `_http._tcp` service record for the
+Web UI, once Wi-Fi connects (a desktop Linux client without `nss-mdns`/
 Avahi resolution configured won't resolve `.local` names at all — a
 client-side gap, not something this device's advertisement can fix). No
 Core abstraction wraps this — it's a handful of direct calls with no
@@ -105,17 +103,17 @@ machine itself).
 
 Still not implemented: the mDNS *browsing* wrapper this document
 describes above, for modules to discover Home Assistant/Kodi. That has no
-real consumer until one of those modules exists (M4 for Kodi, M6 for Home
+consumer until one of those modules exists (M4 for Kodi, M6 for Home
 Assistant) — building it now would be exactly the kind of speculative
 Core abstraction [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape)
 itself rejects. LAN discovery (browsing) remains planned for whichever of
 those milestones lands first.
 
-Connectivity status is also real, **confirmed on hardware**: a portable
-`NetworkStatus` interface (`src/platform/network_status.h`) exposes a
-`Snapshot()` of connected/SSID/IP state, backed by `FirmwareNetworkStatus`
-(updated from `wifi_setup.cpp`'s existing `WIFI_EVENT`/`IP_EVENT`
-handlers) and `HostNetworkStatus` for the simulator. A Core-level
+Connectivity status is also implemented: a portable `NetworkStatus`
+interface (`src/platform/network_status.h`) exposes a `Snapshot()` of
+connected/SSID/IP state, backed by `FirmwareNetworkStatus` (updated from
+`wifi_setup.cpp`'s existing `WIFI_EVENT`/`IP_EVENT` handlers) and
+`HostNetworkStatus` for the simulator. A Core-level
 `NetworkStatusMonitor` (`src/core/network_status_monitor.h`) polls it on
 the existing clock tick and publishes `WifiConnectivityChangedEvent` only
 on an actual connected/disconnected transition — the status bar's Wi-Fi
@@ -124,15 +122,12 @@ icon is the first consumer, and the network-status dashboard widget
 second. The Web UI's Wi-Fi management page named above is still open, a
 now-unblocked follow-up, not built yet.
 
-Outbound HTTP(S) is also real, **confirmed on hardware** — a portable
-`HttpClient` interface (`src/platform/http_client.h`, GET-only) backed
-by `FirmwareHttpClient` (`esp_http_client`, TLS verified via ESP-IDF's
-built-in certificate bundle rather than a pinned cert) and
-`HostHttpClient` (libcurl) for the simulator. The first real consumer
-is the weather widget's Open-Meteo integration (see
-[dashboard.md](dashboard.md#status)); the same interface is expected to
-back Kodi/Uptime Kuma/Home Assistant's own outbound calls once those
-modules exist (M4-M6), not a single-purpose addition. Confirmed on the
-Tab5 K145 reference unit: a real HTTPS GET against a public host
-succeeds over the ESP32-C6/`esp_wifi_remote` link with no new
-RPC-timeout symptoms beyond the existing documented one above.
+Outbound HTTP(S) is also implemented — a portable `HttpClient` interface
+(`src/platform/http_client.h`, GET-only) backed by `FirmwareHttpClient`
+(`esp_http_client`, TLS verified via ESP-IDF's built-in certificate
+bundle rather than a pinned cert) and `HostHttpClient` (libcurl) for the
+simulator. The first consumer is the weather widget's Open-Meteo
+integration (see [dashboard.md](dashboard.md#status)); the same
+interface is expected to back Kodi/Uptime Kuma/Home Assistant's own
+outbound calls once those modules exist (M4-M6), not a single-purpose
+addition.

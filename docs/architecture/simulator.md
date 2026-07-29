@@ -90,24 +90,23 @@ for why this ruled out a separate web-based mock UI.
 ## Status
 
 The build, the Core Concurrency Abstraction's host backend, `EventBus`,
-and the dedicated UI task all exist and run for real (`Task`/`Queue`/
-`Timer`/`EventBus` also have unit tests in `tests/`). The real dashboard
-runs on top of them too — `DashboardScreen` (live clock, battery),
-`Navigation`, and the persistent home affordance are all real,
-confirmed by manually running the simulator, not just compiling — see
+and the dedicated UI task are all implemented (`Task`/`Queue`/`Timer`/
+`EventBus` also have unit tests in `tests/`). The dashboard runs on top
+of them too — `DashboardScreen` (live clock, battery), `Navigation`, and
+the persistent home affordance are all implemented — see
 [dashboard.md](dashboard.md#status) and [ui.md](ui.md#status) for detail.
 No module code exists yet. See
 [DEVELOPMENT.md](../../DEVELOPMENT.md#simulator-workflow) for the
 day-to-day workflow.
 
-Physical keyboard input is also real: `UiTask` (`src/ui/ui_task.cpp`)
-sets a default `lv_group` before any screen is constructed, so every
-focusable widget (textareas, buttons) LVGL creates from then on joins
-it automatically (`group_def=true` in its own widget class - no
-per-screen wiring needed), then registers `lv_sdl_keyboard_create()`
-against that group alongside the existing `lv_sdl_mouse_create()`.
-Typing, Tab/arrow-key focus movement, and Enter/Escape all work
-directly on a text field (e.g. `WifiSetupScreen`, see
-[ui.md](ui.md#status)) without touching the on-screen keyboard, though
-that still works too - confirmed manually in the simulator. Dev tooling
-only, no on-device equivalent (touch is the only real input).
+Physical keyboard input is also implemented: `UiTask`
+(`src/ui/ui_task.cpp`) sets a default `lv_group` before any screen is
+constructed, so every focusable widget (textareas, buttons) LVGL creates
+from then on joins it automatically (`group_def=true` in its own widget
+class - no per-screen wiring needed), then registers
+`lv_sdl_keyboard_create()` against that group alongside the existing
+`lv_sdl_mouse_create()`. Typing, Tab/arrow-key focus movement, and
+Enter/Escape all work directly on a text field (e.g. `WifiSetupScreen`,
+see [ui.md](ui.md#status)) without touching the on-screen keyboard,
+though that still works too. Dev tooling only, no on-device equivalent
+(touch is the only input on hardware).

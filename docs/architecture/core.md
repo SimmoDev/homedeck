@@ -96,17 +96,17 @@ generic notification and hands it to Core. See
 
 ## Status
 
-Two Core services exist for real, built during M1 rather than waiting for
+Two Core services are implemented, built during M1 rather than waiting for
 M2 because the dedicated-UI-task work needed them directly: the **Event
 bus** (`EventBus` in `src/core/`) and **Time/date services** (`Clock`).
-Both are unit-tested in `tests/`. **Navigation** also has a minimal real
+Both are unit-tested in `tests/`. **Navigation** also has a minimal
 implementation — a route registry (`Register`/`GoTo`/`GoHome`), proven
 against a deliberately throwaway second screen — though it lives in
 `src/ui/`, not `src/core/`, since its `lv_scr_load()` call is a UI-layer
 implementation detail (see [src/README.md](../../src/README.md) for the
 same reasoning applied to `EventBus` staying LVGL-free).
 
-**Configuration and Storage** are also real now (`Storage` in
+**Configuration and Storage** are also implemented now (`Storage` in
 `src/core/`, unit-tested in `tests/`) — the two named responsibilities
 above map onto one class: schema-versioned settings/cache/secret
 read-write (Configuration) backed by the NVS and internal-flash-FAT tiers
@@ -134,12 +134,12 @@ facility to exist first, which it now does (see below), but archival
 to SD itself isn't wired up yet.
 
 **Crash and reboot diagnostics** — one specific, fully-specified slice of
-Diagnostics — are also real (`firmware/main/crash_diagnostics.cpp`):
+Diagnostics — are also implemented (`firmware/main/crash_diagnostics.cpp`):
 reset reason and core-dump presence are read every boot and persisted
 through `Storage`, per
 [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md).
 
-**The general Logging responsibility is also real** — structured,
+**The general Logging responsibility is also implemented** — structured,
 leveled logs (`Logger`, `src/core/logger.h`/`.cpp`), per
 [ADR-0019](../decisions/ADR-0019-structured-logging.md) for the format/
 rotation/storage design. Built entirely on the existing `Storage`
@@ -156,23 +156,25 @@ error reporting) remains unbuilt — see
 [diagnostics.md](diagnostics.md#status) for the full breakdown.
 
 **The widget system** is implemented: `Widget` and `DashboardGrid` (`src/ui/`)
-are the standard interface modules contribute dashboard content through
-— see [dashboard.md](dashboard.md#status) for what's built and what
-(weather, the first real widget) is still a follow-up.
+are the standard interface modules will contribute dashboard content
+through — see [dashboard.md](dashboard.md#status) for the widgets built
+on it so far (clock, network status, weather, notifications).
+Module-contributed widgets (Harmony activity, Kodi, Uptime Kuma, Home
+Assistant) remain a follow-up pending those modules existing.
 
 **Notifications** are implemented: the urgency concept ADR-0005 requires
 (`NotificationSeverity`, `src/core/notification.h`), the `EventBus`-based
 publish path, and all three presentation outputs (`NotificationBanner`,
 `NotificationSound`, `NotificationWidget`, all `src/ui/`) exist, with
-`LowBatteryMonitor` (`src/core/`) as the first real publisher — see
+`LowBatteryMonitor` (`src/core/`) as the first publisher — see
 [ui.md](ui.md#notification-presentation) for detail. No wake-cycle
 mechanism gates any of this — see
 [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md).
 
-**Networking** is partly real: Wi-Fi provisioning and mDNS
+**Networking** is partly implemented: Wi-Fi provisioning and mDNS
 self-advertisement both work on hardware (see
 [networking.md](networking.md#status)); the mDNS *browsing* wrapper for
-modules to discover Home Assistant/Kodi remains unbuilt, with no real
+modules to discover Home Assistant/Kodi remains unbuilt, with no
 consumer until one of those modules exists.
 
 **OTA updates** are implemented: `POST /api/ota/upload`/`POST /api/ota/reboot`

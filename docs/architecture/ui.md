@@ -177,11 +177,11 @@ modules only supply the notification's content.
 
 ## Status
 
-The dashboard exists (`DashboardScreen` in `src/ui/screens/`), and so do
-Navigation (`src/ui/navigation.h`) and the persistent home affordance
-(`src/ui/home_affordance.h`) — a minimal real route registry (`Register`/
-`GoTo`/`GoHome`) and a reusable `LV_SYMBOL_HOME` button, **now real on
-firmware, not just the simulator**. `WifiSetupScreen`
+The dashboard is implemented (`DashboardScreen` in `src/ui/screens/`),
+and so are Navigation (`src/ui/navigation.h`) and the persistent home
+affordance (`src/ui/home_affordance.h`) — a minimal route registry
+(`Register`/`GoTo`/`GoHome`) and a reusable `LV_SYMBOL_HOME` button,
+built on both firmware and the simulator. `WifiSetupScreen`
 (`src/ui/screens/wifi_setup_screen.h`/`.cpp`), the Touch UI fallback for
 initial Wi-Fi setup (see
 [networking.md](networking.md#initial-wi-fi-provisioning)), is the
@@ -205,35 +205,27 @@ constructed: firmware shows a brief splash (`ShowSplashScreen()` in
 `firmware/main/homedeck.cpp`) immediately after display start, then
 brings up just enough of the Wi-Fi subsystem to answer "are credentials
 already stored" (`InitWifiAndCheckStoredCredentials()`,
-`firmware/main/wifi_setup.h`/`.cpp`) before `Navigation` and the real
+`firmware/main/wifi_setup.h`/`.cpp`) before `Navigation` and the actual
 screens are constructed - so an unprovisioned device never shows the
 dashboard even briefly before redirecting to setup. The slower
 association/DHCP step still happens in the background after that,
 unchanged.
 
-All of the above - screen navigation, the splash-then-correct-screen
-boot sequence, field masking, keyboard font, and submission - is
-**confirmed on the K145 reference unit**, including the SoftAP-triggered
-path itself, by clearing its stored credentials and inspecting the
-device directly. Cached-vs-live data distinction on the dashboard when
-accessed without a Wi-Fi connection - relevant once a network-dependent
-widget (e.g. weather) exists - is covered by the existing
-offline-behaviour contract (see
-[networking.md](networking.md#offline-behaviour)), not something new
-this screen needed to solve. The status bar described above is
-implemented, confirmed on hardware (see [dashboard.md](dashboard.md#status)).
+Cached-vs-live data distinction on the dashboard when accessed without a
+Wi-Fi connection - relevant once a network-dependent widget (e.g.
+weather) exists - is covered by the existing offline-behaviour contract
+(see [networking.md](networking.md#offline-behaviour)), not something
+new this screen needed to solve. The status bar described above is
+implemented (see [dashboard.md](dashboard.md#status)).
 
-Notification presentation is implemented, all three built outputs
-confirmed on hardware: `NotificationBanner` (`src/ui/notification_banner.h`/`.cpp`)
-is the screen-banner output — parented to LVGL's own top layer
-(`lv_layer_top()`), not any particular screen, since it renders above
-whatever screen Navigation currently has loaded; a single instance
-covers every screen, unlike `StatusBar`, which each screen constructs
-its own copy of. Auto-dismisses a few seconds after showing.
-`NotificationSound` (`src/core/notification_sound.h`/`.cpp`) is the
-sound output, and `NotificationWidget` (`src/ui/notification_widget.h`/
-`.cpp`) is the dashboard-indicator output — see [Notification
-presentation](#notification-presentation) above for both. Confirmed via
-the simulator's existing low-battery test trigger and, on the K145
-reference unit, via a temporary debug publish exercising all three
-together.
+Notification presentation is implemented: `NotificationBanner`
+(`src/ui/notification_banner.h`/`.cpp`) is the screen-banner output —
+parented to LVGL's own top layer (`lv_layer_top()`), not any particular
+screen, since it renders above whatever screen Navigation currently has
+loaded; a single instance covers every screen, unlike `StatusBar`,
+which each screen constructs its own copy of. Auto-dismisses a few
+seconds after showing. `NotificationSound`
+(`src/core/notification_sound.h`/`.cpp`) is the sound output, and
+`NotificationWidget` (`src/ui/notification_widget.h`/`.cpp`) is the
+dashboard-indicator output — see [Notification
+presentation](#notification-presentation) above for both.
