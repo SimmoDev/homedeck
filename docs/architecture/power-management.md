@@ -9,11 +9,12 @@ tradeoffs and rejected alternatives behind the decisions referenced below.
 
 **Known gap:** every timing/threshold number in this document (the 30%
 OTA gate, idle/sleep timeouts) is a provisional starting point, not a
-measured one — no power budget exists yet estimating real current draw
+measured one — no power budget exists estimating real current draw
 (display+backlight, ESP32-P4, ESP32-C6 co-processor) against the
-confirmed 2000mAh/14.8Wh battery. These numbers should be treated as
-placeholders until M1/M2 produce real on-hardware measurements to tune
-them against.
+confirmed 2000mAh/14.8Wh battery. These numbers remain placeholders
+until a real power budget is measured and used to tune them — tracked
+against the M7 Battery optimisation item (see
+[roadmap.md](../roadmap.md)), not resolved by M1/M2.
 
 ## Explicit power states
 
@@ -142,7 +143,7 @@ measurements rather than decided abstractly:**
 
 ## Status
 
-**`PowerManager` (`src/core/power_manager.h`/`.cpp`) is real** for
+**`PowerManager` (`src/core/power_manager.h`/`.cpp`) is implemented** for
 `Active`/`Idle`/`Sleeping` — confirmed on the K145 reference unit: the
 display dims after the idle timeout, goes fully off (0% brightness)
 after the sleep timeout, and restores directly to full brightness on
@@ -227,8 +228,7 @@ the previous hardcoded 100%/70% defaults. Confirmed on the K145
 reference unit: the physical backlight dims/brightens live while
 dragging, a triggered test notification's chime is audibly
 quieter/louder after adjusting volume, and both settings survive a real
-power cycle. `NotificationBanner::Show()` gained a
-`lv_obj_move_foreground()` call as part of this work - without it, a
-notification arriving while the new panel is open would render
-underneath it and be silently hidden, since both share the same top
-layer with no explicit stacking order otherwise.
+power cycle. `NotificationBanner` and `QuickSettingsPanel` share LVGL's
+top layer with no other stacking order between them, so
+`NotificationBanner::Show()` calls `lv_obj_move_foreground()` to ensure a
+notification arriving while the panel is open still renders above it.

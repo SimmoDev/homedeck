@@ -111,8 +111,8 @@ enough real widgets to make customization meaningful.
 
 The initial dashboard shell exists and runs for real on both targets: the
 simulator, and real Tab5 hardware (see
-[hardware.md](hardware.md#on-device-dashboard)). The status bar is real,
-confirmed on hardware — `StatusBar` (`src/ui/status_bar.h`/`.cpp`) is
+[hardware.md](hardware.md#on-device-dashboard)). The status bar is
+implemented, confirmed on hardware — `StatusBar` (`src/ui/status_bar.h`/`.cpp`) is
 fixed, non-scrolling chrome, constructed by every screen
 (`DashboardScreen` and, proving the "every screen" mechanism on both
 targets, `WifiSetupScreen` — see [ui.md](ui.md#status)), rendered as a
@@ -158,7 +158,7 @@ network-status grid widget this doc's [Widget
 system](#widget-system) section names above remains a separate,
 not-yet-built follow-up.
 
-The widget framework's interface and layout half is real: `Widget`
+The widget framework's interface and layout half is implemented: `Widget`
 (`src/ui/widget.h`) is the standard contribution interface — a `Root()`
 accessor plus a `ColumnSpan()`/`RowSpan()` footprint (both default to 1,
 override to occupy more); no live/cached/offline freshness reporting
@@ -190,13 +190,10 @@ status bar clock. Portable and target-agnostic, the same
 `EventBus::SubscribeUi<ClockTickEvent>` mechanism `StatusBar` already
 uses, just a bigger font (Montserrat 48, enabled identically on both
 targets alongside the status bar's own Montserrat 24) and a 2-column
-span. It replaces the four throwaway widgets (`PlaceholderWidget` in
-`simulator/widgets/`, an identical inline `TestWidget` in
-`firmware/main/homedeck.cpp`) that previously proved `DashboardGrid`'s
-mixed-span placement mechanism — both removed now that a real widget
-exists, per this section's own original intent. **Confirmed on
-hardware** (Tab5 K145 reference unit): renders centered and legible,
-with no clipping or overlap. Weather (see [Weather
+span — the first real widget built on `DashboardGrid`'s mixed-span
+placement mechanism. **Confirmed on hardware** (Tab5 K145 reference
+unit): renders centered and legible, with no clipping or overlap.
+Weather (see [Weather
 source](#weather-source) above) is also real - see below.
 
 **The network status widget is also real**: `NetworkStatusWidget`
