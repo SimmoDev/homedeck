@@ -6,57 +6,58 @@ This document describes the development workflow for HomeDeck. See
 ## Where to start
 
 The architecture documentation has grown large (12 architecture docs, 26
-ADRs) across M0's design work and the hardware/platform-services work
-since. Not all of it is relevant to starting M1 — most of it covers M2+
-services and later modules. If you're implementing M1, this is the
-essential reading, in order:
+ADRs) across M0's design work and the M1/M2 implementation work since.
+Not all of it is relevant to starting M3 (Harmony) — most of the M1/M2-
+specific bring-up detail is settled and only worth consulting when it's
+actually touched. If you're implementing M3, this is the essential
+reading, in order:
 
 1. [README.md](README.md) — what HomeDeck is, in brief.
-2. [docs/architecture/overview.md](docs/architecture/overview.md) — the
-   four-layer mental model, event-driven design, hardware abstraction.
-3. [docs/architecture/hardware.md](docs/architecture/hardware.md) — what
-   you're actually building against, most of it re-verified against the
-   real reference unit during M1 bring-up.
-4. [ADR-0002](docs/decisions/ADR-0002-technology-stack.md) — the firmware
-   stack, build system, and Core Concurrency Abstraction. Foundational;
-   read the Build System and Core Concurrency Abstraction decisions
-   specifically.
-5. [docs/architecture/simulator.md](docs/architecture/simulator.md) — the
-   day-to-day dev workflow M1 needs to stand up.
-6. [docs/architecture/ui.md](docs/architecture/ui.md) — navigation model
-   and LVGL thread safety, both load-bearing for the first screen you
-   write.
-7. [ADR-0009](docs/decisions/ADR-0009-touch-display-detection.md),
-   [ADR-0011](docs/decisions/ADR-0011-lvgl-thread-safety.md),
-   [ADR-0014](docs/decisions/ADR-0014-hardware-support-library.md),
-   [ADR-0016](docs/decisions/ADR-0016-battery-rtc-library.md), and
-   [ADR-0015](docs/decisions/ADR-0015-display-orientation.md) — the
-   M1-specific decisions with real implementation consequences: touch/
-   display detection, LVGL thread safety, the hardware support library
-   actually used for display/touch and for battery/RTC (not [CLAUDE.md](CLAUDE.md)'s
-   originally-named one), and display orientation.
-8. [docs/architecture/core.md](docs/architecture/core.md) — the Event bus
-   and Time/date services sections describe `EventBus`/`Clock`, which
-   already exist and run (`src/core/`); Navigation also has a minimal
-   real implementation, though it lives in `src/ui/` rather than
-   `src/core/` (see [src/README.md](src/README.md) for why) — the rest
-   of Core's responsibilities are still M2+ design, not implementation.
-9. [docs/architecture/dashboard.md](docs/architecture/dashboard.md) — the
-   Widget system section describes the real, currently-hardcoded
-   `DashboardScreen` (`src/ui/screens/`); Customization and the general
-   widget-registration interface are still M2+/M7.
-10. [docs/roadmap.md](docs/roadmap.md)'s M1 section — the actual task
-    list, which links out to anything else specific as it comes up.
+2. [docs/architecture/modules.md](docs/architecture/modules.md) — the
+   module contract every M3+ integration is built against: what a module
+   may provide, why it registers with Core instead of coupling to it
+   directly, and why modules never talk to each other except through the
+   event bus.
+3. [ADR-0003](docs/decisions/ADR-0003-module-architecture.md) — the
+   reasoning behind that contract, and its "Known External Risk: Harmony
+   Hub Local Control" section specifically — the local-control scope this
+   project's own reference hub is confirmed to need.
+4. [docs/architecture/core.md](docs/architecture/core.md#status) — what
+   Core actually offers a module to build against now that M2 is done:
+   the event bus, `Storage`/`SecretStore`, the widget system, and
+   Notifications, all implemented, not just the design each originally
+   named.
+5. [docs/architecture/networking.md](docs/architecture/networking.md) —
+   LAN discovery (Harmony's own hub-discovery protocol is out of scope
+   for the shared mDNS wrapper described here, but the retry/backoff
+   ownership decision applies to it) and the offline-behaviour contract
+   a module's own connection state should follow.
+6. [docs/architecture/web-ui.md](docs/architecture/web-ui.md) — Harmony's
+   module configuration page (hub IP/credentials) is the settings API's
+   first real consumer; see [ADR-0023](docs/decisions/ADR-0023-settings-backup-api.md)
+   for the endpoint shapes and [ADR-0010](docs/decisions/ADR-0010-secret-storage.md)
+   for why credentials route through `SecretStore`, not the generic
+   settings path. Harmony's hub credentials are also the real module
+   credential [ADR-0018](docs/decisions/ADR-0018-staged-security-hardening.md)
+   names as the trigger for activating NVS encryption — worth checking
+   whether that timing decision needs revisiting once this module exists.
+7. [docs/architecture/dashboard.md](docs/architecture/dashboard.md) — the
+   `Widget`/`DashboardGrid` interface, if Harmony surfaces current-activity
+   status on the dashboard.
+8. [docs/architecture/power-management.md](docs/architecture/power-management.md) —
+   the sleep-veto mechanism and background-task constraints every
+   module's own polling/connection-handling must respect; Harmony is a
+   plausible first real `RequestSleepVeto` caller (e.g. mid-activity).
+9. [docs/roadmap.md](docs/roadmap.md)'s M3 section — the actual task
+   list, which links out to anything else specific as it comes up.
 
-Everything else — `modules.md`, `web-ui.md`, `networking.md`,
-`security.md`, `diagnostics.md`, `power-management.md`, and most of the
-ADRs (0001, 0003, 0005–0008, 0010, 0012, 0013) — covers M2 platform
-services or later milestones. (ADR-0004 isn't in that list — its
-return-home-affordance decision is real M1 work, already covered via
-[ui.md](docs/architecture/ui.md)'s own pointers to it above.) Worth
-skimming the rest for context, but nothing there blocks starting M1, and
-re-reading it in full when M2 actually starts will be more useful than
-trying to hold all of it in mind now.
+Everything else — the M1/M2 hardware bring-up detail in `hardware.md`,
+`simulator.md`, `ui.md`'s Rendering/Thread-safety sections, and most of
+the ADRs numbered 0009 and below plus 0011–0022 — is settled
+implementation this milestone builds on top of, not something M3 itself
+changes. Worth consulting when a specific M3 need actually touches one
+of those areas (e.g. a new background task's threading rules), not
+worth re-reading in full up front.
 
 ## Required tools
 
