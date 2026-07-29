@@ -66,36 +66,45 @@
     saving = true;
     saveError = undefined;
     const label = [result.name, result.admin1, result.country].filter(Boolean).join(", ");
-    try {
-      for (const [key, value] of [
-        ["latitude", String(result.latitude)],
-        ["longitude", String(result.longitude)],
-        ["display_name", label],
-      ]) {
+    // No batch/transactional settings endpoint exists (POST
+    // /api/backup/restore is the only other multi-key writer, and it's
+    // explicitly not atomic either - see settings_routes.cpp's own
+    // comment). Rather than stop at the first failure, which would leave
+    // whichever keys come later always untried, every key is attempted
+    // and every failure reported together - matching restore's own
+    // applied/failed transparency instead of silently leaving some keys
+    // on their old value with no indication which.
+    const failedKeys: string[] = [];
+    for (const [key, value] of [
+      ["latitude", String(result.latitude)],
+      ["longitude", String(result.longitude)],
+      ["display_name", label],
+    ]) {
+      try {
         const response = await fetch("/api/settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ module: kWeatherModuleId, key, value, schemaVersion: kWeatherSchemaVersion }),
         });
-        if (!response.ok) {
-          saveError = `Save failed: ${response.status}`;
-          return;
-        }
+        if (!response.ok) failedKeys.push(key);
+      } catch {
+        failedKeys.push(key);
       }
-      displayName = label;
-      results = [];
-      query = "";
-      // Without this, the dashboard widget would silently wait out the
-      // rest of the real ~30-minute poll interval before showing
-      // anything for the location just chosen - fire-and-forget, the
-      // widget picks up the result via its own WeatherUpdatedEvent
-      // subscription once the triggered fetch completes.
-      fetch("/api/weather/refresh", { method: "POST" }).catch(() => {});
-    } catch (err) {
-      saveError = String(err);
-    } finally {
-      saving = false;
     }
+    saving = false;
+    if (failedKeys.length > 0) {
+      saveError = `Location only partially saved - failed to save: ${failedKeys.join(", ")}. Select it again to retry.`;
+      return;
+    }
+    displayName = label;
+    results = [];
+    query = "";
+    // Without this, the dashboard widget would silently wait out the
+    // rest of the real ~30-minute poll interval before showing
+    // anything for the location just chosen - fire-and-forget, the
+    // widget picks up the result via its own WeatherUpdatedEvent
+    // subscription once the triggered fetch completes.
+    fetch("/api/weather/refresh", { method: "POST" }).catch(() => {});
   }
 
   loadWeatherLocation();
