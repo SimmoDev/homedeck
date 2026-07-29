@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 
 #include "bsp/m5stack_tab5.h"
 #include "esp_event.h"
@@ -56,6 +57,13 @@ struct WifiSetupState {
     std::string pending_ssid;
 };
 
+// Guards every WifiSetupState field below that's touched after boot -
+// OnEvent() runs on the ESP event-loop task, while ApplyWifiCredentials()
+// is called from either the SoftAP HTTP form's own worker task or the
+// Touch UI's LVGL task (see wifi_setup.h's own comment), so pending_ssid/
+// reconnect_attempts genuinely have two unsynchronized writers/readers
+// without this.
+std::mutex g_state_mutex;
 WifiSetupState g_state;
 
 void GetApSsid(char* ssid, size_t max_len) {
@@ -149,6 +157,7 @@ void StartSetupAccessPoint() {
 // arg is &g_state - registered twice below, for WIFI_EVENT and
 // IP_EVENT, always with the same &g_state.
 void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     auto& state = *static_cast<WifiSetupState*>(arg);
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
@@ -195,6 +204,7 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
 }  // namespace
 
 void ApplyWifiCredentials(const std::string& ssid, const std::string& password) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
     g_state.pending_ssid = ssid;
     wifi_config_t sta_config = {};
     std::snprintf(reinterpret_cast<char*>(sta_config.sta.ssid), sizeof(sta_config.sta.ssid), "%s", ssid.c_str());
