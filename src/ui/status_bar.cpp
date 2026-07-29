@@ -1,6 +1,7 @@
 #include "ui/status_bar.h"
 
 #include "core/low_battery_monitor.h"
+#include "ui/quick_settings_panel.h"
 #include "ui/time_format.h"
 
 #include <cstdio>
@@ -8,6 +9,11 @@
 namespace homedeck {
 
 namespace {
+
+void OnSettingsIconClicked(lv_event_t* e) {
+    auto* event_bus = static_cast<EventBus*>(lv_event_get_user_data(e));
+    event_bus->Publish(QuickSettingsRequestedEvent{});
+}
 
 // Breakpoints for the four non-empty levels are even round numbers, not
 // tied to anything else. The empty breakpoint isn't independent - it
@@ -99,11 +105,38 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     // own immediate RefreshStatusLabel() call below.
     lv_label_set_text(clock_label_, "");
 
-    battery_label_ = lv_label_create(bar);
+    // A flex row, not two independently-positioned objects - battery_label_'s
+    // width varies with its content (Wi-Fi icon, charge icon, percent
+    // digits all come and go), and a fixed offset for settings_icon
+    // relative to the bar's edge would drift out of sync with it (and
+    // lv_obj_align_to() against battery_label_ directly wouldn't help -
+    // it computes a one-time position, not a live constraint that tracks
+    // later width changes). Flex re-flows both automatically whenever
+    // RefreshStatusLabel changes battery_label_'s content, keeping a
+    // consistent gap between them and the cluster's right edge pinned via
+    // the same lv_obj_align() the rest of this bar already uses.
+    lv_obj_t* right_cluster = lv_obj_create(bar);
+    lv_obj_set_size(right_cluster, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_bg_opa(right_cluster, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(right_cluster, 0, 0);
+    lv_obj_set_style_pad_all(right_cluster, 0, 0);
+    lv_obj_set_style_pad_column(right_cluster, 8, 0);
+    lv_obj_clear_flag(right_cluster, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_flex_flow(right_cluster, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(right_cluster, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_align(right_cluster, LV_ALIGN_RIGHT_MID, -12, 0);
+
+    lv_obj_t* settings_icon = lv_label_create(right_cluster);
+    lv_obj_set_style_text_font(settings_icon, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(settings_icon, lv_color_white(), 0);
+    lv_label_set_text(settings_icon, LV_SYMBOL_SETTINGS);
+    lv_obj_add_flag(settings_icon, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(settings_icon, OnSettingsIconClicked, LV_EVENT_CLICKED, &event_bus);
+
+    battery_label_ = lv_label_create(right_cluster);
     lv_obj_set_style_text_font(battery_label_, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(battery_label_, lv_color_white(), 0);
     RefreshStatusLabel(battery_label_, battery_reader_, wifi_connected_);
-    lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, -12, 0);
 
     clock_subscription_ =
         event_bus.SubscribeUi<ClockTickEvent>([this](const ClockTickEvent& event) {

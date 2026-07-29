@@ -56,6 +56,12 @@ NotificationBanner::NotificationBanner(EventBus& event_bus) {
 void NotificationBanner::Show(const std::string& message) {
     lv_label_set_text(label_, message.c_str());
     lv_obj_clear_flag(banner_, LV_OBJ_FLAG_HIDDEN);
+    // A notification must never end up silently hidden behind whatever
+    // else is on lv_layer_top() at the time (e.g. the quick-settings
+    // panel) - move_foreground guarantees this regardless of what else
+    // has been added to the layer, rather than depending on every other
+    // top-layer overlay knowing to stay behind this one.
+    lv_obj_move_foreground(banner_);
 
     // Reusing the same timer (reset + resume + re-arm its repeat count,
     // rather than creating a new one-shot timer per call) means a

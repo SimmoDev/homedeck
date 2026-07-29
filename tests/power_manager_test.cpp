@@ -56,7 +56,7 @@ TEST(PowerManager, StartsActive) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     EXPECT_EQ(manager.State(), homedeck::PowerState::kActive);
 }
@@ -67,7 +67,7 @@ TEST(PowerManager, StaysActiveWhileRecentlyActive) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     activity.SetMs(0);
     bus.Publish(homedeck::ClockTickEvent{});
@@ -82,7 +82,7 @@ TEST(PowerManager, TransitionsToIdleOnceInactiveLongEnough) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     // An extreme value, not the real threshold constant - this test
     // must survive the placeholder timeout being retuned later.
@@ -100,7 +100,7 @@ TEST(PowerManager, IdleTransitionIsLatchedNotRepeatedEveryTick) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     // Past kIdleTimeoutMs but short of kSleepTimeoutMs - UINT32_MAX would
     // also cross into Sleeping territory on a later tick, which is a
@@ -122,7 +122,7 @@ TEST(PowerManager, ReturnsToActiveOnRealActivity) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     activity.SetMs(UINT32_MAX);
     bus.Publish(homedeck::ClockTickEvent{});
@@ -142,7 +142,7 @@ TEST(PowerManager, PublishesPowerStateChangedEventOnEachRealTransition) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     std::vector<homedeck::PowerState> events;
     auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
@@ -168,7 +168,7 @@ TEST(PowerManager, SleepVetoIsActiveUntilItExpires) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     EXPECT_FALSE(manager.HasActiveSleepVeto());
 
@@ -188,7 +188,7 @@ TEST(PowerManager, RepeatedSleepVetoRequestsOverwriteRatherThanStack) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     manager.RequestSleepVeto(std::chrono::minutes(10));
     manager.RequestSleepVeto(std::chrono::minutes(1));  // overwrites, doesn't extend
@@ -203,7 +203,7 @@ TEST(PowerManager, ActiveSleepVetoDoesNotBlockActiveToIdleTransition) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     manager.RequestSleepVeto(std::chrono::minutes(30));
     activity.SetMs(UINT32_MAX);
@@ -221,7 +221,7 @@ TEST(PowerManager, TransitionsToSleepingAfterExtendedInactivity) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     activity.SetMs(UINT32_MAX);
     bus.Publish(homedeck::ClockTickEvent{});  // Active -> Idle
@@ -237,7 +237,7 @@ TEST(PowerManager, WakesFromSleepingDirectlyToActive) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     activity.SetMs(UINT32_MAX);
     bus.Publish(homedeck::ClockTickEvent{});
@@ -257,7 +257,7 @@ TEST(PowerManager, PublishesPowerStateChangedEventOnSleepingTransition) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     std::vector<homedeck::PowerState> events;
     auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
@@ -282,7 +282,7 @@ TEST(PowerManager, SleepVetoBlocksIdleToSleepingTransition) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     manager.RequestSleepVeto(std::chrono::minutes(30));
     activity.SetMs(UINT32_MAX);
@@ -300,7 +300,7 @@ TEST(PowerManager, SleepVetoExpiryAllowsSleepingOnLaterTick) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     manager.RequestSleepVeto(std::chrono::minutes(1));
     activity.SetMs(UINT32_MAX);
@@ -320,7 +320,7 @@ TEST(PowerManager, OtaInProgressTransitionsToUpdating) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     std::vector<homedeck::PowerState> events;
     auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
@@ -339,7 +339,7 @@ TEST(PowerManager, IdleTimeoutDoesNotFireWhileUpdating) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
     ASSERT_EQ(manager.State(), homedeck::PowerState::kUpdating);
@@ -358,7 +358,7 @@ TEST(PowerManager, OtaFinishedReturnsToActive) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
     ASSERT_EQ(manager.State(), homedeck::PowerState::kUpdating);
@@ -375,7 +375,7 @@ TEST(PowerManager, CriticalBatteryTransitionsToError) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     std::vector<homedeck::PowerState> events;
     auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
@@ -395,7 +395,7 @@ TEST(PowerManager, CriticalBatteryClearsBackToActiveOnRecovery) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
     ASSERT_EQ(manager.State(), homedeck::PowerState::kError);
@@ -412,7 +412,7 @@ TEST(PowerManager, ClearingCriticalBatteryWhileNotInErrorDoesNothing) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     std::vector<homedeck::PowerState> events;
     auto sub = bus.SubscribeUi<homedeck::PowerStateChangedEvent>(
@@ -434,7 +434,7 @@ TEST(PowerManager, IdleTimeoutDoesNotFireWhileInError) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
     ASSERT_EQ(manager.State(), homedeck::PowerState::kError);
@@ -454,7 +454,7 @@ TEST(PowerManager, CriticalBatteryInterruptsUpdating) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
     ASSERT_EQ(manager.State(), homedeck::PowerState::kUpdating);
@@ -470,7 +470,7 @@ TEST(PowerManager, OtaFinishingDoesNotClobberErrorState) {
     FakeUserActivitySource activity;
     FakeDisplayBrightness brightness;
     FakeTimeSource time_source;
-    homedeck::PowerManager manager(bus, activity, brightness, time_source);
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
 
     bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
     bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
@@ -482,4 +482,105 @@ TEST(PowerManager, OtaFinishingDoesNotClobberErrorState) {
     bus.Publish(homedeck::OtaUpdateStateChangedEvent{false});
 
     EXPECT_EQ(manager.State(), homedeck::PowerState::kError);
+}
+
+TEST(PowerManager, InitialActiveBrightnessIsClamped) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    // Below the floor - see kMinActiveBrightnessPercent's own comment for
+    // why 0 isn't allowed for a user-chosen Active brightness.
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 0);
+
+    EXPECT_EQ(manager.ActiveBrightnessPercent(), 5);
+}
+
+TEST(PowerManager, SetActiveBrightnessPercentClampsToFloorAndCeiling) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
+
+    manager.SetActiveBrightnessPercent(2);
+    EXPECT_EQ(manager.ActiveBrightnessPercent(), 5);
+
+    manager.SetActiveBrightnessPercent(150);
+    EXPECT_EQ(manager.ActiveBrightnessPercent(), 100);
+}
+
+TEST(PowerManager, SetActiveBrightnessPercentAppliesImmediatelyWhileActive) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
+
+    manager.SetActiveBrightnessPercent(42);
+
+    EXPECT_EQ(brightness.last_percent, 42);
+}
+
+TEST(PowerManager, SetActiveBrightnessPercentDoesNotApplyWhileIdle) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
+
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kIdle);
+    int call_count_before = brightness.call_count;
+
+    // Updates the stored baseline for next time Active, but must not
+    // touch real hardware brightness while dimmed for Idle - only the
+    // next Active transition should apply it (see the next test).
+    manager.SetActiveBrightnessPercent(60);
+
+    EXPECT_EQ(brightness.call_count, call_count_before);
+    EXPECT_EQ(manager.ActiveBrightnessPercent(), 60);
+}
+
+TEST(PowerManager, NewActiveBrightnessBaselineAppliesOnNextActiveTransition) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
+
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kIdle);
+
+    manager.SetActiveBrightnessPercent(60);
+
+    activity.SetMs(0);
+    bus.Publish(homedeck::ClockTickEvent{});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kActive);
+    EXPECT_EQ(brightness.last_percent, 60);
+}
+
+TEST(PowerManager, IdleDimmingNeverExceedsChosenActiveBrightness) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    // Below the normal 20% dim level - dimming must not brighten the
+    // screen relative to what the user chose for Active.
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 10);
+
+    activity.SetMs(UINT32_MAX);
+    bus.Publish(homedeck::ClockTickEvent{});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kIdle);
+    EXPECT_EQ(brightness.last_percent, 10);
 }

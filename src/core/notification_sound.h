@@ -17,14 +17,26 @@ namespace homedeck {
 // both targets.
 class NotificationSound {
 public:
-    NotificationSound(EventBus& event_bus, AudioOutput& audio_output);
+    NotificationSound(EventBus& event_bus, AudioOutput& audio_output, int initial_volume_percent);
+
+    // Both guarded by wake_mutex_, not just pending_/volume_percent_
+    // themselves - PlayLoop() reads volume_percent_ from its own
+    // background Task thread (platform/task.h), while these are called
+    // from the UI thread (the quick-settings panel's slider), a real
+    // cross-thread access the existing wake_mutex_ already exists to
+    // guard pending_ against.
+    int VolumePercent() const;
+    void SetVolumePercent(int percent);
 
 private:
     void PlayLoop(std::stop_token stop);
 
     AudioOutput& audio_output_;
 
-    std::mutex wake_mutex_;
+    // mutable - VolumePercent() is logically const but still needs to
+    // take this lock, since volume_percent_ is written from the UI
+    // thread and read from PlayLoop()'s background thread.
+    mutable std::mutex wake_mutex_;
     // condition_variable_any, not plain condition_variable - needed for
     // the stop_token-aware wait(lock, stop, pred) overload PlayLoop()
     // uses, the same primitive Queue<T>::Pop(std::stop_token)
@@ -40,6 +52,7 @@ private:
     // never be observed and the destructor would block forever.
     std::condition_variable_any wake_cv_;
     bool pending_ = false;
+    int volume_percent_;
 
     EventBus::ScopedSubscription subscription_;
     // Declared last, same reason OpenMeteoWeatherProvider::poll_task_

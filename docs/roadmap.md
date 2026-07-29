@@ -287,14 +287,11 @@ simulator.
       with `FirmwareAudioOutput` (wraps the vendored BSP's
       `bsp_audio_codec_speaker_init()`/`esp_codec_dev`) and
       `HostAudioOutput` (SDL2) implementations. Confirmed audible on the
-      K145 reference unit's speaker. Still open, separate follow-ups:
-      the ES7210 mic input (not wired up — no capability needs it yet),
-      and on-device volume control — needs a Core-level volume
-      capability regardless of which UI ends up exposing it; where that
-      control actually lives (dashboard/status-bar quick-access vs.
-      something else) is still an open question, deliberately not
-      decided here (see the Power management item below for the
-      display-brightness analogue of this same open question).
+      K145 reference unit's speaker. On-device volume control is also
+      real now - see the Power management item below, which covers it
+      alongside its display-brightness analogue in one pass (one
+      shared `QuickSettingsPanel`). Still open: the ES7210 mic input,
+      not wired up - no capability needs it yet.
 - [x] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —
@@ -391,7 +388,7 @@ simulator.
       means threading `TimeSource` through `StatusBar`'s constructor and
       both its callers (`DashboardScreen`, `WifiSetupScreen`) - deferred
       as a minor, non-jarring gap, not a rendering bug
-- [ ] Power management state model — **`PowerManager`
+- [x] Power management state model — **`PowerManager`
       (`src/core/power_manager.h`/`.cpp`) is real** for
       `Active`/`Idle`/`Sleeping`/`Error`: real display dimming after a
       (placeholder) idle timeout and a full backlight-off after a
@@ -441,13 +438,30 @@ simulator.
       measures board/CPU heat, not battery chemistry, and wouldn't
       reliably reflect a failing cell that hasn't yet heated the rest of
       the board. Both fault types are considered closed as not buildable
-      on this hardware, not outstanding work. Also still open,
-      separate from automatic brightness (CLAUDE.md's own Power
-      Management capability list): on-device manual brightness control
-      - the display-side analogue of the Audio bring-up item's
-      still-open volume control above, same open question of where the
-      control actually lives (dashboard/status-bar quick-access vs.
-      something else), deliberately not decided here either
+      on this hardware, not outstanding work. On-device manual
+      brightness control (separate from automatic dimming above) is
+      also real now, alongside the Audio bring-up item's volume control
+      below - both exposed through one new `QuickSettingsPanel`
+      (`src/ui/quick_settings_panel.h`/`.cpp`), a `NotificationBanner`-shaped
+      top-layer overlay opened by a new settings icon grouped into
+      `StatusBar`'s existing Wi-Fi/battery cluster. Two sliders apply
+      live on every drag tick (`PowerManager::SetActiveBrightnessPercent()`/
+      `NotificationSound::SetVolumePercent()`) and persist to `Storage`
+      once on release (`module="power"/"brightness"`,
+      `module="audio"/"volume"`), restored on boot rather than resetting
+      to the previous hardcoded 100%/70% defaults. Confirmed on the K145
+      reference unit: the physical backlight dims/brightens live while
+      dragging, a triggered test notification's chime is audibly
+      quieter/louder after adjusting, and both values survive a real
+      power cycle. `PowerManager::TransitionTo()`'s Idle dimming now
+      also clamps to `min(kDimBrightnessPercent, active_brightness_percent_)`
+      so a low chosen Active brightness can't dim "up" past it, and
+      `NotificationBanner::Show()` gained a `lv_obj_move_foreground()`
+      call so a notification arriving while the panel is open still
+      renders on top of it rather than being hidden behind it - both
+      real bugs caught during this pass, not present in what shipped
+      before it. Sliders show a plain text label for both controls,
+      not an icon (see the M7 polish item for why)
 - [x] Simulator physical-keyboard input (dev tooling, not product scope) —
       `lv_sdl_keyboard_create()` plus a default `lv_group` for focus/Tab
       routing (`UiTask`, `src/ui/ui_task.cpp`), so typing into a text
@@ -591,6 +605,25 @@ day-to-day usage with HomeDeck.
       needs a real prerequisite first: `Navigation`
       (`src/ui/navigation.h`) has no history/back-stack today, only
       `GoTo(route)`/`GoHome()`
+- [ ] Swipe-down status-bar gesture (Android-style) to open the
+      brightness/volume quick-settings panel (see the M2 Power
+      management item), as a power-user addition alongside the panel's
+      primary tap-the-icon affordance, not a replacement - same
+      reasoning as the Gesture navigation item above
+      ([ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance)):
+      an explicit tap target is the guaranteed mechanism, a gesture is
+      an optional layered-on shortcut added once the tap-based version
+      exists and its real usage is understood. Needs the panel itself
+      built first
+- [ ] Icon pair for the brightness/volume quick-settings panel's sliders
+      (`src/ui/quick_settings_panel.cpp`), replacing the current
+      text-label-above-slider styling for both - LVGL's bundled symbol
+      font has a matching min/max pair for volume
+      (`LV_SYMBOL_MUTE`/`LV_SYMBOL_VOLUME_MAX`) but no "brightness" glyph
+      at all, so volume alone getting icons would look inconsistent
+      against brightness; same "custom icon assets, out of scope for the
+      first pass" reasoning as the Weather condition icons item below,
+      not solved twice
 - [ ] Distinct notification sounds per `NotificationSeverity`
       (`src/core/notification_sound.cpp`) - currently one tone for both
       `kDeferred`/`kAlertPriority`, deferred until a second severity

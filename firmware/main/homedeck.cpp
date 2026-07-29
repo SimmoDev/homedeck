@@ -1,4 +1,5 @@
 #include <cctype>
+#include <charconv>
 #include <cstdio>
 
 #include "bsp/m5stack_tab5.h"
@@ -30,6 +31,7 @@
 #include "core/ota_routes.h"
 #include "core/power_manager.h"
 #include "core/settings_routes.h"
+#include "core/storage.h"
 #include "core/weather_provider.h"
 #include "core/weather_routes.h"
 #include "crash_diagnostics.h"
@@ -51,6 +53,7 @@
 #include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
 #include "ui/notification_widget.h"
+#include "ui/quick_settings_panel.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/ui_dispatch.h"
@@ -79,6 +82,25 @@ extern const uint8_t webui_app_js_start[] asm("_binary_app_js_start");
 extern const uint8_t webui_app_js_end[] asm("_binary_app_js_end");
 extern const uint8_t webui_app_css_start[] asm("_binary_app_css_start");
 extern const uint8_t webui_app_css_end[] asm("_binary_app_css_end");
+
+// Shared shape with simulator/main.cpp's identical helper - duplicated
+// rather than factored into Core, same reasoning as
+// notification_sound.cpp's own tone generator: small enough that a
+// shared abstraction for two call sites isn't worth it. std::from_chars,
+// not std::stoi - firmware builds with exceptions disabled (see
+// storage.cpp's Decode() for the same reasoning).
+int ReadIntSetting(homedeck::Storage& storage, const char* module_id, const char* key, int fallback) {
+    std::optional<homedeck::VersionedValue> setting = storage.GetSetting(module_id, key);
+    if (!setting) {
+        return fallback;
+    }
+    int value = 0;
+    auto [ptr, ec] = std::from_chars(setting->value.data(), setting->value.data() + setting->value.size(), value);
+    if (ec != std::errc{} || ptr != setting->value.data() + setting->value.size()) {
+        return fallback;
+    }
+    return value;
+}
 
 // The first thing app_main() does, before anything else can fail and
 // leave no trace of what was even running.
@@ -370,6 +392,13 @@ extern "C" void app_main(void) {
     dashboard.Grid().AddWidget(weather_widget);
     homedeck::NotificationWidget notification_widget(dashboard.Grid().Container(), event_bus);
     dashboard.Grid().AddWidget(notification_widget);
+    // Read once at startup, before constructing the objects these seed -
+    // see quick_settings_panel.h for where they're subsequently
+    // controlled. Falls back to the pre-existing hardcoded defaults
+    // (100/70) if unset (first boot) or unparsable.
+    int initial_active_brightness_percent = ReadIntSetting(storage, "power", "brightness", 100);
+    int initial_volume_percent = ReadIntSetting(storage, "audio", "volume", 70);
+
     // NotificationBanner and NotificationSound must exist before
     // LowBatteryMonitor, which must exist before Clock (the
     // ClockTickEvent publisher) - see simulator/main.cpp's identical
@@ -377,7 +406,7 @@ extern "C" void app_main(void) {
     // here - Ina226BatteryReader is real, so this only actually fires
     // once the pack genuinely runs low.
     homedeck::NotificationBanner notification_banner(event_bus);
-    homedeck::NotificationSound notification_sound(event_bus, audio_output);
+    homedeck::NotificationSound notification_sound(event_bus, audio_output, initial_volume_percent);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
     // Same ordering rule as LowBatteryMonitor above - also a
     // ClockTickEvent subscriber, must exist before Clock. PowerManager's
@@ -399,7 +428,13 @@ extern "C" void app_main(void) {
     // AdminAuthService specifically.
     homedeck::SteadyTimeSource power_time_source;
     homedeck::PowerManager power_manager(event_bus, user_activity_source, display_brightness,
-                                          power_time_source);
+                                          power_time_source, initial_active_brightness_percent);
+    // Needs PowerManager/NotificationSound/Storage all already
+    // constructed above - see quick_settings_panel.h. Still inside the
+    // bsp_display_lock() span above - its constructor creates LVGL
+    // objects directly, the same requirement as every other direct LVGL
+    // call in this function (see ADR-0011).
+    homedeck::QuickSettingsPanel quick_settings_panel(event_bus, power_manager, notification_sound, storage);
     // Navigation's constructor loads home_screen itself (see
     // ui/navigation.h), so no explicit lv_scr_load() call is needed here.
     // wifi_setup_screen is the Touch UI fallback for initial Wi-Fi setup

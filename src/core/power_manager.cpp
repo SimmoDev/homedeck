@@ -4,6 +4,8 @@
 #include "core/critical_battery_monitor.h"
 #include "core/ota_routes.h"
 
+#include <algorithm>
+
 namespace homedeck {
 
 namespace {
@@ -22,15 +24,24 @@ constexpr int kDimBrightnessPercent = 20;
 // 0% (backlight fully off) is definitionally what Sleeping means, not a
 // value to be tuned against hardware measurements.
 constexpr int kSleepBrightnessPercent = 0;
+// A user-chosen Active brightness of 0% would be visually
+// indistinguishable from Sleeping and unrecoverable without a hardware
+// reset (nothing on screen to tap) - unlike kSleepBrightnessPercent,
+// Active brightness is user-controlled, so it needs a floor Sleeping
+// itself doesn't.
+constexpr int kMinActiveBrightnessPercent = 5;
 
 }  // namespace
 
 PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activity_source,
-                             DisplayBrightness& display_brightness, TimeSource& time_source)
+                             DisplayBrightness& display_brightness, TimeSource& time_source,
+                             int initial_active_brightness_percent)
     : event_bus_(event_bus),
       user_activity_source_(user_activity_source),
       display_brightness_(display_brightness),
-      time_source_(time_source) {
+      time_source_(time_source),
+      active_brightness_percent_(
+          std::clamp(initial_active_brightness_percent, kMinActiveBrightnessPercent, 100)) {
     clock_subscription_ = event_bus_.SubscribeUi<ClockTickEvent>([this](const ClockTickEvent&) { OnTick(); });
     ota_subscription_ = event_bus_.SubscribeUi<OtaUpdateStateChangedEvent>(
         [this](const OtaUpdateStateChangedEvent& event) {
@@ -86,14 +97,25 @@ void PowerManager::OnTick() {
 
 void PowerManager::TransitionTo(PowerState new_state) {
     state_ = new_state;
-    int brightness_percent = 100;
+    int brightness_percent = active_brightness_percent_;
     if (new_state == PowerState::kIdle) {
-        brightness_percent = kDimBrightnessPercent;
+        // min(), not the bare constant - dimming must never end up
+        // brighter than whatever the user chose for Active (e.g. an
+        // Active brightness of 10% dimming "up" to kDimBrightnessPercent's
+        // 20% would be backwards).
+        brightness_percent = std::min(kDimBrightnessPercent, active_brightness_percent_);
     } else if (new_state == PowerState::kSleeping) {
         brightness_percent = kSleepBrightnessPercent;
     }
     display_brightness_.SetPercent(brightness_percent);
     event_bus_.Publish(PowerStateChangedEvent{new_state});
+}
+
+void PowerManager::SetActiveBrightnessPercent(int percent) {
+    active_brightness_percent_ = std::clamp(percent, kMinActiveBrightnessPercent, 100);
+    if (state_ == PowerState::kActive) {
+        display_brightness_.SetPercent(active_brightness_percent_);
+    }
 }
 
 void PowerManager::RequestSleepVeto(std::chrono::milliseconds duration) {

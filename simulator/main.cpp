@@ -10,6 +10,7 @@
 #include "core/ota_routes.h"
 #include "core/power_manager.h"
 #include "core/settings_routes.h"
+#include "core/storage.h"
 #include "core/weather_provider.h"
 #include "core/weather_routes.h"
 #include "platform/host/audio_output.h"
@@ -32,11 +33,13 @@
 #include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
 #include "ui/notification_widget.h"
+#include "ui/quick_settings_panel.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/status_bar.h"
 #include "ui/weather_widget.h"
 
+#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -69,6 +72,28 @@ static constexpr float kDefaultWindowZoom = 0.75f;
 static constexpr uint16_t kDefaultWebPort = 8080;
 
 namespace {
+
+// Shared shape with firmware/main/homedeck.cpp's identical helper -
+// duplicated rather than factored into Core, same reasoning as
+// notification_sound.cpp's own tone generator: small enough that a
+// shared abstraction for two call sites isn't worth it. std::from_chars,
+// not std::stoi - matches Storage's own internal parsing (see
+// storage.cpp's Decode()) for the same firmware-builds-without-
+// exceptions reason, even though only the simulator strictly needs it
+// here - keeping both call sites identical is worth more than exploiting
+// a target-specific shortcut.
+int ReadIntSetting(homedeck::Storage& storage, const char* module_id, const char* key, int fallback) {
+    std::optional<homedeck::VersionedValue> setting = storage.GetSetting(module_id, key);
+    if (!setting) {
+        return fallback;
+    }
+    int value = 0;
+    auto [ptr, ec] = std::from_chars(setting->value.data(), setting->value.data() + setting->value.size(), value);
+    if (ec != std::errc{} || ptr != setting->value.data() + setting->value.size()) {
+        return fallback;
+    }
+    return value;
+}
 
 float ResolveWindowZoom() {
     const char* override_str = std::getenv("HOMEDECK_SIM_ZOOM");
@@ -505,6 +530,13 @@ int main() {
     CreateTestTriggerSleepingButton(test_button_panel, user_activity_source);
     CreateTestTriggerActiveButton(test_button_panel, user_activity_source);
 
+    // Read once at startup, before constructing the objects these seed -
+    // see quick_settings_panel.h for where they're subsequently
+    // controlled. Falls back to the pre-existing hardcoded defaults
+    // (100/70) if unset (first boot) or unparsable.
+    int initial_active_brightness_percent = ReadIntSetting(storage, "power", "brightness", 100);
+    int initial_volume_percent = ReadIntSetting(storage, "audio", "volume", 70);
+
     // NotificationBanner and NotificationSound must exist before
     // LowBatteryMonitor, which must exist before Clock (the
     // ClockTickEvent publisher) - the same "subscriber before publisher"
@@ -513,7 +545,7 @@ int main() {
     // NotificationEvent, so both subscribers need to already be
     // registered before that first tick could fire one.
     homedeck::NotificationBanner notification_banner(event_bus);
-    homedeck::NotificationSound notification_sound(event_bus, audio_output);
+    homedeck::NotificationSound notification_sound(event_bus, audio_output, initial_volume_percent);
     homedeck::LowBatteryMonitor low_battery_monitor(event_bus, battery_reader);
     // Same ordering rule as LowBatteryMonitor above - also a
     // ClockTickEvent subscriber, and also publishes NotificationEvent,
@@ -531,7 +563,10 @@ int main() {
     // specifically.
     homedeck::SteadyTimeSource power_time_source;
     homedeck::PowerManager power_manager(event_bus, user_activity_source, display_brightness,
-                                          power_time_source);
+                                          power_time_source, initial_active_brightness_percent);
+    // Needs PowerManager/NotificationSound/Storage all already
+    // constructed above - see quick_settings_panel.h.
+    homedeck::QuickSettingsPanel quick_settings_panel(event_bus, power_manager, notification_sound, storage);
 
     homedeck::HostTimeSource time_source;
     homedeck::Clock clock(time_source, event_bus);

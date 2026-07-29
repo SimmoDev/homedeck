@@ -201,3 +201,34 @@ stand-in: it reflects board/CPU heat, not battery chemistry, and
 wouldn't catch a failing cell before it heats the rest of the board
 (see [hardware.md](hardware.md#power)). Both are closed as permanent
 hardware limitations, not outstanding work.
+
+Manual brightness control is also real now, alongside on-device volume
+control (Audio bring-up's own open item, see
+[hardware.md](hardware.md#audio) for where `AudioOutput` lives) - both
+exposed through one `QuickSettingsPanel` (`src/ui/quick_settings_panel.h`/
+`.cpp`), a top-layer overlay opened by a settings icon in `StatusBar`,
+the same `lv_layer_top()` shape `NotificationBanner` already uses so it
+renders above whatever screen is active. `PowerManager` gained
+`ActiveBrightnessPercent()`/`SetActiveBrightnessPercent()` - the setter
+clamps to `[5, 100]` (not `[0, 100]`: a 0% Active brightness would be
+visually indistinguishable from Sleeping and unrecoverable without a
+hardware reset) and replaces the baseline `TransitionTo()` uses for
+`kActive`, applying immediately via `DisplayBrightness` only while
+already `kActive` - Idle's dim/Sleeping's off stay untouched by the
+user's chosen "on" brightness, the same way a phone still dims on
+timeout regardless of brightness setting. `TransitionTo()`'s Idle
+dimming itself now clamps to
+`min(kDimBrightnessPercent, active_brightness_percent_)`, so a chosen
+Active brightness below the normal 20% dim level can't dim "up" past
+it. Both settings apply live on every slider drag tick and persist to
+`Storage` once on release (`module="power"/"brightness"`,
+`module="audio"/"volume"`), read back on boot rather than resetting to
+the previous hardcoded 100%/70% defaults. Confirmed on the K145
+reference unit: the physical backlight dims/brightens live while
+dragging, a triggered test notification's chime is audibly
+quieter/louder after adjusting volume, and both settings survive a real
+power cycle. `NotificationBanner::Show()` gained a
+`lv_obj_move_foreground()` call as part of this work - without it, a
+notification arriving while the new panel is open would render
+underneath it and be silently hidden, since both share the same top
+layer with no explicit stacking order otherwise.

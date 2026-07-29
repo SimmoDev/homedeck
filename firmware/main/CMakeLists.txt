@@ -54,6 +54,7 @@ idf_component_register(
         "../../src/ui/weather_widget.cpp"
         "../../src/ui/notification_banner.cpp"
         "../../src/ui/notification_widget.cpp"
+        "../../src/ui/quick_settings_panel.cpp"
         "../../src/ui/navigation.cpp"
         "../../src/ui/home_affordance.cpp"
         "../../src/ui/keyboard_input.cpp"

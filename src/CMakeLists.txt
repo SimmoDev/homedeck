@@ -110,6 +110,7 @@ if(TARGET lvgl)
     ui/weather_widget.cpp
     ui/notification_banner.cpp
     ui/notification_widget.cpp
+    ui/quick_settings_panel.cpp
     ui/keyboard_input.cpp
     ui/screens/dashboard_screen.cpp
     ui/screens/wifi_setup_screen.cpp
