@@ -19,6 +19,18 @@ using homedeck::testing::HttpRequestRaw;
 using homedeck::testing::HttpResult;
 using homedeck::testing::SessionCookieOnly;
 
+// Always fails Set() while still reporting nothing stored - simulates a
+// genuine storage write failure (e.g. NVS full), distinct from "the
+// password was already set by a concurrent request," the other reason
+// SetInitialPassword() can fail. Real SecretStore backends don't fail
+// like this in a test-controllable way, hence the fake.
+class FailingSecretStore : public homedeck::SecretStore {
+public:
+    bool Set(const std::string&, const std::string&, const std::string&) override { return false; }
+    std::optional<std::string> Get(const std::string&, const std::string&) override { return std::nullopt; }
+    bool Erase(const std::string&, const std::string&) override { return false; }
+};
+
 class AdminAuthRoutesTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -122,4 +134,37 @@ TEST_F(AdminAuthRoutesTest, LoginIsThrottledAfterRepeatedFailures) {
     auto locked_out = HttpRequestRaw(18191, "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
     EXPECT_EQ(locked_out.status_code, 429);
     EXPECT_NE(locked_out.body.find("too_many_attempts"), std::string::npos);
+}
+
+TEST_F(AdminAuthRoutesTest, SetupRejectsPasswordUnderMinimumLength) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    ASSERT_TRUE(server.Start(18192));
+
+    auto setup = HttpRequestRaw(18192, "POST", "/api/auth/setup", R"({"password":"short"})");
+    EXPECT_EQ(setup.status_code, 400);
+    EXPECT_NE(setup.body.find("password_too_short"), std::string::npos);
+    EXPECT_FALSE(auth_->IsPasswordSet());
+}
+
+// The other reason SetInitialPassword() can fail besides the race
+// ADR-0007 accepts (FullSetupLoginProtectedRouteLogoutFlow's "already_set"
+// case) - a genuine storage write failure, which must surface as 500, not
+// be misreported as "already_set" when the password was never actually
+// persisted.
+TEST_F(AdminAuthRoutesTest, SetupReturns500WhenStorageWriteFailsWithPasswordStillUnset) {
+    homedeck::HostSettingsStore settings_store(root_dir_ / "failing_case");
+    homedeck::HostCacheStore cache_store(root_dir_ / "failing_case");
+    FailingSecretStore failing_secret_store;
+    homedeck::Storage failing_storage(settings_store, cache_store, failing_secret_store);
+    homedeck::AdminAuthService failing_auth(failing_storage, time_source_);
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, failing_auth);
+    ASSERT_TRUE(server.Start(18193));
+
+    auto setup = HttpRequestRaw(18193, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    EXPECT_EQ(setup.status_code, 500);
+    EXPECT_NE(setup.body.find("storage_write_failed"), std::string::npos);
+    EXPECT_FALSE(failing_auth.IsPasswordSet());
 }
