@@ -129,154 +129,87 @@ simulator.
 ## M2 — Platform Services (current)
 
 - [x] Wi-Fi connectivity, including initial provisioning (SoftAP + a
-      minimal HTTP setup form — see
-      [networking.md](architecture/networking.md#initial-wi-fi-provisioning)).
-      **Real and confirmed on hardware** — ESP-Hosted/SDIO bring-up (see
-      [hardware.md](architecture/hardware.md#wireless)) and the real
-      provisioning flow (`firmware/main/wifi_setup.cpp`): a SoftAP + a
-      hand-rolled HTTP form rather than ESP-IDF's `wifi_provisioning`
-      component, which doesn't support this project's `esp_wifi_remote`
-      stack (see [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)).
-      Confirmed working end to end: SoftAP up, a real phone submitting
-      credentials through the form, the device connecting and getting a
-      real IP, SoftAP torn down afterward. **The Touch UI keyboard
-      fallback is also real** — `WifiSetupScreen` (see
-      [ui.md](architecture/ui.md#status)), submitting through the same
-      `ApplyWifiCredentials()` path as the HTTP form so neither
-      reimplements `esp_wifi_set_config`/`connect` independently, and
-      showing the SoftAP SSID/gateway IP on-screen as an alternative for
-      a user who'd rather set up from a phone/laptop. Whether it or the
-      dashboard is the very first screen shown is decided before either
-      is constructed (a brief branded splash covers the check, so first
-      paint stays fast either way — see
-      [ui.md](architecture/ui.md#status)) rather than always showing the
-      dashboard and correcting course a moment later. Confirmed end to
-      end via the simulator, and on the K145 reference unit with its
-      stored credentials cleared - the splash, the setup screen appearing
-      directly (no dashboard flash first), real touch/keyboard entry, and
-      returning to the dashboard once connected. Still open: wiring
-      credential storage into Core's real Configuration/Storage service
-      instead of `esp_wifi`'s own default persistence on the C6
-      co-processor. Deliberately not pursued for now — see
-      [hardware.md](architecture/hardware.md#wi-fi-bring-up) for where
-      credentials actually live; moving them doesn't change today's
-      security exposure (both locations are equally unencrypted flash)
-      and no current feature depends on it, so it stays a documented, low-
-      priority gap rather than active scope.
+      minimal HTTP setup form, Touch UI keyboard entry as a fallback via
+      `WifiSetupScreen` — see
+      [networking.md](architecture/networking.md#initial-wi-fi-provisioning)
+      and [ADR-0026](decisions/ADR-0026-wifi-provisioning-mechanism.md)
+      for the provisioning mechanism). Implemented and confirmed on
+      hardware end to end — SoftAP provisioning, the Touch UI fallback,
+      and reconnecting to stored credentials, all via
+      `firmware/main/wifi_setup.cpp`. Still open: wiring credential
+      storage into Core's Configuration/Storage service instead of
+      `esp_wifi`'s own default persistence on the C6 co-processor — a
+      documented, low-priority gap (see
+      [hardware.md](architecture/hardware.md#wi-fi-bring-up)), not active
+      scope, since both locations are equally unencrypted flash and no
+      feature depends on it.
 - [x] LAN discovery (thin mDNS wrapper — see
       [networking.md](architecture/networking.md#lan-discovery)).
-      **Self-advertisement is real, confirmed on hardware** — the device
-      advertises as `homedeck.local` once Wi-Fi connects (ESP-IDF's
-      `mdns` component, called directly from `firmware/main/homedeck.cpp`,
-      no Core abstraction — see [networking.md](architecture/networking.md#status)),
-      verified reachable at `http://homedeck.local/` from a phone's
-      browser over the LAN. The mDNS *browsing* wrapper itself (for
-      modules to discover Home Assistant/Kodi) is out of scope here —
-      no consumer exists until one of those modules is real, so it's
-      tracked against M4/M6 instead (see those milestones' own items)
+      Self-advertisement is implemented and confirmed on hardware — the
+      device advertises as `homedeck.local` once Wi-Fi connects (ESP-IDF's
+      `mdns` component, called directly from `firmware/main/homedeck.cpp`).
+      The mDNS *browsing* wrapper for modules to discover Home
+      Assistant/Kodi is out of scope here — tracked against M4/M6
+      instead, once one of those modules is a real consumer.
 - [x] Configuration service (storage-backed) across the storage tiers
       (NVS, internal flash filesystem — see
       [ADR-0012](decisions/ADR-0012-storage-tiers.md)), with a schema
       version field on every persisted blob (see
-      [security.md](architecture/security.md#requirement-avoid-insecure-secret-storage)
-      and [ADR-0010](decisions/ADR-0010-secret-storage.md)) and per-module
-      namespacing enforced by the service itself, not by convention (see
-      [ADR-0012](decisions/ADR-0012-storage-tiers.md#decision-storage-namespacing)).
-      **`Storage` (`src/core/storage.h`) is real** for the NVS and
-      internal-flash-FAT tiers, schema versioning, and per-module
-      namespacing — unit-tested in `tests/`, confirmed on real hardware
-      (the FAT partition mount, formatting cleanly on first boot, is the
-      one part `ctest` can't exercise). The `SecretStore` interface
-      ADR-0010 decides on for routing secrets separately from general
-      settings is also real (`AdminAuthService`'s password hash uses it).
-      NVS encryption itself is not M2 scope at all — see
-      [ADR-0018](decisions/ADR-0018-staged-security-hardening.md)'s
-      staged security model and the M7 item below. The optional microSD
-      tier ([ADR-0012](decisions/ADR-0012-storage-tiers.md)'s decided use:
-      extended log archival once the internal flash filesystem's
-      bounded/rotating logs evict older entries) is tracked as its own M7
-      item below
+      [ADR-0010](decisions/ADR-0010-secret-storage.md)) and per-module
+      namespacing enforced by the service itself, not by convention.
+      `Storage` (`src/core/storage.h`) is implemented for the NVS and
+      internal-flash-FAT tiers, unit-tested in `tests/` and confirmed on
+      hardware; `SecretStore` is implemented alongside it
+      (`AdminAuthService`'s password hash uses it). NVS encryption is
+      not M2 scope (see
+      [ADR-0018](decisions/ADR-0018-staged-security-hardening.md)); the
+      optional microSD tier is a separate M7 item below.
 - [x] Web Management UI (settings, module configuration, diagnostics,
       backups as a downloadable JSON export —
       *not* initial Wi-Fi setup, which is the SoftAP flow above; see
       [web-ui.md](architecture/web-ui.md#relationship-to-wi-fi-provisioning)),
-      including the first-login admin password setup screen (hashed, not
-      stored reversibly — see [web-ui.md](architecture/web-ui.md#admin-password))
-      and API input validation on every endpoint (mechanism decided at
-      implementation time — see
+      including the first-login admin password setup screen and API
+      input validation on every endpoint (see
       [security.md](architecture/security.md#requirement-validate-api-input)).
       Auth, static assets, the first-login/session UI, diagnostics, OTA,
-      settings, backups, and weather-location search are all real and
-      confirmed on both the simulator and the K145 reference unit — see
+      settings, backups, and weather-location search are all implemented
+      and confirmed on both the simulator and hardware — see
       [web-ui.md](architecture/web-ui.md#status) for the full detail.
       Module configuration is tracked as its own M3 item below (no real
-      module exists yet to configure); WebSockets for live updates,
-      Wi-Fi management, and a factory-reset option are tracked as their
-      own M7 items below
+      module exists yet to configure); WebSockets, Wi-Fi management, and
+      a factory-reset option are tracked as their own M7 items below.
 - [x] OTA update support, gated on battery threshold or external USB-C
       power (see
       [power-management.md](architecture/power-management.md#explicit-power-states)).
-      **Real, confirmed on hardware** — `GET /api/ota/status`,
+      Implemented and confirmed on hardware — `GET /api/ota/status`,
       `POST /api/ota/upload`, `POST /api/ota/reboot`
       (`src/core/ota_routes.h`/`.cpp`), gated by `EvaluateOtaGate()`
       (`src/core/ota_gate.h`) per
       [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-ota-batterypower-gate),
-      admin-only via `RequireAuth()`. `webui/src/lib/Ota.svelte` shows
-      current version, the gate's reason if closed, a real-progress
-      upload, and an explicit reboot step. Confirmed end to end on the
-      K145 reference unit: a real ~1.9MB image uploaded and booted into
-      over the LAN, and app-rollback
-      (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) automatically reverting
-      to the previous slot after a deliberately-bad image was uploaded
-      and rebooted into. Both HTTP backends read the full request body
-      in a loop, not a single call (`src/platform/firmware/http_server.cpp`,
-      `src/platform/host/http_server.cpp`), needed for a multi-MB image
-      to arrive intact. Image signing remains a
-      known, deliberately deferred gap, not yet in scope (see
+      admin-only via `RequireAuth()`, with app-rollback
+      (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) confirmed reverting to
+      the previous slot after a bad image. Image signing remains a
+      known, deliberately deferred gap (see
       [security.md](architecture/security.md#ota-image-integrity)).
       Simulated on the simulator (upload/progress/gating against mocked
-      battery, no real partition writes) so the Web UI's OTA page
-      doesn't need real hardware to build and test (see
-      [simulator.md](architecture/simulator.md#how-it-works))
+      battery, no real partition writes — see
+      [simulator.md](architecture/simulator.md#how-it-works)).
 - [x] Logging, including reset-reason tracking and core dump capture on
       panic (dedicated flash partition, downloadable raw via Web UI, not
       symbolicated on-device — see
       [ADR-0013](decisions/ADR-0013-crash-and-reboot-diagnostics.md)).
-      **Crash/reboot diagnostics are real, confirmed on hardware including
-      a real triggered panic** (`firmware/main/crash_diagnostics.cpp`) —
-      reset reason and core-dump presence/summary are logged and
-      persisted through `Storage` every boot; a deliberate `abort()`
-      confirmed a clean reboot (not halted) and correct detection on the
-      next boot. **Web UI presentation is also real** (see
-      [diagnostics.md#status](architecture/diagnostics.md#status)) —
-      reset reason and a downloadable raw core dump, confirmed on both
-      the simulator (a real click-driven browser session, not just the
-      API) and the Tab5 K145 reference unit over the LAN, including a
-      real core dump downloading as genuine ELF bytes. **The general
-      structured/leveled logging facility is also real** (`Logger`,
+      Crash/reboot diagnostics, their Web UI presentation, and the
+      general structured/leveled logging facility (`Logger`,
       `src/core/logger.h`/`.cpp`, `GET /api/diagnostics/logs` — see
-      [ADR-0019](decisions/ADR-0019-structured-logging.md) for the
-      format/rotation/storage design) — JSON-lines entries with
-      timestamp/level/component/message, size-based rotation, built on
-      the existing `Storage` rather than a new platform interface, so
-      real on both targets rather than simulator-mocked. Confirmed on
-      the Tab5 K145 reference unit: real boot-sequence events (Wi-Fi
-      connect, mDNS advertising, Web UI listening) appear correctly
-      through the endpoint. The Web UI's Logs section
-      (`webui/src/lib/Diagnostics.svelte`) filters by level/component
-      client-side, confirmed against the simulator's real HTTP API and
-      a real page load. **Persistence is asynchronous and batched** (see
-      [ADR-0020](decisions/ADR-0020-async-log-persistence.md)) — a
-      synchronous write was confirmed to cause a real, brief display
-      glitch on the reference unit when `Log()` calls landed close
-      together; moving the write off the caller and coalescing
-      near-simultaneous calls into one write measurably reduced it. The
-      remaining single-write case is also now resolved — see
-      [ADR-0021](decisions/ADR-0021-xip-from-psram.md) for the
-      root-caused fix (`CONFIG_SPIRAM_XIP_FROM_PSRAM`), confirmed across
-      20 consecutive hardware resets plus manual reboots with zero
-      recurrence. Extended log archival to microSD is tracked as its
-      own M7 item below
+      [ADR-0019](decisions/ADR-0019-structured-logging.md)) are all
+      implemented and confirmed on hardware, including a real triggered
+      panic and clean reboot — see
+      [diagnostics.md#status](architecture/diagnostics.md#status) for the
+      full detail. Persistence is asynchronous and batched (see
+      [ADR-0020](decisions/ADR-0020-async-log-persistence.md) and
+      [ADR-0021](decisions/ADR-0021-xip-from-psram.md) for the display-
+      glitch root cause this resolves). Extended log archival to microSD
+      is tracked as its own M7 item below.
 - [x] Audio bring-up (ES8388 codec, 1W speaker output — see
       [hardware.md](architecture/hardware.md#audio) for the confirmed
       pins/I2C/feature-enable facts). A platform capability in its own
@@ -284,65 +217,46 @@ simulator.
       presentation (below) depends on this rather than duplicating it.
       `AudioOutput` (`src/platform/`) is the portable interface —
       mono 16-bit PCM, blocking, paced in real time on both targets —
-      with `FirmwareAudioOutput` (wraps the vendored BSP's
-      `bsp_audio_codec_speaker_init()`/`esp_codec_dev`) and
-      `HostAudioOutput` (SDL2) implementations. Confirmed audible on the
-      K145 reference unit's speaker. On-device volume control is also
-      real now - see the Power management item below, which covers it
-      alongside its display-brightness analogue in one pass (one
-      shared `QuickSettingsPanel`). Still open: the ES7210 mic input,
-      not wired up - no capability needs it yet.
+      with `FirmwareAudioOutput` (`esp_codec_dev`) and `HostAudioOutput`
+      (SDL2) implementations, confirmed audible on hardware. On-device
+      volume control is covered by the Power management item below.
+      Still open: the ES7210 mic input, not wired up - no capability
+      needs it yet.
 - [x] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —
       vibration is out of scope, no motor exists on the confirmed BOM.
-      **All three presentation outputs are real.** The core service:
-      `NotificationEvent`/`NotificationSeverity`
-      (`src/core/notification.h`, carrying the alert-priority/deferred
-      urgency [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
-      requires) published via `EventBus`, `LowBatteryMonitor`
+      All three presentation outputs are implemented: `NotificationEvent`/
+      `NotificationSeverity` (`src/core/notification.h`, carrying the
+      alert-priority/deferred urgency
+      [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
+      requires) published via `EventBus`, with `LowBatteryMonitor`
       (`src/core/`) as the first real publisher (latched so a sustained
-      low-battery state notifies once, not once a second, guarded by a
-      regression test). Screen banners: `NotificationBanner` (`src/ui/`,
-      parented to LVGL's top layer so it renders over whatever screen is
-      active). Sound: `NotificationSound` (`src/core/`) - the same
-      Task-plus-condition-variable shape `OpenMeteoWeatherProvider` uses
-      for its own background hardware I/O, but reactive rather than
-      interval-based, playing a short generated tone via `AudioOutput`
-      (see the Audio bring-up item above) on every `NotificationEvent`
-      regardless of severity - differentiating them by sound is real,
-      unresolved product scope, deferred to when a second severity
-      actually has a publisher (see the M7 item below). Dashboard
-      indicator: `NotificationWidget` (`src/ui/`) - a last-notification
-      tile (always echoes the most recent message, matching
-      `ClockWidget`/`NetworkStatusWidget`/`WeatherWidget`'s existing
-      shape), not an unread-count badge - see the M7 item below for that
-      variant, deliberately deferred rather than dropped. Confirmed via
-      the simulator (the existing low-battery test trigger exercises all
-      three outputs together) and confirmed on the K145 reference unit
-      via a temporary debug publish (banner, tone, and tile all fired
-      together; removed afterward). The alert-priority/deferred urgency
-      distinction this service carries no longer gates any wake-cycle
-      behavior (see [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md))
-      - it remains available for a future presentation difference, not a
-      gap in this pass. `NotificationBanner`/`NotificationWidget` both
-      display whichever `NotificationEvent` last overwrote their label -
-      previously a real bug (`PostToUiThread` deferred each update via
-      `lv_async_call`, which reordered two updates published on the same
-      tick), **now fixed**: `PostToUiThread` (`src/ui/ui_dispatch.h`/`.cpp`)
-      queues through its own `Queue<T>` and drains it via a single
-      recurring timer instead, restoring real FIFO order - see
+      low-battery state notifies once, not once a second). The three
+      outputs — `NotificationBanner`, `NotificationSound`, and
+      `NotificationWidget` (all `src/ui/`) — are confirmed together on
+      both the simulator and hardware. The alert-priority/deferred
+      urgency distinction this service carries no longer gates any
+      wake-cycle behavior (see
+      [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)) - it
+      remains available for a future presentation difference, not a gap
+      in this pass. `PostToUiThread` (`src/ui/ui_dispatch.h`/`.cpp`)
+      queues UI-bound updates through its own `Queue<T>` and drains it
+      via a single recurring timer, guaranteeing FIFO delivery order
+      independent of `lv_async_call`'s own ordering - see
       [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md)'s Consequences
-      for the detail, confirmed via the same `LowBatteryMonitor`/
-      `CriticalBatteryMonitor`-same-tick scenario that first surfaced it.
+      for detail. Distinct sounds per severity (deferred until a second
+      severity has a real publisher) and an unread-count badge (as an
+      alternative to `NotificationWidget`'s last-notification-tile
+      design) are separate M7 items below.
 - [x] Widget framework (general dashboard widget interface), including
       the weather widget (Core `WeatherProvider` interface, Open-Meteo
       as the direct provider — see
-      [dashboard.md](architecture/dashboard.md#weather-source)). Real
-      and confirmed on hardware (K145 reference unit) — see
+      [dashboard.md](architecture/dashboard.md#weather-source)).
+      Implemented and confirmed on hardware — see
       [dashboard.md](architecture/dashboard.md#status) for the
-      `Widget`/`DashboardGrid` interface and every real widget built on
-      it (`ClockWidget`, `NetworkStatusWidget`, `WeatherWidget`,
+      `Widget`/`DashboardGrid` interface and every widget built on it
+      (`ClockWidget`, `NetworkStatusWidget`, `WeatherWidget`,
       `NotificationWidget`). Still open, deliberately out of scope for
       this pass: weather condition icons and Fahrenheit/Celsius
       selection (both M7 polish, see the M7 section below); a tap
@@ -351,117 +265,50 @@ simulator.
       than designed speculatively against weather alone; and the
       enable/disable/reorder widget customization named in
       [dashboard.md](architecture/dashboard.md#customization-future),
-      separate M7 scope
+      separate M7 scope.
 - [x] Status bar (persistent date/time and battery, shown on every screen —
       not a dashboard widget, see
       [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)).
-      **Real, confirmed on hardware** (Tab5 K145 reference unit) —
-      `StatusBar` (`src/ui/status_bar.h`/`.cpp`), constructed by every
-      screen (see [dashboard.md](architecture/dashboard.md#status)). Fixed
-      non-scrolling chrome, solid black with white Montserrat 24 text —
-      the closest available match to Android's status bar text by
-      physical glyph size (see [dashboard.md](architecture/dashboard.md#status)
-      for the math). **Charging and no-battery detection are also real,
-      confirmed on hardware** — a battery-level icon, a charge icon while
-      actually charging, and a USB icon (no percentage) with no battery
-      installed, all backed by real INA226/IO-expander signals rather
-      than a raw, sometimes-meaningless percentage (see
-      [hardware.md](architecture/hardware.md#power)). **A Wi-Fi
-      connectivity icon is also real, confirmed on hardware** — shown
-      once connected, prepended into the same label as the battery
-      icon/percentage (not a separately-positioned object) so their
-      spacing stays uniform, backed by the portable `NetworkStatus`/
+      Implemented and confirmed on hardware — `StatusBar`
+      (`src/ui/status_bar.h`/`.cpp`), constructed by every screen (see
+      [dashboard.md](architecture/dashboard.md#status)), including
+      charging/no-battery detection backed by real INA226/IO-expander
+      signals (see [hardware.md](architecture/hardware.md#power)) and a
+      Wi-Fi connectivity icon backed by the portable `NetworkStatus`/
       `NetworkStatusMonitor` abstraction (see
-      [networking.md](architecture/networking.md#status)) - the
-      status-bar half of the "where does network status live" question
-      also named in the Widget framework item above (see
-      [dashboard.md](architecture/dashboard.md#status-bar)); the fuller
-      network-status grid widget named there is also now built (see the
-      Widget framework item above). Still open: the Web UI's Wi-Fi
-      management page, a separate, now-unblocked follow-up, not built
-      yet. Still open: `clock_label_` shows blank
-      for up to one
-      Clock period (~1s) after construction rather than the correct time
-      immediately - `battery_label_` avoids this by reading
-      `BatteryReader` synchronously at construction, but `StatusBar`
-      isn't given a `TimeSource` to do the same for the clock. Fixing it
-      means threading `TimeSource` through `StatusBar`'s constructor and
-      both its callers (`DashboardScreen`, `WifiSetupScreen`) - deferred
-      as a minor, non-jarring gap, not a rendering bug
-- [x] Power management state model — **`PowerManager`
-      (`src/core/power_manager.h`/`.cpp`) is real** for
-      `Active`/`Idle`/`Sleeping`/`Error`: real display dimming after a
-      (placeholder) idle timeout and a full backlight-off after a
-      further (placeholder) sleep timeout, both confirmed on the K145
-      reference unit including direct wake-to-full-brightness from
-      Sleeping on real touch, plus the sleep-veto mechanism now
-      gating the Idle->Sleeping transition for real (unit-tested;
-      `RequestSleepVeto` itself still has no module caller until M3+).
+      [networking.md](architecture/networking.md#status)). Still open:
+      the Web UI's Wi-Fi management page, a separate, now-unblocked
+      follow-up; and `clock_label_` showing blank for up to one Clock
+      period (~1s) after construction rather than the correct time
+      immediately, a minor, non-jarring gap deferred until `TimeSource`
+      is threaded through `StatusBar`'s constructor.
+- [x] Power management state model — `PowerManager`
+      (`src/core/power_manager.h`/`.cpp`) is implemented for
+      `Active`/`Idle`/`Sleeping`/`Updating`/`Error`, including the
+      sleep-veto mechanism (unit-tested; `RequestSleepVeto` itself still
+      has no module caller until M3+), and confirmed on hardware
+      including wake-to-full-brightness from `Sleeping` on real touch.
       `Sleeping` isn't real ESP32 deep sleep - display off, CPU stays
-      active, touch-wake by polling - because none of touch, IMU, or
-      RTC has a confirmed GPIO path capable of waking the device from
-      real deep sleep, and M5Stack's own official Tab5 firmware turns
-      out not to depend on one either, for the same three sources (see
-      [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)). This
-      also resolves the ESP-Hosted/SDIO reassociation-vs-modem-sleep
-      question moved from M1: it's moot for `Sleeping`, since the P4
-      never disconnects in this design (see
-      [hardware.md](architecture/hardware.md#wireless)). `Updating` is
-      real too, driven by the actual OTA upload's flash write (also
-      confirmed on the K145 unit) — see
-      [power-management.md](architecture/power-management.md#status)
-      for the full detail. `Error` is real too, but only for one of its
-      three ADR-0005-scoped fault types: `CriticalBatteryMonitor`
+      active, touch-wake by polling - since M5Stack's own official Tab5
+      firmware uses the same pattern for the same reason (see
+      [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)).
+      `Error` is implemented for one of its three ADR-0005-scoped fault
+      types: `CriticalBatteryMonitor`
       (`src/core/critical_battery_monitor.h`/`.cpp`) transitions
       `PowerManager` into `kError` once the battery crosses a critical
-      threshold while not on external power (confirmed on the K145
-      unit), taking priority over `kUpdating` if both are true at once.
-      Charging-fault detection is a permanent limitation of this board
-      revision, not deferred scope: `CHG_STAT` (see
-      [hardware.md](architecture/hardware.md#power)) is the only
-      charge-related signal available, and it reads low both when
-      charging genuinely stalls *and* whenever USB-C is simply
-      unplugged or a full battery stops drawing current - there's no
-      independent cable-presence signal to tell those cases apart
-      (confirmed in practice: the status bar's own charge icon already
-      disappears near 100% with the cable still connected, for the same
-      reason). A duration-based heuristic doesn't recover this either,
-      since the moment charging would look stalled, the same signal
-      already also reads "unplugged." Thermal fault is the same: no
-      battery-temperature signal exists anywhere in this design, at any
-      level - the IP2326's own `NTC` pin is permanently spoofed to
-      "normal" by a fixed resistor network rather than fed by a real
-      thermistor, and the battery connector doesn't route a thermistor
-      line to the board at all (see
-      [hardware.md](architecture/hardware.md#power)). The ESP32-P4's own
-      die temperature was considered as a stand-in and rejected: it
-      measures board/CPU heat, not battery chemistry, and wouldn't
-      reliably reflect a failing cell that hasn't yet heated the rest of
-      the board. Both fault types are considered closed as not buildable
-      on this hardware, not outstanding work. On-device manual
-      brightness control (separate from automatic dimming above) is
-      also real now, alongside the Audio bring-up item's volume control
-      below - both exposed through one new `QuickSettingsPanel`
-      (`src/ui/quick_settings_panel.h`/`.cpp`), a `NotificationBanner`-shaped
-      top-layer overlay opened by a new settings icon grouped into
-      `StatusBar`'s existing Wi-Fi/battery cluster. Two sliders apply
-      live on every drag tick (`PowerManager::SetActiveBrightnessPercent()`/
-      `NotificationSound::SetVolumePercent()`) and persist to `Storage`
-      once on release (`module="power"/"brightness"`,
-      `module="audio"/"volume"`), restored on boot rather than resetting
-      to the previous hardcoded 100%/70% defaults. Confirmed on the K145
-      reference unit: the physical backlight dims/brightens live while
-      dragging, a triggered test notification's chime is audibly
-      quieter/louder after adjusting, and both values survive a real
-      power cycle. `PowerManager::TransitionTo()`'s Idle dimming now
-      also clamps to `min(kDimBrightnessPercent, active_brightness_percent_)`
-      so a low chosen Active brightness can't dim "up" past it, and
-      `NotificationBanner::Show()` gained a `lv_obj_move_foreground()`
-      call so a notification arriving while the panel is open still
-      renders on top of it rather than being hidden behind it - both
-      real bugs caught during this pass, not present in what shipped
-      before it. Sliders show a plain text label for both controls,
-      not an icon (see the M7 polish item for why)
+      threshold while not on external power, taking priority over
+      `kUpdating` if both are true at once. Charging-fault and
+      thermal-fault detection are permanent limitations of this board
+      revision, not deferred scope — see
+      [power-management.md](architecture/power-management.md#status) and
+      [hardware.md](architecture/hardware.md#power) for why neither
+      signal exists on this hardware. On-device manual brightness and
+      volume control are implemented through one shared
+      `QuickSettingsPanel` (`src/ui/quick_settings_panel.h`/`.cpp`),
+      applying live on every slider drag and persisting to `Storage` on
+      release, confirmed surviving a real power cycle. Sliders show a
+      plain text label for both controls, not an icon (see the M7
+      polish item for why).
 - [x] Simulator physical-keyboard input (dev tooling, not product scope) —
       `lv_sdl_keyboard_create()` plus a default `lv_group` for focus/Tab
       routing (`UiTask`, `src/ui/ui_task.cpp`), so typing into a text
@@ -660,9 +507,9 @@ index — decision name, ADR, one-line outcome.
 | Simulator rendering backend | [ADR-0002](decisions/ADR-0002-technology-stack.md#1-simulator-rendering-backend) | LVGL SDL2 desktop backend |
 | JSON library | [ADR-0002](decisions/ADR-0002-technology-stack.md#2-json-library) | nlohmann::json |
 | Embedded HTTP/WebSocket server | [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server) | `esp_http_server` (firmware) + civetweb (simulator) |
-| WebSocket relay dispatch safety | [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server) | `httpd_queue_work()` on firmware; civetweb's equivalent **unconfirmed**, needs M2 verification |
+| WebSocket relay dispatch safety | [ADR-0002](decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server) | `httpd_queue_work()` on firmware; civetweb's equivalent **unconfirmed** — deferred to the M7 WebSockets item below |
 | Web UI frontend | [ADR-0002](decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach) | Svelte 5 + TypeScript + Vite, plain client-side (no SvelteKit) |
-| Web UI static asset storage | [ADR-0002](decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage) | Embedded in the firmware app image (`EMBED_FILES`), not the `storage` partition — avoids partition-wipe-on-reflash and frontend/backend OTA drift |
+| Web UI static asset storage | [ADR-0025](decisions/ADR-0025-webui-static-asset-storage.md) | Embedded in the firmware app image (`EMBED_FILES`), not the `storage` partition — avoids partition-wipe-on-reflash and frontend/backend OTA drift |
 | Test framework | [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework) | GoogleTest/GoogleMock against the simulator; no on-target suite |
 | Module architecture, Core/module boundary | [ADR-0003](decisions/ADR-0003-module-architecture.md) | Event bus only; Core stays generic; Harmony is the reference module |
 | UI philosophy, state-management pattern | [ADR-0004](decisions/ADR-0004-ui-philosophy.md) | Touch UI vs. Web UI split; dashboard-as-home; lightweight per-screen controllers |
@@ -700,5 +547,6 @@ index — decision name, ADR, one-line outcome.
 | XIP from PSRAM | [ADR-0021](decisions/ADR-0021-xip-from-psram.md) | `CONFIG_SPIRAM_XIP_FROM_PSRAM=y` — resolves a flash-write-stalls-display-DMA glitch |
 | Panel init settle delay | [ADR-0022](decisions/ADR-0022-panel-init-settle-delay.md) | Added delays after Sleep Out/Display On in the ST7123 init table, fixing an intermittent grey/fade-in on boot |
 | Settings/backup reserved-key guard | [ADR-0023](decisions/ADR-0023-settings-backup-api.md) | A reserved-key guard, not a partition split, keeps the admin password hash out of the generic settings API |
+| Wi-Fi provisioning mechanism | [ADR-0026](decisions/ADR-0026-wifi-provisioning-mechanism.md) | HomeDeck-owned SoftAP + HTTP form, not ESP-IDF's `wifi_provisioning` — no usable transport on this project's `esp_wifi_remote` stack |
 | Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol specifics investigated in M3 |
 | Module interface (exact API) | [modules.md](architecture/modules.md#status) | Deferred by design — defined when Harmony (M3) is built |
