@@ -7,7 +7,13 @@
 namespace homedeck {
 
 // One stored entry, as returned by ListAll() - see its own comment for
-// why this exists only on SettingsStore, not SecretStore.
+// why this exists only on SettingsStore, not SecretStore. `ns` is
+// deliberately not named `module_id` to match core/storage.h's
+// SettingEntry: this interface is generic key-value storage with no
+// concept of "module" of its own (that's a Core-level idea layered on
+// top by Storage, which is also the only thing that ever calls
+// module_id a module_id) - `ns` names what this layer actually knows
+// it's namespacing by, nothing more.
 struct SettingsEntry {
     std::string ns;
     std::string key;
