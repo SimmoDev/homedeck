@@ -34,6 +34,8 @@ add_executable(homedeck_tests
   time_format_test.cpp
   grid_occupancy_test.cpp
   wifi_reconnect_policy_test.cpp
+  wifi_credentials_test.cpp
+  url_codec_test.cpp
   storage_test.cpp
   http_server_test.cpp
   http_client_test.cpp

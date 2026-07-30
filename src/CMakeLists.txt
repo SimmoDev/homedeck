@@ -78,6 +78,7 @@ add_library(homedeck_core
   core/event_bus.cpp
   core/clock.cpp
   core/storage.cpp
+  core/url_codec.cpp
   core/low_battery_monitor.cpp
   core/critical_battery_monitor.cpp
   core/network_status_monitor.cpp

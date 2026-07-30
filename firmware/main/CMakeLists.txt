@@ -32,6 +32,7 @@ idf_component_register(
         "../../src/core/event_bus.cpp"
         "../../src/core/clock.cpp"
         "../../src/core/storage.cpp"
+        "../../src/core/url_codec.cpp"
         "../../src/core/low_battery_monitor.cpp"
         "../../src/core/critical_battery_monitor.cpp"
         "../../src/core/network_status_monitor.cpp"

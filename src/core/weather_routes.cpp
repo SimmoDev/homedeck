@@ -1,5 +1,6 @@
 #include "core/weather_routes.h"
 
+#include "core/url_codec.h"
 #include "third_party/nlohmann/json.hpp"
 
 #include <cctype>
@@ -8,27 +9,6 @@
 namespace homedeck {
 
 namespace {
-
-std::string UrlDecode(const std::string& text) {
-    std::string result;
-    result.reserve(text.size());
-    auto hex_value = [](char c) -> int {
-        if (c >= '0' && c <= '9') return c - '0';
-        return std::tolower(static_cast<unsigned char>(c)) - 'a' + 10;
-    };
-    for (size_t i = 0; i < text.size(); ++i) {
-        if (text[i] == '%' && i + 2 < text.size() && std::isxdigit(static_cast<unsigned char>(text[i + 1])) &&
-            std::isxdigit(static_cast<unsigned char>(text[i + 2]))) {
-            result += static_cast<char>(hex_value(text[i + 1]) * 16 + hex_value(text[i + 2]));
-            i += 2;
-        } else if (text[i] == '+') {
-            result += ' ';
-        } else {
-            result += text[i];
-        }
-    }
-    return result;
-}
 
 // RFC 3986 percent-encoding for a query component - needed because
 // *query (below) is the already-decoded incoming value, and it gets
@@ -53,19 +33,6 @@ std::string UrlEncode(const std::string& text) {
     return result;
 }
 
-// No shared query-string parser exists yet (HttpRequest::query is the
-// raw string - every other endpoint so far only reads POST bodies, not
-// GET query params) - a small local helper rather than a new Core
-// utility with only this one caller.
-std::optional<std::string> GetQueryParam(const std::string& query_string, const std::string& key) {
-    std::string prefix = key + "=";
-    size_t pos = query_string.find(prefix);
-    if (pos == std::string::npos) return std::nullopt;
-    size_t start = pos + prefix.size();
-    size_t end = query_string.find('&', start);
-    return UrlDecode(query_string.substr(start, end == std::string::npos ? std::string::npos : end - start));
-}
-
 }  // namespace
 
 void RegisterWeatherRoutes(HttpServer& server, HttpClient& http_client, OpenMeteoWeatherProvider& weather_provider,
@@ -73,7 +40,7 @@ void RegisterWeatherRoutes(HttpServer& server, HttpClient& http_client, OpenMete
     server.RegisterHandler(
         HttpMethod::kGet, "/api/weather/geocode",
         auth.RequireAuth([&http_client](const HttpRequest& request) {
-            auto query = GetQueryParam(request.query, "query");
+            auto query = ParseFormField(request.query, "query");
             if (!query.has_value() || query->empty()) {
                 return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"query"})", {}};
             }

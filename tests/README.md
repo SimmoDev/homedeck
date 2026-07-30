@@ -31,13 +31,16 @@ and error-path cases over the same real socket `HostHttpServer` uses;
 `network_status_monitor_test.cpp`, `weather_provider_test.cpp`,
 `grid_occupancy_test.cpp`, `time_format_test.cpp`, `http_client_test.cpp`,
 `logger_test.cpp`, and `battery_reader_test.cpp` round out coverage for
-their respective subsystems. `wifi_reconnect_policy_test.cpp` covers the
-one piece of `firmware/main/wifi_setup.cpp`'s decision logic that's been
-pulled out into a portable class
-(`src/core/wifi_reconnect_policy.h`) specifically so it's testable here -
-the rest of that file is 100% ESP-IDF-coupled and unreachable from this
-suite. Real module tests arrive alongside the modules they test,
-not before they exist.
+their respective subsystems. `wifi_reconnect_policy_test.cpp` and `wifi_credentials_test.cpp` cover the
+two pieces of `firmware/main/wifi_setup.cpp`'s decision logic that have
+been pulled out into portable, LVGL/ESP-IDF-free units
+(`src/core/wifi_reconnect_policy.h`, `src/core/wifi_credentials.h`)
+specifically so they're testable here - the rest of that file is 100%
+ESP-IDF-coupled and unreachable from this suite. `url_codec_test.cpp`
+covers the percent-decoding shared by that same form-parsing path and
+`weather_routes.cpp`'s GET query parsing (`src/core/url_codec.h`). Real
+module tests arrive alongside the modules they test, not before they
+exist.
 
 Build and run locally:
 

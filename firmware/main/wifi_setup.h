@@ -80,11 +80,13 @@ void ConnectToWifi(const WifiUiCallbacks& ui_callbacks = {});
 // Applies newly-submitted credentials and attempts to connect - shared by
 // the SoftAP HTTP form's own handler and the Touch UI fallback screen, so
 // neither reimplements esp_wifi_set_config/connect and the reconnect-
-// attempt reset independently. Returns false without touching esp_wifi
-// at all if ssid is empty - both callers surface that back to the user
-// (a 400 response for the HTTP form, WifiSetupScreen::SetConnectError
-// for the Touch UI) rather than silently attempting to associate with a
-// blank SSID.
+// attempt reset independently. Returns false without touching esp_wifi at
+// all if ssid is empty or either field exceeds esp_wifi's own length
+// limits (see core/wifi_credentials.h) - both callers surface that back
+// to the user (a 400 response for the HTTP form,
+// WifiSetupScreen::SetConnectError for the Touch UI) rather than
+// silently attempting to associate with a blank SSID or letting the
+// snprintf() below truncate an overlong field.
 bool ApplyWifiCredentials(const std::string& ssid, const std::string& password);
 
 }  // namespace homedeck

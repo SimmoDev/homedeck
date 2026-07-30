@@ -96,7 +96,7 @@ void WifiSetupScreen::OnConnectClicked(lv_event_t* e) {
     bool accepted =
         self->on_submit_(lv_textarea_get_text(self->ssid_field_), lv_textarea_get_text(self->password_field_));
     if (!accepted) {
-        self->SetConnectError("Network name (SSID) is required.");
+        self->SetConnectError("Network name (SSID) is required, and both fields must be within Wi-Fi's length limits.");
     }
 }
 

@@ -1,5 +1,7 @@
 #include "wifi_setup.h"
 
+#include "core/url_codec.h"
+#include "core/wifi_credentials.h"
 #include "core/wifi_reconnect_policy.h"
 
 #include <cstdio>
@@ -139,12 +141,18 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     }
     body[received] = '\0';
 
-    char ssid[33] = {};
-    char password[65] = {};
-    httpd_query_key_value(body, "ssid", ssid, sizeof(ssid));
-    httpd_query_key_value(body, "password", password, sizeof(password));
+    // The setup page's <form> has no enctype, so browsers submit it as
+    // application/x-www-form-urlencoded - spaces become '+' and symbols
+    // become "%XX". ParseFormField decodes that (ESP-IDF's own
+    // httpd_query_key_value(), used here previously, does not - it's a
+    // raw byte copy, so any SSID/password containing a space or symbol
+    // was applied to esp_wifi still percent-encoded and could never
+    // associate).
+    std::string ssid = ParseFormField(body, "ssid").value_or("");
+    std::string password = ParseFormField(body, "password").value_or("");
     if (!ApplyWifiCredentials(ssid, password)) {
-        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Network name (SSID) is required");
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                             "Network name (SSID) is required, and both fields must be within Wi-Fi's length limits");
         return ESP_FAIL;
     }
 
@@ -256,19 +264,27 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
 }  // namespace
 
 bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) {
-    if (ssid.empty()) {
-        ESP_LOGW(kTag, "Rejecting empty SSID submission");
+    if (!IsValidWifiCredentials(ssid, password)) {
+        ESP_LOGW(kTag, "Rejecting Wi-Fi credentials submission (empty SSID or a field over its length limit)");
         return false;
     }
-    std::lock_guard<std::mutex> lock(g_state_mutex);
-    g_state.pending_ssid = ssid;
     wifi_config_t sta_config = {};
     std::snprintf(reinterpret_cast<char*>(sta_config.sta.ssid), sizeof(sta_config.sta.ssid), "%s", ssid.c_str());
     std::snprintf(reinterpret_cast<char*>(sta_config.sta.password), sizeof(sta_config.sta.password), "%s",
                   password.c_str());
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        g_state.pending_ssid = ssid;
+        g_state.reconnect_policy.ResetAttempts();
+    }
     ESP_LOGI(kTag, "Applying credentials, SSID: %s", sta_config.sta.ssid);
+    // esp_wifi_set_config()/esp_wifi_connect() are RPC calls proxied to
+    // the C6 co-processor over SDIO (see hardware.md#wireless for the
+    // documented RPC-timeout risk) - kept outside g_state_mutex, same as
+    // ConnectToWifi()'s equivalent esp_wifi_get_config() call below, so a
+    // slow RPC here can't stall OnEvent() processing a concurrent Wi-Fi/
+    // IP event on the shared ESP-IDF event-loop task.
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
-    g_state.reconnect_policy.ResetAttempts();
     // Connecting immediately below supersedes any retry a previous
     // disconnect already scheduled.
     esp_timer_stop(g_reconnect_timer);
