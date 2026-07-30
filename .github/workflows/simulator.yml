@@ -18,7 +18,7 @@ jobs:
 
       # The Web UI's Svelte/Vite bundle is a build prerequisite, not
       # auto-invoked from CMake (see
-      # docs/decisions/ADR-0002-technology-stack.md#6-web-management-ui-static-asset-storage)
+      # docs/decisions/ADR-0025-webui-static-asset-storage.md)
       # - the simulator's CMakeLists.txt fails at configure time if
       # webui/dist/ doesn't exist yet.
       - uses: actions/setup-node@v7
