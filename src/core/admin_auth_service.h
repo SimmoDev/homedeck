@@ -79,6 +79,13 @@ public:
     // never be reached in the first place.
     HttpServer::Handler RequireAuth(HttpServer::Handler inner);
 
+    // Test-only: exposes sessions_.size() to prove SweepExpiredSessions()
+    // actually bounds memory growth from an abandoned session (one
+    // nobody ever calls ValidateSession() on again, which would
+    // otherwise lazily erase it on its own) - not part of the real API
+    // surface.
+    size_t ActiveSessionCountForTesting();
+
 private:
     SessionToken GenerateSessionToken();
     std::vector<unsigned char> GenerateSalt();

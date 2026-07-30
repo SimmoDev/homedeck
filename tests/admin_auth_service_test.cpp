@@ -153,6 +153,26 @@ TEST_F(AdminAuthServiceTest, SessionExpiresAfterItsLifetime) {
     EXPECT_FALSE(auth.ValidateSession(*token));
 }
 
+TEST_F(AdminAuthServiceTest, LoginSweepsAnExpiredSessionNobodyEverRevalidated) {
+    homedeck::AdminAuthService auth(*storage_, time_source_);
+    auto first_token = auth.SetInitialPassword("correct horse battery staple");
+    ASSERT_TRUE(first_token.has_value());
+    ASSERT_EQ(auth.ActiveSessionCountForTesting(), 1u);
+
+    time_source_.fixed_time += std::chrono::hours(25);  // past the 24h session lifetime
+
+    // A second login issues a new session without anyone ever having
+    // re-validated (and thereby lazily expired) the first one.
+    auto second_token = auth.Login("correct horse battery staple");
+    ASSERT_TRUE(second_token.has_value());
+
+    // The stale first session must be gone, not just a second one added
+    // on top of it - proves SweepExpiredSessions() actually ran on this
+    // login, not just that ValidateSession()'s own lazy expiry works
+    // (already covered by SessionExpiresAfterItsLifetime above).
+    EXPECT_EQ(auth.ActiveSessionCountForTesting(), 1u);
+}
+
 TEST_F(AdminAuthServiceTest, RequireAuthReturns403WhenNoPasswordIsSetYet) {
     homedeck::AdminAuthService auth(*storage_, time_source_);
     bool inner_called = false;

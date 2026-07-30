@@ -202,6 +202,11 @@ bool AdminAuthService::IsPasswordSet() {
     return storage_.GetSecret(kModuleId, kPasswordKey).has_value();
 }
 
+size_t AdminAuthService::ActiveSessionCountForTesting() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return sessions_.size();
+}
+
 std::optional<SessionToken> AdminAuthService::SetInitialPassword(const std::string& password) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (storage_.GetSecret(kModuleId, kPasswordKey).has_value()) {
