@@ -194,7 +194,8 @@ TEST_F(SettingsRoutesTest, ReservedAdminPasswordKeyIsRejectedAndNeverExposed) {
     auto post =
         HttpRequestRaw(18215, "POST", "/api/settings",
                         R"({"module":"core","key":"admin_pw_hash","value":"clobbered","schemaVersion":1})", cookie);
-    EXPECT_NE(post.status_code, 200);
+    EXPECT_EQ(post.status_code, 403);
+    EXPECT_NE(post.body.find("reserved_key"), std::string::npos);
 
     auto get_settings = HttpRequestRaw(18215, "GET", "/api/settings", "", cookie);
     EXPECT_EQ(get_settings.body.find("admin_pw_hash"), std::string::npos);

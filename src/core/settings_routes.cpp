@@ -19,6 +19,16 @@ bool InvalidKey(const std::string& module_id, const std::string& key) {
     return !IsValidStoreSegment(module_id) || !IsValidStoreSegment(key);
 }
 
+// Storage::SetSetting already rejects this exact pair (see storage.cpp's
+// IsReservedForSecrets, ADR-0023/ADR-0027) - checked here too so a
+// deliberate security rejection surfaces as its own distinguishable
+// response rather than the generic 500 "write_failed" a real storage
+// fault also produces, which would otherwise make the two
+// indistinguishable in logs/monitoring.
+bool IsReservedKey(const std::string& module_id, const std::string& key) {
+    return module_id == AdminAuthService::kModuleId && key == AdminAuthService::kPasswordKey;
+}
+
 nlohmann::json EntryToJson(const SettingEntry& entry) {
     return {
         {"module", entry.module_id},
@@ -73,6 +83,9 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             std::string value = value_it->get<std::string>();
             if (InvalidKey(module, key)) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_key"})", {}};
+            }
+            if (IsReservedKey(module, key)) {
+                return HttpResponse{403, "application/json", R"({"error":"reserved_key"})", {}};
             }
             if (module == AdminAuthService::kModuleId && key == kDeviceNameKey && on_device_name_changed) {
                 if (!on_device_name_changed(value)) {

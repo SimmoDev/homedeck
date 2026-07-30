@@ -64,7 +64,13 @@ enumeration method, backing both `GET /api/settings` and `GET
 itself, not only in the route handler, so every current and future call
 path is covered. This is a single, enumerable, explicitly-checked
 constant today, not the "convention everyone must remember" pattern
-this project's ADRs otherwise reject.
+this project's ADRs otherwise reject. `POST /api/settings`'s own handler
+(`settings_routes.cpp`) also checks it directly ahead of calling
+`SetSetting`, added during the fifth-pass M2 exit review (2026-07-30) so
+this specific, deliberate rejection responds `403 reserved_key` -
+distinguishable from the generic `500 write_failed` a real storage fault
+also produces - rather than relying solely on `SetSetting`'s own `false`
+return falling through to that same generic path.
 
 **The durable fix - giving `SecretStore` its own NVS partition on
 firmware, mirroring what `HostSecretStore` already does with a separate
