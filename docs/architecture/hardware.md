@@ -102,12 +102,38 @@ timeouts` — the C6's own ESP-Hosted slave firmware reports version
 `0.0.0`. Basic Wi-Fi association and IP acquisition work regardless, but
 RPC timeouts under heavier use remain a real, deferred risk.
 
+**Known, not yet root-caused: an intermittent crash during the Wi-Fi-connect
+burst.** Twice out of four on-device connection attempts, the device
+panicked (`Guru Meditation Error: Instruction access fault`, Core 1) a few
+hundred milliseconds after logging a successful IP acquisition, while mDNS
+and the Web UI's HTTP server were starting — the highest-SDIO-traffic
+window in the boot sequence. The faulting PC resolves to the literal entry
+point of `SysTickIsrHandler` (`freertos/port_systick.c:127`), an
+instruction fetch fault on an otherwise correctly IRAM-mapped address, in
+interrupt context. Core-dump analysis ruled out ISR stack overflow (only
+48 of 2096 bytes of the per-core ISR stack were in use at fault time) and
+chip-revision/toolchain mismatch (`sdkconfig` already correctly targets
+`CONFIG_ESP32P4_REV_MIN_1` for this kit's v1.3 silicon, and that failure
+mode is deterministic, not intermittent, unlike what was observed).
+Multiple open upstream `esp-hosted-mcu` issues report general SDIO/RPC
+instability on this exact ESP32-P4+C6 combination under load, but none
+matching this specific fault signature. Consistent with, but a more
+severe manifestation than, the RPC-timeout risk immediately above -
+tracked as the same general class of risk, not a separate one. Isolating
+it further needs hardware debug tooling (JTAG) or upstream engagement,
+neither available yet.
+
 The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
 see [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md)
-for why. Confirmed working end to end on hardware: SoftAP up, a real
-phone submitting credentials through the form, the device connecting and
-getting a real IP, SoftAP torn down afterward.
+for why. Confirmed working end to end on hardware, including with a
+non-alphanumeric SSID (an apostrophe): SoftAP up, a real phone submitting
+credentials through the form, the device connecting and getting a real
+IP, SoftAP torn down afterward. The form's submitted values are
+percent-decoded and length-validated before being applied
+(`src/core/url_codec.h`, `src/core/wifi_credentials.h`) so a network name
+or password containing a space or symbol is handled correctly rather than
+corrupted.
 
 Two standing facts about this flow:
 - **Wi-Fi credentials live on the C6 co-processor's own flash, not the

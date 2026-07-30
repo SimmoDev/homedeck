@@ -134,9 +134,17 @@ simulator.
       [networking.md](architecture/networking.md#initial-wi-fi-provisioning)
       and [ADR-0026](decisions/ADR-0026-wifi-provisioning-mechanism.md)
       for the provisioning mechanism). Implemented and confirmed on
-      hardware end to end — SoftAP provisioning, the Touch UI fallback,
-      and reconnecting to stored credentials, all via
-      `firmware/main/wifi_setup.cpp`. Still open: wiring credential
+      hardware, including with a non-alphanumeric SSID — SoftAP
+      provisioning, the Touch UI fallback, and reconnecting to stored
+      credentials, all via `firmware/main/wifi_setup.cpp`. The setup
+      form's submitted SSID/password are percent-decoded and
+      length-validated (`src/core/url_codec.h`,
+      `src/core/wifi_credentials.h`, both host-tested) before being
+      applied to `esp_wifi`. See
+      [hardware.md](architecture/hardware.md#wi-fi-bring-up) for a
+      separate, intermittent, not-yet-root-caused crash risk during the
+      Wi-Fi-connect burst, unrelated to this parsing/validation logic.
+      Still open: wiring credential
       storage into Core's Configuration/Storage service instead of
       `esp_wifi`'s own default persistence on the C6 co-processor — a
       documented, low-priority gap (see
