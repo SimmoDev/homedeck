@@ -10,12 +10,10 @@ Accepted
 performs a synchronous whole-file `CacheStore::Write()` on every call.
 On the K145 reference unit, three `Log()` calls landing within the same
 second during boot (Wi-Fi connect, mDNS advertise, Web UI start)
-reliably produced a visible display corruption - a brief, uniform
-color-shifted tint over otherwise-correctly-rendered content, confirmed
-via frame-by-frame video analysis correlated against timestamped serial
-logs. Removing those three calls entirely eliminated the glitch,
-isolating the cause to the flash write itself, not anything else in
-that boot window.
+reliably produce a visible display corruption - a brief, uniform
+color-shifted tint over otherwise-correctly-rendered content. Removing
+those three calls entirely eliminates the glitch, isolating the cause to
+the flash write itself, not anything else in that boot window.
 
 **Root cause:** the display framebuffer is PSRAM-resident
 (`espressif/m5stack_tab5`'s DPI panel driver allocates it via
@@ -36,10 +34,9 @@ act on.
 **Ruled out:**
 - **Double-buffered DPI panel + `esp_lvgl_port`'s tear-avoidance mode**
   (`CONFIG_BSP_LCD_DPI_BUFFER_NUMS=2`,
-  `CONFIG_BSP_DISPLAY_LVGL_AVOID_TEAR=y`) - tested both before and after
-  this ADR's fix (against three clustered writes, then again against one
-  coalesced write); didn't resolve it either time. This protects against
-  a CPU-write-vs-DMA-read race within the framebuffer itself, a
+  `CONFIG_BSP_DISPLAY_LVGL_AVOID_TEAR=y`) - doesn't resolve it, whether
+  against three clustered writes or one coalesced write. This protects
+  against a CPU-write-vs-DMA-read race within the framebuffer itself, a
   different failure mode from a flash operation stalling bus/cache
   access system-wide - consistent with it not helping here.
 - **`CONFIG_SPI_FLASH_AUTO_SUSPEND`** - the one mechanism that could
@@ -79,11 +76,10 @@ here, not a one-off boot-sequence nuisance.
 It captures the entry (with a real timestamp, taken immediately) and
 pushes it onto a `Queue<Item>`; a dedicated background `Task`
 (`WorkerLoop()`) owns all actual `Storage` access. This is the first
-genuine production use of both `Task` and `Queue<T>` on firmware -
-previously real (compiled, unit-tested) but never exercised together on
-FreeRTOS. Confirmed working on the K145 reference unit: real
-boot-sequence entries persist correctly, in order, with accurate
-individual timestamps.
+production use of both `Task` and `Queue<T>` together on firmware -
+previously implemented and unit-tested individually, but not exercised
+together on FreeRTOS. Boot-sequence entries persist correctly on
+hardware, in order, with accurate individual timestamps.
 
 **The worker batches, rather than writing one entry at a time.** After
 waking for the first queued item, it drains everything else already
@@ -92,9 +88,9 @@ available (`Queue<T>::TryPop()`, non-blocking) before doing a single
 coalesces near-simultaneous `Log()` calls into one flash write instead
 of several - moving the write off the caller's task alone doesn't
 reduce how many flash operations happen, only where they happen;
-coalescing is what reduces the count. Confirmed on hardware: the three
-original boot-sequence entries now share one write (identical
-timestamps, one write instead of three).
+coalescing is what reduces the count. On hardware, the three original
+boot-sequence entries now share one write (identical timestamps, one
+write instead of three).
 
 **`Queue<T>` gains a stop-token-aware blocking `Pop(std::stop_token)`**
 (needs `condition_variable_any`, not plain `condition_variable`, for the
@@ -113,12 +109,11 @@ to get off of.
 
 **This does not fully eliminate the underlying glitch risk** - it
 reduces the number of flash writes clustered into a visually-critical
-window, which measurably helped (three writes down to one), but a
-single write during active viewing can still glitch on this hardware,
-confirmed by re-testing double-buffering against the reduced case. No
-safe, available fix for the remaining single-write case was found (see
-Context). This is accepted as a known, documented hardware/BSP
-limitation for now - see
+window (three writes down to one), but a single write during active
+viewing can still glitch on this hardware, including with
+double-buffering enabled. No safe, available fix for the remaining
+single-write case exists (see Context). This is accepted as a known,
+documented hardware/BSP limitation for now - see
 [hardware.md](../architecture/hardware.md#display-and-touch).
 
 ## Consequences
@@ -131,19 +126,17 @@ limitation for now - see
   previously left open (deferred "to when firmware bring-up actually
   needs it") is resolved: the existing generic
   `std::mutex`/`condition_variable_any` implementation works correctly
-  on firmware as-is, confirmed via `Task`+`Queue<T>` running together on
-  real hardware. A genuinely FreeRTOS-native backend (`xQueueCreate`)
-  remains a possible future optimization, not something blocking
-  correctness.
+  on firmware as-is. A FreeRTOS-native backend (`xQueueCreate`) remains
+  a possible future optimization, not something blocking correctness.
 - Test coverage in `tests/logger_test.cpp` and `tests/queue_test.cpp`
   (new: `Pop(stop_token)`, `TryPop()`, and a coalescing-specific Logger
   test) exercises the new behavior; the two pre-existing rotation tests
   were updated to force batch boundaries via `ReadAll()`'s flush between
   calls, since rotation now triggers per-batch rather than strictly
   per-call.
-- microSD-backed log storage remains a real, deliberately deferred
-  option - see [ADR-0012](ADR-0012-storage-tiers.md) and
-  [roadmap.md](../roadmap.md) - now motivated by this confirmed hardware
-  interaction specifically, not just "extended retention" in the
-  abstract. Revisit once stock-hardware-without-a-card behavior can be
-  preserved as a real fallback, not before.
+- microSD-backed log storage remains a deliberately deferred option -
+  see [ADR-0012](ADR-0012-storage-tiers.md) and
+  [roadmap.md](../roadmap.md) - motivated by this hardware interaction
+  specifically, not just "extended retention" in the abstract. Revisit
+  once stock-hardware-without-a-card behavior can be preserved as a
+  fallback, not before.

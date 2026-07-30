@@ -311,7 +311,7 @@ simulator.
       polish item for why).
 - [x] Simulator physical-keyboard input (dev tooling, not product scope) —
       `lv_sdl_keyboard_create()` plus a default `lv_group` for focus/Tab
-      routing (`UiTask`, `src/ui/ui_task.cpp`), so typing into a text
+      routing (`UiTask`, `src/platform/host/ui_task.cpp`), so typing into a text
       field (e.g. `WifiSetupScreen`) works directly from a physical
       keyboard instead of only by clicking the on-screen one. Confirmed
       manually in the simulator — see

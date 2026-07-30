@@ -25,9 +25,10 @@ hardcoded `"homedeck"` mDNS hostname.
 work or big enough to be its own follow-up: Wi-Fi management
 (view/change post-provisioning - firmware-only today, needs its own
 simulator-parity design), WebSockets/live updates (blocked on an
-unrelated civetweb cross-task-dispatch-safety question web-ui.md already
-flags as unresolved), factory-reset (roadmap itself says "not yet
-designed, scope isn't decided").
+unrelated civetweb cross-task-dispatch-safety question
+[web-ui.md](../architecture/web-ui.md) already flags as unresolved),
+factory-reset (roadmap itself says "not yet designed, scope isn't
+decided").
 
 ## Security finding that shaped this design
 

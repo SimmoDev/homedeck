@@ -100,7 +100,7 @@ No module code exists yet. See
 day-to-day workflow.
 
 Physical keyboard input is also implemented: `UiTask`
-(`src/ui/ui_task.cpp`) sets a default `lv_group` before any screen is
+(`src/platform/host/ui_task.cpp`) sets a default `lv_group` before any screen is
 constructed, so every focusable widget (textareas, buttons) LVGL creates
 from then on joins it automatically (`group_def=true` in its own widget
 class - no per-screen wiring needed), then registers

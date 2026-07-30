@@ -116,7 +116,7 @@ Two standing facts about this flow:
   persists them itself. `esp_wifi_restore()` (also proxied), not erasing
   the P4's `nvs` region, is the correct way to clear them. Moving
   credential storage onto Core's own service (a known gap, see
-  [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow))
+  [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md#consequences))
   will need `esp_wifi`'s storage mode set to `WIFI_STORAGE_RAM` so the
   co-processor stops persisting it a second time.
 - **`esp_http_server`'s max request header size is raised to 4096 bytes**
