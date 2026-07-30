@@ -14,7 +14,7 @@ namespace homedeck {
 
 // Touch UI fallback for initial Wi-Fi setup - see
 // docs/architecture/networking.md#initial-wi-fi-provisioning. The primary
-// path is SoftAP plus a phone/laptop's browser form
+// path is SoftAP plus a computer/phone's browser form
 // (firmware/main/wifi_setup.cpp); this exists for a user without a
 // second device handy. Knows nothing about esp_wifi itself - submission
 // goes through an injected callback, so this stays portable and

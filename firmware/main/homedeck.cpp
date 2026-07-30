@@ -437,7 +437,7 @@ extern "C" void app_main(void) {
 
     // Continues from InitWifiAndCheckStoredCredentials() above - blocks
     // until connected, either immediately (stored credentials), until a
-    // phone/laptop completes SoftAP setup, or until the Touch UI fallback
+    // computer/phone completes SoftAP setup, or until the Touch UI fallback
     // screen (already showing, if wifi_check found no stored credentials)
     // submits credentials directly. wifi_setup.cpp has no LVGL/Navigation
     // dependency of its own, so reaching the UI happens through these two

@@ -35,7 +35,7 @@ Core's networking service and Core's HTTP server registration mechanism.
 The device has no Wi-Fi credentials out of the box, so it can't simply serve
 its own setup UI over the LAN the way the rest of the Web Management UI
 does. First-run setup uses a SoftAP: the device broadcasts its own
-temporary access point, a phone or laptop connects to it, and a minimal
+temporary access point, a computer or phone connects to it, and a minimal
 HTTP setup form (not the full Svelte Web UI — see [web-ui.md](web-ui.md))
 collects the Wi-Fi SSID and password, which the device applies via
 `esp_wifi_set_config`/`esp_wifi_connect`. Touch UI on-screen keyboard entry

@@ -68,7 +68,7 @@ WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& ne
 // Continues from InitWifiAndCheckStoredCredentials() above. If credentials
 // are already stored, connects directly; otherwise starts a temporary
 // open SoftAP ("HomeDeck-xxxxxx") and a minimal HTTP setup form at its
-// gateway address, and blocks until a phone or laptop submits Wi-Fi
+// gateway address, and blocks until a computer or phone submits Wi-Fi
 // credentials through it (or the Touch UI fallback screen submits them
 // via ApplyWifiCredentials below) and the device connects. See
 // docs/architecture/networking.md#initial-wi-fi-provisioning and ADR-0006
