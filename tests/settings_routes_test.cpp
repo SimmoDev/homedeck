@@ -20,6 +20,18 @@ using homedeck::testing::HttpRequestRaw;
 using homedeck::testing::HttpResult;
 using homedeck::testing::SessionCookieOnly;
 
+// Always fails Set() - simulates a genuine storage write failure (e.g.
+// NVS full). Real SettingsStore backends don't fail like this in a
+// test-controllable way, hence the fake - same precedent as
+// admin_auth_routes_test.cpp's FailingSecretStore.
+class FailingSettingsStore : public homedeck::SettingsStore {
+public:
+    bool Set(const std::string&, const std::string&, const std::string&) override { return false; }
+    std::optional<std::string> Get(const std::string&, const std::string&) override { return std::nullopt; }
+    bool Erase(const std::string&, const std::string&) override { return false; }
+    std::vector<homedeck::SettingsEntry> ListAll() override { return {}; }
+};
+
 class SettingsRoutesTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -252,4 +264,25 @@ TEST_F(SettingsRoutesTest, DeviceNameChangedCallbackCanAcceptOrReject) {
     auto get = HttpRequestRaw(18217, "GET", "/api/settings", "", cookie);
     EXPECT_NE(get.body.find(R"("value":"living-room")"), std::string::npos);
     EXPECT_EQ(get.body.find("reject-me"), std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, PostSettingsReturns500WhenTheStorageWriteFails) {
+    FailingSettingsStore failing_settings_store;
+    homedeck::HostCacheStore cache_store(root_dir_ / "failing_case");
+    homedeck::HostSecretStore secret_store(root_dir_ / "failing_case");
+    homedeck::Storage failing_storage(failing_settings_store, cache_store, secret_store);
+    homedeck::AdminAuthService failing_auth(failing_storage, time_source_);
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, failing_auth);
+    homedeck::RegisterSettingsRoutes(server, failing_storage, failing_auth);
+    ASSERT_TRUE(server.Start(18219));
+    auto setup = HttpRequestRaw(18219, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    std::string cookie = SessionCookieOnly(setup.set_cookie);
+
+    auto result = HttpRequestRaw(18219, "POST", "/api/settings",
+                                  R"({"module":"harmony","key":"hub_ip","value":"10.0.0.5","schemaVersion":1})",
+                                  cookie);
+    EXPECT_EQ(result.status_code, 500);
+    EXPECT_NE(result.body.find("write_failed"), std::string::npos);
 }
