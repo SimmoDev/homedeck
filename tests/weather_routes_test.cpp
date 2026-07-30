@@ -172,6 +172,53 @@ TEST_F(WeatherRoutesTest, GeocodeSkipsEntriesWithNonNumericLatitudeOrLongitude) 
     EXPECT_EQ(result.body.find("WrongType"), std::string::npos);
 }
 
+TEST_F(WeatherRoutesTest, GeocodeSkipsEntriesWithNonStringName) {
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{
+        true, 200,
+        R"({"results":[)"
+        R"({"name":"Berlin","admin1":"Berlin","country":"Germany","latitude":52.52,"longitude":13.41},)"
+        // "name" present but wrong-typed - must be skipped, not abort
+        // the process (nlohmann's .get<std::string>() on a non-string
+        // value calls std::abort() since exceptions are disabled on the
+        // firmware target).
+        R"({"name":404,"latitude":1.0,"longitude":2.0})"
+        R"(]})"});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18321));
+    std::string cookie = Login(18321);
+
+    auto result = HttpRequestRaw(18321, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 200);
+    EXPECT_NE(result.body.find(R"("name":"Berlin")"), std::string::npos);
+    EXPECT_EQ(result.body.find(R"("latitude":1.0)"), std::string::npos);
+}
+
+TEST_F(WeatherRoutesTest, GeocodeDefaultsAdmin1AndCountryToEmptyWhenWrongTyped) {
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{
+        true, 200,
+        R"({"results":[)"
+        // admin1/country present but wrong-typed - unlike name/latitude/
+        // longitude, this shouldn't drop the entry, just default those
+        // two fields to empty instead of aborting the process.
+        R"({"name":"Berlin","admin1":123,"country":null,"latitude":52.52,"longitude":13.41})"
+        R"(]})"});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18322));
+    std::string cookie = Login(18322);
+
+    auto result = HttpRequestRaw(18322, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 200);
+    EXPECT_NE(result.body.find(R"("name":"Berlin")"), std::string::npos);
+    EXPECT_NE(result.body.find(R"("admin1":"")"), std::string::npos);
+    EXPECT_NE(result.body.find(R"("country":"")"), std::string::npos);
+}
+
 TEST_F(WeatherRoutesTest, GeocodeUrlEncodesTheQueryBeforeForwarding) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);

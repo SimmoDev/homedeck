@@ -61,15 +61,29 @@ void RegisterWeatherRoutes(HttpServer& server, HttpClient& http_client, OpenMete
             auto upstream_results = parsed.find("results");
             if (upstream_results != parsed.end() && upstream_results->is_array()) {
                 for (const auto& entry : *upstream_results) {
-                    if (!entry.is_object() || !entry.contains("name") || !entry.contains("latitude") ||
-                        !entry.contains("longitude") || !entry.at("latitude").is_number() ||
-                        !entry.at("longitude").is_number()) {
+                    // "name" must both be present and string-typed, same
+                    // as latitude/longitude below must be present and
+                    // number-typed - entry.value()/entry.get<T>() throw
+                    // json::type_error on a type mismatch, which is
+                    // std::abort() on firmware (exceptions are disabled
+                    // there), not a catchable error.
+                    if (!entry.is_object() || !entry.contains("name") || !entry.at("name").is_string() ||
+                        !entry.contains("latitude") || !entry.contains("longitude") ||
+                        !entry.at("latitude").is_number() || !entry.at("longitude").is_number()) {
                         continue;
                     }
+                    // admin1/country are optional, unlike name/latitude/
+                    // longitude above - a type mismatch on one of these
+                    // shouldn't drop an otherwise-valid result, so this
+                    // defaults to empty instead of skipping the entry.
+                    auto optional_string = [&entry](const char* key) -> std::string {
+                        auto it = entry.find(key);
+                        return (it != entry.end() && it->is_string()) ? it->get<std::string>() : "";
+                    };
                     results.push_back({
-                        {"name", entry.value("name", "")},
-                        {"admin1", entry.value("admin1", "")},
-                        {"country", entry.value("country", "")},
+                        {"name", entry.at("name").get<std::string>()},
+                        {"admin1", optional_string("admin1")},
+                        {"country", optional_string("country")},
                         {"latitude", entry.at("latitude").get<double>()},
                         {"longitude", entry.at("longitude").get<double>()},
                     });
