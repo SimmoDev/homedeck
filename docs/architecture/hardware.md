@@ -311,12 +311,16 @@ second, conflicting one on the same physical pins.
   supports timed interrupt wake-up, but that's a datasheet capability, not a
   confirmation about this board's wiring — its `nIRQ` pin has no confirmed
   path to the P4, see [Wake sources](#power) under Power below.
-- **Never been set:** the reference unit's RTC reads a meaningless
-  factory/power-on date (see [On-device
-  dashboard](#on-device-dashboard) below) - expected, not a fault. No
-  time-setting mechanism exists yet; needs either SNTP over Wi-Fi or a
-  manual set-time affordance, both M2 scope (networking and Web/Touch UI
-  respectively).
+- **Corrected via SNTP once Wi-Fi (and internet reachability) is
+  available** — see [ADR-0028](../decisions/ADR-0028-time-synchronization.md)
+  for the full design. Before this, and on a device with no internet
+  route, the RTC reads whatever it last held — a meaningless factory/
+  power-on date on a never-synced unit, degrading gracefully rather than
+  failing loudly, consistent with this project's offline-behavior
+  philosophy. Not corrected to the user's actual local timezone — the
+  RTC's raw fields are interpreted with no timezone math anywhere in this
+  project (see [On-device dashboard](#on-device-dashboard) below and
+  ADR-0028's own Consequences), a known, separate gap.
 
 ## Power
 

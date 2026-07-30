@@ -4,6 +4,7 @@
 
 #include "driver/i2c_master.h"
 
+#include <ctime>
 #include <memory>
 
 namespace espp {
@@ -30,6 +31,20 @@ public:
     Rx8130TimeSource& operator=(const Rx8130TimeSource&) = delete;
 
     std::chrono::system_clock::time_point Now() const override;
+
+    // Writes utc_time into the physical RTC via I2C, so the correction
+    // survives a reboot on the supercap backup rather than needing to be
+    // reapplied every boot - see ADR-0028 for why SNTP (the only current
+    // caller, firmware/main/homedeck.cpp) is what calls this. Broken down
+    // via gmtime_r, not localtime_r, deliberately matching Now()'s own
+    // "no timezone handling" convention above: Now() feeds the RTC's raw
+    // fields into mktime() with no TZ offset applied, so writing back the
+    // same raw UTC fields here (rather than applying a TZ conversion this
+    // project doesn't have) is what actually round-trips correctly given
+    // that existing behavior, not a second, inconsistent interpretation
+    // of what the RTC's fields mean. Returns false if the I2C write
+    // itself fails; the RTC is left holding whatever it held before.
+    bool SetTime(std::time_t utc_time);
 
 private:
     std::unique_ptr<I2cDevice> device_;

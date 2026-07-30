@@ -166,6 +166,19 @@ simulator.
       The mDNS *browsing* wrapper for modules to discover Home
       Assistant/Kodi is out of scope here — tracked against M4/M6
       instead, once one of those modules is a real consumer.
+- [x] RTC time synchronization — the RX8130CE RTC (see
+      [hardware.md](architecture/hardware.md#rtc)) had never been set,
+      a real gap this item closes now that Wi-Fi exists to fix it over.
+      SNTP against `pool.ntp.org` once Wi-Fi connects, corrected back
+      into the physical RTC on every sync (`Rx8130TimeSource::SetTime()`,
+      `firmware/main/homedeck.cpp`'s `StartTimeSync()`) rather than a
+      manual set-time affordance — see
+      [ADR-0028](decisions/ADR-0028-time-synchronization.md) for why.
+      Firmware-only, same as crash/reboot diagnostics — the simulator's
+      host OS already keeps correct time on its own. Timezone support
+      (the RTC's fields are still interpreted with no TZ conversion
+      anywhere in this project) remains a separate, real gap, not solved
+      here — a future item, not yet placed against a specific milestone.
 - [x] Configuration service (storage-backed) across the storage tiers
       (NVS, internal flash filesystem — see
       [ADR-0012](decisions/ADR-0012-storage-tiers.md)), with a schema
@@ -564,5 +577,6 @@ index — decision name, ADR, one-line outcome.
 | Settings/backup reserved-key guard | [ADR-0023](decisions/ADR-0023-settings-backup-api.md) | A reserved-key guard keeps the admin password hash out of the generic settings API — since superseded as the sole protection by ADR-0027's partition split |
 | Wi-Fi provisioning mechanism | [ADR-0026](decisions/ADR-0026-wifi-provisioning-mechanism.md) | HomeDeck-owned SoftAP + HTTP form, not ESP-IDF's `wifi_provisioning` — no usable transport on this project's `esp_wifi_remote` stack |
 | SecretStore partition separation | [ADR-0027](decisions/ADR-0027-secret-store-partition-separation.md) | A dedicated `secrets` NVS partition, not a shared one with SettingsStore — structurally excludes secrets from `ListAll()`/backups, not just the reserved-key guard |
+| Time synchronization | [ADR-0028](decisions/ADR-0028-time-synchronization.md) | SNTP against `pool.ntp.org` once Wi-Fi connects, corrected back into the physical RTC on every sync — not a manual set-time affordance; no timezone handling added |
 | Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol specifics investigated in M3 |
 | Module interface (exact API) | [modules.md](architecture/modules.md#status) | Deferred by design — defined when Harmony (M3) is built |

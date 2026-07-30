@@ -45,4 +45,12 @@ std::chrono::system_clock::time_point Rx8130TimeSource::Now() const {
     return std::chrono::system_clock::from_time_t(t);
 }
 
+bool Rx8130TimeSource::SetTime(std::time_t utc_time) {
+    std::tm tm{};
+    gmtime_r(&utc_time, &tm);
+    std::error_code ec;
+    rtc_->set_time(tm, ec);
+    return !ec;
+}
+
 }  // namespace homedeck

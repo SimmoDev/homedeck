@@ -99,7 +99,11 @@ generic notification and hands it to Core. See
 Two Core services are implemented, built during M1 rather than waiting for
 M2 because the dedicated-UI-task work needed them directly: the **Event
 bus** (`EventBus` in `src/core/`) and **Time/date services** (`Clock`).
-Both are unit-tested in `tests/`. **Navigation** also has a minimal
+Both are unit-tested in `tests/`. On firmware, the RTC `Clock` reads from is
+also now kept accurate via SNTP once Wi-Fi connects, not just ticking a
+value nobody ever corrected — see
+[ADR-0028](../decisions/ADR-0028-time-synchronization.md). **Navigation**
+also has a minimal
 implementation — a route registry (`Register`/`GoTo`/`GoHome`), proven
 against a deliberately throwaway second screen — though it lives in
 `src/ui/`, not `src/core/`, since its `lv_scr_load()` call is a UI-layer

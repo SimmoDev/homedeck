@@ -10,6 +10,7 @@
 #include "esp_heap_caps.h"
 #include "esp_idf_version.h"
 #include "esp_netif.h"
+#include "esp_netif_sntp.h"
 #include "esp_ota_ops.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
@@ -214,6 +215,50 @@ void RegisterMdns(const std::string& device_name, homedeck::Logger& logger) {
         logger.Log(homedeck::LogLevel::kError, "mdns",
                     std::string("Init failed: ") + esp_err_to_name(mdns_result));
     }
+}
+
+// Bridges esp_sntp_config_t's sync_cb (a plain C function pointer, no
+// user_data slot to close over anything with) to the Rx8130TimeSource/
+// Logger this file already owns - the same file-scope-global exception
+// wifi_setup.cpp's own g_state takes, for the identical reason (an
+// ESP-IDF callback signature that can't carry context). Both pointers
+// are set once, from the single-threaded boot sequence, before Wi-Fi
+// (and therefore any possible sync) can occur - not touched again after
+// that, so no synchronization is needed the way wifi_setup.cpp's
+// multi-writer g_state_mutex is.
+homedeck::Rx8130TimeSource* g_time_source_for_sntp = nullptr;
+homedeck::Logger* g_logger_for_sntp = nullptr;
+
+// Fires on every sync - the first one after Wi-Fi connects, and every
+// periodic resync LwIP's SNTP client runs on its own thereafter (see
+// ADR-0028 for why periodic resync, not just a one-shot set, matters
+// here). Writing back to the physical RTC on every call, not just the
+// first, keeps it correct across a reboot even if this boot's own
+// uptime is short.
+void OnSntpTimeSync(timeval* tv) {
+    if (g_time_source_for_sntp != nullptr) {
+        g_time_source_for_sntp->SetTime(tv->tv_sec);
+    }
+    if (g_logger_for_sntp != nullptr) {
+        g_logger_for_sntp->Log(homedeck::LogLevel::kInfo, "time_sync", "RTC corrected via SNTP");
+    }
+}
+
+// See ADR-0028 for why SNTP over a manual-set Web UI field. pool.ntp.org
+// is a public NTP pool with no configuration needed - this project has
+// no per-user NTP-server setting, the same "no premature abstraction"
+// reasoning weather.md's direct Open-Meteo default already follows.
+// Fire-and-forget: init with wait_for_sync=false (ESP_NETIF_SNTP_DEFAULT_CONFIG's
+// own default) so this never blocks app_main() waiting on a sync that
+// might not come (e.g. Wi-Fi connected but no internet route) -
+// OnSntpTimeSync() above runs whenever a sync eventually succeeds,
+// however long that takes, with no timeout of its own.
+void StartTimeSync(homedeck::Rx8130TimeSource& time_source, homedeck::Logger& logger) {
+    g_time_source_for_sntp = &time_source;
+    g_logger_for_sntp = &logger;
+    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+    config.sync_cb = OnSntpTimeSync;
+    esp_netif_sntp_init(&config);
 }
 
 // See docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
@@ -462,6 +507,10 @@ extern "C" void app_main(void) {
     homedeck::ConnectToWifi(wifi_ui_callbacks);
     printf("Wi-Fi connected\n");
     app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
+
+    // See ADR-0028 - corrects the RTC's previously-never-calibrated time
+    // once Wi-Fi (and, implicitly, internet reachability) is available.
+    StartTimeSync(time_source, app_core.GetLogger());
 
     // "homedeck" by default, or whatever a user has set via the Web
     // UI's Settings page (see docs/decisions/ADR-0023-settings-backup-api.md).
