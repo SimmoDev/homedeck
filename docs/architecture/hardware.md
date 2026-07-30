@@ -131,6 +131,20 @@ clears just the stored Wi-Fi credentials and reboots automatically so
 the device re-enters SoftAP setup, isolating the connect burst without
 touching Core's own `Storage` state.
 
+**Accepted risk (2026-07-30, M2 exit review):** this is carried forward
+into M3 as a known, explicitly accepted gap, not resolved. `ESP_SYSTEM_PANIC_PRINT_REBOOT`
+means the device recovers on its own (a self-triggered reboot, not a
+hang), and every root-cause avenue available without JTAG or upstream
+engagement has already been exhausted - continuing to dig with only
+serial/core-dump tools available wouldn't likely add new evidence.
+Accepted specifically on that basis, not because the rate is
+considered acceptable in the abstract: a real crash on a core, everyday
+path deserves re-evaluating once M3 adds more Wi-Fi-adjacent activity
+at boot/connect time (Harmony hub discovery, etc.), which could
+plausibly change the reproduction rate one way or the other - re-check
+this note if it does, rather than assuming it's already been ruled
+out.
+
 The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
 see [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md)
