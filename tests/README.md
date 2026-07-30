@@ -24,8 +24,9 @@ an injected dispatcher — plus `smoke_test.cpp` proving the framework
 itself builds, links, and runs. Every other M2 Web UI endpoint has its
 own equally real `*_routes_test.cpp` alongside it (`settings_routes_test.cpp`,
 `ota_routes_test.cpp`, `diagnostics_routes_test.cpp`,
-`weather_routes_test.cpp`), each driving auth-required, input-validation,
-and error-path cases over the same real socket `HostHttpServer` uses;
+`weather_routes_test.cpp`, `wifi_routes_test.cpp`), each driving auth-required,
+input-validation, and error-path cases over the same real socket
+`HostHttpServer` uses;
 `static_assets_test.cpp`, `power_manager_test.cpp`,
 `critical_battery_monitor_test.cpp`, `notification_sound_test.cpp`,
 `network_status_monitor_test.cpp`, `weather_provider_test.cpp`,

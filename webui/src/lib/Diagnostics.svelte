@@ -1,6 +1,14 @@
 <script lang="ts">
   import { loadJson } from "./api";
 
+  // onWifiReset fires once /api/wifi/reset succeeds - see its own call
+  // site in resetWifi() below for why this hands off to App.svelte
+  // instead of rendering a "done" state locally.
+  interface Props {
+    onWifiReset: (apSsid: string) => void;
+  }
+  let { onWifiReset }: Props = $props();
+
   // Crash/reboot diagnostics (see docs/architecture/diagnostics.md and
   // ADR-0013), live battery/power state (see
   // docs/architecture/hardware.md#power), and structured logs (see
@@ -73,6 +81,57 @@
       .slice()
       .reverse(),
   );
+
+  // Reset Wi-Fi credentials (see core/wifi_routes.h) - added as a
+  // diagnostic aid for reproducing the intermittent Wi-Fi-connect crash
+  // documented in docs/architecture/hardware.md#wi-fi-bring-up, without a
+  // full tools/factory-reset.sh erase-and-reflash cycle per attempt. An
+  // explicit confirm step first, matching this page's own crash/core-
+  // dump section's "nothing happens by accident" tone rather than a
+  // native window.confirm() dialog, which nothing else in this codebase
+  // uses - but no separate confirmed reboot step after that: the device
+  // reboots automatically once the reset is scheduled (see
+  // wifi_routes.h's own WifiResetFn comment for why a reboot isn't
+  // optional here, and why a second confirmed click - the way OTA offers
+  // one - could never actually be pressed in time regardless).
+  //
+  // On success this doesn't render its own "done" state - the device is
+  // rebooting, this browser's session and the LAN address it's talking
+  // to are both about to become invalid, and every other panel on this
+  // page (Settings, OTA, the rest of Diagnostics) would otherwise sit
+  // there looking normal while actually unreachable. onWifiReset() hands
+  // off to App.svelte instead, which replaces the entire authenticated
+  // view with one dedicated message - not a real page redirect (the
+  // device won't be reachable at this address to serve one).
+  type WifiResetState = "idle" | "confirming" | "resetting" | "error";
+  let wifiResetState: WifiResetState = $state("idle");
+  let wifiResetError: string | undefined = $state(undefined);
+
+  async function resetWifi() {
+    wifiResetState = "resetting";
+    wifiResetError = undefined;
+    try {
+      const response = await fetch("/api/wifi/reset", { method: "POST" });
+      if (!response.ok) {
+        wifiResetState = "error";
+        wifiResetError = `Reset failed: ${response.status}`;
+        return;
+      }
+      const body = (await response.json()) as { apSsid: string };
+      onWifiReset(body.apSsid);
+    } catch (err) {
+      // A network-level failure here (as opposed to a real HTTP error
+      // response above) can still mean the device already rebooted
+      // before this fetch's own connection fully settled - the same
+      // "usually the expected outcome" reasoning Ota.svelte's reboot()
+      // applies to its own post-reboot fetch - but unlike that case,
+      // failure here is also a plausible real error (the crash this
+      // action exists to reproduce, mid-request), so it's still surfaced
+      // rather than assumed benign.
+      wifiResetState = "error";
+      wifiResetError = String(err);
+    }
+  }
 
   load();
   loadLogs();
@@ -147,6 +206,26 @@
       </ul>
     {/if}
   {/if}
+
+  <h2>Wi-Fi</h2>
+  {#if wifiResetState === "confirming"}
+    <p class="hint">
+      This clears the stored Wi-Fi network and password and reboots the device into SoftAP setup mode. Settings,
+      secrets, and the admin password are not affected.
+    </p>
+    <button class="danger" onclick={resetWifi}>Yes, reset Wi-Fi credentials and reboot</button>
+    <button class="secondary" onclick={() => (wifiResetState = "idle")}>Cancel</button>
+  {:else}
+    <p class="hint">
+      Clears the device's stored Wi-Fi network and password, then reboots it into SoftAP setup mode.
+    </p>
+    <button onclick={() => (wifiResetState = "confirming")} disabled={wifiResetState === "resetting"}>
+      {wifiResetState === "resetting" ? "Resetting..." : "Reset Wi-Fi credentials"}
+    </button>
+    {#if wifiResetState === "error"}
+      <p class="error">{wifiResetError}</p>
+    {/if}
+  {/if}
 </div>
 
 <style>
@@ -180,6 +259,11 @@
 
   a {
     color: #2563eb;
+  }
+
+  button.danger {
+    background: #b91c1c;
+    color: white;
   }
 
   .log-filters {

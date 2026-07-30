@@ -50,6 +50,13 @@ static constexpr float kDefaultWindowZoom = 0.75f;
 // same override convention as HOMEDECK_SIM_ZOOM above.
 static constexpr uint16_t kDefaultWebPort = 8080;
 
+// No real SoftAP exists on the simulator - this fixed placeholder stands in
+// wherever a real device would report its own MAC-derived AP SSID (the
+// Touch UI fallback screen via SetApInfo() below, and the Web UI's
+// Wi-Fi-reset diagnostic aid via AppCore::Dependencies::wifi_reset), so
+// both surfaces show the same value rather than two different fake ones.
+static constexpr const char* kFakeApSsid = "HomeDeck-SIM01";
+
 namespace {
 
 float ResolveWindowZoom() {
@@ -483,6 +490,18 @@ int main() {
                     std::printf("Wi-Fi setup submitted (no-op in simulator): SSID=%s\n", ssid.c_str());
                     return true;
                 },
+            .wifi_reset =
+                []() -> std::optional<std::string> {
+                    // Firmware schedules esp_wifi_restore() + esp_restart()
+                    // together, deferred past the HTTP response being sent
+                    // (see homedeck.cpp's ScheduleWifiResetAndReboot() for
+                    // why a reboot is required here, not optional) - no
+                    // real Wi-Fi or reboot to simulate here, so this is a
+                    // pure no-op, returning the same fixed placeholder SSID
+                    // SetApInfo() below gives the Touch UI fallback screen.
+                    std::printf("Wi-Fi reset + reboot requested (no-op in simulator)\n");
+                    return std::string(kFakeApSsid);
+                },
             .ota_writer = ota_writer,
             .ota_reboot = []() { std::printf("OTA reboot requested (no-op in simulator)\n"); },
             .read_core_dump =
@@ -500,7 +519,7 @@ int main() {
 
     // No real SoftAP here to derive these from - a fixed placeholder is
     // enough to exercise the layout (see wifi_setup_screen.h's SetApInfo).
-    app_core.GetWifiSetupScreen().SetApInfo("HomeDeck-SIM01", "192.168.4.1");
+    app_core.GetWifiSetupScreen().SetApInfo(kFakeApSsid, "192.168.4.1");
     CreateTestBackToDashboardButton(app_core.GetWifiSetupScreen().Root(), app_core.GetNavigation());
 
     lv_obj_t* test_button_panel = CreateTestButtonPanel(app_core.GetDashboard().Root());

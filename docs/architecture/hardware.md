@@ -123,6 +123,14 @@ tracked as the same general class of risk, not a separate one. Isolating
 it further needs hardware debug tooling (JTAG) or upstream engagement,
 neither available yet.
 
+Reproducing this repeatedly no longer needs a full
+`tools/factory-reset.sh` erase-and-reflash cycle per attempt - the Web
+UI's Diagnostics page has a **Reset Wi-Fi credentials** action
+(`POST /api/wifi/reset`, see [web-ui.md](web-ui.md#diagnostics)) that
+clears just the stored Wi-Fi credentials and reboots automatically so
+the device re-enters SoftAP setup, isolating the connect burst without
+touching Core's own `Storage` state.
+
 The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
 see [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md)

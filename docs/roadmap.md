@@ -143,7 +143,14 @@ simulator.
       applied to `esp_wifi`. See
       [hardware.md](architecture/hardware.md#wi-fi-bring-up) for a
       separate, intermittent, not-yet-root-caused crash risk during the
-      Wi-Fi-connect burst, unrelated to this parsing/validation logic.
+      Wi-Fi-connect burst, unrelated to this parsing/validation logic —
+      the Web UI's Diagnostics page now has a **Reset Wi-Fi credentials**
+      action (`POST /api/wifi/reset`, see
+      [web-ui.md](architecture/web-ui.md#diagnostics)) purpose-built to
+      reproduce that crash repeatedly without a full
+      `tools/factory-reset.sh` cycle per attempt — a diagnostic aid, not
+      the M7 "Web Management UI factory-reset option" below, whose own
+      scope is still undecided.
       Still open: wiring credential
       storage into Core's Configuration/Storage service instead of
       `esp_wifi`'s own default persistence on the C6 co-processor — a

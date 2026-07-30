@@ -43,6 +43,7 @@ idf_component_register(
         "../../src/core/diagnostics_routes.cpp"
         "../../src/core/ota_routes.cpp"
         "../../src/core/settings_routes.cpp"
+        "../../src/core/wifi_routes.cpp"
         "../../src/core/logger.cpp"
         "../../src/core/notification_sound.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"

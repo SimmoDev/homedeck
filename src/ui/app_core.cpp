@@ -72,6 +72,7 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
         return on_device_name_changed_ ? on_device_name_changed_(value) : true;
     });
     RegisterWeatherRoutes(deps.http_server, http_client_, weather_provider_, admin_auth_);
+    RegisterWifiRoutes(deps.http_server, admin_auth_, deps.wifi_reset);
 }
 
 void AppCore::Start() { clock_.Start(); }

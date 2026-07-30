@@ -53,6 +53,47 @@ its own beyond presentation, including for a downloaded core dump, which it
 offers as a raw file rather than attempting to decode in the browser (see
 [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md)).
 
+The Diagnostics page also exposes a **Reset Wi-Fi credentials** action
+(`POST /api/wifi/reset`, `src/core/wifi_routes.h`/`.cpp`) - a diagnostic
+aid, not a settings feature, added to reproduce the intermittent Wi-Fi-
+connect crash documented in
+[hardware.md](hardware.md#wi-fi-bring-up) without a full
+`tools/factory-reset.sh` erase-and-reflash cycle per attempt. Deliberately
+narrow: it clears only the Wi-Fi credentials living on the C6
+co-processor's own flash (`esp_wifi_restore()`); Core's own `Storage`
+(settings, secrets, the admin password) is untouched. Unlike OTA's
+explicit, separately-confirmed "Reboot now" step, this reboots
+automatically once the reset is scheduled - both because a second
+confirmed click can't meaningfully happen (the connection carrying this
+endpoint's own response is already gone by the time a user could react,
+since `esp_wifi_restore()` severs the STA association the request itself
+travelled over) and because the reboot is required for the action to do
+anything at all: restoring Wi-Fi settings only clears stored credentials,
+and the device only re-enters SoftAP setup inside
+`InitWifiAndCheckStoredCredentials()`, which runs once at boot - see
+`wifi_routes.h`'s own `WifiResetFn` comment for the full reasoning,
+including why firmware defers both `esp_wifi_restore()` and
+`esp_restart()` past the HTTP response being sent, the same pattern
+`ScheduleReboot()` already uses for OTA but for a sharper reason (an
+earlier attempt at a synchronous call left the request hanging forever
+with no response ever arriving, confirmed on hardware). This is not the
+same as the still-undecided M7 "Web Management UI factory-reset option"
+(see [roadmap.md](../roadmap.md)), which covers a broader reset whose
+exact scope hasn't been chosen.
+
+On success the response body carries `apSsid` - the SoftAP network name
+the device will broadcast once it reboots (computed from its own MAC,
+known before the reboot happens, the same value
+`WifiCredentialsCheck::ap_ssid` already carries) - so the Web UI can
+name the exact network to reconnect to rather than a generic "look for
+SoftAP" message. This matters because the browser's own session and the
+LAN address it's talking to are both about to become unreachable: rather
+than leave the Settings/OTA/Diagnostics panels sitting there looking
+normal while actually dead, `App.svelte` replaces the entire
+authenticated view with one dedicated message naming that network -
+client-side only, not a real page redirect, since the device won't be
+reachable at this address to serve one.
+
 ## Relationship to Wi-Fi provisioning
 
 Initial Wi-Fi setup is **not** part of this Web Management UI — the device
@@ -224,6 +265,18 @@ calls a second new endpoint, `POST /api/weather/refresh`, which wakes
 [dashboard.md](dashboard.md#status)) rather than leaving the dashboard
 to wait out the rest of a 30-minute poll interval before showing
 anything for the location just chosen.
+
+**The Wi-Fi credential reset diagnostic aid is also implemented** -
+`POST /api/wifi/reset` (`src/core/wifi_routes.h`/`.cpp`), admin-only,
+calling an injected `WifiResetFn` the same way `OtaWriter`/
+`DeviceNameChangedFn` are injected - firmware wires it to
+`ScheduleWifiResetAndReboot()` (`firmware/main/homedeck.cpp`), which
+defers `esp_wifi_restore()` and `esp_restart()` together past the HTTP
+response being sent; the simulator has no Wi-Fi credential storage or
+reboot of its own, so it's a no-op returning true. See
+[Diagnostics](#diagnostics) above for why this exists, why it reboots
+automatically rather than on a second confirmed step, and how it's
+scoped.
 
 Still open, each its own future pass: WebSockets for live updates,
 module configuration specifically (no module exists yet to configure -

@@ -89,6 +89,7 @@ add_library(homedeck_core
   core/diagnostics_routes.cpp
   core/ota_routes.cpp
   core/settings_routes.cpp
+  core/wifi_routes.cpp
   core/logger.cpp
   core/notification_sound.cpp
   # Lives in ui/ (it's a UI-formatting concern, called from

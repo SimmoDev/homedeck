@@ -12,6 +12,7 @@
 #include "esp_netif.h"
 #include "esp_ota_ops.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "lvgl.h"
@@ -85,6 +86,41 @@ void ScheduleReboot() {
     esp_timer_create_args_t args = {};
     args.callback = [](void*) { esp_restart(); };
     args.name = "ota_reboot";
+    esp_timer_create(&args, &timer);
+    esp_timer_start_once(timer, 500 * 1000);
+}
+
+// Passed to RegisterWifiRoutes as its WifiResetFn. Same deferral reason as
+// ScheduleReboot() above, but sharper here: esp_wifi_restore() itself (not
+// just the later esp_restart()) tears down the STA association - calling
+// it synchronously inside the /api/wifi/reset handler severs the very
+// TCP connection the 200 response needs to travel back over, before
+// httpd_resp_send() can flush it. Confirmed on hardware as the request
+// hanging forever (no HTTP response ever arrives, so the Web UI's fetch()
+// never resolves - fetch has no built-in timeout), not merely a
+// theoretical race.
+//
+// A reboot afterward isn't an optional nicety here the way it is for OTA
+// (upload success doesn't itself disconnect anything - the Web UI could
+// legitimately offer a separate confirmed reboot step there). Restoring
+// Wi-Fi settings only clears the C6's stored credentials; the device only
+// re-evaluates "are credentials stored" and re-enters SoftAP setup inside
+// InitWifiAndCheckStoredCredentials(), which runs once at boot. Without
+// rebooting, wifi_setup.cpp's own normal (non-setup) reconnect path would
+// just keep retrying against the now-empty config indefinitely instead of
+// ever reaching SoftAP mode - so this schedules the restore and the
+// reboot together, automatically, rather than leaving the reboot to a
+// second confirmed Web UI action that could never actually be clicked in
+// time regardless (the connection carrying the first response is already
+// gone by then).
+void ScheduleWifiResetAndReboot() {
+    esp_timer_handle_t timer = nullptr;
+    esp_timer_create_args_t args = {};
+    args.callback = [](void*) {
+        esp_wifi_restore();
+        esp_restart();
+    };
+    args.name = "wifi_reset_reboot";
     esp_timer_create(&args, &timer);
     esp_timer_start_once(timer, 500 * 1000);
 }
@@ -330,6 +366,11 @@ extern "C" void app_main(void) {
             .wifi_submit =
                 [](const std::string& ssid, const std::string& password) {
                     return homedeck::ApplyWifiCredentials(ssid, password);
+                },
+            .wifi_reset =
+                [ap_ssid = wifi_check.ap_ssid]() -> std::optional<std::string> {
+                    ScheduleWifiResetAndReboot();
+                    return ap_ssid;
                 },
             .ota_writer = BuildOtaWriter(),
             .ota_reboot = ScheduleReboot,

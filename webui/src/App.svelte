@@ -18,6 +18,19 @@
   let status: AuthStatus | undefined = $state(undefined);
   let error: string | undefined = $state(undefined);
 
+  // Set once Diagnostics.svelte's Wi-Fi-reset action succeeds - see its
+  // own onWifiReset comment for why that hands off here instead of
+  // rendering its own "done" state. Checked first, ahead of the normal
+  // status-driven chain below: the device is rebooting, so `status`
+  // (and everything built on it - Settings/OTA/Diagnostics, all still
+  // mounted underneath) reflects a session and a LAN address that are
+  // both about to stop working, not a state worth returning to by
+  // itself clearing or timing out. There's deliberately no way back out
+  // of this view - a page reload is the correct next step, once the
+  // device is actually reachable again at whatever address it gets from
+  // reprovisioning.
+  let wifiResetSsid: string | undefined = $state(undefined);
+
   async function loadStatus() {
     const result = await loadJson<AuthStatus>("/api/auth/status");
     if (result.error !== undefined) {
@@ -36,10 +49,16 @@
   loadStatus();
 </script>
 
-<div class="card" class:card-wide={status?.authenticated}>
+<div class="card" class:card-wide={status?.authenticated && !wifiResetSsid}>
   <h1>HomeDeck</h1>
 
-  {#if error}
+  {#if wifiResetSsid}
+    <p class="hint">
+      Wi-Fi credentials cleared. The device is rebooting into setup mode - connect to its
+      <strong>{wifiResetSsid}</strong> Wi-Fi network from a computer or phone, or use the on-device touch screen, to
+      reconfigure Wi-Fi. This page will not be reachable again until then.
+    </p>
+  {:else if error}
     <p class="error">Error: {error}</p>
   {:else if !status}
     <p class="hint">Loading...</p>
@@ -54,7 +73,7 @@
     <button class="secondary" onclick={logout}>Log out</button>
     <Settings />
     <Ota />
-    <Diagnostics />
+    <Diagnostics onWifiReset={(apSsid) => (wifiResetSsid = apSsid)} />
   {/if}
 </div>
 

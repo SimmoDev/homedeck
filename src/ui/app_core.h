@@ -15,6 +15,7 @@
 #include "core/storage.h"
 #include "core/weather_provider.h"
 #include "core/weather_routes.h"
+#include "core/wifi_routes.h"
 #include "platform/audio_output.h"
 #include "platform/battery_reader.h"
 #include "platform/cache_store.h"
@@ -76,6 +77,7 @@ public:
         // passes Rx8130TimeSource, the simulator HostTimeSource.
         TimeSource& time_source;
         WifiSetupScreen::SubmitCallback wifi_submit;
+        WifiResetFn wifi_reset;
         OtaWriter ota_writer;
         OtaRebootFn ota_reboot;
         CoreDumpReader read_core_dump;
