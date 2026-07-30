@@ -9,6 +9,7 @@
 
 #include <cerrno>
 #include <cstdio>
+#include <cstring>
 
 namespace homedeck {
 
@@ -50,12 +51,18 @@ bool FirmwareCacheStore::Write(const std::string& ns, const std::string& key, co
     }
     std::string dir = std::string(kMountPoint) + "/" + ns;
     // EEXIST is the expected/common case once a module has written
-    // anything before - not an error.
-    mkdir(dir.c_str(), 0777);
+    // anything before - not an error. Anything else was previously
+    // ignored outright, which meant a genuine mkdir failure (leaving the
+    // fopen below guaranteed to fail too, since the directory it needs
+    // doesn't exist) surfaced only as that fopen's own bare "failed to
+    // open," with no way to tell why - logged now instead of discarded.
+    if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
+        ESP_LOGE(kTag, "Failed to create directory '%s': %s", dir.c_str(), strerror(errno));
+    }
 
     FILE* file = fopen(PathFor(ns, key).c_str(), "wb");
     if (file == nullptr) {
-        ESP_LOGE(kTag, "Failed to open '%s/%s' for writing", ns.c_str(), key.c_str());
+        ESP_LOGE(kTag, "Failed to open '%s/%s' for writing: %s", ns.c_str(), key.c_str(), strerror(errno));
         return false;
     }
     size_t written = fwrite(content.data(), 1, content.size(), file);
