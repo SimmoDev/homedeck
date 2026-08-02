@@ -92,7 +92,13 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ module: kWeatherModuleId, key, value, schemaVersion: kWeatherSchemaVersion }),
         });
-        if (!response.ok) failedKeys.push(key);
+        if (!response.ok) {
+          // readErrorBody(), not a bare response.ok check - notifies
+          // the app-wide session-expired handler on a 401, same as
+          // every other authenticated call in this app.
+          await readErrorBody(response);
+          failedKeys.push(key);
+        }
       } catch {
         failedKeys.push(key);
       }

@@ -37,7 +37,11 @@ export function setSessionExpiredHandler(handler: () => void): void {
   onSessionExpired = handler;
 }
 
-function notifyIfSessionExpired(status: number): void {
+// Exported (not just used internally by readErrorBody()/loadJson()
+// above) for the one caller that can't produce a fetch Response to pass
+// through those helpers: Ota.svelte's upload(), which deliberately uses
+// XMLHttpRequest instead of fetch for upload-progress reporting.
+export function notifyIfSessionExpired(status: number): void {
   if (status === 401) {
     onSessionExpired?.();
   }
