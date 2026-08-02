@@ -84,7 +84,9 @@
               ? "The selected file is too large to be a valid firmware image."
               : errorBody.error === "write_failed"
                 ? "The device failed to write the update - try again."
-                : `Upload failed: ${xhr.status}`;
+                : errorBody.error === "upload_in_progress"
+                  ? "Another update is already uploading - wait for it to finish."
+                  : `Upload failed: ${xhr.status}`;
     };
     xhr.onerror = () => {
       uploadState = "error";

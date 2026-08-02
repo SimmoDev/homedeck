@@ -55,7 +55,10 @@ using OtaRebootFn = std::function<void()>;
 // both backends reject a request against kMaxHttpRequestBodyBytes before
 // attempting that allocation, but max_image_size()'s own tighter,
 // partition-sized check below still only happens against the received
-// body, before write_image() is called.
+// body, before write_image() is called. A second concurrent upload
+// (structurally possible - HostHttpServer alone runs multiple worker
+// threads) is rejected with 409 rather than left to race
+// write_image(): see ota_routes.cpp's own upload_mutex.
 void RegisterOtaRoutes(HttpServer& server, EventBus& event_bus, AdminAuthService& auth, BatteryReader& battery_reader,
                         OtaWriter writer, OtaRebootFn reboot);
 

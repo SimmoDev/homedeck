@@ -3,6 +3,7 @@
 #include "core/ota_gate.h"
 #include "third_party/nlohmann/json.hpp"
 
+#include <mutex>
 #include <utility>
 
 namespace homedeck {
@@ -27,6 +28,22 @@ void RegisterOtaRoutes(HttpServer& server, EventBus& event_bus, AdminAuthService
     server.RegisterHandler(
         HttpMethod::kPost, "/api/ota/upload",
         auth.RequireAuth([&event_bus, &battery_reader, writer](const HttpRequest& request) {
+            // Function-local static, not a member - this lambda is only
+            // ever registered once per process, so one mutex instance
+            // correctly serializes every request that reaches this
+            // handler for the process's lifetime. Non-blocking: a second
+            // concurrent upload is rejected immediately rather than
+            // queued behind the first, which could otherwise tie up an
+            // HTTP server thread for the full duration of an unrelated
+            // upload already in progress (see ota_routes.h's own comment
+            // on why this exists).
+            static std::mutex upload_mutex;
+            std::unique_lock<std::mutex> lock(upload_mutex, std::try_to_lock);
+            if (!lock.owns_lock()) {
+                nlohmann::json body = {{"error", "upload_in_progress"}};
+                return HttpResponse{409, "application/json", body.dump(), {}};
+            }
+
             OtaGateStatus gate = EvaluateOtaGate(battery_reader);
             if (!gate.open) {
                 nlohmann::json body = {{"error", "gate_closed"}, {"reason", gate.reason}};

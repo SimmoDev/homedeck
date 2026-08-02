@@ -12,8 +12,11 @@
 
 #include <gtest/gtest.h>
 
+#include <condition_variable>
 #include <filesystem>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include <vector>
 
 namespace {
@@ -268,4 +271,60 @@ TEST_F(OtaRoutesTest, GateClosedRejectionPublishesNeitherEvent) {
     auto upload = HttpRequestRaw(18211, "POST", "/api/ota/upload", "firmware bytes", cookie);
     EXPECT_EQ(upload.status_code, 403);
     EXPECT_EQ(event_count, 0);
+}
+
+// Regression: two concurrent uploads previously had nothing serializing
+// them - HostHttpServer alone runs multiple worker threads, so this is
+// structurally reachable, not just theoretical. write_image() blocks
+// until released, holding the first upload "in progress" for as long as
+// this test needs to prove a second, concurrent request is rejected
+// rather than racing the first's write.
+TEST_F(OtaRoutesTest, ConcurrentUploadIsRejectedRatherThanRacingTheFirst) {
+    battery_reader_.SetPercent(100);
+
+    std::mutex writer_mutex;
+    std::condition_variable started_cv;
+    std::condition_variable release_cv;
+    bool write_started = false;
+    bool release_requested = false;
+
+    homedeck::OtaWriter writer{
+        .max_image_size = []() -> size_t { return 1024; },
+        .write_image =
+            [&](const std::string&) -> bool {
+                std::unique_lock<std::mutex> lock(writer_mutex);
+                write_started = true;
+                started_cv.notify_one();
+                release_cv.wait(lock, [&] { return release_requested; });
+                return true;
+            },
+        .running_version = []() -> std::string { return "1.2.3"; },
+    };
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, writer, []() {});
+    ASSERT_TRUE(server.Start(18212));
+    std::string cookie = Login(18212);
+
+    std::thread first_upload([&] {
+        auto result = HttpRequestRaw(18212, "POST", "/api/ota/upload", "first image", cookie);
+        EXPECT_EQ(result.status_code, 200);
+    });
+
+    {
+        std::unique_lock<std::mutex> lock(writer_mutex);
+        started_cv.wait(lock, [&] { return write_started; });
+    }
+
+    auto second_upload = HttpRequestRaw(18212, "POST", "/api/ota/upload", "second image", cookie);
+    EXPECT_EQ(second_upload.status_code, 409);
+    EXPECT_NE(second_upload.body.find("upload_in_progress"), std::string::npos);
+
+    {
+        std::lock_guard<std::mutex> lock(writer_mutex);
+        release_requested = true;
+    }
+    release_cv.notify_one();
+    first_upload.join();
 }
