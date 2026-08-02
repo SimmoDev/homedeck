@@ -1,19 +1,8 @@
 #include "ui/screens/wifi_setup_screen.h"
 
+#include "ui/theme.h"
+
 namespace homedeck {
-
-namespace {
-
-// Matches StatusBar's own choice (see status_bar.cpp) - the closest
-// LVGL-available discrete size to Android's status-bar text on this
-// panel's ~294 PPI (see dashboard.md#status for the math). Applied at
-// root_ so every label/textarea/button on this screen inherits it rather
-// than falling back to LVGL's small 14pt default. The on-screen keyboard
-// needs its own separate font setting - see keyboard_input.cpp's own
-// comment for why inheritance doesn't reach it.
-constexpr const lv_font_t* kFont = &lv_font_montserrat_24;
-
-}  // namespace
 
 WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                                   SubmitCallback on_submit)
@@ -21,7 +10,12 @@ WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_rea
       status_bar_(root_, event_bus, battery_reader, network_status),
       keyboard_(root_),
       on_submit_(std::move(on_submit)) {
-    lv_obj_set_style_text_font(root_, kFont, 0);
+    // Applied at root_ so every label/textarea/button on this screen
+    // inherits it rather than falling back to LVGL's small 14pt default.
+    // The on-screen keyboard needs its own separate font setting - see
+    // keyboard_input.cpp's own comment for why inheritance doesn't reach
+    // it.
+    lv_obj_set_style_text_font(root_, kBodyFont, 0);
 
     lv_obj_t* container = lv_obj_create(root_);
     lv_obj_remove_style_all(container);

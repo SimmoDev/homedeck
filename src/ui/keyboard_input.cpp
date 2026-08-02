@@ -1,5 +1,7 @@
 #include "ui/keyboard_input.h"
 
+#include "ui/theme.h"
+
 namespace homedeck {
 
 namespace {
@@ -20,11 +22,6 @@ void OnKeyboardReadyOrCancel(lv_event_t* e) {
     lv_obj_add_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
 }
 
-// Matches StatusBar's own choice (see status_bar.cpp) - the closest
-// LVGL-available discrete size to Android's status-bar text on this
-// panel's ~294 PPI (see dashboard.md#status for the math).
-constexpr const lv_font_t* kFont = &lv_font_montserrat_24;
-
 }  // namespace
 
 OnScreenKeyboard::OnScreenKeyboard(lv_obj_t* parent) {
@@ -36,7 +33,7 @@ OnScreenKeyboard::OnScreenKeyboard(lv_obj_t* parent) {
     // - a parent's inherited text_font never reaches them, so this has to
     // be set here directly rather than left to whatever screen owns this
     // instance.
-    lv_obj_set_style_text_font(keyboard_, kFont, LV_PART_ITEMS);
+    lv_obj_set_style_text_font(keyboard_, kBodyFont, LV_PART_ITEMS);
     lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_add_event_cb(keyboard_, OnKeyboardReadyOrCancel, LV_EVENT_READY, nullptr);
     lv_obj_add_event_cb(keyboard_, OnKeyboardReadyOrCancel, LV_EVENT_CANCEL, nullptr);

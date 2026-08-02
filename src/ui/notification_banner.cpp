@@ -1,6 +1,7 @@
 #include "ui/notification_banner.h"
 
 #include "ui/status_bar.h"
+#include "ui/theme.h"
 
 namespace homedeck {
 
@@ -37,7 +38,7 @@ NotificationBanner::NotificationBanner(EventBus& event_bus) {
     // (see docs/architecture/dashboard.md#status) - LVGL's own default
     // (Montserrat 14) reads noticeably smaller than everything else on
     // screen without this.
-    lv_obj_set_style_text_font(label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(label_, kBodyFont, 0);
     lv_obj_set_width(label_, LV_PCT(100));
     lv_label_set_long_mode(label_, LV_LABEL_LONG_WRAP);
 

@@ -2,6 +2,7 @@
 
 #include "core/low_battery_monitor.h"
 #include "ui/quick_settings_panel.h"
+#include "ui/theme.h"
 #include "ui/time_format.h"
 
 #include <cstdio>
@@ -95,7 +96,7 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
 
     clock_label_ = lv_label_create(bar);
-    lv_obj_set_style_text_font(clock_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(clock_label_, kBodyFont, 0);
     lv_obj_set_style_text_color(clock_label_, lv_color_white(), 0);
     lv_obj_align(clock_label_, LV_ALIGN_LEFT_MID, 12, 0);
     // lv_label_create() defaults to showing "Text" until this is set to
@@ -127,14 +128,14 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     lv_obj_align(right_cluster, LV_ALIGN_RIGHT_MID, -12, 0);
 
     lv_obj_t* settings_icon = lv_label_create(right_cluster);
-    lv_obj_set_style_text_font(settings_icon, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(settings_icon, kBodyFont, 0);
     lv_obj_set_style_text_color(settings_icon, lv_color_white(), 0);
     lv_label_set_text(settings_icon, LV_SYMBOL_SETTINGS);
     lv_obj_add_flag(settings_icon, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_event_cb(settings_icon, OnSettingsIconClicked, LV_EVENT_CLICKED, &event_bus);
 
     battery_label_ = lv_label_create(right_cluster);
-    lv_obj_set_style_text_font(battery_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(battery_label_, kBodyFont, 0);
     lv_obj_set_style_text_color(battery_label_, lv_color_white(), 0);
     RefreshStatusLabel(battery_label_, battery_reader_, wifi_connected_);
 

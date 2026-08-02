@@ -1,6 +1,7 @@
 #include "ui/quick_settings_panel.h"
 
 #include "ui/status_bar.h"
+#include "ui/theme.h"
 
 #include <string>
 
@@ -77,7 +78,7 @@ void OnVolumeReleased(lv_event_t* e) {
 // to contain the knob instead.
 lv_obj_t* CreateLabeledSlider(lv_obj_t* parent, const char* label_text) {
     lv_obj_t* label = lv_label_create(parent);
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(label, kBodyFont, 0);
     lv_obj_set_style_text_color(label, lv_color_white(), 0);
     lv_label_set_text(label, label_text);
 

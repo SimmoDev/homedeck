@@ -1,5 +1,7 @@
 #include "ui/notification_widget.h"
 
+#include "ui/theme.h"
+
 namespace homedeck {
 
 NotificationWidget::NotificationWidget(lv_obj_t* parent, EventBus& event_bus) {
@@ -10,11 +12,11 @@ NotificationWidget::NotificationWidget(lv_obj_t* parent, EventBus& event_bus) {
     lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     title_label_ = lv_label_create(root_);
-    lv_obj_set_style_text_font(title_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(title_label_, kBodyFont, 0);
     lv_label_set_text(title_label_, "Notifications");
 
     message_label_ = lv_label_create(root_);
-    lv_obj_set_style_text_font(message_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(message_label_, kBodyFont, 0);
     // NotificationEvent::message is an arbitrary string (future modules,
     // e.g. Uptime Kuma, may send long text) - truncate with an ellipsis
     // rather than wrap, same reasoning as NetworkStatusWidget's

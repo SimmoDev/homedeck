@@ -1,6 +1,7 @@
 #include "ui/clock_widget.h"
 
 #include "core/clock.h"
+#include "ui/theme.h"
 #include "ui/time_format.h"
 
 namespace homedeck {
@@ -22,7 +23,7 @@ ClockWidget::ClockWidget(lv_obj_t* parent, EventBus& event_bus) {
     lv_label_set_text(time_label_, "");
 
     date_label_ = lv_label_create(root_);
-    lv_obj_set_style_text_font(date_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(date_label_, kBodyFont, 0);
     lv_label_set_text(date_label_, "");
 
     clock_subscription_ = event_bus.SubscribeUi<ClockTickEvent>([this](const ClockTickEvent& event) {

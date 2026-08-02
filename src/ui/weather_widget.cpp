@@ -1,5 +1,7 @@
 #include "ui/weather_widget.h"
 
+#include "ui/theme.h"
+
 #include <cstdio>
 
 namespace homedeck {
@@ -91,10 +93,10 @@ WeatherWidget::WeatherWidget(lv_obj_t* parent, EventBus& event_bus, WeatherProvi
     lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     condition_label_ = lv_label_create(root_);
-    lv_obj_set_style_text_font(condition_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(condition_label_, kBodyFont, 0);
 
     location_label_ = lv_label_create(root_);
-    lv_obj_set_style_text_font(location_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(location_label_, kBodyFont, 0);
     // display_name is an unbounded name/admin1/country concatenation
     // (see Settings.svelte's selectWeatherLocation), easily wide enough
     // to overflow this tile - same truncate-with-ellipsis treatment as

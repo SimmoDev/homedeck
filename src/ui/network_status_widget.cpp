@@ -1,5 +1,7 @@
 #include "ui/network_status_widget.h"
 
+#include "ui/theme.h"
+
 namespace homedeck {
 
 namespace {
@@ -35,10 +37,10 @@ NetworkStatusWidget::NetworkStatusWidget(lv_obj_t* parent, EventBus& event_bus, 
     lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     state_label_ = lv_label_create(root_);
-    lv_obj_set_style_text_font(state_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(state_label_, kBodyFont, 0);
 
     ssid_label_ = lv_label_create(root_);
-    lv_obj_set_style_text_font(ssid_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(ssid_label_, kBodyFont, 0);
     // A 32-char SSID (the real max) still won't fit this tile's width at
     // Montserrat 24 - truncate with an ellipsis rather than overflowing
     // into neighboring cells. Elsewhere in this codebase, bounded-width
@@ -50,7 +52,7 @@ NetworkStatusWidget::NetworkStatusWidget(lv_obj_t* parent, EventBus& event_bus, 
     lv_obj_set_style_text_align(ssid_label_, LV_TEXT_ALIGN_CENTER, 0);
 
     ip_label_ = lv_label_create(root_);
-    lv_obj_set_style_text_font(ip_label_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(ip_label_, kBodyFont, 0);
 
     RefreshNetworkLabels(state_label_, ssid_label_, ip_label_, network_status.Snapshot());
 
