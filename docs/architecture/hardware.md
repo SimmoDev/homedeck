@@ -110,9 +110,17 @@ and the Web UI's HTTP server were starting — the highest-SDIO-traffic
 window in the boot sequence. The faulting PC resolves to the literal entry
 point of `SysTickIsrHandler` (`freertos/port_systick.c:127`), an
 instruction fetch fault on an otherwise correctly IRAM-mapped address, in
-interrupt context. Core-dump analysis ruled out ISR stack overflow (only
-48 of 2096 bytes of the per-core ISR stack were in use at fault time) and
-chip-revision/toolchain mismatch (`sdkconfig` already correctly targets
+interrupt context. RISC-V `mcause=1` (instruction access fault) and
+`mtval` matching that same faulting PC exactly - the fetch itself failed
+at a genuinely valid, correctly-mapped address, not a corrupted jump
+landing there from elsewhere. Attributed to the `logger` task (`Logger`'s
+own background worker, `src/core/logger.cpp`), mid-write to the
+`storage` partition's cache tier at the time of the fault -
+`firmware/main/crash_diagnostics.cpp` logs this (plus `ra`/`sp`/`a0`-`a7`)
+on every boot now, not just task/PC, for whenever this reproduces again.
+Core-dump analysis ruled out ISR stack overflow (only 48 of 2096 bytes of
+the per-core ISR stack were in use at fault time) and chip-revision/
+toolchain mismatch (`sdkconfig` already correctly targets
 `CONFIG_ESP32P4_REV_MIN_1` for this kit's v1.3 silicon, and that failure
 mode is deterministic, not intermittent, unlike what was observed).
 Multiple open upstream `esp-hosted-mcu` issues report general SDIO/RPC
@@ -123,6 +131,14 @@ tracked as the same general class of risk, not a separate one. Isolating
 it further needs hardware debug tooling (JTAG) or upstream engagement,
 neither available yet.
 
+A structurally distinct `storage`-partition wear-levelling corruption
+(see [ADR-0027](../decisions/ADR-0027-secret-store-partition-separation.md)'s
+Consequences) was found and fixed on the reference unit while
+investigating this crash, since both happened to involve the `logger`
+task writing to the same partition. Real, but whether it contributed to
+this crash is unconfirmed - no fresh reproduction has occurred since the
+fix to compare against.
+
 Reproducing this repeatedly no longer needs a full
 `tools/factory-reset.sh` erase-and-reflash cycle per attempt - the Web
 UI's Diagnostics page has a **Reset Wi-Fi credentials** action
@@ -131,7 +147,7 @@ clears just the stored Wi-Fi credentials and reboots automatically so
 the device re-enters SoftAP setup, isolating the connect burst without
 touching Core's own `Storage` state.
 
-**Accepted risk (2026-07-30, M2 exit review):** this is carried forward
+**Accepted risk:** this is carried forward
 into M3 as a known, explicitly accepted gap, not resolved. `ESP_SYSTEM_PANIC_PRINT_REBOOT`
 means the device recovers on its own (a self-triggered reboot, not a
 hang), and every root-cause avenue available without JTAG or upstream

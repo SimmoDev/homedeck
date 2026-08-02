@@ -14,11 +14,10 @@ date on the reference unit. That same document named the fix as needing
 "either SNTP over Wi-Fi or a manual set-time affordance" and called both "M2
 scope" — but no roadmap.md item, checked or unchecked, was ever created for
 either, so the gap fell out of milestone tracking entirely rather than being
-delivered or explicitly deferred. A fifth-pass M2 exit review (2026-07-30,
-see the project's own exit-review history) surfaced this as a real, live
-defect: the always-on status bar clock and every structured log timestamp
-(`Logger`, [ADR-0019](ADR-0019-structured-logging.md)) are both wrong on
-real hardware, indefinitely, with no path to fixing it.
+delivered or explicitly deferred: the always-on status bar clock and every
+structured log timestamp (`Logger`,
+[ADR-0019](ADR-0019-structured-logging.md)) are both wrong on real
+hardware, indefinitely, with no path to fixing it.
 
 ## Decision
 

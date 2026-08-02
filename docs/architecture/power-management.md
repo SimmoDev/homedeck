@@ -91,7 +91,7 @@ different sound) whenever a real consumer needs one, per
 ## Hardware capabilities involved
 
 See [hardware.md](hardware.md) for full details and sourcing. Summary of
-what's confirmed as of 2026-07:
+what's confirmed:
 
 - **Wake sources:** none of touch, IMU motion, or RTC timed wake has a
   confirmed GPIO path capable of waking the P4 from deep sleep, which is
