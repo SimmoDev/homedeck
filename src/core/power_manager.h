@@ -35,6 +35,14 @@ struct PowerStateChangedEvent {
 // UI thread (see ADR-0011).
 class PowerManager {
 public:
+    // A user-chosen Active brightness of 0% would be visually
+    // indistinguishable from Sleeping and unrecoverable without a
+    // hardware reset (nothing on screen to tap) - so Active brightness
+    // has a floor Sleeping's own 0% doesn't need. Public so any UI
+    // presenting a brightness control (QuickSettingsPanel) can bound its
+    // own input range against this instead of duplicating the literal.
+    static constexpr int kMinActiveBrightnessPercent = 5;
+
     PowerManager(EventBus& event_bus, UserActivitySource& user_activity_source,
                  DisplayBrightness& display_brightness, TimeSource& time_source,
                  int initial_active_brightness_percent);

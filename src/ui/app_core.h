@@ -41,20 +41,19 @@
 namespace homedeck {
 
 // The shared object graph both firmware/main/homedeck.cpp and
-// simulator/main.cpp built by hand, in lockstep, before this existed -
-// every Core service and dashboard widget from Storage down through the
-// Web Management UI's route registration. Each entry point still owns
-// what's genuinely platform-specific: constructing the concrete platform
-// backends passed in below, Wi-Fi/mDNS bring-up (firmware) or debug
-// buttons (simulator), and the run loop.
+// simulator/main.cpp build against - every Core service and dashboard
+// widget from Storage down through the Web Management UI's route
+// registration. Each entry point still owns what's genuinely
+// platform-specific: constructing the concrete platform backends passed
+// in below, Wi-Fi/mDNS bring-up (firmware) or debug buttons (simulator),
+// and the run loop.
 //
 // Two-phase on purpose: the constructor builds every member below with
 // no ordering requirement on the caller, then Start() (see its own
 // comment) publishes Clock's first tick once every subscriber
-// constructed above is guaranteed to already exist. Before this class
-// existed, that ordering was an unenforced comment ("must exist before
-// Clock") next to ~20 sequential stack-locals in each entry point -
-// nothing caught a future edit that got the order wrong.
+// constructed above is guaranteed to already exist - this class is what
+// enforces that ordering, rather than leaving it to convention across
+// each entry point's own sequential construction.
 class AppCore {
 public:
     // Everything genuinely platform-specific that AppCore still needs

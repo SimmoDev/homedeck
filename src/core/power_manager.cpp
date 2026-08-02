@@ -24,12 +24,6 @@ constexpr int kDimBrightnessPercent = 20;
 // 0% (backlight fully off) is definitionally what Sleeping means, not a
 // value to be tuned against hardware measurements.
 constexpr int kSleepBrightnessPercent = 0;
-// A user-chosen Active brightness of 0% would be visually
-// indistinguishable from Sleeping and unrecoverable without a hardware
-// reset (nothing on screen to tap) - unlike kSleepBrightnessPercent,
-// Active brightness is user-controlled, so it needs a floor Sleeping
-// itself doesn't.
-constexpr int kMinActiveBrightnessPercent = 5;
 
 }  // namespace
 
