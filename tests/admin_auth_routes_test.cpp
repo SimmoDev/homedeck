@@ -147,6 +147,39 @@ TEST_F(AdminAuthRoutesTest, SetupRejectsPasswordUnderMinimumLength) {
     EXPECT_FALSE(auth_->IsPasswordSet());
 }
 
+TEST_F(AdminAuthRoutesTest, SetupRejectsPasswordOverMaximumLength) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    ASSERT_TRUE(server.Start(18196));
+
+    std::string oversized_password(257, 'a');
+    auto setup = HttpRequestRaw(18196, "POST", "/api/auth/setup",
+                                 R"({"password":")" + oversized_password + R"("})");
+    EXPECT_EQ(setup.status_code, 400);
+    EXPECT_NE(setup.body.find("password_too_long"), std::string::npos);
+    EXPECT_FALSE(auth_->IsPasswordSet());
+}
+
+TEST_F(AdminAuthRoutesTest, LoginRejectsPasswordOverMaximumLengthWithoutCountingAsAFailedAttempt) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    ASSERT_TRUE(server.Start(18197));
+
+    auto setup = HttpRequestRaw(18197, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    ASSERT_EQ(setup.status_code, 200);
+
+    std::string oversized_password(257, 'a');
+    auto oversized_login = HttpRequestRaw(18197, "POST", "/api/auth/login",
+                                           R"({"password":")" + oversized_password + R"("})");
+    EXPECT_EQ(oversized_login.status_code, 400);
+    EXPECT_NE(oversized_login.body.find("password_too_long"), std::string::npos);
+
+    // The real password still logs in cleanly afterward - the oversized
+    // attempt above must not have counted against kMaxFailedLoginAttempts.
+    auto real_login = HttpRequestRaw(18197, "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
+    EXPECT_EQ(real_login.status_code, 200);
+}
+
 // The other reason SetInitialPassword() can fail besides the race
 // ADR-0007 accepts (FullSetupLoginProtectedRouteLogoutFlow's "already_set"
 // case) - a genuine storage write failure, which must surface as 500, not

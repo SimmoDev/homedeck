@@ -49,6 +49,13 @@ constexpr long kSessionLifetimeSeconds = 24 * 60 * 60;
 // composition rules), consistent with this being a single-user LAN
 // device rather than an internet-facing account system.
 constexpr size_t kMinPasswordLength = 8;
+// A defense-in-depth ceiling, not a real strength concern - without it,
+// the only bound on a submitted password is the generic
+// kMaxHttpRequestBodyBytes cap every endpoint shares, letting a caller
+// make PBKDF2 (kPbkdf2Iterations below) hash megabytes of "password" per
+// setup/login attempt. Generous enough that no real passphrase is ever
+// rejected.
+constexpr size_t kMaxPasswordLength = 256;
 // PBKDF2's ~2s-per-attempt cost (see kPbkdf2Iterations above) is not by
 // itself a brute-force throttle - it bounds an *offline* attacker who
 // already has the hash, not an *online* one submitting guesses through
@@ -357,6 +364,9 @@ void RegisterAdminAuthRoutes(HttpServer& server, AdminAuthService& auth) {
         if (password->size() < kMinPasswordLength) {
             return HttpResponse{400, "application/json", R"({"error":"password_too_short"})", {}};
         }
+        if (password->size() > kMaxPasswordLength) {
+            return HttpResponse{400, "application/json", R"({"error":"password_too_long"})", {}};
+        }
         auto token = auth.SetInitialPassword(*password);
         if (!token.has_value()) {
             if (auth.IsPasswordSet()) {
@@ -384,6 +394,13 @@ void RegisterAdminAuthRoutes(HttpServer& server, AdminAuthService& auth) {
         auto password = ReadPasswordField(request.body);
         if (!password.has_value()) {
             return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
+        }
+        if (password->size() > kMaxPasswordLength) {
+            // Rejected before Login() - no genuine password is this long,
+            // so this isn't a real login attempt to count against
+            // kMaxFailedLoginAttempts, and it isn't worth PBKDF2's
+            // ~2s-per-attempt cost to reject it.
+            return HttpResponse{400, "application/json", R"({"error":"password_too_long"})", {}};
         }
         auto token = auth.Login(*password);
         if (!token.has_value()) {

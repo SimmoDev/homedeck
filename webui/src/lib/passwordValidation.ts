@@ -5,14 +5,18 @@
 // docs/architecture/web-ui.md#status).
 
 export const kMinPasswordLength = 8; // matches AdminAuthService::kMinPasswordLength
+export const kMaxPasswordLength = 256; // matches AdminAuthService::kMaxPasswordLength
 
 // Client-side mirror of AdminAuthService's own checks, applied before a
 // network round trip - the server remains authoritative regardless (see
-// describeAuthError's password_too_short case, still reachable if this
-// is ever out of sync).
+// describeAuthError's password_too_short/password_too_long cases, still
+// reachable if this is ever out of sync).
 export function validateSetupPassword(password: string, confirmPassword: string): string | undefined {
   if (password.length < kMinPasswordLength) {
     return `Password must be at least ${kMinPasswordLength} characters.`;
+  }
+  if (password.length > kMaxPasswordLength) {
+    return `Password must be at most ${kMaxPasswordLength} characters.`;
   }
   if (password !== confirmPassword) {
     return "Passwords do not match.";
@@ -24,6 +28,8 @@ export function describeAuthError(code: unknown, status: number): string {
   switch (code) {
     case "password_too_short":
       return `Password must be at least ${kMinPasswordLength} characters.`;
+    case "password_too_long":
+      return `Password must be at most ${kMaxPasswordLength} characters.`;
     case "invalid_credentials":
       return "Incorrect password.";
     case "too_many_attempts":

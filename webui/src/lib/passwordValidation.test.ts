@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeAuthError, kMinPasswordLength, validateSetupPassword } from "./passwordValidation";
+import { describeAuthError, kMaxPasswordLength, kMinPasswordLength, validateSetupPassword } from "./passwordValidation";
 
 describe("validateSetupPassword", () => {
   it("rejects passwords under the minimum length", () => {
@@ -7,6 +7,18 @@ describe("validateSetupPassword", () => {
     expect(validateSetupPassword(short, short)).toBe(
       `Password must be at least ${kMinPasswordLength} characters.`,
     );
+  });
+
+  it("rejects passwords over the maximum length", () => {
+    const long = "a".repeat(kMaxPasswordLength + 1);
+    expect(validateSetupPassword(long, long)).toBe(
+      `Password must be at most ${kMaxPasswordLength} characters.`,
+    );
+  });
+
+  it("accepts a password exactly at the maximum length", () => {
+    const long = "a".repeat(kMaxPasswordLength);
+    expect(validateSetupPassword(long, long)).toBeUndefined();
   });
 
   it("rejects mismatched passwords that are otherwise long enough", () => {
@@ -32,6 +44,9 @@ describe("describeAuthError", () => {
     expect(describeAuthError("invalid_request", 400)).toBe("Invalid request.");
     expect(describeAuthError("password_too_short", 400)).toBe(
       `Password must be at least ${kMinPasswordLength} characters.`,
+    );
+    expect(describeAuthError("password_too_long", 400)).toBe(
+      `Password must be at most ${kMaxPasswordLength} characters.`,
     );
     expect(describeAuthError("storage_write_failed", 500)).toBe("Could not save the password - try again.");
     expect(describeAuthError("too_many_attempts", 429)).toBe("Too many failed attempts. Try again in a minute.");
