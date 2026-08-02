@@ -24,9 +24,9 @@ public:
 
     // Footprint in grid cells - see DashboardGrid. Defaults to 1x1;
     // override to occupy more. ColumnSpan() should not exceed
-    // DashboardGrid::kColumns - DashboardGrid::AddWidget() clamps it
-    // defensively if it does, rather than assuming every implementation
-    // gets this right.
+    // DashboardGrid::kColumns, and RowSpan() should not be less than 1 -
+    // DashboardGrid::AddWidget() clamps both defensively if they are,
+    // rather than assuming every implementation gets this right.
     virtual int ColumnSpan() const { return 1; }
     virtual int RowSpan() const { return 1; }
 };

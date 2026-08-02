@@ -77,6 +77,14 @@ void DashboardGrid::AddWidget(Widget& widget) {
     if (col_span > kColumns) {
         col_span = kColumns;
     }
+    // A row_span <= 0 makes Fits()'s row loop a no-op, so it trivially
+    // "fits" without checking or marking any cell occupied - not a hang
+    // like an oversized col_span above, but a silent placement collision
+    // with whatever widget comes next. Clamp defensively for the same
+    // reason (see widget.h's own RowSpan() contract).
+    if (row_span < 1) {
+        row_span = 1;
+    }
 
     auto [row, col] = occupancy_.FindPlacement(col_span, row_span);
     occupancy_.MarkOccupied(row, col, col_span, row_span);
