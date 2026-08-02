@@ -74,9 +74,10 @@ and the device only re-enters SoftAP setup inside
 `wifi_routes.h`'s own `WifiResetFn` comment for the full reasoning,
 including why firmware defers both `esp_wifi_restore()` and
 `esp_restart()` past the HTTP response being sent, the same pattern
-`ScheduleReboot()` already uses for OTA but for a sharper reason (an
-earlier attempt at a synchronous call left the request hanging forever
-with no response ever arriving, confirmed on hardware). This is not the
+`ScheduleReboot()` already uses for OTA: a synchronous call here would
+leave the request hanging with no response ever arriving, since
+`esp_wifi_restore()` has already severed the connection it would need to
+travel over. This is not the
 same as the still-undecided M7 "Web Management UI factory-reset option"
 (see [roadmap.md](../roadmap.md)), which covers a broader reset whose
 exact scope hasn't been chosen.

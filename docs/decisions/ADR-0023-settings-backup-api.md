@@ -150,6 +150,6 @@ loop for a rare, self-inflicted-only case.
   password hash confirmed unchanged and still able to log in) → erase.
 - **Confirmed on real hardware** (Tab5 K145 reference unit, over the
   LAN) - the same sequence, plus the live mDNS re-announce (serial log:
-  `mDNS re-announced as <name>.local`, no reboot), and the reserved-key
-  rejection specifically retried 5/5 times after the `httpd_resp_set_status`
-  fix above to confirm it's reliable, not just usually-lucky.
+  `mDNS re-announced as <name>.local`, no reboot); the reserved-key
+  rejection is reliable across repeated attempts, not just occasionally
+  correct.
