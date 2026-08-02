@@ -77,11 +77,15 @@ void DashboardGrid::AddWidget(Widget& widget) {
     if (col_span > kColumns) {
         col_span = kColumns;
     }
-    // A row_span <= 0 makes Fits()'s row loop a no-op, so it trivially
-    // "fits" without checking or marking any cell occupied - not a hang
-    // like an oversized col_span above, but a silent placement collision
-    // with whatever widget comes next. Clamp defensively for the same
-    // reason (see widget.h's own RowSpan() contract).
+    // A col_span or row_span <= 0 makes Fits()'s corresponding loop a
+    // no-op, so it trivially "fits" without checking or marking any cell
+    // occupied - not a hang like an oversized col_span above, but a
+    // silent placement collision with whatever widget comes next. Clamp
+    // both defensively for the same reason (see widget.h's own
+    // ColumnSpan()/RowSpan() contract).
+    if (col_span < 1) {
+        col_span = 1;
+    }
     if (row_span < 1) {
         row_span = 1;
     }

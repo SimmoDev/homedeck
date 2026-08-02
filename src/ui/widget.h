@@ -23,10 +23,11 @@ public:
     virtual lv_obj_t* Root() const = 0;
 
     // Footprint in grid cells - see DashboardGrid. Defaults to 1x1;
-    // override to occupy more. ColumnSpan() should not exceed
-    // DashboardGrid::kColumns, and RowSpan() should not be less than 1 -
-    // DashboardGrid::AddWidget() clamps both defensively if they are,
-    // rather than assuming every implementation gets this right.
+    // override to occupy more. ColumnSpan() should be between 1 and
+    // DashboardGrid::kColumns; RowSpan() should not be less than 1 (no
+    // upper bound - rows grow to fit) - DashboardGrid::AddWidget() clamps
+    // all three defensively if they aren't, rather than assuming every
+    // implementation gets this right.
     virtual int ColumnSpan() const { return 1; }
     virtual int RowSpan() const { return 1; }
 };
