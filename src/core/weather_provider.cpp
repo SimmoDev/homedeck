@@ -4,6 +4,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <iostream>
 
 namespace homedeck {
 
@@ -99,7 +100,13 @@ void OpenMeteoWeatherProvider::PollOnce() {
                 {"weather_code", weather_code},
                 {"display_name", name},
             };
-            storage_.WriteCache(kModuleId, kCacheKey, kCacheSchemaVersion, cache.dump());
+            // A failed write here only risks a reboot before the next
+            // successful poll falling back to stale/absent cached data
+            // (self-heals on the next successful poll) - but silently,
+            // with no trace of why, unless this is reported now.
+            if (!storage_.WriteCache(kModuleId, kCacheKey, kCacheSchemaVersion, cache.dump())) {
+                std::cerr << "OpenMeteoWeatherProvider: failed to persist weather cache\n";
+            }
 
             std::lock_guard<std::mutex> lock(mutex_);
             state_ = WeatherState{true, true, true, temperature_c, weather_code, name};

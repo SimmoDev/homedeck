@@ -3,6 +3,7 @@
 #include "third_party/nlohmann/json.hpp"
 
 #include <future>
+#include <iostream>
 #include <vector>
 
 namespace homedeck {
@@ -184,16 +185,31 @@ void Logger::WriteBatch(const std::vector<Record>& batch) {
     std::string previous = current.has_value() ? current->value : std::string();
     std::string updated = previous + lines;
 
+    // WriteCache()'s own backend already logs the low-level I/O reason
+    // (partition full/unmounted, etc.) at the console level - this adds
+    // the one thing that layer can't know: that this specific batch of
+    // log entries is now permanently lost, not just delayed, since
+    // there's no retry and the caller (Log(), fire-and-forget by
+    // design) has no way to find out on its own.
     if (updated.size() > max_log_file_bytes_) {
         // The content before this batch becomes the rotated backup
         // (overwriting any earlier one); this batch starts the fresh
         // current blob - see ADR-0019's size-based rotation decision.
         // TrimToTail is a no-op unless this one batch is itself larger
         // than the cap.
-        storage_.WriteCache(kModuleId, kRotatedKey, kSchemaVersion, previous);
-        storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, TrimToTail(lines, max_log_file_bytes_));
+        if (!storage_.WriteCache(kModuleId, kRotatedKey, kSchemaVersion, previous)) {
+            std::cerr << "Logger: failed to persist rotated log backup\n";
+        }
+        if (!storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion,
+                                  TrimToTail(lines, max_log_file_bytes_))) {
+            std::cerr << "Logger: failed to persist " << batch.size() << " log entr"
+                       << (batch.size() == 1 ? "y" : "ies") << " (rotation write)\n";
+        }
     } else {
-        storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, updated);
+        if (!storage_.WriteCache(kModuleId, kCurrentKey, kSchemaVersion, updated)) {
+            std::cerr << "Logger: failed to persist " << batch.size() << " log entr"
+                       << (batch.size() == 1 ? "y" : "ies") << "\n";
+        }
     }
 }
 
