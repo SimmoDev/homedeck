@@ -134,4 +134,8 @@ many widgets), not pre-emptively.
 - The persistent home affordance is part of every screen's baseline layout,
   not an opt-in a module screen could omit — a module registering a screen
   with the navigation manager doesn't get a choice about this, consistent
-  with the guarantee needing to hold universally.
+  with the guarantee needing to hold universally. `WifiSetupScreen` is a
+  single, deliberate, narrow exception to this — see
+  [ui.md](../architecture/ui.md#navigation-model) for why (going home
+  before Wi-Fi is configured would strand the user with no way back to
+  it) — not a precedent for any other screen omitting it.

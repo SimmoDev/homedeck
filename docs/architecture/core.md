@@ -11,8 +11,9 @@ specific module.
   shutdown/reboot handling, built on the [Core Concurrency
   Abstraction](../decisions/ADR-0002-technology-stack.md#decision-core-concurrency-abstraction)
   (`Task`/`Queue`/`Timer`), never FreeRTOS or host threading APIs directly.
-- **Navigation** — central screen/route registry and back/home handling
-  (see [ui.md](ui.md)).
+- **Navigation** — central screen/route registry and route/home handling
+  (see [ui.md](ui.md); no back-stack exists yet — see
+  [roadmap.md](../roadmap.md)'s M7 gesture-navigation item).
 - **Dashboard** — the widget host and layout for the home screen (see
   [dashboard.md](dashboard.md)).
 - **Widget system** — the standard interface modules use to contribute
