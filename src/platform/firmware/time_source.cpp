@@ -31,6 +31,7 @@ Rx8130TimeSource::Rx8130TimeSource(i2c_master_bus_handle_t i2c_bus)
 Rx8130TimeSource::~Rx8130TimeSource() = default;
 
 std::chrono::system_clock::time_point Rx8130TimeSource::Now() const {
+    std::lock_guard<std::mutex> lock(mutex_);
     std::error_code ec;
     std::tm tm = rtc_->get_time(ec);
     if (ec) {
@@ -48,6 +49,7 @@ std::chrono::system_clock::time_point Rx8130TimeSource::Now() const {
 bool Rx8130TimeSource::SetTime(std::time_t utc_time) {
     std::tm tm{};
     gmtime_r(&utc_time, &tm);
+    std::lock_guard<std::mutex> lock(mutex_);
     std::error_code ec;
     rtc_->set_time(tm, ec);
     return !ec;

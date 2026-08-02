@@ -6,6 +6,7 @@
 
 #include <ctime>
 #include <memory>
+#include <mutex>
 
 namespace espp {
 template <bool UseAddress>
@@ -22,6 +23,16 @@ class I2cDevice;
 // reported time as local wall time directly (via std::mktime) - no
 // timezone handling exists yet anywhere in this project; that's a known
 // gap, not something this class tries to solve on its own.
+//
+// Thread-safe: Now() and SetTime() both lock mutex_ around the actual
+// I2C access - genuinely needed, not defensive, since ADR-0028's SNTP
+// sync callback calls SetTime() from LwIP's own task while Clock's
+// Timer keeps calling Now() from the FreeRTOS timer service task,
+// unsynchronized without this. espp::Rx8130ce reads/writes several
+// registers per call (year/month/day/hour/min/sec are separate BCD
+// fields on this chip) - an unguarded interleaving could hand a caller
+// a torn read (some fields from before a concurrent write, some from
+// after), not just a stale one.
 class Rx8130TimeSource : public TimeSource {
 public:
     explicit Rx8130TimeSource(i2c_master_bus_handle_t i2c_bus);
@@ -47,6 +58,7 @@ public:
     bool SetTime(std::time_t utc_time);
 
 private:
+    mutable std::mutex mutex_;
     std::unique_ptr<I2cDevice> device_;
     std::unique_ptr<espp::Rx8130ce<true>> rtc_;
 };
