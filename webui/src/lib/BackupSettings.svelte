@@ -39,10 +39,10 @@
               : `Restore failed: ${response.status}`;
         return;
       }
-      const result = (await response.json()) as { applied: number; failed: unknown[] };
+      const result = (await response.json()) as { applied: number; failed: unknown[]; rejected: unknown[] };
       restoreResult = `Restored ${result.applied} setting${result.applied === 1 ? "" : "s"}${
         result.failed.length > 0 ? `, ${result.failed.length} failed` : ""
-      }.`;
+      }${result.rejected.length > 0 ? `, ${result.rejected.length} rejected as protected` : ""}.`;
     } catch (err) {
       restoreError = String(err);
     } finally {

@@ -214,6 +214,12 @@ TEST_F(SettingsRoutesTest, ReservedAdminPasswordKeyIsRejectedAndNeverExposed) {
         cookie);
     EXPECT_EQ(restore.status_code, 200);
     EXPECT_NE(restore.body.find(R"("applied":0)"), std::string::npos);
+    // Reported as rejected, not failed - distinguishable from a genuine
+    // storage fault, same as the direct POST/erase 403s above.
+    auto rejected_pos = restore.body.find(R"("rejected":)");
+    ASSERT_NE(rejected_pos, std::string::npos);
+    EXPECT_NE(restore.body.find("admin_pw_hash", rejected_pos), std::string::npos);
+    EXPECT_NE(restore.body.find(R"("failed":[])"), std::string::npos);
 
     auto hash_after =
         storage_->GetSecret(homedeck::AdminAuthService::kModuleId, homedeck::AdminAuthService::kPasswordKey);

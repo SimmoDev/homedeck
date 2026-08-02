@@ -112,8 +112,12 @@ existing precedent:
   through the same guarded `SetSetting` path entry-by-entry (so restore
   automatically inherits the reserved-key protection); not atomic - no
   transaction concept exists anywhere else in this codebase either -
-  reports `{"applied":N,"failed":[...]}` so a partial restore is visible
-  rather than silently incomplete
+  reports `{"applied":N,"failed":[...],"rejected":[...]}` so a partial
+  restore is visible rather than silently incomplete. `rejected` is kept
+  separate from `failed` - a reserved-key entry is a deliberate security
+  rejection, the same distinguishable case the direct write/erase
+  endpoints give their own 403 `reserved_key` for, not a genuine storage
+  fault
 
 **Device name is the first real setting**, replacing the hardcoded
 `"homedeck"` mDNS hostname. `RegisterSettingsRoutes` takes an optional

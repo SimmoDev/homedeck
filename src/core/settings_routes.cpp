@@ -148,6 +148,14 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             // silently incomplete.
             int applied = 0;
             nlohmann::json failed = nlohmann::json::array();
+            // Kept separate from failed - a reserved-key entry (e.g. a
+            // backup containing admin_pw_hash) is a deliberate security
+            // rejection, the same distinguishable case the direct
+            // POST /api/settings endpoint gives its own 403 "reserved_key"
+            // for. Without this, Storage::SetSetting's own internal guard
+            // would still block it, but it would land in failed
+            // indistinguishably from a genuine storage fault.
+            nlohmann::json rejected = nlohmann::json::array();
             for (const auto& entry : *settings_it) {
                 if (!entry.is_object()) continue;
                 auto module_it = entry.find("module");
@@ -161,6 +169,10 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 }
                 std::string module = module_it->get<std::string>();
                 std::string key = key_it->get<std::string>();
+                if (IsReservedKey(module, key)) {
+                    rejected.push_back({{"module", module}, {"key", key}});
+                    continue;
+                }
                 bool ok = !InvalidKey(module, key) &&
                           storage.SetSetting(module, key, schema_it->get<int>(), value_it->get<std::string>());
                 if (ok) {
@@ -169,7 +181,8 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                     failed.push_back({{"module", module}, {"key", key}});
                 }
             }
-            nlohmann::json body = {{"applied", applied}, {"failed", std::move(failed)}};
+            nlohmann::json body = {
+                {"applied", applied}, {"failed", std::move(failed)}, {"rejected", std::move(rejected)}};
             return HttpResponse{200, "application/json", body.dump(), {}};
         }));
 }
