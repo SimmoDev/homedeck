@@ -55,6 +55,23 @@ development, per the project owner's decision; this would need a real
 migration path if HomeDeck were shipping to users by the time a change
 like this were made.
 
+**This accepted cost extends to `storage` itself, not just the admin
+password.** Shrinking `storage` to carve out `secrets`
+moves `storage`'s own end boundary. `esp_vfs_fat_spiflash_mount_rw_wl`'s
+wear-levelling layer keeps its own bookkeeping near a partition's end,
+so an already-provisioned device's existing wear-levelling state is
+left misaligned with the new, smaller boundary - every write to
+`storage` fails (`FirmwareCacheStore`, FatFs `FR_DENIED`/"no free
+cluster", `esp_vfs_fat_info()` reporting 0 bytes free regardless of how
+little the volume actually holds), deterministically on every boot, not
+as an intermittent race. The fix is the same shape as the admin
+password's: a one-time `storage` partition erase (`esptool.py
+erase_region`), letting `format_if_mount_failed` rebuild it fresh. No
+code-level fix exists, since the corruption is structural to the
+repartition itself, not a defect in the storage code - a real migration
+path (or a full-flash erase as part of the update step) would be needed
+before shipping if a repartition like this were made again.
+
 ## Consequences
 
 - `HostSecretStore` needs no equivalent change - it already uses a
@@ -66,3 +83,7 @@ like this were made.
 - `docs/decisions/ADR-0017-partition-table.md`'s own table is left as
   originally written; this ADR is the reference for the `secrets`
   partition specifically.
+- Any already-provisioned device upgrading across this repartition needs
+  its `storage` partition erased once, the same as the admin password
+  reset above - see "This accepted cost extends to `storage` itself"
+  above for the mechanism and fix.

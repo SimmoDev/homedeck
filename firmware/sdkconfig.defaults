@@ -95,6 +95,16 @@ CONFIG_HTTPD_MAX_REQ_HDR_LEN=4096
 # tradeoffs above.
 CONFIG_FATFS_LFN_HEAP=y
 
+# Both DONT_TRUST options default off in upstream FatFs, meaning it
+# blindly trusts the FAT32 FSInfo sector's cached free-cluster-count/
+# last-allocated-cluster fields rather than verifying them via a real
+# scan - a stale or corrupted FSInfo sector would silently misreport
+# free space otherwise. Costs a full free-cluster scan on first use per
+# boot instead of trusting the cached value - negligible for the
+# `storage` partition's size (see ADR-0012).
+CONFIG_FATFS_DONT_TRUST_FREE_CLUSTER_CNT=1
+CONFIG_FATFS_DONT_TRUST_LAST_ALLOC=1
+
 # Crash/reboot diagnostics (ADR-0013) - capture a core dump to the
 # `coredump` partition (already reserved, see ADR-0017) on panic. ELF
 # format and CRC32 checksum are already the defaults once this is
