@@ -6,6 +6,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <mutex>
 
 #include "bsp/m5stack_tab5.h"
@@ -165,8 +166,15 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
 }
 
 void StartSetupHttpServer() {
+    // Started into a local handle, not directly into g_state.setup_server -
+    // httpd_start() can race OnEvent()'s lock-protected reads of that field
+    // on another task otherwise (Wi-Fi events can fire as soon as
+    // esp_wifi_start() returns, which happens before this is called - see
+    // StartSetupAccessPoint() below). Published under g_state_mutex only
+    // once the server is fully configured.
+    httpd_handle_t server = nullptr;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    ESP_ERROR_CHECK(httpd_start(&g_state.setup_server, &config));
+    ESP_ERROR_CHECK(httpd_start(&server, &config));
 
     // Neither handler needs a user_ctx of its own - HandlePostConnect
     // reaches WifiSetupState only indirectly, through the public
@@ -175,8 +183,11 @@ void StartSetupHttpServer() {
     httpd_uri_t root_uri = {.uri = "/", .method = HTTP_GET, .handler = HandleGetSetupPage, .user_ctx = nullptr};
     httpd_uri_t connect_uri = {
         .uri = "/connect", .method = HTTP_POST, .handler = HandlePostConnect, .user_ctx = nullptr};
-    httpd_register_uri_handler(g_state.setup_server, &root_uri);
-    httpd_register_uri_handler(g_state.setup_server, &connect_uri);
+    httpd_register_uri_handler(server, &root_uri);
+    httpd_register_uri_handler(server, &connect_uri);
+
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    g_state.setup_server = server;
 }
 
 void StartSetupAccessPoint() {
@@ -206,15 +217,28 @@ void StartSetupAccessPoint() {
 
 // arg is &g_state - registered twice below, for WIFI_EVENT and
 // IP_EVENT, always with the same &g_state.
+//
+// Each branch below takes g_state_mutex only around the actual state
+// reads/writes, never across httpd_stop()/esp_wifi_*() - both block (the
+// former waits for the SoftAP httpd task to go idle, the latter is an RPC
+// to the C6 co-processor, see hardware.md#wireless), and this function
+// runs on the shared ESP-IDF event-loop task. HandlePostConnect()/
+// ApplyWifiCredentials() (running on the httpd task) need the same
+// mutex, so holding it across a blocking call here would let a second
+// /connect submission landing mid-teardown deadlock the event-loop task
+// against the httpd task.
 void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
-    std::lock_guard<std::mutex> lock(g_state_mutex);
     auto& state = *static_cast<WifiSetupState*>(arg);
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
             case WIFI_EVENT_STA_START:
+                // No WifiSetupState field is touched here - esp_wifi_connect()
+                // stays outside g_state_mutex entirely, same reasoning as
+                // ApplyWifiCredentials()'s own RPC calls below.
                 esp_wifi_connect();
                 break;
-            case WIFI_EVENT_STA_DISCONNECTED:
+            case WIFI_EVENT_STA_DISCONNECTED: {
+                std::lock_guard<std::mutex> lock(g_state_mutex);
                 if (state.network_status != nullptr) {
                     state.network_status->SetConnectionState(false, "", "");
                 }
@@ -234,6 +258,7 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                 ESP_ERROR_CHECK(esp_timer_start_once(g_reconnect_timer,
                                                       static_cast<uint64_t>(kReconnectBackoffMs) * 1000));
                 break;
+            }
             default:
                 break;
         }
@@ -244,18 +269,28 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
         // while already connected - harmless, but pointless.
         esp_timer_stop(g_reconnect_timer);
         ESP_LOGI(kTag, "Connected, IP: " IPSTR, IP2STR(&event->ip_info.ip));
-        if (state.network_status != nullptr) {
-            char ip_str[16];
-            esp_ip4addr_ntoa(&event->ip_info.ip, ip_str, sizeof(ip_str));
-            state.network_status->SetConnectionState(true, state.pending_ssid, ip_str);
-        }
-        if (state.setup_server != nullptr) {
-            httpd_stop(state.setup_server);
+
+        httpd_handle_t server_to_stop = nullptr;
+        std::function<void()> on_connected;
+        {
+            std::lock_guard<std::mutex> lock(g_state_mutex);
+            if (state.network_status != nullptr) {
+                char ip_str[16];
+                esp_ip4addr_ntoa(&event->ip_info.ip, ip_str, sizeof(ip_str));
+                state.network_status->SetConnectionState(true, state.pending_ssid, ip_str);
+            }
+            server_to_stop = state.setup_server;
             state.setup_server = nullptr;
+            on_connected = state.ui_callbacks.on_connected;
+        }
+        // Both block (see this function's own comment above) - deliberately
+        // outside g_state_mutex.
+        if (server_to_stop != nullptr) {
+            httpd_stop(server_to_stop);
             esp_wifi_set_mode(WIFI_MODE_STA);
         }
-        if (state.ui_callbacks.on_connected) {
-            state.ui_callbacks.on_connected();
+        if (on_connected) {
+            on_connected();
         }
         xEventGroupSetBits(state.event_group, kConnectedBit);
     }
