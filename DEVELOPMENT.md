@@ -177,7 +177,7 @@ do and why, worth reading at least once.
    **`firmware/components/` vs. `firmware/managed_components/`:** the
    former is git-tracked and holds `m5stack_tab5`, a local fork carrying
    a real fix (see
-   [ADR-0022](decisions/ADR-0022-panel-init-settle-delay.md)) —
+   [ADR-0022](docs/decisions/ADR-0022-panel-init-settle-delay.md)) —
    `firmware/main/idf_component.yml`'s `override_path` points there
    instead of fetching it. Everything else is fetched into the latter,
    which is gitignored and safe to delete for a clean re-fetch.
