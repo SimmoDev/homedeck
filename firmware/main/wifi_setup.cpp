@@ -231,8 +231,16 @@ void StartSetupAccessPoint() {
              ap_ssid, kApGatewayIp);
 
     StartSetupHttpServer();
-    if (g_state.ui_callbacks.on_setup_needed) {
-        g_state.ui_callbacks.on_setup_needed(ap_ssid, kApGatewayIp);
+    // Copied under lock, then invoked outside it - consistent with this
+    // file's own rule of never holding g_state_mutex across a call that
+    // isn't a plain state read/write (see OnEvent()'s own comment above).
+    std::function<void(const std::string&, const std::string&)> on_setup_needed;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        on_setup_needed = g_state.ui_callbacks.on_setup_needed;
+    }
+    if (on_setup_needed) {
+        on_setup_needed(ap_ssid, kApGatewayIp);
     }
 }
 
@@ -402,7 +410,12 @@ void ConnectToWifi(const WifiUiCallbacks& ui_callbacks) {
         StartSetupAccessPoint();
     }
 
-    xEventGroupWaitBits(g_state.event_group, kConnectedBit, pdFALSE, pdTRUE, portMAX_DELAY);
+    EventGroupHandle_t event_group;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        event_group = g_state.event_group;
+    }
+    xEventGroupWaitBits(event_group, kConnectedBit, pdFALSE, pdTRUE, portMAX_DELAY);
 }
 
 }  // namespace homedeck
