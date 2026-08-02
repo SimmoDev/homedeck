@@ -20,6 +20,40 @@ public:
         int col;
     };
 
+    // A widget's requested footprint, normalized by ClampSpan() below.
+    struct Span {
+        int col_span;
+        int row_span;
+    };
+
+    // No legitimate widget needs anywhere near this many rows (rows
+    // grow to fit on demand - see DashboardGrid - so there is no
+    // structural need for a ceiling at all). This one exists purely as
+    // a defensive bound against a misbehaving Widget::RowSpan()
+    // override (wrong units, corrupted state): without it, Fits()'s row
+    // loop and the caller's own row-descriptor growth would scale with
+    // whatever value is passed in, hanging or exhausting memory on the
+    // UI thread.
+    static constexpr int kMaxRowSpan = 100;
+
+    // Normalizes a widget-reported footprint into a range this class
+    // can place without hanging or mis-placing: col_span clamped to
+    // [1, Columns], row_span clamped to [1, kMaxRowSpan]. Centralized
+    // here rather than left to each caller so every caller gets the
+    // same guarantee and the clamp itself is host-testable - see
+    // FindPlacement(), which applies this internally, and
+    // DashboardGrid::AddWidget(), which must reuse the same clamped
+    // values for MarkOccupied() and the LVGL cell rather than
+    // re-deriving them, so placement and occupancy never disagree on
+    // the footprint actually used.
+    static Span ClampSpan(int col_span, int row_span) {
+        if (col_span < 1) col_span = 1;
+        if (col_span > Columns) col_span = Columns;
+        if (row_span < 1) row_span = 1;
+        if (row_span > kMaxRowSpan) row_span = kMaxRowSpan;
+        return {col_span, row_span};
+    }
+
     GridOccupancy() : occupancy_(1) {}
 
     // Grows to include `row` if it doesn't already exist - a no-op
@@ -58,6 +92,14 @@ public:
     // not the denser packing that would backfill gaps a later widget
     // could still fit into.
     Placement FindPlacement(int col_span, int row_span) const {
+        // Clamped internally, not just trusted from the caller - an
+        // unclamped oversized col_span would make Fits() reject every
+        // column at every row below, spinning this loop forever instead
+        // of terminating, regardless of which caller passed it in.
+        Span clamped = ClampSpan(col_span, row_span);
+        col_span = clamped.col_span;
+        row_span = clamped.row_span;
+
         int row = 0;
         int col = 0;
         while (!Fits(row, col, col_span, row_span)) {

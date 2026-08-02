@@ -24,10 +24,11 @@ public:
 
     // Footprint in grid cells - see DashboardGrid. Defaults to 1x1;
     // override to occupy more. ColumnSpan() should be between 1 and
-    // DashboardGrid::kColumns; RowSpan() should not be less than 1 (no
-    // upper bound - rows grow to fit) - DashboardGrid::AddWidget() clamps
-    // all three defensively if they aren't, rather than assuming every
-    // implementation gets this right.
+    // DashboardGrid::kColumns; RowSpan() should be at least 1, with no
+    // practical ceiling (rows grow to fit). DashboardGrid::AddWidget()
+    // clamps both via GridOccupancy::ClampSpan() (including a defensive
+    // upper bound on RowSpan(), see grid_occupancy.h's kMaxRowSpan)
+    // rather than assuming every implementation gets this right.
     virtual int ColumnSpan() const { return 1; }
     virtual int RowSpan() const { return 1; }
 };

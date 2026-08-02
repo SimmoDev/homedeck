@@ -67,28 +67,14 @@ void DashboardGrid::EnsureRowExists(int row) {
 }
 
 void DashboardGrid::AddWidget(Widget& widget) {
-    int col_span = widget.ColumnSpan();
-    int row_span = widget.RowSpan();
-    // A col_span wider than the grid itself would make Fits() reject
-    // every column at every row below, spinning the placement loop
-    // forever instead of terminating - clamp defensively (see
-    // widget.h's own ColumnSpan() contract) rather than hang the UI
-    // thread on a misbehaving Widget implementation.
-    if (col_span > kColumns) {
-        col_span = kColumns;
-    }
-    // A col_span or row_span <= 0 makes Fits()'s corresponding loop a
-    // no-op, so it trivially "fits" without checking or marking any cell
-    // occupied - not a hang like an oversized col_span above, but a
-    // silent placement collision with whatever widget comes next. Clamp
-    // both defensively for the same reason (see widget.h's own
-    // ColumnSpan()/RowSpan() contract).
-    if (col_span < 1) {
-        col_span = 1;
-    }
-    if (row_span < 1) {
-        row_span = 1;
-    }
+    // GridOccupancy::ClampSpan() normalizes a widget-reported footprint
+    // (out-of-range values would otherwise hang the placement loop or
+    // silently collide with another widget - see its own comment) into
+    // one this class can place safely. Clamped once, here, and reused
+    // for every subsequent step below, so placement and occupancy never
+    // disagree about which footprint was actually used.
+    auto [col_span, row_span] =
+        GridOccupancy<kColumns>::ClampSpan(widget.ColumnSpan(), widget.RowSpan());
 
     auto [row, col] = occupancy_.FindPlacement(col_span, row_span);
     occupancy_.MarkOccupied(row, col, col_span, row_span);

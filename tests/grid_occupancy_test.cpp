@@ -82,3 +82,45 @@ TEST(GridOccupancyTest, EnsureRowExistsIsANoOpWhenTheRowAlreadyExists) {
     grid.EnsureRowExists(1);
     EXPECT_EQ(grid.RowCount(), 3);
 }
+
+TEST(GridOccupancyTest, ClampSpanFloorsColumnAndRowSpanBelowOne) {
+    auto span = FourColumnGrid::ClampSpan(0, -3);
+    EXPECT_EQ(span.col_span, 1);
+    EXPECT_EQ(span.row_span, 1);
+}
+
+TEST(GridOccupancyTest, ClampSpanCapsColumnSpanAtTheColumnCount) {
+    auto span = FourColumnGrid::ClampSpan(6, 1);
+    EXPECT_EQ(span.col_span, 4);
+}
+
+TEST(GridOccupancyTest, ClampSpanCapsRowSpanAtTheMaxRowSpanCeiling) {
+    auto span = FourColumnGrid::ClampSpan(1, 1000000);
+    EXPECT_EQ(span.row_span, FourColumnGrid::kMaxRowSpan);
+}
+
+TEST(GridOccupancyTest, ClampSpanLeavesAlreadyValidSpansUnchanged) {
+    auto span = FourColumnGrid::ClampSpan(2, 3);
+    EXPECT_EQ(span.col_span, 2);
+    EXPECT_EQ(span.row_span, 3);
+}
+
+TEST(GridOccupancyTest, FindPlacementTerminatesForAColumnSpanWiderThanTheGrid) {
+    // Regression: an unclamped col_span > Columns previously made Fits()
+    // reject every column at every row, spinning this call forever.
+    FourColumnGrid grid;
+    auto placement = grid.FindPlacement(6, 1);
+    EXPECT_EQ(placement.row, 0);
+    EXPECT_EQ(placement.col, 0);
+}
+
+TEST(GridOccupancyTest, FindPlacementClampsAnExcessiveRowSpanBeforeSearching) {
+    // Regression: row_span previously had no upper bound anywhere in
+    // this class, so Fits()'s row loop - and a caller's subsequent
+    // row-descriptor growth from the same unclamped value - scaled with
+    // whatever a misbehaving Widget::RowSpan() override returned.
+    FourColumnGrid grid;
+    auto placement = grid.FindPlacement(1, 1000000);
+    EXPECT_EQ(placement.row, 0);
+    EXPECT_EQ(placement.col, 0);
+}

@@ -28,11 +28,9 @@ namespace homedeck {
 // but worth re-checking if any of them changes.
 //
 // Widgets can span multiple columns and rows (see Widget::ColumnSpan/
-// RowSpan). Placement is first-fit: scan cells top-to-bottom,
-// left-to-right, and use the first position a widget's full footprint
-// fits without overlapping an already-placed widget - the same default
-// ("sparse") auto-placement CSS Grid uses, not the denser packing that
-// would backfill gaps a later widget could still fit into.
+// RowSpan) - see GridOccupancy::FindPlacement() for the placement
+// strategy and GridOccupancy::ClampSpan() for how an out-of-range span
+// is handled.
 class DashboardGrid {
 public:
     static constexpr int kColumns = 4;
