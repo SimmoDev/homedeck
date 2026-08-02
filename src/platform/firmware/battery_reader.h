@@ -5,6 +5,7 @@
 #include "driver/i2c_master.h"
 
 #include <memory>
+#include <mutex>
 
 namespace espp {
 class Ina226;
@@ -31,6 +32,17 @@ class I2cDevice;
 // reading its charge-status output, which IsExternalPowerConnected()
 // combines with IsBatteryPresent() rather than using directly - see
 // that method's own comment for why.
+//
+// IsBatteryPresent() is thread-safe (locks mutex_) - genuinely needed,
+// not defensive, since it's called from at least three independently
+// scheduled contexts: CriticalBatteryMonitor/LowBatteryMonitor on
+// Clock's Timer task (plain EventBus::Subscribe), StatusBar on the UI
+// task (SubscribeUi), and the Diagnostics/OTA HTTP routes on
+// esp_http_server's own worker threads. Without the lock, two
+// interleaved calls could race on last_voltage_volts_/has_last_voltage_
+// below - the same hazard class already fixed for Rx8130TimeSource's
+// Now()/SetTime(). ReadPercent() touches no shared mutable state of its
+// own, so it doesn't need the same guard.
 class Ina226BatteryReader : public BatteryReader {
 public:
     explicit Ina226BatteryReader(i2c_master_bus_handle_t i2c_bus);
@@ -46,10 +58,11 @@ public:
 private:
     std::unique_ptr<I2cDevice> device_;
     std::unique_ptr<espp::Ina226> sensor_;
+    mutable std::mutex mutex_;
     // IsBatteryPresent()'s voltage-stability fallback needs the previous
     // sample to compute a delta against - see that method's own comment.
     // Mutable since the reading itself stays a const, side-effect-free
-    // query from callers' perspective.
+    // query from callers' perspective; guarded by mutex_ above.
     mutable float last_voltage_volts_ = 0.0f;
     mutable bool has_last_voltage_ = false;
 };
