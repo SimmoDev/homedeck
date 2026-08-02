@@ -20,7 +20,27 @@ export interface ApiErrorBody {
 // server's own JSON error responses) resolve to {} rather than
 // throwing.
 export async function readErrorBody(response: Response): Promise<ApiErrorBody> {
+  notifyIfSessionExpired(response.status);
   return (await response.json().catch(() => ({}))) as ApiErrorBody;
+}
+
+// Registered once by App.svelte - the single place that decides whether
+// the authenticated view should be showing at all. Every helper below
+// that sees a 401 (AdminAuthService::RequireAuth's "unauthenticated"
+// response - a lapsed 24h session, or the in-memory session map clearing
+// across an OTA reboot) calls this, so a stale session drops the whole
+// app back to the login screen instead of each component separately
+// dead-ending on its own "...failed: 401" message.
+let onSessionExpired: (() => void) | undefined;
+
+export function setSessionExpiredHandler(handler: () => void): void {
+  onSessionExpired = handler;
+}
+
+function notifyIfSessionExpired(status: number): void {
+  if (status === 401) {
+    onSessionExpired?.();
+  }
 }
 
 export type LoadResult<T> = { data: T; error?: undefined } | { data?: undefined; error: string };
@@ -53,6 +73,7 @@ export async function loadJson<T>(url: string): Promise<LoadResult<T>> {
   try {
     const response = await fetch(url);
     if (!response.ok) {
+      notifyIfSessionExpired(response.status);
       return { error: `Request failed: ${response.status}` };
     }
     return { data: (await response.json()) as T };

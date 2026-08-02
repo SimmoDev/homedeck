@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson } from "./lib/api";
+  import { loadJson, setSessionExpiredHandler } from "./lib/api";
   import Diagnostics from "./lib/Diagnostics.svelte";
   import Ota from "./lib/Ota.svelte";
   import PasswordForm from "./lib/PasswordForm.svelte";
@@ -46,6 +46,12 @@
     await loadStatus();
   }
 
+  // Any authenticated request anywhere below this component (Settings,
+  // Ota, Diagnostics, and their children) that gets a 401 back - a
+  // lapsed session or one cleared by an OTA reboot - re-runs loadStatus()
+  // here, dropping the whole app back to the login screen instead of
+  // leaving that one component stuck on a dead-end error message.
+  setSessionExpiredHandler(loadStatus);
   loadStatus();
 </script>
 

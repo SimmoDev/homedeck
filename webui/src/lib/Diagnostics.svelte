@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, type BatteryStatus } from "./api";
+  import { loadJson, readErrorBody, type BatteryStatus } from "./api";
 
   // onWifiReset fires once /api/wifi/reset succeeds - see its own call
   // site in resetWifi() below for why this hands off to App.svelte
@@ -111,7 +111,13 @@
       const response = await fetch("/api/wifi/reset", { method: "POST" });
       if (!response.ok) {
         wifiResetState = "error";
-        wifiResetError = `Reset failed: ${response.status}`;
+        const body = await readErrorBody(response);
+        wifiResetError =
+          body.error === "unauthenticated"
+            ? "Session expired - please log in again."
+            : body.error === "reset_failed"
+              ? "Wi-Fi reset failed - try again."
+              : `Reset failed: ${response.status}`;
         return;
       }
       const body = (await response.json()) as { apSsid: string };
