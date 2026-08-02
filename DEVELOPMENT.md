@@ -23,8 +23,9 @@ reading, in order:
    Hub Local Control" section specifically — the local-control scope this
    project's own reference hub is confirmed to need.
 4. [docs/architecture/core.md](docs/architecture/core.md#status) — what
-   Core actually offers a module to build against now that M2 is done:
-   the event bus, `Storage`/`SecretStore`, the widget system, and
+   Core actually offers a module to build against (see
+   [docs/roadmap.md](docs/roadmap.md) for current milestone status): the
+   event bus, `Storage`/`SecretStore`, the widget system, and
    Notifications, all implemented, not just the design each originally
    named.
 5. [docs/architecture/networking.md](docs/architecture/networking.md) —
