@@ -134,13 +134,34 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Request body missing or too large");
         return ESP_FAIL;
     }
+    // A single httpd_req_recv() call is not guaranteed to return the full
+    // body - it can arrive split across TCP segments (e.g. a max-length
+    // WPA2 password), silently truncating whatever didn't fit into one
+    // read. Loop until the whole body is read, matching
+    // FirmwareHttpServer::DispatchTrampoline's own fix for this bug
+    // class (src/platform/firmware/http_server.cpp).
+    constexpr int kMaxConsecutiveRecvTimeouts = 3;
     char body[kMaxBodyBytes + 1] = {};
-    int received = httpd_req_recv(req, body, static_cast<size_t>(req->content_len));
-    if (received <= 0) {
-        httpd_resp_send_500(req);
-        return ESP_FAIL;
+    size_t total_received = 0;
+    size_t body_len = static_cast<size_t>(req->content_len);
+    int consecutive_timeouts = 0;
+    while (total_received < body_len) {
+        int received = httpd_req_recv(req, body + total_received, body_len - total_received);
+        if (received == HTTPD_SOCK_ERR_TIMEOUT) {
+            if (++consecutive_timeouts > kMaxConsecutiveRecvTimeouts) {
+                httpd_resp_send_500(req);
+                return ESP_FAIL;
+            }
+            continue;
+        }
+        if (received <= 0) {
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        consecutive_timeouts = 0;
+        total_received += static_cast<size_t>(received);
     }
-    body[received] = '\0';
+    body[total_received] = '\0';
 
     // The setup page's <form> has no enctype, so browsers submit it as
     // application/x-www-form-urlencoded - spaces become '+' and symbols
