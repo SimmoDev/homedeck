@@ -53,7 +53,9 @@
             ? "Couldn't reach the location search service."
             : errorBody.error === "upstream_invalid_response"
               ? "The location search service returned an unexpected response."
-              : `Search failed: ${response.status}`;
+              : errorBody.error === "query_too_long"
+                ? "Search text is too long."
+                : `Search failed: ${response.status}`;
         return;
       }
       const body = (await response.json()) as { results: GeocodeResult[] };

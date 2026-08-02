@@ -127,6 +127,19 @@ TEST_F(WeatherRoutesTest, GeocodeRejectsMissingQueryParam) {
     EXPECT_NE(result.body.find(R"("field":"query")"), std::string::npos);
 }
 
+TEST_F(WeatherRoutesTest, GeocodeRejectsAnOversizedQuery) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18319));
+    std::string cookie = Login(18319);
+
+    std::string oversized_query(101, 'a');
+    auto result = HttpRequestRaw(18319, "GET", "/api/weather/geocode?query=" + oversized_query, "", cookie);
+    EXPECT_EQ(result.status_code, 400);
+    EXPECT_NE(result.body.find("query_too_long"), std::string::npos);
+}
+
 TEST_F(WeatherRoutesTest, GeocodeParsesUpstreamResultsAndSkipsIncompleteEntries) {
     geocode_http_client_.SetResponse(homedeck::HttpClientResponse{
         true, 200,

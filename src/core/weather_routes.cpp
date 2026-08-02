@@ -10,6 +10,13 @@ namespace homedeck {
 
 namespace {
 
+// A defense-in-depth ceiling, not a real search-usability concern - every
+// other user-supplied field this milestone added gets an explicit length
+// check; this is the one that didn't, bounded only by the HTTP server's
+// own URI-length limit. Generous enough that no real place name is ever
+// rejected.
+constexpr size_t kMaxGeocodeQueryLength = 100;
+
 // RFC 3986 percent-encoding for a query component - needed because
 // *query (below) is the already-decoded incoming value, and it gets
 // forwarded as a query parameter on a *new* outbound URL to Open-Meteo,
@@ -43,6 +50,9 @@ void RegisterWeatherRoutes(HttpServer& server, HttpClient& http_client, OpenMete
             auto query = ParseFormField(request.query, "query");
             if (!query.has_value() || query->empty()) {
                 return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"query"})", {}};
+            }
+            if (query->size() > kMaxGeocodeQueryLength) {
+                return HttpResponse{400, "application/json", R"({"error":"query_too_long"})", {}};
             }
 
             std::string url =
