@@ -132,6 +132,60 @@ TEST(CriticalBatteryMonitor, StillTriggersOnceBatteryIsInsertedAndGenuinelyLow) 
     EXPECT_EQ(state_events, 1);
 }
 
+TEST(CriticalBatteryMonitor, PublishesTheClearingEdgeWhenTheBatteryIsRemovedWhileCritical) {
+    homedeck::EventBus bus;
+    FakeBatteryReader battery;
+    battery.SetPercent(2);
+    homedeck::CriticalBatteryMonitor monitor(bus, battery);
+
+    std::vector<bool> state_events;
+    auto sub = bus.Subscribe<homedeck::CriticalBatteryStateChangedEvent>(
+        [&state_events](const homedeck::CriticalBatteryStateChangedEvent& event) {
+            state_events.push_back(event.critical);
+        });
+
+    bus.Publish(homedeck::ClockTickEvent{});
+    ASSERT_EQ(state_events.size(), 1u);
+    EXPECT_TRUE(state_events[0]);
+
+    // Removing a critical battery must still publish the clearing edge -
+    // PowerManager's only way out of kError is this event, so silently
+    // resetting the latch without publishing would strand it there even
+    // once a healthy battery is reinserted below.
+    battery.SetBatteryPresent(false);
+    bus.Publish(homedeck::ClockTickEvent{});
+    ASSERT_EQ(state_events.size(), 2u);
+    EXPECT_FALSE(state_events[1]);
+
+    // A healthy battery reinserted afterward must not be stuck unable to
+    // ever signal critical again (the latch has to have genuinely reset,
+    // not just skipped publishing).
+    battery.SetBatteryPresent(true);
+    battery.SetPercent(80);
+    bus.Publish(homedeck::ClockTickEvent{});
+    EXPECT_EQ(state_events.size(), 2u);  // still healthy - no new event
+
+    battery.SetPercent(2);
+    bus.Publish(homedeck::ClockTickEvent{});
+    ASSERT_EQ(state_events.size(), 3u);
+    EXPECT_TRUE(state_events[2]);
+}
+
+TEST(CriticalBatteryMonitor, DoesNotPublishAnExtraClearingEdgeWhenRemovedWhileAlreadyHealthy) {
+    homedeck::EventBus bus;
+    FakeBatteryReader battery;
+    battery.SetPercent(80);
+    homedeck::CriticalBatteryMonitor monitor(bus, battery);
+
+    int state_events = 0;
+    auto sub = bus.Subscribe<homedeck::CriticalBatteryStateChangedEvent>(
+        [&state_events](const homedeck::CriticalBatteryStateChangedEvent&) { state_events++; });
+
+    battery.SetBatteryPresent(false);
+    bus.Publish(homedeck::ClockTickEvent{});
+    EXPECT_EQ(state_events, 0);
+}
+
 TEST(CriticalBatteryMonitor, DoesNotTriggerWhenExternalPowerConnectedEvenBelowThreshold) {
     homedeck::EventBus bus;
     FakeBatteryReader battery;
