@@ -79,6 +79,9 @@ std::optional<VersionedValue> Storage::GetSetting(const std::string& module_id, 
 }
 
 bool Storage::EraseSetting(const std::string& module_id, const std::string& key) {
+    if (IsReservedForSecrets(module_id, key)) {
+        return false;
+    }
     std::lock_guard<std::mutex> lock(mutex_);
     return settings_store_.Erase(module_id, key);
 }

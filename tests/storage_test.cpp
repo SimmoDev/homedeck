@@ -215,6 +215,23 @@ TEST_F(StorageTest, SetSettingRejectsTheReservedAdminPasswordKey) {
                      .has_value());
 }
 
+TEST_F(StorageTest, EraseSettingRejectsTheReservedAdminPasswordKey) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    // Written directly through the underlying store, bypassing SetSetting's
+    // own guard, so this test actually exercises EraseSetting's guard
+    // rather than just observing there was nothing to erase.
+    ASSERT_TRUE(settings_store.Set(homedeck::AdminAuthService::kModuleId, homedeck::AdminAuthService::kPasswordKey,
+                                    "real-hash-value"));
+
+    EXPECT_FALSE(storage.EraseSetting(homedeck::AdminAuthService::kModuleId, homedeck::AdminAuthService::kPasswordKey));
+    EXPECT_TRUE(settings_store.Get(homedeck::AdminAuthService::kModuleId, homedeck::AdminAuthService::kPasswordKey)
+                    .has_value());
+}
+
 // Path-traversal guard (platform/store_key_validation.h) - `ns`/`key` map
 // directly onto a filesystem path segment on every host-backed store, so
 // ".." or an embedded separator must be rejected rather than silently

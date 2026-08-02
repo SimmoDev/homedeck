@@ -115,6 +115,9 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             if (InvalidKey(module, key)) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_key"})", {}};
             }
+            if (IsReservedKey(module, key)) {
+                return HttpResponse{403, "application/json", R"({"error":"reserved_key"})", {}};
+            }
             storage.EraseSetting(module, key);
             return HttpResponse{200, "application/json", R"({"status":"ok"})", {}};
         }));
