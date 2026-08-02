@@ -46,7 +46,14 @@ PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activit
     ota_subscription_ = event_bus_.SubscribeUi<OtaUpdateStateChangedEvent>(
         [this](const OtaUpdateStateChangedEvent& event) {
             if (event.in_progress) {
-                TransitionTo(PowerState::kUpdating);
+                // Guarded the same as the finishing branch below: kError
+                // must always win over kUpdating (see the critical-battery
+                // subscription's own comment), so a critical battery
+                // already in kError before this fires must not be
+                // clobbered back to kUpdating either.
+                if (state_ != PowerState::kError) {
+                    TransitionTo(PowerState::kUpdating);
+                }
             } else if (state_ != PowerState::kError) {
                 // Not unconditional: if a critical battery forced kError
                 // during the write, the write finishing must not clobber

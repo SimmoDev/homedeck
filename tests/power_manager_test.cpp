@@ -528,6 +528,26 @@ TEST(PowerManager, OtaFinishingDoesNotClobberErrorState) {
     EXPECT_EQ(manager.State(), homedeck::PowerState::kError);
 }
 
+TEST(PowerManager, OtaStartingDoesNotClobberErrorState) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
+
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kError);
+
+    // Symmetric with OtaFinishingDoesNotClobberErrorState above - an OTA
+    // start arriving while already critical must not override kError
+    // either, the same "kError always wins" invariant applies to both
+    // edges of OtaUpdateStateChangedEvent.
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kError);
+}
+
 TEST(PowerManager, InitialActiveBrightnessIsClamped) {
     homedeck::EventBus bus;
     RunDispatcherInline(bus);
