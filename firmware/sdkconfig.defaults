@@ -101,7 +101,7 @@ CONFIG_FATFS_LFN_HEAP=y
 # scan - a stale or corrupted FSInfo sector would silently misreport
 # free space otherwise. Costs a full free-cluster scan on first use per
 # boot instead of trusting the cached value - negligible for the
-# `storage` partition's size (see ADR-0012).
+# `storage` partition's size (see ADR-0017).
 CONFIG_FATFS_DONT_TRUST_FREE_CLUSTER_CNT=1
 CONFIG_FATFS_DONT_TRUST_LAST_ALLOC=1
 

@@ -67,16 +67,16 @@ void LogCrashDiagnostics(Storage& storage) {
     // (`core/diagnostics_routes.cpp`) - erasure isn't implemented
     // anywhere yet.
     //
-    // ex_info (RISC-V-specific: mcause/mtval/ra/sp - see
-    // esp_core_dump_summary_port.h) used to be discarded entirely, only
-    // exc_task/exc_pc were logged - a real diagnostic gap for a crash
-    // this project has been trying to root-cause across multiple
-    // sessions (see docs/architecture/hardware.md#wi-fi-bring-up).
-    // mcause identifies the exact RISC-V trap cause (1 = instruction
-    // access fault, matching the "Guru Meditation Error" already seen on
-    // the serial console); mtval is typically the actual faulting
-    // address for an access fault, which may or may not match exc_pc -
-    // a mismatch would itself be a real clue.
+    // ex_info (RISC-V-specific: mcause/mtval/ra/sp/a0-a7 - see
+    // esp_core_dump_summary_port.h) carries the trap cause/value/
+    // return-address/stack-pointer/argument registers, not just
+    // task/PC. mcause identifies the exact RISC-V trap cause (1 =
+    // instruction access fault, matching the "Guru Meditation Error"
+    // seen on the serial console); mtval is typically the actual
+    // faulting address for an access fault, which may or may not match
+    // exc_pc - a mismatch would itself be a real clue. See
+    // docs/architecture/hardware.md#wi-fi-bring-up for the specific
+    // crash this currently helps diagnose.
     if (has_core_dump) {
         esp_core_dump_summary_t summary;
         if (esp_core_dump_get_summary(&summary) == ESP_OK) {
