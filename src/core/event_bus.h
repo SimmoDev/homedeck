@@ -93,8 +93,9 @@ private:
     void Unsubscribe(std::type_index type, std::uint64_t id);
     // Re-looks-up a subscriber's callback by id at the time it's called,
     // rather than assuming a copy taken earlier is still valid - see
-    // PublishImpl's UI dispatch path and ADR-0011's "Resolved (M2)" note.
-    // Returns nullptr if the subscriber has since unsubscribed.
+    // PublishImpl's UI dispatch path and ADR-0011's Consequences section
+    // (the subscriber-liveness bullet). Returns nullptr if the
+    // subscriber has since unsubscribed.
     std::function<void(std::shared_ptr<void>)> FindCallback(std::type_index type,
                                                               std::uint64_t id);
     void PublishImpl(std::type_index type, std::shared_ptr<void> payload);

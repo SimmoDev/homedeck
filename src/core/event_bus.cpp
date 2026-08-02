@@ -90,9 +90,9 @@ void EventBus::PublishImpl(std::type_index type, std::shared_ptr<void> payload) 
             // this well after the subscriber unsubscribed, so liveness is
             // re-checked by looking the callback up again at the point it
             // actually executes, not at the point it was queued. See
-            // ADR-0011's "Resolved (M2)" note: capturing the callback
-            // directly here would let a deferred call fire against an
-            // already-destroyed subscriber.
+            // ADR-0011's Consequences section (the subscriber-liveness
+            // bullet): capturing the callback directly here would let a
+            // deferred call fire against an already-destroyed subscriber.
             dispatcher([this, type, id = subscriber.id, payload]() {
                 auto callback = FindCallback(type, id);
                 if (callback) callback(payload);
