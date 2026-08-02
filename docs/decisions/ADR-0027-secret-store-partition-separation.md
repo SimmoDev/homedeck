@@ -80,9 +80,11 @@ before shipping if a repartition like this were made again.
 - A future module's own credentials (e.g. Home Assistant's long-lived
   access token, M6) are automatically covered by this same partition
   separation - no per-secret guard to remember to add.
-- `docs/decisions/ADR-0017-partition-table.md`'s own table is left as
+- [ADR-0017](ADR-0017-partition-table.md)'s own table is left as
   originally written; this ADR is the reference for the `secrets`
-  partition specifically.
+  partition specifically. It's also the durable fix
+  [ADR-0010](ADR-0010-secret-storage.md#status) points to for
+  `SecretStore`'s actual firmware backing.
 - Any already-provisioned device upgrading across this repartition needs
   its `storage` partition erased once, the same as the admin password
   reset above - see "This accepted cost extends to `storage` itself"

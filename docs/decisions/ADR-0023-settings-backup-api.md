@@ -140,7 +140,7 @@ loop for a rare, self-inflicted-only case.
   correct fix. Extending it whenever a new `SecretStore` key is
   introduced is a real, manual step - flagged here so it isn't
   forgotten, not left to be rediscovered.
-- `docs/roadmap.md`'s Status bar item already separately tracks
+- [roadmap.md](../roadmap.md)'s Status bar item already separately tracks
   `StatusBar`'s clock label not reading `TimeSource` immediately: this
   ADR's `device_name` work doesn't touch that.
 - **Confirmed end to end against the simulator** (`curl` against a real

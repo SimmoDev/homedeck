@@ -85,7 +85,7 @@ is a firmware-only mechanism with nothing to simulate on the host side.
 
 ## Consequences
 
-- `hardware.md`'s RTC section's "never been set" framing is now stale and
+- [hardware.md](../architecture/hardware.md#rtc)'s RTC section's "never been set" framing is now stale and
   needs updating to reflect that it's corrected once Wi-Fi (and internet
   reachability) is available - a device that never gets internet access
   still shows whatever it held before this feature existed, degrading
