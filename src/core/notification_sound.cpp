@@ -37,10 +37,18 @@ NotificationSound::NotificationSound(EventBus& event_bus, AudioOutput& audio_out
           // Both severities play the same tone - differentiating them
           // is real, unresolved product scope (nothing publishes
           // kAlertPriority yet), not something to design speculatively.
-          {
-              std::lock_guard<std::mutex> lock(wake_mutex_);
-              pending_ = true;
+          std::lock_guard<std::mutex> lock(wake_mutex_);
+          if (playing_) {
+              // A tone is already presenting - this notification doesn't
+              // get a queued follow-up play once it finishes. Matches the
+              // "replace, not queue" contract NotificationBanner/
+              // NotificationWidget already follow (see
+              // ui.md#notification-presentation); since every tone is
+              // identical regardless of content, a second play here would
+              // add nothing but a delayed echo.
+              return;
           }
+          pending_ = true;
           wake_cv_.notify_one();
       })),
       sound_task_("notification-sound", [this](std::stop_token stop) { PlayLoop(stop); }) {}
@@ -53,12 +61,16 @@ void NotificationSound::PlayLoop(std::stop_token stop) {
             return;  // Stop requested, nothing left to play.
         }
         pending_ = false;
+        playing_ = true;
         int volume_percent = volume_percent_;
         lock.unlock();
 
         std::vector<int16_t> tone = GenerateTone();
         audio_output_.SetVolume(volume_percent);
         audio_output_.Play(tone.data(), tone.size(), kSampleRate);
+
+        std::lock_guard<std::mutex> done_lock(wake_mutex_);
+        playing_ = false;
     }
 }
 

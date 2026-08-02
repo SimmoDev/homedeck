@@ -52,6 +52,12 @@ private:
     // never be observed and the destructor would block forever.
     std::condition_variable_any wake_cv_;
     bool pending_ = false;
+    // Both guarded by wake_mutex_. A notification arriving while playing_
+    // is already true doesn't set pending_ - see the subscription
+    // callback's own comment for why a second play would otherwise queue
+    // behind the first instead of the "replace, not queue" contract
+    // NotificationBanner/NotificationWidget already follow.
+    bool playing_ = false;
     int volume_percent_;
 
     EventBus::ScopedSubscription subscription_;
