@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted. Supersedes
+[ADR-0005](ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)'s
+periodic RTC wake cycle during `Sleeping`.
 
 ## Context
 
