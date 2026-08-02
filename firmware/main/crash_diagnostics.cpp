@@ -55,10 +55,14 @@ void LogCrashDiagnostics(Storage& storage) {
     const char* reason = ResetReasonToString(esp_reset_reason());
     ESP_LOGI(kTag, "Last reset reason: %s", reason);
 
-    storage.SetSetting("core", "reset_reason", 1, reason);
+    if (!storage.SetSetting("core", "reset_reason", 1, reason)) {
+        ESP_LOGW(kTag, "Failed to persist reset_reason");
+    }
 
     bool has_core_dump = esp_core_dump_image_check() == ESP_OK;
-    storage.SetSetting("core", "has_core_dump", 1, has_core_dump ? "true" : "false");
+    if (!storage.SetSetting("core", "has_core_dump", 1, has_core_dump ? "true" : "false")) {
+        ESP_LOGW(kTag, "Failed to persist has_core_dump");
+    }
 
     // Raw registers only - not symbolicated on-device (see ADR-0013). A
     // developer decodes the actual downloaded core dump off-device
