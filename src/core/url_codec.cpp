@@ -27,11 +27,20 @@ std::string UrlDecode(const std::string& text) {
 
 std::optional<std::string> ParseFormField(const std::string& form_data, const std::string& key) {
     std::string prefix = key + "=";
-    size_t pos = form_data.find(prefix);
-    if (pos == std::string::npos) return std::nullopt;
-    size_t start = pos + prefix.size();
-    size_t end = form_data.find('&', start);
-    return UrlDecode(form_data.substr(start, end == std::string::npos ? std::string::npos : end - start));
+    // Anchored to a field boundary (start of string, or right after '&') -
+    // a plain form_data.find(prefix) would also match "key=" appearing
+    // inside a *value* (e.g. password=ssid=x&ssid=RealNetwork would wrongly
+    // extract "x&ssid" for "ssid" instead of "RealNetwork").
+    size_t pos = 0;
+    while ((pos = form_data.find(prefix, pos)) != std::string::npos) {
+        if (pos == 0 || form_data[pos - 1] == '&') {
+            size_t start = pos + prefix.size();
+            size_t end = form_data.find('&', start);
+            return UrlDecode(form_data.substr(start, end == std::string::npos ? std::string::npos : end - start));
+        }
+        pos += 1;
+    }
+    return std::nullopt;
 }
 
 }  // namespace homedeck

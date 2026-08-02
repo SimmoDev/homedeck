@@ -43,3 +43,13 @@ TEST(ParseFormFieldTest, ReturnsAnEmptyStringForAPresentButEmptyValue) {
     ASSERT_TRUE(value.has_value());
     EXPECT_EQ(*value, "");
 }
+
+TEST(ParseFormFieldTest, DoesNotMatchTheKeyInsideAnotherFieldsValue) {
+    // The literal text "ssid=" appears inside password's own (unencoded)
+    // value here - a match not anchored to a field boundary would wrongly
+    // stop at that occurrence instead of the real "ssid" field that
+    // follows it.
+    auto value = homedeck::ParseFormField("password=ssid=x&ssid=RealNetwork", "ssid");
+    ASSERT_TRUE(value.has_value());
+    EXPECT_EQ(*value, "RealNetwork");
+}
