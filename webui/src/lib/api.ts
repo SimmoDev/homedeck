@@ -32,6 +32,16 @@ export interface SettingEntry {
   schemaVersion: number;
 }
 
+// The battery/power fields both core/diagnostics_routes.cpp and
+// core/ota_routes.cpp report identically from the same BatteryReader -
+// Diagnostics.svelte and Ota.svelte each extend this into their own
+// wider status shape rather than redeclaring these three fields.
+export interface BatteryStatus {
+  batteryPercent: number;
+  externalPowerConnected: boolean;
+  batteryPresent: boolean;
+}
+
 // Used for GET loads - the fetch/response.ok/json() sequence nearly
 // every load()-style function repeated. Network failures (fetch()
 // itself throwing) and non-ok HTTP responses both resolve to

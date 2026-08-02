@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson } from "./api";
+  import { loadJson, type BatteryStatus } from "./api";
 
   // onWifiReset fires once /api/wifi/reset succeeds - see its own call
   // site in resetWifi() below for why this hands off to App.svelte
@@ -15,12 +15,9 @@
   // ADR-0019) - real diagnostic data today. Module status, connection
   // state, and error reporting are still unbuilt (no modules exist
   // yet), so there's nothing else to show here yet.
-  interface DiagnosticsStatus {
+  interface DiagnosticsStatus extends BatteryStatus {
     resetReason: string;
     hasCoreDump: boolean;
-    batteryPercent: number;
-    externalPowerConnected: boolean;
-    batteryPresent: boolean;
   }
 
   interface LogEntry {

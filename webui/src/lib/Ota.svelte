@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson } from "./api";
+  import { loadJson, type BatteryStatus } from "./api";
 
   // Firmware update (see docs/architecture/web-ui.md#ota and
   // docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
@@ -7,10 +7,7 @@
   // not fetch - fetch() has no equivalent to
   // XMLHttpRequest.upload.onprogress, and a multi-MB firmware image is
   // worth real progress reporting.
-  interface OtaStatus {
-    batteryPercent: number;
-    externalPowerConnected: boolean;
-    batteryPresent: boolean;
+  interface OtaStatus extends BatteryStatus {
     gateOpen: boolean;
     gateReason: string;
     runningVersion: string;
