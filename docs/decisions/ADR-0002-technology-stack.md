@@ -233,15 +233,15 @@ practice. **Where the built bundle actually lives is a later, separate
 decision from the framework choice here — see
 [ADR-0025](ADR-0025-webui-static-asset-storage.md).**
 
-**Implemented as a scaffold** (`webui/`) — Svelte 5, TypeScript
-(`svelte-check` as the type-check gate, wired into CI), plain client-side
-Vite (no SvelteKit — no routing/SSR need exists for a single-page admin
-UI). One component proving the pipeline end to end, not real UI yet. The
-Vite build is a separate, explicit step (`npm ci && npm run build` in
-`webui/`), not auto-invoked from the C++ build — see
+Built as `webui/` — Svelte 5, TypeScript (`svelte-check` as the
+type-check gate, wired into CI), plain client-side Vite (no SvelteKit —
+no routing/SSR need exists for a single-page admin UI). The Vite build
+is a separate, explicit step (`npm ci && npm run build` in `webui/`),
+not auto-invoked from the C++ build — see
 [ADR-0025](ADR-0025-webui-static-asset-storage.md) for why, and
 [DEVELOPMENT.md](../../DEVELOPMENT.md#buildtest-workflow) for the
-command.
+command. Current implementation status lives in
+[web-ui.md](../architecture/web-ui.md#status), not duplicated here.
 
 ### 5. Test framework
 

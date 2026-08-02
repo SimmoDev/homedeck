@@ -99,10 +99,12 @@ requirement's hashing half) and the `RequireAuth()` gate (satisfying
 "protect configuration changes" for whatever it wraps). Its two
 endpoints that take a request body (`setup`/`login`) validate input
 today — a minimum password length and well-formed JSON are both
-checked, satisfying "validate API input" for those two, though the
-mechanism decision that requirement calls out (centralized vs.
-per-endpoint) remains open for the rest of the API surface, which
-doesn't exist yet.
+checked, satisfying "validate API input" for those two. The rest of the
+API surface (diagnostics, OTA, settings, weather, Wi-Fi reset) now
+exists too, and each route validates its own request body
+independently at its own handler — the mechanism decision this
+requirement calls out (centralized vs. per-endpoint) landed as
+per-endpoint by default, not a deliberate centralized design.
 
 **NVS encryption is deliberately deferred, not open** — see
 [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for the

@@ -141,9 +141,10 @@ or compromised network.
 ## Status
 
 The `HttpServer` primitive is implemented on both targets —
-`FirmwareHttpServer` (`esp_http_server`) and `HostHttpServer` (civetweb),
-each serving one route (`GET /`, a plain-text placeholder body) on
-their target's default port. On firmware, it starts after
+`FirmwareHttpServer` (`esp_http_server`) and `HostHttpServer` (civetweb)
+— with real routes registered on top of it: static asset serving,
+authentication, diagnostics, OTA, settings, and weather-location search,
+each described in its own paragraph below. On firmware, it starts after
 `ConnectToWifi()` returns, once `wifi_setup.cpp`'s own temporary SoftAP
 server has already stopped.
 

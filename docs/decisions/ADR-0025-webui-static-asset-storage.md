@@ -54,8 +54,8 @@ Vite's default content-hashed many-chunk output. The Svelte build's
 `vite.config.ts` overrides Rollup's output naming
 (`entryFileNames`/`assetFileNames`) and relies on Vite's default
 single-chunk output for an app this small, so the real build produces
-exactly two fixed-named files (`index.html`, `app.js`), not Vite's
-default many-chunk, content-hashed naming.
+a small, fixed set of named files (`index.html`, `app.js`, `app.css`),
+not Vite's default many-chunk, content-hashed naming.
 
 `ServeStaticFiles` (`src/platform/static_assets.h`/`.cpp`) is the
 portable serving mechanism both targets use — firmware supplies
@@ -68,7 +68,7 @@ embedded web/WebSocket server decision already accepts).
 ## Consequences
 
 - The Vite build must keep producing a small, fixed set of file names
-  (currently `index.html`, `app.js`) — a build change that reintroduces
+  (currently `index.html`, `app.js`, `app.css`) — a build change that reintroduces
   content-hashed or many-chunk output would need `EMBED_FILES`'s file
   list updated to match, or a different serving mechanism entirely.
 - The Vite build (`npm ci && npm run build` in `webui/`) remains a
