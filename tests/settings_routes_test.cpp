@@ -292,3 +292,23 @@ TEST_F(SettingsRoutesTest, PostSettingsReturns500WhenTheStorageWriteFails) {
     EXPECT_EQ(result.status_code, 500);
     EXPECT_NE(result.body.find("write_failed"), std::string::npos);
 }
+
+TEST_F(SettingsRoutesTest, PostSettingsEraseReturns500WhenTheStorageEraseFails) {
+    FailingSettingsStore failing_settings_store;
+    homedeck::HostCacheStore cache_store(root_dir_ / "failing_erase_case");
+    homedeck::HostSecretStore secret_store(root_dir_ / "failing_erase_case");
+    homedeck::Storage failing_storage(failing_settings_store, cache_store, secret_store);
+    homedeck::AdminAuthService failing_auth(failing_storage, time_source_);
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, failing_auth);
+    homedeck::RegisterSettingsRoutes(server, failing_storage, failing_auth);
+    ASSERT_TRUE(server.Start(18220));
+    auto setup = HttpRequestRaw(18220, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    std::string cookie = SessionCookieOnly(setup.set_cookie);
+
+    auto result =
+        HttpRequestRaw(18220, "POST", "/api/settings/erase", R"({"module":"harmony","key":"hub_ip"})", cookie);
+    EXPECT_EQ(result.status_code, 500);
+    EXPECT_NE(result.body.find("erase_failed"), std::string::npos);
+}
