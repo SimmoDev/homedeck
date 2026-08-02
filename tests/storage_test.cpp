@@ -10,6 +10,18 @@
 
 namespace {
 
+// Always fails - simulates a genuine cache-tier write/read/erase failure
+// (e.g. the storage partition full or unmounted). Real CacheStore backends
+// don't fail like this in a test-controllable way, hence the fake - same
+// precedent as admin_auth_routes_test.cpp's FailingSecretStore and
+// settings_routes_test.cpp's FailingSettingsStore.
+class FailingCacheStore : public homedeck::CacheStore {
+public:
+    bool Write(const std::string&, const std::string&, const std::string&) override { return false; }
+    std::optional<std::string> Read(const std::string&, const std::string&) override { return std::nullopt; }
+    bool Erase(const std::string&, const std::string&) override { return false; }
+};
+
 class StorageTest : public ::testing::Test {
 protected:
     void SetUp() override {
@@ -268,4 +280,31 @@ TEST_F(StorageTest, ListAllSettingsExcludesTheReservedAdminPasswordKeyEvenIfPres
     auto entries = storage.ListAllSettings();
     ASSERT_EQ(entries.size(), 1u);
     EXPECT_EQ(entries[0].key, "hub_ip");
+}
+
+TEST_F(StorageTest, WriteCachePropagatesAFailureFromTheUnderlyingStore) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    FailingCacheStore cache_store;
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    EXPECT_FALSE(storage.WriteCache("weather", "last_reading", 1, "value"));
+}
+
+TEST_F(StorageTest, ReadCacheReturnsNulloptWhenTheUnderlyingStoreFails) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    FailingCacheStore cache_store;
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    EXPECT_FALSE(storage.ReadCache("weather", "last_reading").has_value());
+}
+
+TEST_F(StorageTest, EraseCachePropagatesAFailureFromTheUnderlyingStore) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    FailingCacheStore cache_store;
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    EXPECT_FALSE(storage.EraseCache("weather", "last_reading"));
 }
