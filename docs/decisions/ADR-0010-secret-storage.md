@@ -5,7 +5,13 @@
 Accepted — **when** the HMAC-peripheral NVS encryption scheme activates
 is decided separately by
 [ADR-0018](ADR-0018-staged-security-hardening.md); the scheme choice and
-`SecretStore` interface decisions below stand as originally accepted.
+`SecretStore` interface decisions below stand as originally accepted. On
+firmware, the Decision section's claim that `SecretStore` shares
+`SettingsStore`'s physical NVS storage is superseded by
+[ADR-0027](ADR-0027-secret-store-partition-separation.md), which gives it
+a dedicated `secrets` partition instead — the seam this ADR decided to
+create is what made that later change a backing-implementation swap
+rather than an interface change.
 
 ## Context
 
