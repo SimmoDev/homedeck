@@ -1,7 +1,5 @@
 #include "platform/host/display_brightness.h"
 
-#include <algorithm>
-
 namespace homedeck {
 
 HostDisplayBrightness::HostDisplayBrightness() {
@@ -18,7 +16,7 @@ HostDisplayBrightness::HostDisplayBrightness() {
 }
 
 void HostDisplayBrightness::SetPercent(int percent) {
-    int clamped = std::clamp(percent, 0, 100);
+    int clamped = ClampBrightnessPercent(percent);
     lv_opa_t opa = static_cast<lv_opa_t>((100 - clamped) * LV_OPA_COVER / 100);
     lv_obj_set_style_bg_opa(overlay_, opa, 0);
 }

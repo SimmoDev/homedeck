@@ -44,6 +44,7 @@ add_executable(homedeck_tests
   critical_battery_monitor_test.cpp
   network_status_monitor_test.cpp
   power_manager_test.cpp
+  display_brightness_test.cpp
   weather_provider_test.cpp
   notification_sound_test.cpp
   admin_auth_service_test.cpp
