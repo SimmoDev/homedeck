@@ -267,16 +267,31 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                 esp_wifi_connect();
                 break;
             case WIFI_EVENT_STA_DISCONNECTED: {
-                std::lock_guard<std::mutex> lock(g_state_mutex);
-                if (state.network_status != nullptr) {
-                    state.network_status->SetConnectionState(false, "", "");
+                bool give_up = false;
+                std::function<void()> on_connect_failed;
+                {
+                    std::lock_guard<std::mutex> lock(g_state_mutex);
+                    if (state.network_status != nullptr) {
+                        state.network_status->SetConnectionState(false, "", "");
+                    }
+                    give_up = state.reconnect_policy.OnDisconnected(state.setup_server != nullptr) ==
+                              WifiReconnectPolicy::Decision::kGiveUp;
+                    if (give_up) {
+                        on_connect_failed = state.ui_callbacks.on_connect_failed;
+                    }
                 }
-                if (state.reconnect_policy.OnDisconnected(state.setup_server != nullptr) ==
-                    WifiReconnectPolicy::Decision::kGiveUp) {
+                // on_connect_failed() invoked outside g_state_mutex, same as
+                // on_connected()/on_setup_needed() below - this function's
+                // own invariant (see its comment above) is that a UI
+                // callback never runs while holding the lock, since a
+                // future implementation that blocks or re-enters
+                // ApplyWifiCredentials()/ConnectToWifi() would otherwise
+                // deadlock against the httpd task.
+                if (give_up) {
                     ESP_LOGW(kTag, "Giving up after %d failed attempts - submit the setup form again to retry",
                              kMaxSetupReconnectAttempts);
-                    if (state.ui_callbacks.on_connect_failed) {
-                        state.ui_callbacks.on_connect_failed();
+                    if (on_connect_failed) {
+                        on_connect_failed();
                     }
                     break;
                 }
