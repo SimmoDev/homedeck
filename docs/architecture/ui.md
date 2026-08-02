@@ -153,9 +153,11 @@ explicitly doesn't yet:
   [overview.md](overview.md#hardware-abstraction) — real, via
   `NotificationSound` (`src/core/notification_sound.h`/`.cpp`), which
   plays the same short tone for every `NotificationEvent` regardless of
-  severity today. Differentiating the sound per severity is a real,
-  unresolved product decision (nothing publishes `kAlertPriority` yet),
-  tracked as an M7 follow-up rather than designed speculatively now.
+  severity today, even though `kAlertPriority` already has a real
+  publisher (`CriticalBatteryMonitor` — see
+  [power-management.md](power-management.md#status)). Differentiating
+  the sound per severity is a deliberately deferred M7 sound-design
+  follow-up, not something blocked on a second severity existing.
 - **Dashboard indicators** — real, via `NotificationWidget`
   (`src/ui/notification_widget.h`/`.cpp`), surfaced through the existing
   widget system (see [dashboard.md](dashboard.md#widget-system)), not a

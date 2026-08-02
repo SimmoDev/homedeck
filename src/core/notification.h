@@ -4,14 +4,14 @@
 
 namespace homedeck {
 
-// See ADR-0005's "Alert-priority wake cycle during Sleeping" decision -
-// this urgency distinction is required by Core's notification contract
-// from M2 onward, even though the wake cycle itself (Power Management,
-// still unbuilt) and the module "check current state" hook (deferred to
-// M5's Uptime Kuma module) aren't. kAlertPriority is for monitoring-type
-// alerts (starting with Uptime Kuma, per power-management.md) that
-// should eventually interrupt Sleeping; everything else is kDeferred,
-// surfaced whenever the device is next awake regardless.
+// This urgency distinction predates ADR-0024, which removed the
+// wake-cycle design ADR-0005 originally motivated it with - Sleeping
+// has no RTC wake cycle to interrupt, so the distinction carries no
+// wake-cycle behavior today. It remains available for a future
+// presentation difference (see ui.md#notification-presentation) and
+// already has a real publisher: CriticalBatteryMonitor publishes
+// kAlertPriority (see power-management.md#status); everything else is
+// kDeferred, surfaced whenever the device is next awake regardless.
 enum class NotificationSeverity {
     kDeferred,
     kAlertPriority,

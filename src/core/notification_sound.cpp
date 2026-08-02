@@ -34,9 +34,9 @@ NotificationSound::NotificationSound(EventBus& event_bus, AudioOutput& audio_out
     : audio_output_(audio_output),
       volume_percent_(std::clamp(initial_volume_percent, 0, 100)),
       subscription_(event_bus.Subscribe<NotificationEvent>([this](const NotificationEvent&) {
-          // Both severities play the same tone - differentiating them
-          // is real, unresolved product scope (nothing publishes
-          // kAlertPriority yet), not something to design speculatively.
+          // Both severities play the same tone today - a deliberately
+          // deferred M7 product/sound-design decision (see roadmap.md),
+          // not something blocked on a second severity existing.
           std::lock_guard<std::mutex> lock(wake_mutex_);
           if (playing_) {
               // A tone is already presenting - this notification doesn't

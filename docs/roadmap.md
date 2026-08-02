@@ -505,8 +505,10 @@ day-to-day usage with HomeDeck.
       not solved twice
 - [ ] Distinct notification sounds per `NotificationSeverity`
       (`src/core/notification_sound.cpp`) - currently one tone for both
-      `kDeferred`/`kAlertPriority`, deferred until a second severity
-      actually has a real publisher (see the M2 Notifications item)
+      `kDeferred`/`kAlertPriority`, even though `kAlertPriority` already
+      has a real publisher (`CriticalBatteryMonitor`, see the M2
+      Notifications item); deliberately deferred sound-design work, not
+      blocked on a publisher existing
 - [ ] Nicer notification sound design generally - `NotificationSound`'s
       current tone is a plain generated sine wave (no audio asset
       pipeline exists yet - see the M2 Audio bring-up item), functional
