@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, type BatteryStatus } from "./api";
+  import { loadJson, type ApiErrorBody, type BatteryStatus } from "./api";
 
   // Firmware update (see docs/architecture/web-ui.md#ota and
   // docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
@@ -57,10 +57,27 @@
     xhr.onload = () => {
       if (xhr.status === 200) {
         uploadState = "success";
-      } else {
-        uploadState = "error";
-        uploadError = `Upload failed: ${xhr.status}`;
+        return;
       }
+      uploadState = "error";
+      // xhr.responseText, not readErrorBody() (which takes a fetch
+      // Response) - same {"error":...} shape core/ota_routes.cpp's
+      // three failure bodies share.
+      let errorBody: ApiErrorBody = {};
+      try {
+        errorBody = JSON.parse(xhr.responseText) as ApiErrorBody;
+      } catch {
+        // Non-JSON body (e.g. a proxy error) - fall through to the
+        // generic status message below.
+      }
+      uploadError =
+        errorBody.error === "gate_closed"
+          ? `Update blocked: ${errorBody.reason ?? "gate closed"}.`
+          : errorBody.error === "image_too_large"
+            ? "The selected file is too large to be a valid firmware image."
+            : errorBody.error === "write_failed"
+              ? "The device failed to write the update - try again."
+              : `Upload failed: ${xhr.status}`;
     };
     xhr.onerror = () => {
       uploadState = "error";

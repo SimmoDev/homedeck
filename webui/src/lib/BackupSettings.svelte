@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { readErrorBody } from "./api";
+
   // Settings backup/restore (see ADR-0023-settings-backup-api.md). The
   // backend API is generic (any module/key) - the download link is a
   // complete "see everything" escape hatch for debugging, independent
@@ -28,7 +30,13 @@
         body,
       });
       if (!response.ok) {
-        restoreError = `Restore failed: ${response.status}`;
+        const errorBody = await readErrorBody(response);
+        restoreError =
+          errorBody.error === "invalid_request"
+            ? "The selected file isn't valid backup JSON."
+            : errorBody.error === "missing_field"
+              ? "The selected file is missing its settings list."
+              : `Restore failed: ${response.status}`;
         return;
       }
       const result = (await response.json()) as { applied: number; failed: unknown[] };

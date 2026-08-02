@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, type SettingEntry } from "./api";
+  import { loadJson, readErrorBody, type SettingEntry } from "./api";
 
   // The dashboard's weather source (see docs/architecture/dashboard.md's
   // Weather source section and ADR-0008). Backed by the generic
@@ -47,7 +47,13 @@
     try {
       const response = await fetch(`/api/weather/geocode?query=${encodeURIComponent(query)}`);
       if (!response.ok) {
-        searchError = `Search failed: ${response.status}`;
+        const errorBody = await readErrorBody(response);
+        searchError =
+          errorBody.error === "upstream_failed"
+            ? "Couldn't reach the location search service."
+            : errorBody.error === "upstream_invalid_response"
+              ? "The location search service returned an unexpected response."
+              : `Search failed: ${response.status}`;
         return;
       }
       const body = (await response.json()) as { results: GeocodeResult[] };
