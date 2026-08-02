@@ -1,6 +1,7 @@
 #include "ui/weather_widget.h"
 
 #include "ui/theme.h"
+#include "ui/widget_tile.h"
 
 #include <cstdio>
 
@@ -85,12 +86,7 @@ void RefreshWeatherLabels(lv_obj_t* condition_label, lv_obj_t* location_label, c
 }  // namespace
 
 WeatherWidget::WeatherWidget(lv_obj_t* parent, EventBus& event_bus, WeatherProvider& weather_provider) {
-    root_ = lv_obj_create(parent);
-    lv_obj_set_style_pad_all(root_, 8, 0);
-    lv_obj_clear_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
-    // Same column flex, centered-both-axes layout as NetworkStatusWidget.
-    lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    root_ = CreateWidgetTileRoot(parent);
 
     condition_label_ = lv_label_create(root_);
     lv_obj_set_style_text_font(condition_label_, kBodyFont, 0);

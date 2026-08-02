@@ -1,15 +1,12 @@
 #include "ui/notification_widget.h"
 
 #include "ui/theme.h"
+#include "ui/widget_tile.h"
 
 namespace homedeck {
 
 NotificationWidget::NotificationWidget(lv_obj_t* parent, EventBus& event_bus) {
-    root_ = lv_obj_create(parent);
-    lv_obj_set_style_pad_all(root_, 8, 0);
-    lv_obj_clear_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    root_ = CreateWidgetTileRoot(parent);
 
     title_label_ = lv_label_create(root_);
     lv_obj_set_style_text_font(title_label_, kBodyFont, 0);

@@ -1,6 +1,7 @@
 #include "ui/network_status_widget.h"
 
 #include "ui/theme.h"
+#include "ui/widget_tile.h"
 
 namespace homedeck {
 
@@ -27,14 +28,9 @@ void RefreshNetworkLabels(lv_obj_t* state_label, lv_obj_t* ssid_label, lv_obj_t*
 }  // namespace
 
 NetworkStatusWidget::NetworkStatusWidget(lv_obj_t* parent, EventBus& event_bus, NetworkStatus& network_status) {
-    root_ = lv_obj_create(parent);
-    lv_obj_set_style_pad_all(root_, 8, 0);
-    lv_obj_clear_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
-    // Same column flex, centered-both-axes layout as ClockWidget - stacks
-    // the three lines and keeps them centered regardless of exact cell
-    // size.
-    lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    // Stacks the three lines, centered - see CreateWidgetTileRoot() for
+    // the shared tile layout every widget builds on.
+    root_ = CreateWidgetTileRoot(parent);
 
     state_label_ = lv_label_create(root_);
     lv_obj_set_style_text_font(state_label_, kBodyFont, 0);

@@ -112,6 +112,7 @@ if(TARGET lvgl)
     ui/home_affordance.cpp
     ui/status_bar.cpp
     ui/dashboard_grid.cpp
+    ui/widget_tile.cpp
     ui/clock_widget.cpp
     ui/network_status_widget.cpp
     ui/weather_widget.cpp

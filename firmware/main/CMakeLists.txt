@@ -51,6 +51,7 @@ idf_component_register(
         "../../src/ui/time_format.cpp"
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"
+        "../../src/ui/widget_tile.cpp"
         "../../src/ui/clock_widget.cpp"
         "../../src/ui/network_status_widget.cpp"
         "../../src/ui/weather_widget.cpp"

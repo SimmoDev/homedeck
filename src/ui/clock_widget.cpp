@@ -3,18 +3,15 @@
 #include "core/clock.h"
 #include "ui/theme.h"
 #include "ui/time_format.h"
+#include "ui/widget_tile.h"
 
 namespace homedeck {
 
 ClockWidget::ClockWidget(lv_obj_t* parent, EventBus& event_bus) {
-    root_ = lv_obj_create(parent);
-    lv_obj_set_style_pad_all(root_, 8, 0);
-    lv_obj_clear_flag(root_, LV_OBJ_FLAG_SCROLLABLE);
-    // Column flex, centered both axes - stacks time above date and
-    // keeps both centered in the cell regardless of exact cell size,
-    // rather than hand-tuned pixel offsets tied to today's row height.
-    lv_obj_set_flex_flow(root_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(root_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    // Stacks time above date, both centered in the cell - see
+    // CreateWidgetTileRoot() for the shared tile layout every widget
+    // builds on.
+    root_ = CreateWidgetTileRoot(parent);
 
     time_label_ = lv_label_create(root_);
     lv_obj_set_style_text_font(time_label_, &lv_font_montserrat_48, 0);
