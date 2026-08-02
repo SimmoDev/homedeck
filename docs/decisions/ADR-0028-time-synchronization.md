@@ -12,9 +12,10 @@ supplies a supercapacitor-backed clock, but nothing in the codebase has ever
 written a correct value into it, so it reads a meaningless factory/power-on
 date on the reference unit. That same document named the fix as needing
 "either SNTP over Wi-Fi or a manual set-time affordance" and called both "M2
-scope" — but no roadmap.md item, checked or unchecked, was ever created for
-either, so the gap fell out of milestone tracking entirely rather than being
-delivered or explicitly deferred: the always-on status bar clock and every
+scope" — but no [roadmap.md](../roadmap.md) item, checked or unchecked, was
+ever created for either, so the gap fell out of milestone tracking entirely
+rather than being delivered or explicitly deferred: the always-on status bar
+clock and every
 structured log timestamp (`Logger`,
 [ADR-0019](ADR-0019-structured-logging.md)) are both wrong on real
 hardware, indefinitely, with no path to fixing it.
@@ -61,7 +62,9 @@ that the clock is now *correct in UTC* rather than *meaningless*, a strict
 improvement, but still not corrected to the user's actual local timezone.
 Adding real timezone support (a Web UI setting, offset/DST math) is a
 separate, genuinely new feature, not a natural extension of fixing RTC
-calibration — tracked as its own roadmap.md item, not solved here.
+calibration - noted in [roadmap.md](../roadmap.md)'s M2 RTC item as a
+future item not yet placed against a specific milestone, not solved
+here.
 
 **esp_sntp_config_t's `sync_cb` is a plain C function pointer with no
 `user_data` slot**, so it can't close over `Rx8130TimeSource`/`Logger`

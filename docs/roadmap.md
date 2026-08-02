@@ -145,7 +145,9 @@ simulator.
       separate, intermittent, not-yet-root-caused crash risk during the
       Wi-Fi-connect burst, unrelated to this parsing/validation logic —
       **explicitly accepted as a known risk carried into M3**, not an
-      ambiguous "still open," per hardware.md's own Accepted risk note.
+      ambiguous "still open," per
+      [hardware.md](architecture/hardware.md#wi-fi-bring-up)'s own
+      Accepted risk note.
       The Web UI's Diagnostics page has a **Reset Wi-Fi credentials**
       action (`POST /api/wifi/reset`, see
       [web-ui.md](architecture/web-ui.md#diagnostics)) purpose-built to
