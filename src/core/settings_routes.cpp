@@ -12,6 +12,17 @@ namespace {
 
 constexpr const char* kDeviceNameKey = "device_name";
 
+// A defense-in-depth ceiling, not a real settings-size concern - every
+// legitimate value this generic API stores today is tiny (a device name,
+// a lat/long pair, a module credential), and NVS itself is meant for
+// small, frequently-read data (see docs/decisions/ADR-0012-storage-tiers.md),
+// not the tier this API is built on. Without this, the only bound on a
+// submitted value is the generic kMaxHttpRequestBodyBytes cap every
+// endpoint shares, letting an authenticated caller force repeated
+// multi-megabyte NVS write attempts against a partition sized for
+// kilobytes. Generous enough that no real setting value is ever rejected.
+constexpr size_t kMaxSettingValueLength = 4096;
+
 // The same length-plus-path-segment-safety check every SettingsStore
 // backend enforces (platform/store_key_validation.h) - checked here too so
 // a rejected module/key surfaces as a clean 400 instead of falling through
@@ -75,6 +86,9 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             std::string value = value_it->get<std::string>();
             if (InvalidKey(module, key)) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_key"})", {}};
+            }
+            if (value.size() > kMaxSettingValueLength) {
+                return HttpResponse{400, "application/json", R"({"error":"value_too_long"})", {}};
             }
             if (AdminAuthService::IsReservedSettingsKey(module, key)) {
                 return HttpResponse{403, "application/json", R"({"error":"reserved_key"})", {}};
@@ -167,8 +181,9 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                     rejected.push_back({{"module", module}, {"key", key}});
                     continue;
                 }
-                bool ok = !InvalidKey(module, key) &&
-                          storage.SetSetting(module, key, schema_it->get<int>(), value_it->get<std::string>());
+                std::string value = value_it->get<std::string>();
+                bool ok = !InvalidKey(module, key) && value.size() <= kMaxSettingValueLength &&
+                          storage.SetSetting(module, key, schema_it->get<int>(), value);
                 if (ok) {
                     ++applied;
                 } else {

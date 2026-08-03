@@ -6,6 +6,7 @@
 #include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
 #include "platform/host/time_source.h"
+#include "third_party/nlohmann/json.hpp"
 
 #include "http_test_helpers.h"
 
@@ -137,6 +138,23 @@ TEST_F(SettingsRoutesTest, PostSettingsRejectsOversizedModuleOrKey) {
         R"({"module":"harmony","key":"this_key_is_way_too_long_for_nvs","value":"x","schemaVersion":1})", cookie);
     EXPECT_EQ(post.status_code, 400);
     EXPECT_NE(post.body.find("invalid_key"), std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, PostSettingsRejectsAValueOverTheLengthCap) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
+    ASSERT_TRUE(server.Start(18220));
+    std::string cookie = Login(18220);
+
+    // kMaxSettingValueLength (4096, settings_routes.cpp) - one byte over.
+    std::string oversized_value(4097, 'x');
+    nlohmann::json body = {{"module", "harmony"}, {"key", "note"}, {"value", oversized_value}, {"schemaVersion", 1}};
+    auto post = HttpRequestRaw(18220, "POST", "/api/settings", body.dump(), cookie);
+    EXPECT_EQ(post.status_code, 400);
+    EXPECT_NE(post.body.find("value_too_long"), std::string::npos);
+
+    EXPECT_FALSE(storage_->GetSetting("harmony", "note").has_value());
 }
 
 TEST_F(SettingsRoutesTest, PostSettingsRejectsPathTraversalInModuleOrKey) {
