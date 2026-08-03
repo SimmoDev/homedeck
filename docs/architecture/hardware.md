@@ -53,10 +53,10 @@ if a fact drifts.
   `CONFIG_ESP_HOSTED_PRIV_SDIO_PIN_*_SLOT_1` options, and
   `CONFIG_ESP_HOSTED_SDIO_GPIO_RESET_SLAVE` in `sdkconfig.defaults`.
   ESP-Hosted's Kconfig defaults assume Espressif's P4 eval board wiring,
-  which doesn't match this hardware. Note:
-  `m5stack_tab5.c`'s `GPIO_SDMMC_*` constants (43/44/39/40/41/42) look
-  similar but are the *microSD card slot's* separate SDMMC host instance,
-  not the C6 — that source doesn't contain the C6's SDIO wiring at all.
+  which doesn't match this hardware. Note: GPIOs 43/44/39/40/41/42 are a
+  *separate* pin group entirely — the microSD card slot's own SDMMC host
+  instance, not the C6's SDIO link — easy to confuse since the numbers
+  fall in the same range.
 - **Power domain confirmed.** The C6's power enable (`WLAN_PWR_EN`) is
   bit 0 of a dedicated I2C GPIO expander output (PI4IOE5V6408, I2C
   address `0x44` — see the address map above), toggled via
