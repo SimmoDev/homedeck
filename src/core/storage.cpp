@@ -8,20 +8,6 @@ namespace homedeck {
 
 namespace {
 
-// SettingsStore and SecretStore now live on physically separate NVS
-// partitions on firmware (see
-// docs/decisions/ADR-0027-secret-store-partition-separation.md), so a
-// generic settings write/list can no longer reach the admin password
-// hash through the wrong door regardless of this check. Kept as a
-// second-layer safeguard against a confusing namespace collision (a
-// settings entry literally named "admin_pw_hash" would otherwise be
-// misleading, even though it can no longer overwrite the real secret) -
-// see docs/decisions/ADR-0023-settings-backup-api.md#decision for the
-// original reasoning this guard was introduced under.
-bool IsReservedForSecrets(const std::string& module_id, const std::string& key) {
-    return module_id == AdminAuthService::kModuleId && key == AdminAuthService::kPasswordKey;
-}
-
 // A schema-versioned envelope, deliberately not JSON - Storage doesn't
 // need to understand what's inside a value, only carry a version
 // alongside it (see storage.h). A plain "<version>\n<value>" prefix keeps
@@ -66,7 +52,17 @@ Storage::Storage(SettingsStore& settings_store, CacheStore& cache_store, SecretS
 
 bool Storage::SetSetting(const std::string& module_id, const std::string& key, int schema_version,
                           const std::string& value) {
-    if (IsReservedForSecrets(module_id, key)) {
+    // SettingsStore and SecretStore now live on physically separate NVS
+    // partitions on firmware (see
+    // docs/decisions/ADR-0027-secret-store-partition-separation.md), so a
+    // generic settings write/list can no longer reach the admin password
+    // hash through the wrong door regardless of this check. Kept as a
+    // second-layer safeguard against a confusing namespace collision (a
+    // settings entry literally named "admin_pw_hash" would otherwise be
+    // misleading, even though it can no longer overwrite the real secret) -
+    // see docs/decisions/ADR-0023-settings-backup-api.md#decision for the
+    // original reasoning this guard was introduced under.
+    if (AdminAuthService::IsReservedSettingsKey(module_id, key)) {
         return false;
     }
     std::lock_guard<std::mutex> lock(mutex_);
@@ -79,7 +75,7 @@ std::optional<VersionedValue> Storage::GetSetting(const std::string& module_id, 
 }
 
 bool Storage::EraseSetting(const std::string& module_id, const std::string& key) {
-    if (IsReservedForSecrets(module_id, key)) {
+    if (AdminAuthService::IsReservedSettingsKey(module_id, key)) {
         return false;
     }
     std::lock_guard<std::mutex> lock(mutex_);
@@ -90,7 +86,7 @@ std::vector<SettingEntry> Storage::ListAllSettings() {
     std::lock_guard<std::mutex> lock(mutex_);
     std::vector<SettingEntry> entries;
     for (const SettingsEntry& raw : settings_store_.ListAll()) {
-        if (IsReservedForSecrets(raw.ns, raw.key)) {
+        if (AdminAuthService::IsReservedSettingsKey(raw.ns, raw.key)) {
             continue;
         }
         std::optional<VersionedValue> decoded = Decode(raw.value);

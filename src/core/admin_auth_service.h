@@ -47,6 +47,16 @@ public:
     static constexpr const char* kModuleId = "core";
     static constexpr const char* kPasswordKey = "admin_pw_hash";
 
+    // True for the exact (module_id, key) pair above - the one reserved
+    // pair every generic settings-writing path (Storage::SetSetting/
+    // EraseSetting/ListAllSettings, and settings_routes.cpp's own
+    // pre-check ahead of a distinguishable 403) must refuse to touch. A
+    // single static predicate rather than each of those call sites
+    // re-deriving the same module_id/key comparison independently.
+    static bool IsReservedSettingsKey(const std::string& module_id, const std::string& key) {
+        return module_id == kModuleId && key == kPasswordKey;
+    }
+
     AdminAuthService(Storage& storage, TimeSource& time_source);
     ~AdminAuthService();
 
