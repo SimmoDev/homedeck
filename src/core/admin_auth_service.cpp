@@ -294,11 +294,22 @@ std::optional<SessionToken> AdminAuthService::Login(const std::string& password)
     // stored hash is also read here, under the same short-held lock as
     // the lockout check - Storage::GetSecret() is fast (its own internal
     // mutex, not this one), unlike the hash-and-compare step below.
+    //
+    // The attempt is reserved against failed_login_attempts_ here, before
+    // PBKDF2 runs, not after - since the hash runs outside mutex_ (see
+    // below), checking-then-incrementing on either side of it would let
+    // concurrent callers all pass the lockout check before any of them
+    // registered as a failure, allowing more than kMaxFailedLoginAttempts
+    // guesses into one window. Reserving up front closes that gap; a
+    // correct password un-reserves it again once verified below.
     std::optional<StoredPasswordHash> stored_hash;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (time_source_.Now() < locked_until_) {
             return std::nullopt;
+        }
+        if (++failed_login_attempts_ >= kMaxFailedLoginAttempts) {
+            locked_until_ = time_source_.Now() + kLoginLockoutDuration;
         }
         stored_hash = ParseStoredPasswordHash(storage_.GetSecret(kModuleId, kPasswordKey));
     }
@@ -320,13 +331,16 @@ std::optional<SessionToken> AdminAuthService::Login(const std::string& password)
 
     std::lock_guard<std::mutex> lock(mutex_);
     if (!authenticated) {
-        if (++failed_login_attempts_ >= kMaxFailedLoginAttempts) {
-            locked_until_ = time_source_.Now() + kLoginLockoutDuration;
-        }
+        // Already reserved against failed_login_attempts_ above - nothing
+        // more to record on the failure path.
         return std::nullopt;
     }
 
+    // A correct password un-reserves the attempt charged above, including
+    // clearing a lockout this exact call may have just triggered - a
+    // legitimate login shouldn't lock its own caller out.
     failed_login_attempts_ = 0;
+    locked_until_ = std::chrono::system_clock::time_point{};
     SweepExpiredSessions();
     SessionToken token = GenerateSessionToken();
     sessions_[token] = time_source_.Now() + kSessionLifetime;

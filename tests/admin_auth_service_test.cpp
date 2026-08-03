@@ -207,6 +207,59 @@ TEST_F(AdminAuthServiceTest, RequireAuthReturns401WithoutAValidSessionCookie) {
     EXPECT_FALSE(inner_called);
 }
 
+namespace {
+// Decorates a real SecretStore to count Get() calls - a proxy for "how
+// many Login() calls actually got past the lockout gate to attempt a
+// real password comparison," since Login() only reads the stored hash
+// from inside that gate.
+class CountingSecretStore : public homedeck::SecretStore {
+public:
+    explicit CountingSecretStore(homedeck::SecretStore& inner) : inner_(inner) {}
+    bool Set(const std::string& ns, const std::string& key, const std::string& value) override {
+        return inner_.Set(ns, key, value);
+    }
+    std::optional<std::string> Get(const std::string& ns, const std::string& key) override {
+        get_calls.fetch_add(1);
+        return inner_.Get(ns, key);
+    }
+    bool Erase(const std::string& ns, const std::string& key) override { return inner_.Erase(ns, key); }
+
+    std::atomic<int> get_calls{0};
+
+private:
+    homedeck::SecretStore& inner_;
+};
+}  // namespace
+
+TEST_F(AdminAuthServiceTest, ConcurrentWrongPasswordAttemptsNeverExceedTheLockoutThresholdBeforeLockingOut) {
+    // Regression test: the attempt used to be recorded against
+    // failed_login_attempts_ only *after* PBKDF2 ran (see Login()'s own
+    // comment), so concurrent callers could all pass the "not locked out"
+    // check before any of them registered as a failure - letting an
+    // unbounded number of concurrent guesses reach the real password
+    // comparison within one lockout window, regardless of
+    // kMaxFailedLoginAttempts. The attempt is now reserved up front,
+    // before hashing, closing that gap.
+    CountingSecretStore counting_secret_store(*secret_store_);
+    homedeck::Storage storage(*settings_store_, *cache_store_, counting_secret_store);
+    homedeck::AdminAuthService auth(storage, time_source_);
+    ASSERT_TRUE(auth.SetInitialPassword("correct horse battery staple").has_value());
+    counting_secret_store.get_calls = 0;  // reset after SetInitialPassword's own reads
+
+    constexpr int kConcurrentAttempts = 20;  // well over kMaxFailedLoginAttempts (5)
+    std::vector<std::thread> attackers;
+    for (int i = 0; i < kConcurrentAttempts; i++) {
+        attackers.emplace_back([&] { auth.Login("wrong password"); });
+    }
+    for (auto& t : attackers) t.join();
+
+    EXPECT_TRUE(auth.IsLoginLockedOut());
+    // At most kMaxFailedLoginAttempts calls should ever have reached the
+    // real password comparison - the rest must have been rejected by the
+    // lockout gate before reading the stored hash at all.
+    EXPECT_LE(counting_secret_store.get_calls.load(), 5);
+}
+
 TEST_F(AdminAuthServiceTest, ConcurrentLoginAndValidateSessionDoNotRaceOrCorruptState) {
     homedeck::AdminAuthService auth(*storage_, time_source_);
     auto initial_token = auth.SetInitialPassword("correct horse battery staple");
