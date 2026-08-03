@@ -251,7 +251,7 @@ simulator.
       `AudioOutput` (`src/platform/`) is the portable interface —
       mono 16-bit PCM, blocking, paced in real time on both targets —
       with `FirmwareAudioOutput` (`esp_codec_dev`) and `HostAudioOutput`
-      (SDL2) implementations, confirmed audible on hardware. On-device
+      (SDL2) implementations, audible on hardware. On-device
       volume control is covered by the Power management item below.
       Still open: the ES7210 mic input, not wired up - no capability
       needs it yet.
@@ -267,7 +267,7 @@ simulator.
       (`src/core/`) as the first real publisher (latched so a sustained
       low-battery state notifies once, not once a second). The three
       outputs — `NotificationBanner`, `NotificationSound`, and
-      `NotificationWidget` (all `src/ui/`) — are confirmed together on
+      `NotificationWidget` (all `src/ui/`) — all work together on
       both the simulator and hardware. The alert-priority/deferred
       urgency distinction this service carries no longer gates any
       wake-cycle behavior (see

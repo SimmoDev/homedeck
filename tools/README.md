@@ -16,7 +16,7 @@ read that first if a script here does something unexpected.
   that doesn't have one yet (default host `homedeck.local` - pass an IP
   if mDNS resolution doesn't work on your machine).
 
-All four work against the K145 reference unit.
+All four target the K145 reference unit.
 
 ## Pre-commit checks
 

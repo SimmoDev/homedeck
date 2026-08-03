@@ -46,7 +46,7 @@ design, since flashing/debugging convenience outweighs a threat this
 project's current secret surface doesn't yet justify hardening against.
 The Standard tier activates NVS encryption via the HMAC-peripheral key
 scheme ADR-0010 already chose (not ESP-IDF's default flash-encryption-
-based scheme, which was considered and rejected for reintroducing real
+based scheme, which was considered and rejected for reintroducing
 re-flashing development cost) once a real module credential exists to
 justify its one-time, irreversible eFuse provisioning step. See
 [ADR-0010](../decisions/ADR-0010-secret-storage.md) for the scheme choice

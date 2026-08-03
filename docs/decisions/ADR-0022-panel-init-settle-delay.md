@@ -12,17 +12,15 @@ background rendered as grey rather than black on some boots, converging
 to black over several seconds - correlated with, but not caused by, the
 same `CONFIG_SPIRAM_XIP_FROM_PSRAM` change.
 
-Direct instrumentation of LVGL's public display events
-(`LV_EVENT_REFR_START/READY`, `LV_EVENT_FLUSH_START/FINISH`) on the K145
-reference unit ruled out every software explanation: the status bar's
-background is written to the framebuffer and flushed in a single pass
-lasting microseconds, at construction time, and is never touched again.
-Clock-tick event dispatch (a separate instrumentation pass) was also
-confirmed to run on a regular ~1030ms cadence throughout boot, ruling
-out LVGL task starvation as well. With the framebuffer and rendering
-pipeline both proven correct almost instantly, the remaining explanation
-is the ST7123 panel's own optical response after power-up - not a
-software bug.
+Every software explanation is ruled out by LVGL's own display-event
+timing (`LV_EVENT_REFR_START/READY`, `LV_EVENT_FLUSH_START/FINISH`): the
+status bar's background is written to the framebuffer and flushed in a
+single pass lasting microseconds, at construction time, and is never
+touched again, and clock-tick event dispatch runs on a regular ~1030ms
+cadence throughout boot, ruling out LVGL task starvation too. With the
+framebuffer and rendering pipeline both correct, the remaining
+explanation is the ST7123 panel's own optical response after power-up -
+not a software bug.
 
 The panel's init command table
 (`espressif__m5stack_tab5/priv_include/disp_init_data_1.h`) shipped with

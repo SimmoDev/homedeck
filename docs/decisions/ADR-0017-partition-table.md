@@ -126,7 +126,7 @@ reintroduce silently otherwise.
   interspersed before `nvs`), so existing on-device NVS content doesn't
   carry over from the previous single-app table — a one-time,
   expected consequence of this change, not a defect. Wi-Fi credentials
-  are unaffected either way, since they're confirmed to live on the C6
+  are unaffected either way, since they live on the C6
   co-processor's own flash, not this table (see
   [hardware.md#wi-fi-bring-up](../architecture/hardware.md#wi-fi-bring-up)).
 - `ota_0`/`ota_1` sizing is a judgment call against currently-unbuilt

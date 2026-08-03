@@ -426,12 +426,12 @@ second, conflicting one on the same physical pins.
 
 HomeDeck should run fully on a battery-less C145 unit powered from USB-C
 alone — [CLAUDE.md](../../CLAUDE.md)'s "work fully using stock Tab5 hardware" requirement,
-applied to both SKUs, not just the K145 reference unit. This is a real,
-not hypothetical, gap in what's currently verified:
+applied to both SKUs, not just the K145 reference unit. This is not a
+hypothetical gap in what's currently verified:
 
 - **Confirmed:** bus-voltage readings are not meaningful with no battery
   attached - they swing unpredictably (see [Power](#power)'s Battery
-  presence bullet), never settling. Current-based detection is the real
+  presence bullet), never settling. Current-based detection is the
   "no battery installed" vs. "battery installed" signal on the K145
   reference unit. A running C145 unit has no possible power source
   other than USB-C. See
@@ -446,7 +446,7 @@ not hypothetical, gap in what's currently verified:
 
 ## Physical form factor
 
-Confirmed against the project's own reference unit:
+**Confirmed**, against the project's own reference unit:
 
 - The battery (see [Power](#power) above) clips onto the back of the
   device, on the opposite short edge from the USB ports.

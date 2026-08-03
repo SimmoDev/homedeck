@@ -62,8 +62,8 @@ could not fully resolve is gone.
   behavior, not a standing hardware characteristic.
 - Steady-state PSRAM bus load is higher than before (per the trade-off
   above) - worth watching if a future PSRAM-bandwidth-sensitive feature
-  (e.g. video/camera work) shows contention, but no regression observed
-  in normal operation on the reference unit.
+  (e.g. video/camera work) shows contention, though normal operation
+  shows no regression from it today.
 - microSD-backed log archival ([ADR-0012](ADR-0012-storage-tiers.md))
   remains open but is no longer motivated by this glitch - it stands or
   falls on its original "extended retention past the internal tier's

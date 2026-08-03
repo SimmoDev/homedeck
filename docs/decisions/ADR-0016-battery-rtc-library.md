@@ -52,11 +52,11 @@ choice was needed, not just a reuse of an already-decided answer.
   satisfied by the `v5.4.3` pin ADR-0014 already established.
 
 **Decided:** `espp/ina226` and `espp/rx8130ce`, pulled as managed
-components (`firmware/main/idf_component.yml`). Confirmed working on the
-reference hardware: a real (not mocked) battery percentage and real RTC
-time both read successfully — see
+components (`firmware/main/idf_component.yml`). Both a battery
+percentage and RTC time read successfully on the reference hardware,
+not mocked — see
 [hardware.md](../architecture/hardware.md#on-device-dashboard) for what
-those reads actually showed, including two real gaps this surfaced (a
+those reads actually showed, including two gaps this surfaced (a
 simple linear battery-percentage approximation, not true fuel-gauge
 coulomb-counting; and the RTC having never been set, both pre-flagged
 limitations, not library bugs). Both components communicate through

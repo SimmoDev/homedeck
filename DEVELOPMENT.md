@@ -103,7 +103,7 @@ worth re-reading in full up front.
   precedent as SDL2 above.
 - **Python 3** — only needed on the host if using a native ESP-IDF install
   instead of Docker; the `espressif/idf:v5.4.3` image bundles its own
-  (Python 3.12.3, verified working).
+  (Python 3.12.3).
 - **Node.js + npm** — builds the Web Management UI's Svelte/Vite frontend
   (`webui/`). Required before building firmware or the simulator, not
   optional: both depend on `webui/dist/` existing (see [Build/test
@@ -118,16 +118,15 @@ worth re-reading in full up front.
 
 ## ESP-IDF setup
 
-**Verified working:** `esp32p4` target support, a full `idf.py build`, and
-real hardware flash/monitor, all run through the `espressif/idf:v5.4.3`
-Docker image — no native ESP-IDF install involved (and no issue with the
-host's own, very new Python — the container brings its own 3.12.3). The
-firmware target now builds the real HomeDeck dashboard (`EventBus`,
-`Clock`, `DashboardScreen`, reused directly from `src/`, plus
-firmware-specific `Task`/`Timer`/`BatteryReader`/`TimeSource`
-implementations in `src/platform/firmware/`), not just a bare template —
-confirmed running live on the Tab5 K145 reference unit, real sensor data
-included (see [docs/roadmap.md](docs/roadmap.md)'s M1 items).
+The `espressif/idf:v5.4.3` Docker image provides `esp32p4` target support,
+`idf.py build`, and hardware flash/monitor — no native ESP-IDF install
+involved (and no issue with the host's own, very new Python — the
+container brings its own 3.12.3). The firmware target builds the
+HomeDeck dashboard (`EventBus`, `Clock`, `DashboardScreen`, reused
+directly from `src/`, plus firmware-specific
+`Task`/`Timer`/`BatteryReader`/`TimeSource` implementations in
+`src/platform/firmware/`), not just a bare template — see
+[docs/roadmap.md](docs/roadmap.md)'s M1 items for status.
 
 [tools/](tools/README.md) has scripts wrapping the commands below
 (`flash.sh`, `monitor.sh`, `factory-reset.sh`, `set-password.sh`) for
@@ -179,13 +178,12 @@ do and why, worth reading at least once.
 
    **`firmware/components/` vs. `firmware/managed_components/`:** the
    former is git-tracked and holds `m5stack_tab5`, a local fork carrying
-   a real fix (see
+   a fix (see
    [ADR-0022](docs/decisions/ADR-0022-panel-init-settle-delay.md)) —
    `firmware/main/idf_component.yml`'s `override_path` points there
    instead of fetching it. Everything else is fetched into the latter,
    which is gitignored and safe to delete for a clean re-fetch.
-4. **Flashing and monitoring — confirmed working** against the real Tab5
-   K145 reference unit:
+4. **Flashing and monitoring**, against a Tab5 K145 reference unit:
    ```
    docker run --rm -it -v "$(pwd):/project" -w /project/firmware \
      --device=/dev/ttyACM0 \

@@ -146,15 +146,12 @@ loop for a rare, self-inflicted-only case.
 - This project now carries an interim, explicitly-scoped security
   mitigation (the reserved-key guard) rather than the structurally
   correct fix. Extending it whenever a new `SecretStore` key is
-  introduced is a real, manual step - flagged here so it isn't
-  forgotten, not left to be rediscovered.
+  introduced is a manual step - flagged here so it isn't forgotten, not
+  left to be rediscovered.
 - [roadmap.md](../roadmap.md)'s Status bar item already separately tracks
   `StatusBar`'s clock label not reading `TimeSource` immediately: this
   ADR's `device_name` work doesn't touch that.
 - Both `POST /api/settings` and `POST /api/backup/restore` reject an
   `admin_pw_hash` overwrite attempt; the original password hash stays
-  unchanged and still logs in. The same holds over the LAN on the Tab5
-  K145 reference unit, including the live mDNS re-announce (serial log:
-  `mDNS re-announced as <name>.local`, no reboot). The reserved-key
-  rejection is reliable across repeated attempts, not just occasionally
-  correct.
+  unchanged and still logs in. This also holds across a device-name
+  change's mDNS re-announce, which requires no reboot.

@@ -65,7 +65,7 @@ act on.
   [CLAUDE.md](../../CLAUDE.md) requires HomeDeck work fully on stock hardware without a
   card present, so this can only ever be a fallback-guarded enhancement
   layered on top of internal-flash logging, not a standalone fix, and
-  the SDMMC bring-up plus presence-detection/fallback logic is real,
+  the SDMMC bring-up plus presence-detection/fallback logic is its own
   separate scope.
 
 This will only get more consequential, not less: M3+ modules generate

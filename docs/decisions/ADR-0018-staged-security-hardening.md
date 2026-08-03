@@ -90,8 +90,9 @@ on the record rather than being reinvented later.
   (see [hardware.md](../architecture/hardware.md#wi-fi-bring-up)) — a
   scope correction against ADR-0010's original Consequences section,
   which named them alongside the admin password hash.
-- A future Standard-tier pass is real implementation work with its own
-  eFuse-burn confirmation, not something to fold into an unrelated change
+- A future Standard-tier pass is its own implementation work, with its
+  own eFuse-burn verification, not something to fold into an unrelated
+  change
   — it gets its own review and explicit go-ahead when undertaken, per
   [CLAUDE.md](../../CLAUDE.md)'s standing requirement to confirm irreversible actions before
   taking them.
