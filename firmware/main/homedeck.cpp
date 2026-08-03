@@ -81,14 +81,17 @@ void PrintBootBanner() {
 // be called directly from the /api/ota/reboot handler, since the
 // handler still has to return so its 200 response is actually sent
 // first. The delay just needs to clear that write; it isn't otherwise
-// meaningful.
+// meaningful. OtaRebootFn has no failure-reporting contract (the 200
+// response is already committed by the time this runs), so a scheduling
+// failure here has nothing left to report to - only worth logging.
 void ScheduleReboot() {
     esp_timer_handle_t timer = nullptr;
     esp_timer_create_args_t args = {};
     args.callback = [](void*) { esp_restart(); };
     args.name = "ota_reboot";
-    esp_timer_create(&args, &timer);
-    esp_timer_start_once(timer, 500 * 1000);
+    if (esp_timer_create(&args, &timer) != ESP_OK || esp_timer_start_once(timer, 500 * 1000) != ESP_OK) {
+        printf("ScheduleReboot: failed to schedule the deferred reboot\n");
+    }
 }
 
 // Passed to RegisterWifiRoutes as its WifiResetFn. Same deferral reason as
@@ -114,7 +117,12 @@ void ScheduleReboot() {
 // second confirmed Web UI action that could never actually be clicked in
 // time regardless (the connection carrying the first response is already
 // gone by then).
-void ScheduleWifiResetAndReboot() {
+//
+// Returns false if scheduling itself fails (matching WifiResetFn's own
+// contract, see wifi_routes.h) - the caller must not report success to
+// the Web UI in that case, since neither the credential clear nor the
+// reboot will actually happen.
+bool ScheduleWifiResetAndReboot() {
     esp_timer_handle_t timer = nullptr;
     esp_timer_create_args_t args = {};
     args.callback = [](void*) {
@@ -122,8 +130,11 @@ void ScheduleWifiResetAndReboot() {
         esp_restart();
     };
     args.name = "wifi_reset_reboot";
-    esp_timer_create(&args, &timer);
-    esp_timer_start_once(timer, 500 * 1000);
+    if (esp_timer_create(&args, &timer) != ESP_OK || esp_timer_start_once(timer, 500 * 1000) != ESP_OK) {
+        printf("ScheduleWifiResetAndReboot: failed to schedule the deferred Wi-Fi reset/reboot\n");
+        return false;
+    }
+    return true;
 }
 
 // Shown immediately after display start, before the Wi-Fi credentials
@@ -414,7 +425,9 @@ extern "C" void app_main(void) {
                 },
             .wifi_reset =
                 [ap_ssid = wifi_check.ap_ssid]() -> std::optional<std::string> {
-                    ScheduleWifiResetAndReboot();
+                    if (!ScheduleWifiResetAndReboot()) {
+                        return std::nullopt;
+                    }
                     return ap_ssid;
                 },
             .ota_writer = BuildOtaWriter(),
