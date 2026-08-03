@@ -109,6 +109,20 @@ bool ConstantTimeEquals(const std::vector<unsigned char>& a, const std::vector<u
     return diff == 0;
 }
 
+// Same reasoning as the vector overload above, applied to session tokens
+// (fixed-length hex strings) - std::string::operator== short-circuits on
+// the first mismatched character just like a vector<unsigned char> would.
+bool ConstantTimeEquals(const std::string& a, const std::string& b) {
+    if (a.size() != b.size()) {
+        return false;
+    }
+    unsigned char diff = 0;
+    for (size_t i = 0; i < a.size(); i++) {
+        diff |= static_cast<unsigned char>(a[i]) ^ static_cast<unsigned char>(b[i]);
+    }
+    return diff == 0;
+}
+
 // Splits a raw "a=1; b=2" Cookie header (RFC 6265) looking for one
 // specific cookie name - the only thing any caller needs so far.
 std::optional<std::string> ExtractCookie(const std::string& cookie_header, const std::string& name) {
@@ -284,15 +298,24 @@ bool AdminAuthService::IsLoginLockedOut() {
 
 bool AdminAuthService::ValidateSession(const SessionToken& token) {
     std::lock_guard<std::mutex> lock(mutex_);
-    auto it = sessions_.find(token);
-    if (it == sessions_.end()) {
-        return false;
+    // Deliberately not sessions_.find(token): an unordered_map lookup
+    // resolves via std::string::operator==, which short-circuits on the
+    // first mismatched character - the same timing leak ConstantTimeEquals
+    // exists to avoid for the password hash above, just for session
+    // tokens instead. Sessions are few (single-admin device,
+    // SweepExpiredSessions bounds growth), so a linear scan costs nothing
+    // meaningful in exchange.
+    for (auto it = sessions_.begin(); it != sessions_.end(); ++it) {
+        if (!ConstantTimeEquals(it->first, token)) {
+            continue;
+        }
+        if (time_source_.Now() >= it->second) {
+            sessions_.erase(it);
+            return false;
+        }
+        return true;
     }
-    if (time_source_.Now() >= it->second) {
-        sessions_.erase(it);
-        return false;
-    }
-    return true;
+    return false;
 }
 
 void AdminAuthService::Logout(const SessionToken& token) {
