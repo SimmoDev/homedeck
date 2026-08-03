@@ -39,9 +39,9 @@ constexpr int kMaxSetupReconnectAttempts = 5;
 // intervene is its own real gap if the stored network is genuinely gone
 // for good (moved house, router replaced) rather than just briefly down
 // - see WifiReconnectPolicy::ShouldOfferRecovery() and
-// StartRecoveryAccessPoint() below. Confirmed on hardware: each failed
-// attempt costs ~2.9s end to end (kReconnectBackoffMs's 500ms plus the
-// SDIO round trip to the C6 for esp_wifi_connect() to actually fail),
+// StartRecoveryAccessPoint() below. Each failed attempt costs ~2.9s
+// end to end (kReconnectBackoffMs's 500ms plus the SDIO round trip to
+// the C6 for esp_wifi_connect() to actually fail),
 // not the bare 500ms backoff alone - 40 attempts is ~2 minutes at that
 // real rate, long enough to ride out a router reboot without offering a
 // recovery access point prematurely, short enough that a genuinely-gone
@@ -381,7 +381,7 @@ void StartSetupAccessPoint() {
 // Stop-then-reconfigure-then-start is the conservative, well-established
 // sequence for adding AP mode to an already-running STA session,
 // regardless of whether a live mode switch without stopping first would
-// also work - not verified against real Tab5 hardware in this change,
+// also work - not verified against real Tab5 hardware,
 // unlike the rest of this file's Wi-Fi behavior (see hardware.md's own
 // "Confirmed" vs. not-yet-confirmed convention for why that distinction
 // matters here). Every esp_wifi_*() call below is checked explicitly

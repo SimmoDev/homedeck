@@ -99,10 +99,9 @@ void ScheduleReboot() {
 // just the later esp_restart()) tears down the STA association - calling
 // it synchronously inside the /api/wifi/reset handler severs the very
 // TCP connection the 200 response needs to travel back over, before
-// httpd_resp_send() can flush it. Confirmed on hardware as the request
-// hanging forever (no HTTP response ever arrives, so the Web UI's fetch()
-// never resolves - fetch has no built-in timeout), not merely a
-// theoretical race.
+// httpd_resp_send() can flush it. The request hangs forever as a result
+// (no HTTP response ever arrives, so the Web UI's fetch() never resolves -
+// fetch has no built-in timeout), not merely a theoretical race.
 //
 // A reboot afterward isn't an optional nicety here the way it is for OTA
 // (upload success doesn't itself disconnect anything - the Web UI could
