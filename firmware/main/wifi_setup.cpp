@@ -305,8 +305,12 @@ esp_err_t StartSetupHttpServer(uint16_t port, uint16_t ctrl_port) {
     httpd_uri_t root_uri = {.uri = "/", .method = HTTP_GET, .handler = HandleGetSetupPage, .user_ctx = nullptr};
     httpd_uri_t connect_uri = {
         .uri = "/connect", .method = HTTP_POST, .handler = HandlePostConnect, .user_ctx = nullptr};
-    httpd_register_uri_handler(server, &root_uri);
-    httpd_register_uri_handler(server, &connect_uri);
+    if (httpd_register_uri_handler(server, &root_uri) != ESP_OK) {
+        ESP_LOGW(kTag, "Failed to register the setup page's '/' route");
+    }
+    if (httpd_register_uri_handler(server, &connect_uri) != ESP_OK) {
+        ESP_LOGW(kTag, "Failed to register the setup page's '/connect' route");
+    }
 
     std::lock_guard<std::mutex> lock(g_state_mutex);
     g_state.setup_server = server;

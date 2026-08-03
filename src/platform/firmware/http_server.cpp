@@ -1,11 +1,15 @@
 #include "platform/firmware/http_server.h"
 
+#include "esp_log.h"
+
 #include <algorithm>
 #include <vector>
 
 namespace homedeck {
 
 namespace {
+
+constexpr char kTag[] = "http_server";
 
 // httpd_resp_set_status() sends this string as-is after "HTTP/1.1 " - the
 // fallback below must never be a bare number (e.g. "409"), since RFC
@@ -92,7 +96,9 @@ bool FirmwareHttpServer::Start(uint16_t port) {
             .handler = &FirmwareHttpServer::DispatchTrampoline,
             .user_ctx = &handler,
         };
-        httpd_register_uri_handler(server_, &uri);
+        if (httpd_register_uri_handler(server_, &uri) != ESP_OK) {
+            ESP_LOGW(kTag, "Failed to register route: %s", key.second.c_str());
+        }
     }
     return true;
 }
