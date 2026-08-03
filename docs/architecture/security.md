@@ -22,6 +22,19 @@ authentication once the device is on the LAN. See [Requirement: validate
 API input](#requirement-validate-api-input) below for the related but
 distinct question of validating *what* an authenticated request contains.
 
+Login attempts are rate-limited: `AdminAuthService` locks out further
+login attempts for a cooldown period once a small number of consecutive
+failures land, closing the "guess the password unboundedly" gap a bare
+password check alone would leave open. State-changing endpoints rely on
+the session cookie's `SameSite=Strict` attribute as their CSRF
+mitigation — a deliberate choice, not an oversight — rather than a
+separate per-request CSRF token, since it blocks the cookie from being
+sent on cross-site requests (including top-level GET navigation)
+without the extra token-plumbing cost. Revisit this if `SameSite` is
+ever relaxed for an unrelated reason (e.g. embedding) — that change
+would reopen this gap and deserves its own security review at that
+point.
+
 ## Requirement: avoid insecure secret storage
 
 The admin password is hashed (never stored reversibly) regardless of the
