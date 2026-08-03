@@ -52,8 +52,10 @@ reading, in order:
 9. [docs/roadmap.md](docs/roadmap.md)'s M3 section — the actual task
    list, which links out to anything else specific as it comes up.
 
-Everything else — the M1/M2 hardware bring-up detail in `hardware.md`,
-`simulator.md`, `ui.md`'s Rendering/Thread-safety sections, and most of
+Everything else — the M1/M2 hardware bring-up detail in
+[hardware.md](docs/architecture/hardware.md),
+[simulator.md](docs/architecture/simulator.md),
+[ui.md](docs/architecture/ui.md)'s Rendering/Thread-safety sections, and most of
 the ADRs numbered 0009 and below plus 0011–0022 — is settled
 implementation this milestone builds on top of, not something M3 itself
 changes. Worth consulting when a specific M3 need actually touches one
