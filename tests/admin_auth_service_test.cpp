@@ -6,8 +6,11 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <filesystem>
 #include <memory>
+#include <thread>
+#include <vector>
 
 namespace {
 
@@ -202,6 +205,51 @@ TEST_F(AdminAuthServiceTest, RequireAuthReturns401WithoutAValidSessionCookie) {
 
     EXPECT_EQ(response.status_code, 401);
     EXPECT_FALSE(inner_called);
+}
+
+TEST_F(AdminAuthServiceTest, ConcurrentLoginAndValidateSessionDoNotRaceOrCorruptState) {
+    homedeck::AdminAuthService auth(*storage_, time_source_);
+    auto initial_token = auth.SetInitialPassword("correct horse battery staple");
+    ASSERT_TRUE(initial_token.has_value());
+
+    // Real HTTP-worker-thread concurrency is exactly what mutex_ exists to
+    // guard against (see admin_auth_service.h's own class comment) - this
+    // drives ValidateSession() from several real threads while a separate
+    // thread runs real Login() attempts (the expensive PBKDF2 path
+    // Login()'s own mutex-scope fix now runs outside the lock for), the
+    // same shape of test as ota_routes_test.cpp's
+    // ConcurrentUploadIsRejectedRatherThanRacingTheFirst. A session
+    // unrelated to any of the concurrent Login() activity must never be
+    // corrupted or evicted by it.
+    std::atomic<bool> stop{false};
+    std::atomic<int> validate_failures{0};
+
+    std::vector<std::thread> validators;
+    for (int i = 0; i < 4; i++) {
+        validators.emplace_back([&] {
+            while (!stop.load()) {
+                if (!auth.ValidateSession(*initial_token)) {
+                    validate_failures.fetch_add(1);
+                }
+            }
+        });
+    }
+
+    std::thread logins([&] {
+        for (int i = 0; i < 3; i++) {
+            auth.Login("wrong password");
+        }
+        EXPECT_TRUE(auth.Login("correct horse battery staple").has_value());
+    });
+
+    logins.join();
+    stop.store(true);
+    for (auto& validator : validators) {
+        validator.join();
+    }
+
+    EXPECT_EQ(validate_failures.load(), 0);
+    EXPECT_TRUE(auth.ValidateSession(*initial_token));
 }
 
 TEST_F(AdminAuthServiceTest, RequireAuthCallsInnerHandlerWithAValidSessionCookie) {

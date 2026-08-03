@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <thread>
+#include <vector>
 
 namespace {
 
@@ -324,4 +326,43 @@ TEST_F(StorageTest, EraseCachePropagatesAFailureFromTheUnderlyingStore) {
     homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     EXPECT_FALSE(storage.EraseCache("weather", "last_reading"));
+}
+
+TEST_F(StorageTest, ConcurrentSetAndGetSettingFromMultipleThreadsDoNotRaceOrCorruptState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    // mutex_ exists specifically because app_main's boot sequence, the Web
+    // UI's httpd worker thread, and a module's background poll Task all
+    // call into the same Storage instance with no coordination between
+    // them (see storage.h's own class comment) - this drives that same
+    // shape of real concurrent access from several threads, each against
+    // its own module namespace so a race would show up as one thread
+    // reading back another thread's value, not just a crash.
+    constexpr int kThreads = 8;
+    constexpr int kWritesPerThread = 50;
+    std::vector<std::thread> threads;
+    for (int t = 0; t < kThreads; t++) {
+        threads.emplace_back([&storage, t] {
+            std::string module = "module" + std::to_string(t);
+            for (int i = 0; i < kWritesPerThread; i++) {
+                std::string value = "value" + std::to_string(i);
+                ASSERT_TRUE(storage.SetSetting(module, "key", 1, value));
+                auto result = storage.GetSetting(module, "key");
+                ASSERT_TRUE(result.has_value());
+                EXPECT_EQ(result->value, value);
+            }
+        });
+    }
+    for (auto& thread : threads) {
+        thread.join();
+    }
+
+    for (int t = 0; t < kThreads; t++) {
+        auto result = storage.GetSetting("module" + std::to_string(t), "key");
+        ASSERT_TRUE(result.has_value());
+        EXPECT_EQ(result->value, "value" + std::to_string(kWritesPerThread - 1));
+    }
 }
