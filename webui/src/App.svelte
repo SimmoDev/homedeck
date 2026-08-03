@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, setSessionExpiredHandler } from "./lib/api";
+  import { loadJson, postJson, setSessionExpiredHandler } from "./lib/api";
   import Diagnostics from "./lib/Diagnostics.svelte";
   import Ota from "./lib/Ota.svelte";
   import PasswordForm from "./lib/PasswordForm.svelte";
@@ -42,7 +42,12 @@
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    // Result deliberately ignored, unlike every other postJson() call in
+    // this app - a failed logout isn't user-actionable (there's no retry
+    // affordance worth showing), and loadStatus() re-checking the real
+    // session state afterward is correct either way: still logged in on
+    // a network failure, logged out if the request actually landed.
+    await postJson("/api/auth/logout");
     await loadStatus();
   }
 
