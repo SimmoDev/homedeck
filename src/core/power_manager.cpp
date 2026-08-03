@@ -39,6 +39,7 @@ PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activit
     clock_subscription_ = event_bus_.SubscribeUi<ClockTickEvent>([this](const ClockTickEvent&) { OnTick(); });
     ota_subscription_ = event_bus_.SubscribeUi<OtaUpdateStateChangedEvent>(
         [this](const OtaUpdateStateChangedEvent& event) {
+            ota_in_progress_ = event.in_progress;
             if (event.in_progress) {
                 // Guarded the same as the finishing branch below: kError
                 // must always win over kUpdating (see the critical-battery
@@ -78,7 +79,14 @@ PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activit
                 // why an in-progress OTA write doesn't get priority here.
                 TransitionTo(PowerState::kError);
             } else if (state_ == PowerState::kError) {
-                TransitionTo(PowerState::kActive);
+                // A write still in flight when the battery forced kError
+                // must land back on kUpdating, not kActive -
+                // esp_ota_write() keeps running on its own thread
+                // regardless of PowerManager's state (see
+                // power-management.md#status), so OnTick()'s Idle timeout
+                // must stay suppressed for as long as that write actually
+                // is.
+                TransitionTo(ota_in_progress_ ? PowerState::kUpdating : PowerState::kActive);
             }
         });
 }

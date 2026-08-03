@@ -508,6 +508,27 @@ TEST(PowerManager, CriticalBatteryInterruptsUpdating) {
     EXPECT_EQ(manager.State(), homedeck::PowerState::kError);
 }
 
+TEST(PowerManager, BatteryRecoveryDuringOtaRestoresUpdatingNotActive) {
+    homedeck::EventBus bus;
+    RunDispatcherInline(bus);
+    FakeUserActivitySource activity;
+    FakeDisplayBrightness brightness;
+    FakeTimeSource time_source;
+    homedeck::PowerManager manager(bus, activity, brightness, time_source, 100);
+
+    bus.Publish(homedeck::OtaUpdateStateChangedEvent{true});
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{true});
+    ASSERT_EQ(manager.State(), homedeck::PowerState::kError);
+
+    // The write is still in flight (esp_ota_write() keeps running on its
+    // own thread regardless of PowerManager's state) - recovery must land
+    // back on kUpdating so OnTick()'s Idle timeout stays suppressed for
+    // the rest of the write, not kActive.
+    bus.Publish(homedeck::CriticalBatteryStateChangedEvent{false});
+
+    EXPECT_EQ(manager.State(), homedeck::PowerState::kUpdating);
+}
+
 TEST(PowerManager, OtaFinishingDoesNotClobberErrorState) {
     homedeck::EventBus bus;
     RunDispatcherInline(bus);

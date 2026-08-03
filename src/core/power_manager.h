@@ -80,6 +80,12 @@ private:
     DisplayBrightness& display_brightness_;
     TimeSource& time_source_;
     PowerState state_ = PowerState::kActive;
+    // Ground truth for whether an OTA write is actually in flight,
+    // independent of state_ - a critical-battery event forces state_ to
+    // kError even mid-write (see the critical-battery subscription's own
+    // comment), which would otherwise lose the fact that kUpdating is
+    // what recovery needs to land back on.
+    bool ota_in_progress_ = false;
     int active_brightness_percent_;
     std::optional<std::chrono::system_clock::time_point> sleep_veto_until_;
     EventBus::ScopedSubscription clock_subscription_;
