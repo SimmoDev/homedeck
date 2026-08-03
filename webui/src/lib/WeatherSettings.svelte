@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, readErrorBody, type SettingEntry } from "./api";
+  import { loadJson, postJson, readErrorBody, type SettingEntry } from "./api";
 
   // The dashboard's weather source (see docs/architecture/dashboard.md's
   // Weather source section and ADR-0008). Backed by the generic
@@ -88,20 +88,13 @@
       ["longitude", String(result.longitude)],
       ["display_name", label],
     ]) {
-      try {
-        const response = await fetch("/api/settings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ module: kWeatherModuleId, key, value, schemaVersion: kWeatherSchemaVersion }),
-        });
-        if (!response.ok) {
-          // readErrorBody(), not a bare response.ok check - notifies
-          // the app-wide session-expired handler on a 401, same as
-          // every other authenticated call in this app.
-          await readErrorBody(response);
-          failedKeys.push(key);
-        }
-      } catch {
+      const postResult = await postJson("/api/settings", {
+        module: kWeatherModuleId,
+        key,
+        value,
+        schemaVersion: kWeatherSchemaVersion,
+      });
+      if (!postResult.ok) {
         failedKeys.push(key);
       }
     }

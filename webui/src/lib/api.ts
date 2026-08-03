@@ -85,3 +85,68 @@ export async function loadJson<T>(url: string): Promise<LoadResult<T>> {
     return { error: String(err) };
   }
 }
+
+// Used for POST actions - the fetch/response.ok/readErrorBody()/catch
+// shell nearly every save()/action-style function repeated, each with
+// its own copy of the same three branches. Unlike loadJson()'s single
+// error string, callers here need the parsed ApiErrorBody back (to map
+// specific error codes to their own message, e.g. "invalid_value" ->
+// "Not a valid device name.") and need to tell an HTTP-level failure
+// apart from a network-level one (some callers, e.g. Ota.svelte's
+// reboot(), deliberately treat a network failure as a likely-benign
+// "the device probably already rebooted" case rather than a real
+// error) - hence the discriminated result instead of a single error
+// string.
+export type PostJsonResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; kind: "http"; status: number; body: ApiErrorBody }
+  | { ok: false; kind: "network"; message: string };
+
+// body is sent as-is if already a string (e.g. BackupSettings.svelte's
+// restore(), which already has the raw JSON file contents), JSON-
+// stringified otherwise, or omitted entirely (no body, no Content-Type
+// header) if undefined - matching the three shapes callers need.
+export async function postJson<T = unknown>(url: string, body?: unknown): Promise<PostJsonResult<T>> {
+  try {
+    const init: RequestInit = { method: "POST" };
+    if (body !== undefined) {
+      init.headers = { "Content-Type": "application/json" };
+      init.body = typeof body === "string" ? body : JSON.stringify(body);
+    }
+    const response = await fetch(url, init);
+    if (!response.ok) {
+      return { ok: false, kind: "http", status: response.status, body: await readErrorBody(response) };
+    }
+    const data = (await response.json().catch(() => undefined)) as T;
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, kind: "network", message: String(err) };
+  }
+}
+
+// Triggers a browser file download via fetch + Blob rather than a plain
+// <a href download> - a bare anchor navigates directly to the URL
+// outside of JS, so it has no way to notice a 401 (or any other
+// failure); a stale session would just download a small JSON error body
+// under the intended filename instead of dropping back to login the way
+// every other authenticated action in this app does via
+// notifyIfSessionExpired()/readErrorBody().
+export async function downloadFile(url: string, filename: string): Promise<{ error?: string }> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      const body = await readErrorBody(response);
+      return { error: body.error ?? `Download failed: ${response.status}` };
+    }
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(objectUrl);
+    return {};
+  } catch (err) {
+    return { error: String(err) };
+  }
+}

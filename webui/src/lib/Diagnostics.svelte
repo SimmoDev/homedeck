@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, readErrorBody, type BatteryStatus } from "./api";
+  import { downloadFile, loadJson, postJson, type BatteryStatus } from "./api";
 
   // onWifiReset fires once /api/wifi/reset succeeds - see its own call
   // site in resetWifi() below for why this hands off to App.svelte
@@ -37,6 +37,8 @@
 
   let logs: LogEntry[] | undefined = $state<LogEntry[] | undefined>(undefined);
   let logsError: string | undefined = $state(undefined);
+  let downloadingCoreDump = $state(false);
+  let coreDumpError: string | undefined = $state(undefined);
   // Filtering happens client-side against the already-fetched array,
   // not server-side query params - the whole log is small enough (see
   // ADR-0019's rotation cap) that this is simpler than a backend filter
@@ -66,6 +68,14 @@
 
   function formatTimestamp(unixSeconds: number): string {
     return new Date(unixSeconds * 1000).toLocaleString();
+  }
+
+  async function downloadCoreDump() {
+    downloadingCoreDump = true;
+    coreDumpError = undefined;
+    const result = await downloadFile("/api/diagnostics/coredump", "coredump.bin");
+    downloadingCoreDump = false;
+    coreDumpError = result.error;
   }
 
   let components = $derived(logs ? Array.from(new Set(logs.map((entry) => entry.component))).sort() : []);
@@ -107,24 +117,10 @@
   async function resetWifi() {
     wifiResetState = "resetting";
     wifiResetError = undefined;
-    try {
-      const response = await fetch("/api/wifi/reset", { method: "POST" });
-      if (!response.ok) {
-        wifiResetState = "error";
-        const body = await readErrorBody(response);
-        wifiResetError =
-          body.error === "unauthenticated"
-            ? "Session expired - please log in again."
-            : body.error === "reset_failed"
-              ? "Wi-Fi reset failed - try again."
-              : `Reset failed: ${response.status}`;
-        return;
-      }
-      const body = (await response.json()) as { apSsid: string };
-      onWifiReset(body.apSsid);
-    } catch (err) {
+    const result = await postJson<{ apSsid: string }>("/api/wifi/reset");
+    if (!result.ok) {
       // A network-level failure here (as opposed to a real HTTP error
-      // response above) can still mean the device already rebooted
+      // response below) can still mean the device already rebooted
       // before this fetch's own connection fully settled - the same
       // "usually the expected outcome" reasoning Ota.svelte's reboot()
       // applies to its own post-reboot fetch - but unlike that case,
@@ -132,8 +128,17 @@
       // action exists to reproduce, mid-request), so it's still surfaced
       // rather than assumed benign.
       wifiResetState = "error";
-      wifiResetError = String(err);
+      wifiResetError =
+        result.kind === "network"
+          ? result.message
+          : result.body.error === "unauthenticated"
+            ? "Session expired - please log in again."
+            : result.body.error === "reset_failed"
+              ? "Wi-Fi reset failed - try again."
+              : `Reset failed: ${result.status}`;
+      return;
     }
+    onWifiReset(result.data.apSsid);
   }
 
   load();
@@ -162,8 +167,13 @@
     {#if status.hasCoreDump}
       <p>
         A core dump is available from the last crash.
-        <a href="/api/diagnostics/coredump" download="coredump.bin">Download</a>
+        <button class="link-button" onclick={downloadCoreDump} disabled={downloadingCoreDump}>
+          {downloadingCoreDump ? "Downloading..." : "Download"}
+        </button>
       </p>
+      {#if coreDumpError}
+        <p class="error">{coreDumpError}</p>
+      {/if}
     {:else}
       <p class="hint">No core dump present.</p>
     {/if}
@@ -260,8 +270,19 @@
     color: #b91c1c;
   }
 
-  a {
+  .link-button {
+    background: none;
+    border: none;
+    padding: 0;
     color: #2563eb;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+  }
+
+  .link-button:disabled {
+    cursor: default;
+    opacity: 0.6;
   }
 
   button.danger {

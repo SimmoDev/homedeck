@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, notifyIfSessionExpired, readErrorBody, type ApiErrorBody, type BatteryStatus } from "./api";
+  import { loadJson, notifyIfSessionExpired, postJson, type ApiErrorBody, type BatteryStatus } from "./api";
 
   // Firmware update (see docs/architecture/web-ui.md#ota and
   // docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
@@ -98,22 +98,19 @@
   async function reboot() {
     rebooting = true;
     rebootError = undefined;
-    try {
-      const response = await fetch("/api/ota/reboot", { method: "POST" });
-      if (!response.ok) {
-        rebooting = false;
-        const body = await readErrorBody(response);
-        rebootError =
-          body.error === "unauthenticated"
-            ? "Session expired - please log in again."
-            : `Reboot request failed: ${response.status}`;
-      }
-    } catch {
+    const result = await postJson("/api/ota/reboot");
+    if (result.ok || result.kind === "network") {
       // A network-level failure (as opposed to a real HTTP error
-      // response above) usually means the device already rebooted and
+      // response below) usually means the device already rebooted and
       // cut the connection - the expected outcome, not a real failure -
       // so `rebooting` stays true rather than resetting to an error.
+      return;
     }
+    rebooting = false;
+    rebootError =
+      result.body.error === "unauthenticated"
+        ? "Session expired - please log in again."
+        : `Reboot request failed: ${result.status}`;
   }
 
   loadStatus();

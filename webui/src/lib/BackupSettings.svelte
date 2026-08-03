@@ -1,14 +1,16 @@
 <script lang="ts">
-  import { readErrorBody } from "./api";
+  import { downloadFile, postJson } from "./api";
 
   // Settings backup/restore (see ADR-0023-settings-backup-api.md). The
-  // backend API is generic (any module/key) - the download link is a
+  // backend API is generic (any module/key) - the download is a
   // complete "see everything" escape hatch for debugging, independent
   // of which settings sections this page shows.
   let restoreFile: File | undefined = $state(undefined);
   let restoring = $state(false);
   let restoreResult: string | undefined = $state(undefined);
   let restoreError: string | undefined = $state(undefined);
+  let downloading = $state(false);
+  let downloadError: string | undefined = $state(undefined);
 
   function onRestoreFileChange(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -17,32 +19,40 @@
     restoreError = undefined;
   }
 
+  async function downloadBackup() {
+    downloading = true;
+    downloadError = undefined;
+    const result = await downloadFile("/api/backup", "homedeck-backup.json");
+    downloading = false;
+    downloadError = result.error;
+  }
+
   async function restore() {
     if (!restoreFile) return;
     restoring = true;
     restoreResult = undefined;
     restoreError = undefined;
     try {
-      const body = await restoreFile.text();
-      const response = await fetch("/api/backup/restore", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-      });
-      if (!response.ok) {
-        const errorBody = await readErrorBody(response);
+      const fileBody = await restoreFile.text();
+      const result = await postJson<{ applied: number; failed: unknown[]; rejected: unknown[] }>(
+        "/api/backup/restore",
+        fileBody,
+      );
+      if (!result.ok) {
         restoreError =
-          errorBody.error === "invalid_request"
-            ? "The selected file isn't valid backup JSON."
-            : errorBody.error === "missing_field"
-              ? "The selected file is missing its settings list."
-              : `Restore failed: ${response.status}`;
+          result.kind === "network"
+            ? result.message
+            : result.body.error === "invalid_request"
+              ? "The selected file isn't valid backup JSON."
+              : result.body.error === "missing_field"
+                ? "The selected file is missing its settings list."
+                : `Restore failed: ${result.status}`;
         return;
       }
-      const result = (await response.json()) as { applied: number; failed: unknown[]; rejected: unknown[] };
-      restoreResult = `Restored ${result.applied} setting${result.applied === 1 ? "" : "s"}${
-        result.failed.length > 0 ? `, ${result.failed.length} failed` : ""
-      }${result.rejected.length > 0 ? `, ${result.rejected.length} rejected as protected` : ""}.`;
+      const data = result.data;
+      restoreResult = `Restored ${data.applied} setting${data.applied === 1 ? "" : "s"}${
+        data.failed.length > 0 ? `, ${data.failed.length} failed` : ""
+      }${data.rejected.length > 0 ? `, ${data.rejected.length} rejected as protected` : ""}.`;
     } catch (err) {
       restoreError = String(err);
     } finally {
@@ -54,7 +64,12 @@
 <div class="section">
   <h3>Backup</h3>
   <p class="hint">Download a copy of your settings, or restore from a previously downloaded file.</p>
-  <a class="button-link" href="/api/backup" download="homedeck-backup.json">Download backup</a>
+  <button class="button-link" onclick={downloadBackup} disabled={downloading}>
+    {downloading ? "Downloading..." : "Download backup"}
+  </button>
+  {#if downloadError}
+    <p class="error">{downloadError}</p>
+  {/if}
 
   <div class="row">
     <input type="file" accept=".json" onchange={onRestoreFileChange} disabled={restoring} />
@@ -114,5 +129,12 @@
     color: inherit;
     text-decoration: none;
     font-size: 0.875rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .button-link:disabled {
+    cursor: default;
+    opacity: 0.6;
   }
 </style>

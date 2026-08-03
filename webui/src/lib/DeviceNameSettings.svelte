@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, readErrorBody, type SettingEntry } from "./api";
+  import { loadJson, postJson, type SettingEntry } from "./api";
 
   // Device name (see docs/architecture/web-ui.md#scope and
   // docs/decisions/ADR-0023-settings-backup-api.md) - the mDNS hostname
@@ -32,28 +32,23 @@
     saving = true;
     saveError = undefined;
     saved = false;
-    try {
-      const response = await fetch("/api/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          module: kModuleId,
-          key: kDeviceNameKey,
-          value: deviceName,
-          schemaVersion: kDeviceNameSchemaVersion,
-        }),
-      });
-      if (!response.ok) {
-        const body = await readErrorBody(response);
-        saveError = body.error === "invalid_value" ? "Not a valid device name." : `Save failed: ${response.status}`;
-        return;
-      }
-      saved = true;
-    } catch (err) {
-      saveError = String(err);
-    } finally {
-      saving = false;
+    const result = await postJson("/api/settings", {
+      module: kModuleId,
+      key: kDeviceNameKey,
+      value: deviceName,
+      schemaVersion: kDeviceNameSchemaVersion,
+    });
+    saving = false;
+    if (!result.ok) {
+      saveError =
+        result.kind === "network"
+          ? result.message
+          : result.body.error === "invalid_value"
+            ? "Not a valid device name."
+            : `Save failed: ${result.status}`;
+      return;
     }
+    saved = true;
   }
 
   loadDeviceName();
