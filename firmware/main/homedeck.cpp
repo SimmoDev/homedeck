@@ -438,9 +438,16 @@ void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, hom
 
     // A real, meaningful "this boot actually worked" checkpoint - see
     // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.
-    // No-op when rollback is disabled or this isn't a pending-verify
-    // boot.
-    esp_ota_mark_app_valid_cancel_rollback();
+    // ESP_OK is a no-op result (rollback disabled, or this wasn't a
+    // pending-verify boot) rather than success-of-an-action, so this logs
+    // rather than ESP_ERROR_CHECK-ing - a real failure here means the
+    // bootloader could still roll back a boot that actually worked, worth
+    // a trace, not worth crashing an otherwise-healthy device over.
+    esp_err_t rollback_result = esp_ota_mark_app_valid_cancel_rollback();
+    if (rollback_result != ESP_OK) {
+        app_core.GetLogger().Log(homedeck::LogLevel::kWarning, "ota",
+                                  std::string("Failed to cancel rollback: ") + esp_err_to_name(rollback_result));
+    }
 }
 
 }  // namespace
