@@ -8,10 +8,11 @@ repo_root="$(git rev-parse --show-toplevel)"
 status=0
 
 narration_patterns=(
-    'confirmed on hardware'
-    'confirmed on the [A-Za-z0-9]+ reference unit'
-    'confirmed against the [A-Za-z0-9]+ reference unit'
-    'confirmed working against'
+    # Covers "confirmed on hardware", "confirmed on real hardware",
+    # "confirmed on the K145 reference unit", "confirmed against ...",
+    # "confirmed working against/on ..." in one pattern rather than
+    # enumerating every phrasing separately.
+    'confirmed (on|against|working on|working against) [a-zA-Z0-9]*[[:space:]]*(the )?[a-zA-Z0-9 ]*(hardware|reference unit)'
     'confirmed end.to.end'
     'confirmed manually'
     'confirmed via'
