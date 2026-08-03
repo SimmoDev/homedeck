@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadJson, postJson, readErrorBody, setSessionExpiredHandler } from "./api";
+import { downloadFile, loadJson, postJson, readErrorBody, setSessionExpiredHandler } from "./api";
 
 describe("session-expiry notification", () => {
   afterEach(() => {
@@ -180,5 +180,78 @@ describe("postJson", () => {
 
     expect(onExpired).toHaveBeenCalledOnce();
     setSessionExpiredHandler(() => {});
+  });
+});
+
+describe("downloadFile", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setSessionExpiredHandler(() => {});
+  });
+
+  // No jsdom/happy-dom dependency in this project (see
+  // passwordValidation.ts's own comment on why a DOM-testing stack isn't
+  // yet justified here) - document/URL are stubbed directly with the
+  // minimal shape downloadFile() actually calls, rather than pulling one
+  // in for this single function.
+  it("creates an object URL, clicks a download link, and revokes the URL on success", async () => {
+    const blob = new Blob(["coredump bytes"]);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(blob, { status: 200 })));
+    const createObjectURL = vi.fn().mockReturnValue("blob:fake-url");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.fn();
+    const fakeLink = { href: "", download: "", click };
+    const createElement = vi.fn().mockReturnValue(fakeLink);
+    vi.stubGlobal("document", { createElement });
+
+    const result = await downloadFile("/api/diagnostics/coredump", "coredump.bin");
+
+    expect(result).toEqual({});
+    expect(createElement).toHaveBeenCalledWith("a");
+    expect(fakeLink.download).toBe("coredump.bin");
+    expect(fakeLink.href).toBe("blob:fake-url");
+    expect(click).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith("blob:fake-url");
+  });
+
+  it("resolves with the parsed error body's message on a non-ok response, without downloading anything", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401 })),
+    );
+    const createElement = vi.fn();
+    vi.stubGlobal("document", { createElement });
+
+    const result = await downloadFile("/api/diagnostics/coredump", "coredump.bin");
+
+    expect(result).toEqual({ error: "unauthenticated" });
+    expect(createElement).not.toHaveBeenCalled();
+  });
+
+  it("notifies the session-expired handler on a 401, the same as every other authenticated call", async () => {
+    const onExpired = vi.fn();
+    setSessionExpiredHandler(onExpired);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+
+    await downloadFile("/api/diagnostics/coredump", "coredump.bin");
+
+    expect(onExpired).toHaveBeenCalledOnce();
+  });
+
+  it("falls back to a generic message when the error body has no parseable error field", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 500 })));
+
+    const result = await downloadFile("/api/diagnostics/coredump", "coredump.bin");
+
+    expect(result).toEqual({ error: "Download failed: 500" });
+  });
+
+  it("resolves to an error rather than throwing when fetch itself rejects", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    const result = await downloadFile("/api/diagnostics/coredump", "coredump.bin");
+
+    expect(result.error).toContain("Failed to fetch");
   });
 });
