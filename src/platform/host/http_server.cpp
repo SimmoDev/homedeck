@@ -6,42 +6,11 @@
 
 namespace homedeck {
 
-namespace {
-
 // mg_send_http_ok() can't carry extra headers, so responses are written
-// by hand here instead - status line, Content-Type/Content-Length (which
+// by hand below instead - status line, Content-Type/Content-Length (which
 // mg_send_http_ok would otherwise generate), any extra headers, then the
-// body. Only the status codes this project's handlers actually return
-// need a reason phrase; anything else falls back to a generic one rather
-// than growing this list speculatively.
-const char* ReasonPhrase(int status_code) {
-    switch (status_code) {
-        case 200:
-            return "OK";
-        case 400:
-            return "Bad Request";
-        case 401:
-            return "Unauthorized";
-        case 403:
-            return "Forbidden";
-        case 404:
-            return "Not Found";
-        case 405:
-            return "Method Not Allowed";
-        case 409:
-            return "Conflict";
-        case 429:
-            return "Too Many Requests";
-        case 500:
-            return "Internal Server Error";
-        case 502:
-            return "Bad Gateway";
-        default:
-            return "Unknown";
-    }
-}
-
-}  // namespace
+// body. The status code->reason-phrase table itself is shared with the
+// firmware backend - see HttpReasonPhrase() (platform/http_server.h).
 
 HostHttpServer::HostHttpServer() = default;
 
@@ -140,7 +109,7 @@ int HostHttpServer::Dispatch(mg_connection* conn) {
 
     HttpResponse response = it->second(request);
 
-    mg_printf(conn, "HTTP/1.1 %d %s\r\n", response.status_code, ReasonPhrase(response.status_code));
+    mg_printf(conn, "HTTP/1.1 %d %s\r\n", response.status_code, HttpReasonPhrase(response.status_code));
     mg_printf(conn, "Content-Type: %s\r\n", response.content_type.c_str());
     mg_printf(conn, "Content-Length: %zu\r\n", response.body.size());
     for (const auto& [name, value] : response.extra_headers) {

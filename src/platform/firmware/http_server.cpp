@@ -11,41 +11,16 @@ namespace {
 
 constexpr char kTag[] = "http_server";
 
-// httpd_resp_set_status() sends this string as-is after "HTTP/1.1 " - the
-// fallback below must never be a bare number (e.g. "409"), since RFC
-// 7230's status-line grammar requires a reason-phrase after the status
-// code and some HTTP clients handle a missing one poorly (see
-// DispatchTrampoline's own comment on this same status line for a
-// different malformed-status-line failure this project already hit on
-// real hardware). Every status code this project's handlers actually
-// return needs a real case, not just the generic fallback -
-// AdminAuthService::RequireAuth() in particular returns 401/403 on the
-// majority of requests to any protected endpoint.
+// httpd_resp_set_status() sends this string as-is after "HTTP/1.1 " - it
+// must never be a bare number (e.g. "409"), since RFC 7230's status-line
+// grammar requires a reason-phrase after the status code and some HTTP
+// clients handle a missing one poorly (see DispatchTrampoline's own
+// comment on this same status line for a different malformed-status-line
+// failure this project already hit on real hardware). The code->phrase
+// table itself is shared with the host backend - see HttpReasonPhrase()
+// (platform/http_server.h).
 std::string StatusLine(int status_code) {
-    switch (status_code) {
-        case 200:
-            return "200 OK";
-        case 400:
-            return "400 Bad Request";
-        case 401:
-            return "401 Unauthorized";
-        case 403:
-            return "403 Forbidden";
-        case 404:
-            return "404 Not Found";
-        case 405:
-            return "405 Method Not Allowed";
-        case 409:
-            return "409 Conflict";
-        case 429:
-            return "429 Too Many Requests";
-        case 500:
-            return "500 Internal Server Error";
-        case 502:
-            return "502 Bad Gateway";
-        default:
-            return std::to_string(status_code) + " Unknown";
-    }
+    return std::to_string(status_code) + " " + HttpReasonPhrase(status_code);
 }
 
 // httpd_req_recv()'s HTTPD_SOCK_ERR_TIMEOUT is retryable, but retrying it

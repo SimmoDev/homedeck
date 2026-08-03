@@ -47,6 +47,44 @@ struct HttpResponse {
     std::vector<std::pair<std::string, std::string>> extra_headers;
 };
 
+// Shared by both backends' response status-line construction
+// (src/platform/firmware/http_server.cpp, src/platform/host/http_server.cpp) -
+// the two backends want slightly different formats ("200 OK" as one string
+// for httpd_resp_set_status() vs. just "OK" for civetweb's own %d/%s status
+// line), so this returns the phrase alone and each caller builds its own
+// format around it, rather than the full line, so neither format is
+// privileged over the other. Only the status codes this project's handlers
+// actually return get a real case - AdminAuthService::RequireAuth() in
+// particular returns 401/403 on the majority of requests to any protected
+// endpoint - everything else falls back to a generic one rather than
+// growing this list speculatively.
+inline const char* HttpReasonPhrase(int status_code) {
+    switch (status_code) {
+        case 200:
+            return "OK";
+        case 400:
+            return "Bad Request";
+        case 401:
+            return "Unauthorized";
+        case 403:
+            return "Forbidden";
+        case 404:
+            return "Not Found";
+        case 405:
+            return "Method Not Allowed";
+        case 409:
+            return "Conflict";
+        case 429:
+            return "Too Many Requests";
+        case 500:
+            return "Internal Server Error";
+        case 502:
+            return "Bad Gateway";
+        default:
+            return "Unknown";
+    }
+}
+
 // The embedded HTTP server behind the Web Management UI
 // (docs/architecture/web-ui.md) - esp_http_server on firmware, civetweb
 // on the simulator (see ADR-0002's "Embedded web/WebSocket server"
