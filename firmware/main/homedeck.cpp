@@ -329,11 +329,14 @@ void ServeEmbeddedWebUi(homedeck::HttpServer& web_server) {
                        webui_app_css_end - webui_app_css_start)}});
 }
 
-}  // namespace
-
-extern "C" void app_main(void) {
-    PrintBootBanner();
-
+// The first thing app_main() does after the boot banner - display bring-up
+// has no long-lived object of its own worth returning (bsp_display_start()'s
+// own lv_display_t* is never referenced again once this succeeds), so this
+// is void rather than needing a caller to hold onto anything. Halts forever
+// rather than returning on failure, the same as the inline version this
+// replaces - there's no meaningful degraded mode without a display, and
+// nothing later in app_main() could safely proceed without one.
+void InitDisplayOrHalt() {
     printf("Starting display...\n");
     lv_display_t* display = bsp_display_start();
     if (display == nullptr) {
@@ -344,23 +347,109 @@ extern "C" void app_main(void) {
     }
     bsp_display_backlight_on();
     printf("Display started\n");
+}
 
-    // bsp_display_start() above already spawned its own dedicated
-    // taskLVGL (see esp_lvgl_port.c), running its own lv_timer_handler()
-    // loop concurrently with app_main() from this point on - so, unlike
-    // the simulator's equivalent call (see ui_task.cpp), this lv_* call
-    // needs the same lock every other direct LVGL call from app_main()
-    // already takes (splash screen, dashboard construction, below).
+// `event_bus` is constructed by the caller, not here - EventBus holds a
+// std::mutex internally, so it can't be constructed in one function and
+// returned by value into another the way the splash screen's lv_obj_t*
+// pointer below can. Returns the splash object so app_main() can delete it
+// once AppCore's construction (and the real first screen it builds) has
+// happened - this function has no way to know when that is.
+lv_obj_t* InitEventBusAndShowSplash(homedeck::EventBus& event_bus) {
+    // bsp_display_start() (already called by InitDisplayOrHalt() above)
+    // already spawned its own dedicated taskLVGL (see esp_lvgl_port.c),
+    // running its own lv_timer_handler() loop concurrently with app_main()
+    // from this point on - so, unlike the simulator's equivalent call (see
+    // ui_task.cpp), this lv_* call needs the same lock every other direct
+    // LVGL call from app_main() already takes (splash screen, dashboard
+    // construction, below).
     bsp_display_lock(0);
     homedeck::InitUiDispatchQueue();
     bsp_display_unlock();
 
-    homedeck::EventBus event_bus;
     event_bus.SetUiDispatcher(homedeck::PostToUiThread);
 
     bsp_display_lock(0);
     lv_obj_t* splash = ShowSplashScreen();
     bsp_display_unlock();
+    return splash;
+}
+
+// Continues from InitWifiAndCheckStoredCredentials() (already run by the
+// time app_main() calls this) - blocks until connected, either immediately
+// (stored credentials), until a computer/phone completes SoftAP setup, or
+// until the Touch UI fallback screen (already showing, if wifi_check found
+// no stored credentials) submits credentials directly. wifi_setup.cpp has
+// no LVGL/Navigation dependency of its own, so reaching the UI happens
+// through these three callbacks instead - each routed through
+// PostToUiThread (see ui/ui_dispatch.h), since they fire from
+// ConnectToWifi()'s own task, not the UI task (see ADR-0011).
+void BlockUntilWifiConnected(homedeck::AppCore& app_core) {
+    homedeck::WifiUiCallbacks wifi_ui_callbacks;
+    wifi_ui_callbacks.on_setup_needed = [&app_core](const std::string& ap_ssid, const std::string& ap_ip) {
+        homedeck::PostToUiThread([&app_core, ap_ssid, ap_ip]() {
+            app_core.GetWifiSetupScreen().SetApInfo(ap_ssid, ap_ip);
+            app_core.GetNavigation().GoTo("wifi-setup");
+        });
+    };
+    wifi_ui_callbacks.on_connected = [&app_core]() {
+        homedeck::PostToUiThread([&app_core]() { app_core.GetNavigation().GoHome(); });
+    };
+    wifi_ui_callbacks.on_connect_failed = [&app_core]() {
+        homedeck::PostToUiThread([&app_core]() {
+            app_core.GetWifiSetupScreen().SetConnectError("Couldn't connect - check the password and try again.");
+        });
+    };
+    homedeck::ConnectToWifi(wifi_ui_callbacks);
+    printf("Wi-Fi connected\n");
+    app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
+}
+
+// Everything that only becomes possible/meaningful once Wi-Fi is actually
+// connected - time sync, mDNS self-advertisement, and finally starting the
+// Web Management UI itself (see ServeEmbeddedWebUi(), already called before
+// this - only the actual accept-connections Start() call waits for Wi-Fi).
+// Also where the OTA rollback confirmation lives: a real, meaningful "this
+// boot actually worked" checkpoint belongs after the boot sequence has
+// gotten this far, not any earlier.
+void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, homedeck::FirmwareHttpServer& web_server,
+                                     homedeck::AppCore& app_core) {
+    // See ADR-0028 - corrects the RTC's previously-never-calibrated time
+    // once Wi-Fi (and, implicitly, internet reachability) is available.
+    StartTimeSync(time_source, app_core.GetLogger());
+
+    // "homedeck" by default, or whatever a user has set via the Web
+    // UI's Settings page (see docs/decisions/ADR-0023-settings-backup-api.md).
+    std::string device_name = ResolveDeviceName(app_core.GetStorage());
+    RegisterMdns(device_name, app_core.GetLogger());
+
+    // Started only now, after Wi-Fi connects and wifi_setup.cpp's own
+    // temporary SoftAP-setup server has already stopped, so there's no
+    // port/lifecycle overlap between the two. Routes were already
+    // registered against web_server inside AppCore's constructor.
+    if (web_server.Start(80)) {
+        printf("Web UI listening on port 80\n");
+        app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");
+    } else {
+        printf("Web UI failed to start\n");
+        app_core.GetLogger().Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
+    }
+
+    // A real, meaningful "this boot actually worked" checkpoint - see
+    // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.
+    // No-op when rollback is disabled or this isn't a pending-verify
+    // boot.
+    esp_ota_mark_app_valid_cancel_rollback();
+}
+
+}  // namespace
+
+extern "C" void app_main(void) {
+    PrintBootBanner();
+    InitDisplayOrHalt();
+
+    homedeck::EventBus event_bus;
+    lv_obj_t* splash = InitEventBusAndShowSplash(event_bus);
 
     // The BSP already brought up the shared I2C bus for display/touch -
     // reused here rather than creating a second, conflicting bus on the
@@ -493,60 +582,8 @@ extern "C" void app_main(void) {
         return ok;
     });
 
-    // Continues from InitWifiAndCheckStoredCredentials() above - blocks
-    // until connected, either immediately (stored credentials), until a
-    // computer/phone completes SoftAP setup, or until the Touch UI fallback
-    // screen (already showing, if wifi_check found no stored credentials)
-    // submits credentials directly. wifi_setup.cpp has no LVGL/Navigation
-    // dependency of its own, so reaching the UI happens through these two
-    // callbacks instead - each routed through PostToUiThread (see
-    // ui/ui_dispatch.h), since they fire from ConnectToWifi()'s own
-    // task, not the UI task (see ADR-0011).
-    homedeck::WifiUiCallbacks wifi_ui_callbacks;
-    wifi_ui_callbacks.on_setup_needed = [&app_core](const std::string& ap_ssid, const std::string& ap_ip) {
-        homedeck::PostToUiThread([&app_core, ap_ssid, ap_ip]() {
-            app_core.GetWifiSetupScreen().SetApInfo(ap_ssid, ap_ip);
-            app_core.GetNavigation().GoTo("wifi-setup");
-        });
-    };
-    wifi_ui_callbacks.on_connected = [&app_core]() {
-        homedeck::PostToUiThread([&app_core]() { app_core.GetNavigation().GoHome(); });
-    };
-    wifi_ui_callbacks.on_connect_failed = [&app_core]() {
-        homedeck::PostToUiThread([&app_core]() {
-            app_core.GetWifiSetupScreen().SetConnectError("Couldn't connect - check the password and try again.");
-        });
-    };
-    homedeck::ConnectToWifi(wifi_ui_callbacks);
-    printf("Wi-Fi connected\n");
-    app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
-
-    // See ADR-0028 - corrects the RTC's previously-never-calibrated time
-    // once Wi-Fi (and, implicitly, internet reachability) is available.
-    StartTimeSync(time_source, app_core.GetLogger());
-
-    // "homedeck" by default, or whatever a user has set via the Web
-    // UI's Settings page (see docs/decisions/ADR-0023-settings-backup-api.md).
-    std::string device_name = ResolveDeviceName(app_core.GetStorage());
-    RegisterMdns(device_name, app_core.GetLogger());
-
-    // Started only now, after Wi-Fi connects and wifi_setup.cpp's own
-    // temporary SoftAP-setup server has already stopped, so there's no
-    // port/lifecycle overlap between the two. Routes were already
-    // registered against web_server inside AppCore's constructor above.
-    if (web_server.Start(80)) {
-        printf("Web UI listening on port 80\n");
-        app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");
-    } else {
-        printf("Web UI failed to start\n");
-        app_core.GetLogger().Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
-    }
-
-    // A real, meaningful "this boot actually worked" checkpoint - see
-    // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.
-    // No-op when rollback is disabled or this isn't a pending-verify
-    // boot.
-    esp_ota_mark_app_valid_cancel_rollback();
+    BlockUntilWifiConnected(app_core);
+    FinalizeBootAfterWifiConnected(time_source, web_server, app_core);
 
     uint32_t heartbeat = 0;
     while (true) {
