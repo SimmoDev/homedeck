@@ -9,6 +9,16 @@ constexpr int kTimeoutMs = 1000;
 constexpr uint32_t kSclSpeedHz = 400000;
 }  // namespace
 
+// i2c_master_bus_add_device() only registers this address in the driver's
+// own software device table - it doesn't talk to the bus at all, so its
+// failure modes are a duplicate address already registered (a
+// programming bug: this project's device addresses are fixed constants,
+// never runtime-derived) or the driver being out of heap - not "the
+// physical device is absent," which is instead something BatteryReader/
+// TimeSource's own Read()/Write() call sites already degrade gracefully
+// against (see their "conservative fallback" comments) once real bus
+// transactions are actually attempted. ESP_ERROR_CHECK here is
+// deliberate, not a gap in that graceful-degradation story.
 I2cDevice::I2cDevice(i2c_master_bus_handle_t bus, uint8_t address) {
     i2c_device_config_t dev_cfg = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
