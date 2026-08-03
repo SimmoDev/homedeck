@@ -3,6 +3,7 @@
 #include "ui/status_bar.h"
 #include "ui/theme.h"
 
+#include <iostream>
 #include <string>
 
 namespace homedeck {
@@ -43,7 +44,12 @@ void OnBrightnessChanged(lv_event_t* e) {
 void OnBrightnessReleased(lv_event_t* e) {
     auto* storage = static_cast<Storage*>(lv_event_get_user_data(e));
     auto* slider = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    storage->SetSetting(kPowerModuleId, kBrightnessKey, 1, std::to_string(lv_slider_get_value(slider)));
+    // A failed write here only risks the slider's position not surviving
+    // a reboot - self-heals on the next successful release - but
+    // silently, with no trace, unless reported now.
+    if (!storage->SetSetting(kPowerModuleId, kBrightnessKey, 1, std::to_string(lv_slider_get_value(slider)))) {
+        std::cerr << "QuickSettingsPanel: failed to persist brightness setting\n";
+    }
 }
 
 void OnVolumeChanged(lv_event_t* e) {
@@ -55,7 +61,10 @@ void OnVolumeChanged(lv_event_t* e) {
 void OnVolumeReleased(lv_event_t* e) {
     auto* storage = static_cast<Storage*>(lv_event_get_user_data(e));
     auto* slider = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    storage->SetSetting(kAudioModuleId, kVolumeKey, 1, std::to_string(lv_slider_get_value(slider)));
+    // See OnBrightnessReleased's comment above - same reasoning.
+    if (!storage->SetSetting(kAudioModuleId, kVolumeKey, 1, std::to_string(lv_slider_get_value(slider)))) {
+        std::cerr << "QuickSettingsPanel: failed to persist volume setting\n";
+    }
 }
 
 // A text caption above the slider, used for both controls - consistent

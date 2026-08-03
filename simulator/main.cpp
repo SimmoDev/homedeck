@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <iostream>
 #include <tuple>
 #include <vector>
 
@@ -227,8 +228,12 @@ int main() {
     // Read at request time by the diagnostics route AppCore's
     // constructor already registered, so setting these after
     // construction (but before the server starts below) is enough.
-    app_core.GetStorage().SetSetting("core", "reset_reason", 1, "power-on");
-    app_core.GetStorage().SetSetting("core", "has_core_dump", 1, "true");
+    if (!app_core.GetStorage().SetSetting("core", "reset_reason", 1, "power-on")) {
+        std::cerr << "simulator: failed to seed mock reset_reason setting\n";
+    }
+    if (!app_core.GetStorage().SetSetting("core", "has_core_dump", 1, "true")) {
+        std::cerr << "simulator: failed to seed mock has_core_dump setting\n";
+    }
 
     // Read once at startup, not per-request - matches firmware's
     // EMBED_FILES approach (data available for the process's lifetime),

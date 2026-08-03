@@ -53,8 +53,8 @@ protected:
 }  // namespace
 
 TEST_F(DiagnosticsRoutesTest, RequiresAuthenticationAndReflectsStoredValues) {
-    storage_->SetSetting("core", "reset_reason", 1, "panic");
-    storage_->SetSetting("core", "has_core_dump", 1, "true");
+    ASSERT_TRUE(storage_->SetSetting("core", "reset_reason", 1, "panic"));
+    ASSERT_TRUE(storage_->SetSetting("core", "has_core_dump", 1, "true"));
     battery_reader_.SetPercent(42);
     battery_reader_.SetExternalPowerConnected(true);
 

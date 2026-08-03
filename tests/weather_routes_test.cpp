@@ -312,8 +312,8 @@ TEST_F(WeatherRoutesTest, RefreshTriggersAnImmediatePoll) {
     // Configured (unlike the other tests here) so TriggerPoll()'s own
     // PollOnce() actually reaches Get() - proving the endpoint is wired
     // to the real provider, not just returning 200 without effect.
-    storage_->SetSetting("weather", "latitude", 1, "52.52");
-    storage_->SetSetting("weather", "longitude", 1, "13.41");
+    ASSERT_TRUE(storage_->SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage_->SetSetting("weather", "longitude", 1, "13.41"));
     geocode_http_client_.SetResponse(
         homedeck::HttpClientResponse{true, 200, R"({"current":{"temperature_2m":13.7,"weather_code":0}})"});
 

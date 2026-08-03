@@ -106,9 +106,9 @@ TEST_F(WeatherProviderTest, ConfiguredAndSuccessfulFetchReportsLiveReading) {
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
     homedeck::Storage storage(settings_store, cache_store, secret_store);
-    storage.SetSetting("weather", "latitude", 1, "52.52");
-    storage.SetSetting("weather", "longitude", 1, "13.41");
-    storage.SetSetting("weather", "display_name", 1, "Berlin, DE");
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
+    ASSERT_TRUE(storage.SetSetting("weather", "display_name", 1, "Berlin, DE"));
 
     homedeck::EventBus bus;
     FakeHttpClient http_client;
@@ -136,8 +136,8 @@ TEST_F(WeatherProviderTest, FetchFailureWithNoPriorCacheReportsNoReading) {
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
     homedeck::Storage storage(settings_store, cache_store, secret_store);
-    storage.SetSetting("weather", "latitude", 1, "52.52");
-    storage.SetSetting("weather", "longitude", 1, "13.41");
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
 
     homedeck::EventBus bus;
     FakeHttpClient http_client;
@@ -159,9 +159,9 @@ TEST_F(WeatherProviderTest, FetchFailureFallsBackToPriorCache) {
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
     homedeck::Storage storage(settings_store, cache_store, secret_store);
-    storage.SetSetting("weather", "latitude", 1, "52.52");
-    storage.SetSetting("weather", "longitude", 1, "13.41");
-    storage.SetSetting("weather", "display_name", 1, "Berlin, DE");
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
+    ASSERT_TRUE(storage.SetSetting("weather", "display_name", 1, "Berlin, DE"));
 
     homedeck::EventBus bus;
     FakeHttpClient http_client;
@@ -189,8 +189,8 @@ TEST_F(WeatherProviderTest, PollsMoreThanOnceOverTime) {
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
     homedeck::Storage storage(settings_store, cache_store, secret_store);
-    storage.SetSetting("weather", "latitude", 1, "52.52");
-    storage.SetSetting("weather", "longitude", 1, "13.41");
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
 
     homedeck::EventBus bus;
     FakeHttpClient http_client;
@@ -217,8 +217,8 @@ TEST_F(WeatherProviderTest, TriggerPollWakesTheLoopImmediately) {
     homedeck::OpenMeteoWeatherProvider provider(http_client, storage, bus, std::chrono::hours(1));
     std::this_thread::sleep_for(std::chrono::milliseconds(20));  // let the first (not-configured) PollOnce() land
 
-    storage.SetSetting("weather", "latitude", 1, "52.52");
-    storage.SetSetting("weather", "longitude", 1, "13.41");
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
     http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kSuccessBody});
 
     provider.TriggerPoll();

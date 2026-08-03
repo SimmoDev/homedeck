@@ -71,10 +71,10 @@ public:
     // collision, not the only thing preventing an overwrite through the
     // wrong door. SetSetting returns false for that key; ListAllSettings
     // silently excludes it.
-    bool SetSetting(const std::string& module_id, const std::string& key, int schema_version,
-                     const std::string& value);
+    [[nodiscard]] bool SetSetting(const std::string& module_id, const std::string& key, int schema_version,
+                                   const std::string& value);
     std::optional<VersionedValue> GetSetting(const std::string& module_id, const std::string& key);
-    bool EraseSetting(const std::string& module_id, const std::string& key);
+    [[nodiscard]] bool EraseSetting(const std::string& module_id, const std::string& key);
 
     // Every setting across every module - the settings/backup API's
     // enumeration primitive. Entries that fail to decode (defensive -
@@ -89,15 +89,15 @@ public:
     // SetSetting/WriteCache for the same module - see
     // FirmwareSecretStore's own comment for why that's not structurally
     // prevented on firmware.
-    bool SetSecret(const std::string& module_id, const std::string& key, int schema_version,
-                    const std::string& value);
+    [[nodiscard]] bool SetSecret(const std::string& module_id, const std::string& key, int schema_version,
+                                  const std::string& value);
     std::optional<VersionedValue> GetSecret(const std::string& module_id, const std::string& key);
-    bool EraseSecret(const std::string& module_id, const std::string& key);
+    [[nodiscard]] bool EraseSecret(const std::string& module_id, const std::string& key);
 
-    bool WriteCache(const std::string& module_id, const std::string& key, int schema_version,
-                     const std::string& value);
+    [[nodiscard]] bool WriteCache(const std::string& module_id, const std::string& key, int schema_version,
+                                   const std::string& value);
     std::optional<VersionedValue> ReadCache(const std::string& module_id, const std::string& key);
-    bool EraseCache(const std::string& module_id, const std::string& key);
+    [[nodiscard]] bool EraseCache(const std::string& module_id, const std::string& key);
 
 private:
     std::mutex mutex_;
