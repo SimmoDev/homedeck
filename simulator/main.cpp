@@ -1,3 +1,5 @@
+#include "debug_panel.h"
+
 #include "core/event_bus.h"
 #include "core/ota_routes.h"
 #include "core/storage.h"
@@ -19,7 +21,6 @@
 #include "ui/navigation.h"
 #include "ui/screens/wifi_setup_screen.h"
 
-#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
@@ -85,331 +86,6 @@ uint16_t ResolveWebPort() {
     return static_cast<uint16_t>(value);
 }
 
-// A bottom-anchored flex column all the CreateTestXButton() helpers
-// below attach to, so a new debug button just gets added to the flow -
-// no manually-chosen pixel offset to pick, and no need to renumber
-// other buttons' offsets if one is removed. COLUMN_REVERSE so each new
-// call appends above the previous one, closest-to-edge first. Cross
-// axis (horizontal, for a column flow) must be CENTER, not END - END
-// right-aligns each button against the panel's own content-sized width
-// instead of centering it.
-lv_obj_t* CreateTestButtonPanel(lv_obj_t* parent) {
-    lv_obj_t* panel = lv_obj_create(parent);
-    lv_obj_remove_style_all(panel);
-    lv_obj_set_size(panel, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(panel, LV_ALIGN_BOTTOM_MID, 0, -16);
-    lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN_REVERSE);
-    lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(panel, 8, 0);
-    lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
-    return panel;
-}
-
-// Temporary test-only wiring proving LowBatteryMonitor/NotificationBanner
-// end to end - HostBatteryReader is a fixed-then-adjustable mock (see
-// platform/host/battery_reader.h) that never naturally crosses the low-
-// battery threshold on its own, so there's no other way to see the real
-// notification flow run in the simulator. Removed once a real widget
-// (weather) or some other real trigger exists to exercise this
-// naturally; kept out of LowBatteryMonitor itself so real product code
-// stays free of throwaway test scaffolding, the same reasoning
-// CreateTestNavButton above already follows.
-void OnTestLowBatteryClicked(lv_event_t* e) {
-    auto* battery_reader = static_cast<homedeck::HostBatteryReader*>(lv_event_get_user_data(e));
-    battery_reader->SetPercent(10);
-}
-
-void CreateTestLowBatteryButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestLowBatteryClicked, LV_EVENT_CLICKED, &battery_reader);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: trigger low battery");
-}
-
-// Same reasoning as CreateTestLowBatteryButton above, for
-// CriticalBatteryMonitor/PowerManager's kError transition instead - 2%
-// is below CriticalBatteryMonitor::kCriticalThresholdPercent (5), the
-// same margin style this button's 10 uses against LowBatteryMonitor's
-// 15.
-void OnTestCriticalBatteryClicked(lv_event_t* e) {
-    auto* battery_reader = static_cast<homedeck::HostBatteryReader*>(lv_event_get_user_data(e));
-    battery_reader->SetPercent(2);
-}
-
-void CreateTestCriticalBatteryButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestCriticalBatteryClicked, LV_EVENT_CLICKED, &battery_reader);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: trigger critical battery");
-}
-
-// Temporary test-only wiring proving GET /api/diagnostics' external-power
-// field end to end - HostBatteryReader's external-power flag never
-// changes on its own, the same reasoning CreateTestLowBatteryButton
-// above already follows. Removed once a real Power Management screen
-// exists to exercise this.
-void OnTestExternalPowerClicked(lv_event_t* e) {
-    auto* battery_reader = static_cast<homedeck::HostBatteryReader*>(lv_event_get_user_data(e));
-    battery_reader->SetExternalPowerConnected(!battery_reader->IsExternalPowerConnected());
-}
-
-void CreateTestExternalPowerButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestExternalPowerClicked, LV_EVENT_CLICKED, &battery_reader);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: toggle external power");
-}
-
-// Temporary test-only wiring proving LowBatteryMonitor doesn't fire
-// (and GET /api/diagnostics' batteryPresent field reflects reality)
-// when no battery is installed - the same reasoning
-// CreateTestExternalPowerButton above already follows. Removed once a
-// real Power Management screen exists to exercise this.
-void OnTestBatteryPresentClicked(lv_event_t* e) {
-    auto* battery_reader = static_cast<homedeck::HostBatteryReader*>(lv_event_get_user_data(e));
-    battery_reader->SetBatteryPresent(!battery_reader->IsBatteryPresent());
-}
-
-void CreateTestBatteryPresentButton(lv_obj_t* parent, homedeck::HostBatteryReader& battery_reader) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestBatteryPresentClicked, LV_EVENT_CLICKED, &battery_reader);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: toggle battery present");
-}
-
-// Temporary test-only wiring proving the Web UI's OTA page surfaces a
-// real upload failure, not just the success path - see
-// docs/architecture/simulator.md's OTA mock description. Removed once a
-// real Power Management screen (or similar) exists to exercise this.
-void OnTestForceOtaFailureClicked(lv_event_t* e) {
-    auto* force_failure = static_cast<bool*>(lv_event_get_user_data(e));
-    *force_failure = !*force_failure;
-}
-
-void CreateTestForceOtaFailureButton(lv_obj_t* parent, bool& force_failure) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestForceOtaFailureClicked, LV_EVENT_CLICKED, &force_failure);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: toggle force OTA failure");
-}
-
-// Temporary test-only wiring proving the Web UI's new Logs section
-// renders real entries without needing multiple simulator restarts to
-// accumulate them - see docs/decisions/ADR-0019-structured-logging.md.
-// Removed once a real, naturally-occurring event exists to exercise
-// this in the simulator (there's no Wi-Fi/mDNS bring-up here to log,
-// unlike firmware).
-void OnTestLogEntryClicked(lv_event_t* e) {
-    auto* logger = static_cast<homedeck::Logger*>(lv_event_get_user_data(e));
-    logger->Log(homedeck::LogLevel::kInfo, "simulator", "Test log entry");
-}
-
-void CreateTestLogEntryButton(lv_obj_t* parent, homedeck::Logger& logger) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestLogEntryClicked, LV_EVENT_CLICKED, &logger);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: write a log entry");
-}
-
-// Temporary test-only wiring to reach the Wi-Fi setup screen - the
-// simulator has no real SoftAP "not provisioned" path to trigger it
-// naturally (see wifi_setup_screen.h), the same reasoning
-// CreateTestLowBatteryButton below already follows for LowBatteryMonitor.
-// Removed once a real trigger exists.
-void OnTestWifiSetupNavClicked(lv_event_t* e) {
-    auto* navigation = static_cast<homedeck::Navigation*>(lv_event_get_user_data(e));
-    navigation->GoTo("wifi-setup");
-}
-
-void CreateTestWifiSetupNavButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestWifiSetupNavClicked, LV_EVENT_CLICKED, &navigation);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: go to Wi-Fi setup screen");
-}
-
-// WifiSetupScreen deliberately omits the home affordance (see ui.md's
-// Navigation model) - correct on real hardware, since an unprovisioned
-// device shouldn't let the user bail back to a dashboard with no
-// network, but it leaves the simulator with no way back to the
-// dashboard once CreateTestWifiSetupNavButton above navigates here.
-// Parented to wifi_setup_screen.Root() itself, not dashboard.Root() -
-// this screen's controls are the only ones visible once it's loaded.
-// Removed once a real trigger exists, same as the button above. Placed
-// just below the screen's own content rather than bottom-anchored like
-// every other Test: button - this screen's on-screen keyboard occupies
-// the bottom 40% of the screen once a text field is focused (see
-// keyboard_input.cpp), and a bottom-anchored button would sit on top of
-// (and block) part of it.
-void OnTestBackToDashboardClicked(lv_event_t* e) {
-    auto* navigation = static_cast<homedeck::Navigation*>(lv_event_get_user_data(e));
-    navigation->GoHome();
-}
-
-void CreateTestBackToDashboardButton(lv_obj_t* parent, homedeck::Navigation& navigation) {
-    lv_obj_t* button = lv_button_create(parent);
-    // Below the "To configure Wi-Fi..." instructions text and the
-    // connect-error message beneath it (the last real content on this
-    // screen, when SetConnectError has fired) with a visible gap - a
-    // fixed offset rather than flex-flowed alongside it, since that text
-    // is owned by the portable WifiSetupScreen (wifi_setup_screen.cpp)
-    // and not exposed for a simulator-only debug button to attach to.
-    lv_obj_align(button, LV_ALIGN_TOP_MID, 0, 540);
-    lv_obj_add_event_cb(button, OnTestBackToDashboardClicked, LV_EVENT_CLICKED, &navigation);
-
-    lv_obj_t* label = lv_label_create(button);
-    // WifiSetupScreen's root_ sets Montserrat 24 for its own real
-    // content (see wifi_setup_screen.cpp), inherited here since this
-    // button is parented to it - override back to LVGL's default size
-    // to match every other Test: button, which are parented to
-    // CreateTestButtonPanel()'s panel (no such override) and so stay at
-    // the default.
-    lv_obj_set_style_text_font(label, LV_FONT_DEFAULT, 0);
-    lv_label_set_text(label, "Test: back to dashboard");
-}
-
-// Temporary test-only wiring to exercise StatusBar's and
-// NetworkStatusWidget's disconnected rendering - HostNetworkStatus
-// defaults to connected with nothing to disconnect it, the same
-// reasoning CreateTestLowBatteryButton above already follows. Removed
-// once a real trigger exists.
-void OnTestWifiDisconnectClicked(lv_event_t* e) {
-    auto* network_status = static_cast<homedeck::HostNetworkStatus*>(lv_event_get_user_data(e));
-    network_status->SetConnected(!network_status->Snapshot().connected);
-}
-
-void CreateTestWifiDisconnectButton(lv_obj_t* parent, homedeck::HostNetworkStatus& network_status) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestWifiDisconnectClicked, LV_EVENT_CLICKED, &network_status);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: toggle wifi disconnected");
-}
-
-// Not temporary - there's no other way to manually exercise
-// AudioOutput in the simulator, the same lasting-dev-hook role
-// CreateTestLowBatteryButton above already plays for its own hardware
-// signal. Runs on UiTask's own thread (the one already running
-// lv_timer_handler()), so this freezes the simulator window for the
-// clip's ~0.3s duration - a known, accepted tradeoff for a manual test
-// button, not worth a Task-based async wrapper (see
-// platform/audio_output.h's own blocking contract).
-void OnTestPlayToneClicked(lv_event_t* e) {
-    auto* audio_output = static_cast<homedeck::HostAudioOutput*>(lv_event_get_user_data(e));
-    constexpr uint32_t kSampleRate = 48000;
-    constexpr double kDurationSeconds = 0.3;
-    constexpr double kToneHz = 440.0;
-    std::vector<int16_t> tone(static_cast<size_t>(kSampleRate * kDurationSeconds));
-    for (size_t i = 0; i < tone.size(); ++i) {
-        double t = static_cast<double>(i) / kSampleRate;
-        tone[i] = static_cast<int16_t>(std::sin(2 * M_PI * kToneHz * t) * 10000);
-    }
-    audio_output->SetVolume(70);
-    audio_output->Play(tone.data(), tone.size(), kSampleRate);
-}
-
-void CreateTestPlayToneButton(lv_obj_t* parent, homedeck::HostAudioOutput& audio_output) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestPlayToneClicked, LV_EVENT_CLICKED, &audio_output);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: play tone");
-}
-
-// Wraps the real LvglUserActivitySource with a settable override - it
-// has no separate fake backend to begin with (unlike HostBatteryReader/
-// HostNetworkStatus, real UserActivitySource is identical on both
-// targets, see ui/lvgl_user_activity_source.h), and LVGL has no "pretend
-// N minutes passed" API, only lv_display_trigger_activity() (resets to
-// just-active). Stays local debug scaffolding here rather than a second
-// real platform/host/ backend, same reasoning force_ota_failure below
-// already follows.
-class DebugOverridableUserActivitySource : public homedeck::UserActivitySource {
-public:
-    enum class ForcedLevel { kNone, kIdle, kSleeping };
-
-    explicit DebugOverridableUserActivitySource(homedeck::UserActivitySource& real) : real_(real) {}
-
-    uint32_t MillisecondsSinceLastActivity() const override {
-        switch (forced_) {
-            case ForcedLevel::kIdle:
-                return kForcedIdleOnlyMs;
-            case ForcedLevel::kSleeping:
-                return kForcedSleepingMs;
-            case ForcedLevel::kNone:
-            default:
-                return real_.MillisecondsSinceLastActivity();
-        }
-    }
-
-    void SetForced(ForcedLevel level) { forced_ = level; }
-
-private:
-    // Past kIdleTimeoutMs but short of kSleepTimeoutMs (see
-    // core/power_manager.cpp) so this level parks at Idle rather than
-    // cascading into Sleeping on a later tick - a known, accepted
-    // coupling to those placeholder values, same convention
-    // kForcedSleepingMs below already follows.
-    static constexpr uint32_t kForcedIdleOnlyMs = 60000;
-    // Past any real placeholder timeout, including Sleep's - see
-    // core/power_manager.cpp.
-    static constexpr uint32_t kForcedSleepingMs = 24u * 60 * 60 * 1000;
-
-    homedeck::UserActivitySource& real_;
-    ForcedLevel forced_ = ForcedLevel::kNone;
-};
-
-void OnTestTriggerIdleClicked(lv_event_t* e) {
-    auto* source = static_cast<DebugOverridableUserActivitySource*>(lv_event_get_user_data(e));
-    source->SetForced(DebugOverridableUserActivitySource::ForcedLevel::kIdle);
-}
-
-void CreateTestTriggerIdleButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestTriggerIdleClicked, LV_EVENT_CLICKED, &source);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: trigger idle");
-}
-
-void OnTestTriggerSleepingClicked(lv_event_t* e) {
-    auto* source = static_cast<DebugOverridableUserActivitySource*>(lv_event_get_user_data(e));
-    source->SetForced(DebugOverridableUserActivitySource::ForcedLevel::kSleeping);
-}
-
-void CreateTestTriggerSleepingButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestTriggerSleepingClicked, LV_EVENT_CLICKED, &source);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: trigger sleeping");
-}
-
-void OnTestTriggerActiveClicked(lv_event_t* e) {
-    auto* source = static_cast<DebugOverridableUserActivitySource*>(lv_event_get_user_data(e));
-    source->SetForced(DebugOverridableUserActivitySource::ForcedLevel::kNone);
-    // Clears the override, but the underlying real clock needs to be
-    // fresh too - otherwise it could still read as idle on the very
-    // next tick if the real SDL window hasn't actually been touched
-    // recently.
-    lv_display_trigger_activity(nullptr);
-}
-
-void CreateTestTriggerActiveButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source) {
-    lv_obj_t* button = lv_button_create(parent);
-    lv_obj_add_event_cb(button, OnTestTriggerActiveClicked, LV_EVENT_CLICKED, &source);
-
-    lv_obj_t* label = lv_label_create(button);
-    lv_label_set_text(label, "Test: trigger active");
-}
-
 }  // namespace
 
 // The simulator entry point - platform backends and debug-only wiring
@@ -428,7 +104,7 @@ int main() {
     // state beyond that (see ui/lvgl_user_activity_source.h).
     homedeck::HostDisplayBrightness display_brightness;
     homedeck::LvglUserActivitySource real_user_activity_source;
-    DebugOverridableUserActivitySource user_activity_source(real_user_activity_source);
+    homedeck::sim::DebugOverridableUserActivitySource user_activity_source(real_user_activity_source);
 
     // HostSettingsStore/HostSecretStore are plain filesystem paths - no
     // OS-init constraint like firmware's nvs_flash_init() to order
@@ -520,21 +196,21 @@ int main() {
     // No real SoftAP here to derive these from - a fixed placeholder is
     // enough to exercise the layout (see wifi_setup_screen.h's SetApInfo).
     app_core.GetWifiSetupScreen().SetApInfo(kFakeApSsid, "192.168.4.1");
-    CreateTestBackToDashboardButton(app_core.GetWifiSetupScreen().Root(), app_core.GetNavigation());
+    homedeck::sim::CreateTestBackToDashboardButton(app_core.GetWifiSetupScreen().Root(), app_core.GetNavigation());
 
-    lv_obj_t* test_button_panel = CreateTestButtonPanel(app_core.GetDashboard().Root());
-    CreateTestWifiSetupNavButton(test_button_panel, app_core.GetNavigation());
-    CreateTestWifiDisconnectButton(test_button_panel, network_status);
-    CreateTestPlayToneButton(test_button_panel, audio_output);
-    CreateTestLowBatteryButton(test_button_panel, battery_reader);
-    CreateTestCriticalBatteryButton(test_button_panel, battery_reader);
-    CreateTestExternalPowerButton(test_button_panel, battery_reader);
-    CreateTestBatteryPresentButton(test_button_panel, battery_reader);
-    CreateTestForceOtaFailureButton(test_button_panel, force_ota_failure);
-    CreateTestTriggerIdleButton(test_button_panel, user_activity_source);
-    CreateTestTriggerSleepingButton(test_button_panel, user_activity_source);
-    CreateTestTriggerActiveButton(test_button_panel, user_activity_source);
-    CreateTestLogEntryButton(test_button_panel, app_core.GetLogger());
+    lv_obj_t* test_button_panel = homedeck::sim::CreateTestButtonPanel(app_core.GetDashboard().Root());
+    homedeck::sim::CreateTestWifiSetupNavButton(test_button_panel, app_core.GetNavigation());
+    homedeck::sim::CreateTestWifiDisconnectButton(test_button_panel, network_status);
+    homedeck::sim::CreateTestPlayToneButton(test_button_panel, audio_output);
+    homedeck::sim::CreateTestLowBatteryButton(test_button_panel, battery_reader);
+    homedeck::sim::CreateTestCriticalBatteryButton(test_button_panel, battery_reader);
+    homedeck::sim::CreateTestExternalPowerButton(test_button_panel, battery_reader);
+    homedeck::sim::CreateTestBatteryPresentButton(test_button_panel, battery_reader);
+    homedeck::sim::CreateTestForceOtaFailureButton(test_button_panel, force_ota_failure);
+    homedeck::sim::CreateTestTriggerIdleButton(test_button_panel, user_activity_source);
+    homedeck::sim::CreateTestTriggerSleepingButton(test_button_panel, user_activity_source);
+    homedeck::sim::CreateTestTriggerActiveButton(test_button_panel, user_activity_source);
+    homedeck::sim::CreateTestLogEntryButton(test_button_panel, app_core.GetLogger());
 
     // Every ClockTickEvent subscriber above is already constructed, so
     // this can't miss the first tick regardless of the order they were
