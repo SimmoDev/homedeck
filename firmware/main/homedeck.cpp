@@ -428,7 +428,8 @@ void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, hom
     // temporary SoftAP-setup server has already stopped, so there's no
     // port/lifecycle overlap between the two. Routes were already
     // registered against web_server inside AppCore's constructor.
-    if (web_server.Start(80)) {
+    bool web_server_started = web_server.Start(80);
+    if (web_server_started) {
         printf("Web UI listening on port 80\n");
         app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "web_server", "Listening on port 80");
     } else {
@@ -438,15 +439,24 @@ void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, hom
 
     // A real, meaningful "this boot actually worked" checkpoint - see
     // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.
-    // ESP_OK is a no-op result (rollback disabled, or this wasn't a
-    // pending-verify boot) rather than success-of-an-action, so this logs
-    // rather than ESP_ERROR_CHECK-ing - a real failure here means the
-    // bootloader could still roll back a boot that actually worked, worth
-    // a trace, not worth crashing an otherwise-healthy device over.
-    esp_err_t rollback_result = esp_ota_mark_app_valid_cancel_rollback();
-    if (rollback_result != ESP_OK) {
+    // Gated on the Web UI actually starting - it's the device's only
+    // remote admin/recovery surface once provisioned, so an image that
+    // connects Wi-Fi but fails to serve it is exactly the "boots but is
+    // actually broken" case rollback exists to catch. mDNS failing alone
+    // doesn't block confirmation - the Web UI stays reachable by IP
+    // without it, so it isn't the same class of "unusable boot."
+    // Deliberately left unconfirmed rather than escalated: the bootloader
+    // rolls back the next boot on its own if this is never called.
+    if (web_server_started) {
+        esp_err_t rollback_result = esp_ota_mark_app_valid_cancel_rollback();
+        if (rollback_result != ESP_OK) {
+            app_core.GetLogger().Log(
+                homedeck::LogLevel::kWarning, "ota",
+                std::string("Failed to cancel rollback: ") + esp_err_to_name(rollback_result));
+        }
+    } else {
         app_core.GetLogger().Log(homedeck::LogLevel::kWarning, "ota",
-                                  std::string("Failed to cancel rollback: ") + esp_err_to_name(rollback_result));
+                                  "Web UI failed to start - leaving OTA rollback unconfirmed");
     }
 }
 
