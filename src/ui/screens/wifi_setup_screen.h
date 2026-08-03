@@ -23,10 +23,11 @@ namespace homedeck {
 // state-management decision).
 //
 // Deliberately has no home affordance, unlike every other screen (see
-// ADR-0004's "universal, every non-dashboard screen" home affordance
-// decision) - going home before Wi-Fi is configured would strand the
-// user on a screen with no network and no way back to this one short of
-// a reboot, since nothing else ever navigates here automatically. See
+// ADR-0004's persistent home-affordance decision, present on every
+// screen but the dashboard) - going home before Wi-Fi is configured
+// would strand the user on a screen with no network and no way back to
+// this one short of a reboot, since nothing else ever navigates here
+// automatically. See
 // docs/architecture/ui.md#status for this documented exception.
 class WifiSetupScreen {
 public:
