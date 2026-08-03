@@ -86,7 +86,9 @@ management state model" item instead.
       (`espp/ina226`), and `TimeSource` via the RX8130CE RTC
       (`espp/rx8130ce`) — see
       [hardware.md](architecture/hardware.md#on-device-dashboard).
-      `Queue<T>`'s firmware backend stays deferred — nothing uses it yet.
+      `Queue<T>`'s firmware backend was still unused as of this milestone
+      — M2's Logging item below is its first firmware use (see
+      [ADR-0020](decisions/ADR-0020-async-log-persistence.md)).
       Navigation, the home affordance, and a second screen are out of
       scope for this item specifically.
 - [x] Desktop simulator target running the same application — a separate
