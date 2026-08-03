@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted (contract shape) — exact interfaces to be finalized during M2/M3
+Accepted (contract shape) — exact interfaces to be finalized during M3
 implementation, not defined here.
 
 ## Context
