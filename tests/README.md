@@ -31,8 +31,9 @@ input-validation, and error-path cases over the same real socket
 `critical_battery_monitor_test.cpp`, `notification_sound_test.cpp`,
 `network_status_monitor_test.cpp`, `weather_provider_test.cpp`,
 `grid_occupancy_test.cpp`, `time_format_test.cpp`, `http_client_test.cpp`,
-`logger_test.cpp`, and `battery_reader_test.cpp` round out coverage for
-their respective subsystems. `wifi_reconnect_policy_test.cpp` and `wifi_credentials_test.cpp` cover the
+`logger_test.cpp`, `battery_reader_test.cpp`, `display_brightness_test.cpp`,
+and `ota_gate_test.cpp` round out coverage for their respective
+subsystems. `wifi_reconnect_policy_test.cpp` and `wifi_credentials_test.cpp` cover the
 two pieces of `firmware/main/wifi_setup.cpp`'s decision logic that have
 been pulled out into portable, LVGL/ESP-IDF-free units
 (`src/core/wifi_reconnect_policy.h`, `src/core/wifi_credentials.h`)
