@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { findSetting, loadJson, postJson, readErrorBody, type SettingEntry } from "./api";
+  import { findSetting, getJson, loadJson, postJson, type SettingEntry } from "./api";
 
   // The dashboard's weather source (see docs/architecture/dashboard.md's
   // Weather source section and ADR-0008). Backed by the generic
@@ -43,29 +43,26 @@
     searching = true;
     searchError = undefined;
     results = [];
-    try {
-      const response = await fetch(`/api/weather/geocode?query=${encodeURIComponent(query)}`);
-      if (!response.ok) {
-        const errorBody = await readErrorBody(response);
-        searchError =
-          errorBody.error === "upstream_failed"
+    const result = await getJson<{ results: GeocodeResult[] }>(
+      `/api/weather/geocode?query=${encodeURIComponent(query)}`,
+    );
+    searching = false;
+    if (!result.ok) {
+      searchError =
+        result.kind === "network"
+          ? result.message
+          : result.body.error === "upstream_failed"
             ? "Couldn't reach the location search service."
-            : errorBody.error === "upstream_invalid_response"
+            : result.body.error === "upstream_invalid_response"
               ? "The location search service returned an unexpected response."
-              : errorBody.error === "query_too_long"
+              : result.body.error === "query_too_long"
                 ? "Search text is too long."
-                : `Search failed: ${response.status}`;
-        return;
-      }
-      const body = (await response.json()) as { results: GeocodeResult[] };
-      results = body.results;
-      if (results.length === 0) {
-        searchError = "No matches found.";
-      }
-    } catch (err) {
-      searchError = String(err);
-    } finally {
-      searching = false;
+                : `Search failed: ${result.status}`;
+      return;
+    }
+    results = result.data.results;
+    if (results.length === 0) {
+      searchError = "No matches found.";
     }
   }
 

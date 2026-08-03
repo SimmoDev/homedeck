@@ -133,6 +133,24 @@ export async function postJson<T = unknown>(url: string, body?: unknown): Promis
   }
 }
 
+// Used for GET loads where the caller needs to map specific error codes
+// to its own message (e.g. WeatherSettings.svelte's geocode search,
+// where "upstream_failed" and "query_too_long" need different copy) -
+// loadJson()'s single error string doesn't carry the parsed body, only a
+// generic "Request failed: N" fallback. Shares postJson()'s discriminated
+// PostJsonResult shape rather than inventing a second one for GET.
+export async function getJson<T>(url: string): Promise<PostJsonResult<T>> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      return { ok: false, kind: "http", status: response.status, body: await readErrorBody(response) };
+    }
+    return { ok: true, data: (await response.json()) as T };
+  } catch (err) {
+    return { ok: false, kind: "network", message: String(err) };
+  }
+}
+
 // Triggers a browser file download via fetch + Blob rather than a plain
 // <a href download> - a bare anchor navigates directly to the URL
 // outside of JS, so it has no way to notice a 401 (or any other

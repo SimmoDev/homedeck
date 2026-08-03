@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { readErrorBody } from "./api";
+  import { postJson } from "./api";
   import { describeAuthError, validateSetupPassword } from "./passwordValidation";
 
   // Shared by both first-login setup and ordinary login - same field,
@@ -32,27 +32,17 @@
     }
 
     submitting = true;
-    try {
-      const response = await fetch(mode === "setup" ? "/api/auth/setup" : "/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      const body = await readErrorBody(response);
-      // already_set means another request won first (the real race
-      // ADR-0007 accepts) - the password itself may now be wrong, but
-      // the state genuinely changed, so re-checking status is still the
-      // right move rather than treating this as this form's own error.
-      if (response.ok || body.error === "already_set") {
-        onStateChange();
-        return;
-      }
-      error = describeAuthError(body.error, response.status);
-    } catch (err) {
-      error = String(err);
-    } finally {
-      submitting = false;
+    const result = await postJson(mode === "setup" ? "/api/auth/setup" : "/api/auth/login", { password });
+    submitting = false;
+    // already_set means another request won first (the real race
+    // ADR-0007 accepts) - the password itself may now be wrong, but
+    // the state genuinely changed, so re-checking status is still the
+    // right move rather than treating this as this form's own error.
+    if (result.ok || (result.kind === "http" && result.body.error === "already_set")) {
+      onStateChange();
+      return;
     }
+    error = result.kind === "network" ? result.message : describeAuthError(result.body.error, result.status);
   }
 </script>
 

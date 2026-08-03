@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { downloadFile, findSetting, loadJson, postJson, readErrorBody, setSessionExpiredHandler } from "./api";
+import { downloadFile, findSetting, getJson, loadJson, postJson, readErrorBody, setSessionExpiredHandler } from "./api";
 
 describe("findSetting", () => {
   const entries = [
@@ -199,6 +199,56 @@ describe("postJson", () => {
 
     expect(onExpired).toHaveBeenCalledOnce();
     setSessionExpiredHandler(() => {});
+  });
+});
+
+describe("getJson", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setSessionExpiredHandler(() => {});
+  });
+
+  it("resolves ok with the parsed body on a successful response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ results: [] }), { status: 200 })),
+    );
+
+    const result = await getJson<{ results: unknown[] }>("/api/weather/geocode?query=london");
+
+    expect(result).toEqual({ ok: true, data: { results: [] } });
+  });
+
+  it("resolves to an http-kind error carrying the status and parsed body on a non-ok response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: "query_too_long" }), { status: 400 })),
+    );
+
+    const result = await getJson("/api/weather/geocode?query=x");
+
+    expect(result).toEqual({ ok: false, kind: "http", status: 400, body: { error: "query_too_long" } });
+  });
+
+  it("resolves to a network-kind error rather than throwing when fetch itself rejects", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    const result = await getJson("/api/weather/geocode?query=x");
+
+    if (result.ok || result.kind !== "network") {
+      throw new Error("expected getJson to resolve with a network-kind error");
+    }
+    expect(result.message).toContain("Failed to fetch");
+  });
+
+  it("notifies the session-expired handler on a 401, the same as postJson/loadJson", async () => {
+    const onExpired = vi.fn();
+    setSessionExpiredHandler(onExpired);
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+
+    await getJson("/api/weather/geocode?query=x");
+
+    expect(onExpired).toHaveBeenCalledOnce();
   });
 });
 
