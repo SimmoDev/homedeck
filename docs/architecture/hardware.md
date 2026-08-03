@@ -105,39 +105,13 @@ RPC timeouts under heavier use remain a real, deferred risk.
 **Known, not yet root-caused: an intermittent crash during the Wi-Fi-connect
 burst.** Twice out of four on-device connection attempts, the device
 panicked (`Guru Meditation Error: Instruction access fault`, Core 1) a few
-hundred milliseconds after logging a successful IP acquisition, while mDNS
-and the Web UI's HTTP server were starting — the highest-SDIO-traffic
-window in the boot sequence. The faulting PC resolves to the literal entry
-point of `SysTickIsrHandler` (`freertos/port_systick.c:127`), an
-instruction fetch fault on an otherwise correctly IRAM-mapped address, in
-interrupt context. RISC-V `mcause=1` (instruction access fault) and
-`mtval` matching that same faulting PC exactly - the fetch itself failed
-at a genuinely valid, correctly-mapped address, not a corrupted jump
-landing there from elsewhere. Attributed to the `logger` task (`Logger`'s
-own background worker, `src/core/logger.cpp`), mid-write to the
-`storage` partition's cache tier at the time of the fault -
-`firmware/main/crash_diagnostics.cpp` logs this (plus `ra`/`sp`/`a0`-`a7`)
-on every boot now, not just task/PC, for whenever this reproduces again.
-Core-dump analysis ruled out ISR stack overflow (only 48 of 2096 bytes of
-the per-core ISR stack were in use at fault time) and chip-revision/
-toolchain mismatch (`sdkconfig` already correctly targets
-`CONFIG_ESP32P4_REV_MIN_1` for this kit's v1.3 silicon, and that failure
-mode is deterministic, not intermittent, unlike what was observed).
-Multiple open upstream `esp-hosted-mcu` issues report general SDIO/RPC
-instability on this exact ESP32-P4+C6 combination under load, but none
-matching this specific fault signature. Consistent with, but a more
-severe manifestation than, the RPC-timeout risk immediately above -
-tracked as the same general class of risk, not a separate one. Isolating
-it further needs hardware debug tooling (JTAG) or upstream engagement,
-neither available yet.
-
-A structurally distinct `storage`-partition wear-levelling corruption
-(see [ADR-0027](../decisions/ADR-0027-secret-store-partition-separation.md)'s
-Consequences) was found and fixed on the reference unit while
-investigating this crash, since both happened to involve the `logger`
-task writing to the same partition. Real, but whether it contributed to
-this crash is unconfirmed - no fresh reproduction has occurred since the
-fix to compare against.
+hundred milliseconds after logging a successful IP acquisition, during the
+highest-SDIO-traffic window in the boot sequence. Root-cause investigation
+has exhausted every avenue available without JTAG hardware debug tooling
+or upstream engagement with the `esp-hosted-mcu` project; the fault
+signature doesn't match any currently-open upstream issue for this exact
+ESP32-P4+C6 combination. See git history for the diagnostic detail behind
+this conclusion.
 
 Reproducing this repeatedly no longer needs a full
 `tools/factory-reset.sh` erase-and-reflash cycle per attempt - the Web
@@ -147,19 +121,14 @@ clears just the stored Wi-Fi credentials and reboots automatically so
 the device re-enters SoftAP setup, isolating the connect burst without
 touching Core's own `Storage` state.
 
-**Accepted risk:** this is carried forward
-into M3 as a known, explicitly accepted gap, not resolved. `ESP_SYSTEM_PANIC_PRINT_REBOOT`
-means the device recovers on its own (a self-triggered reboot, not a
-hang), and every root-cause avenue available without JTAG or upstream
-engagement has already been exhausted - continuing to dig with only
-serial/core-dump tools available wouldn't likely add new evidence.
-Accepted specifically on that basis, not because the rate is
-considered acceptable in the abstract: a real crash on a core, everyday
-path deserves re-evaluating once M3 adds more Wi-Fi-adjacent activity
-at boot/connect time (Harmony hub discovery, etc.), which could
-plausibly change the reproduction rate one way or the other - re-check
-this note if it does, rather than assuming it's already been ruled
-out.
+**Accepted risk:** carried forward into M3 as a known, explicitly
+accepted gap, not resolved. The device recovers on its own (a
+self-triggered reboot, not a hang). Accepted specifically because every
+root-cause avenue available without JTAG or upstream engagement has
+already been exhausted, not because the reproduction rate is considered
+acceptable in the abstract - re-evaluate once M3 adds more Wi-Fi-adjacent
+activity at boot/connect time (Harmony hub discovery, etc.), which could
+plausibly change that rate one way or the other.
 
 The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
