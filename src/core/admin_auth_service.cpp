@@ -123,6 +123,39 @@ bool ConstantTimeEquals(const std::string& a, const std::string& b) {
     return diff == 0;
 }
 
+struct StoredPasswordHash {
+    std::vector<unsigned char> salt;
+    std::vector<unsigned char> hash;
+};
+
+// Parses the "pbkdf2-sha256$<iterations>$<salt_hex>$<hash_hex>" format
+// SetInitialPassword() writes (iterations_str is parsed and discarded,
+// not used - verification always hashes at the current
+// kPbkdf2Iterations constant). Pulled out of Login() so the parsing -
+// fast, and the only part of password verification that touches
+// Storage - is clearly separated from the expensive hash-and-compare
+// step that follows it, which needs none of Login()'s own locked state.
+std::optional<StoredPasswordHash> ParseStoredPasswordHash(const std::optional<VersionedValue>& stored) {
+    if (!stored.has_value()) {
+        return std::nullopt;
+    }
+    std::istringstream stream(stored->value);
+    std::string algorithm, iterations_str, salt_hex, hash_hex;
+    std::getline(stream, algorithm, '$');
+    std::getline(stream, iterations_str, '$');
+    std::getline(stream, salt_hex, '$');
+    std::getline(stream, hash_hex, '$');
+    if (algorithm != "pbkdf2-sha256" || salt_hex.empty() || hash_hex.empty()) {
+        return std::nullopt;
+    }
+    auto salt = FromHex(salt_hex);
+    auto hash = FromHex(hash_hex);
+    if (!salt.has_value() || !hash.has_value()) {
+        return std::nullopt;
+    }
+    return StoredPasswordHash{*salt, *hash};
+}
+
 // Splits a raw "a=1; b=2" Cookie header (RFC 6265) looking for one
 // specific cookie name - the only thing any caller needs so far.
 std::optional<std::string> ExtractCookie(const std::string& cookie_header, const std::string& name) {
@@ -176,9 +209,12 @@ AdminAuthService::~AdminAuthService() {
     mbedtls_entropy_free(entropy_.get());
 }
 
-// Callers of these three helpers already hold mutex_ - mbedtls contexts
-// aren't thread-safe, so ctr_drbg_ access must be serialized the same
-// way sessions_ is.
+// Callers of these two must already hold mutex_ - mbedtls_ctr_drbg
+// contexts aren't thread-safe, so ctr_drbg_ access must be serialized the
+// same way sessions_ is. HashPasswordHex() below is the odd one out: it
+// touches no shared state (no ctr_drbg_/entropy_ call), so Login()
+// deliberately calls it *without* holding mutex_ - see Login()'s own
+// comment for why that matters.
 std::vector<unsigned char> AdminAuthService::GenerateSalt() {
     std::vector<unsigned char> salt(kSaltBytes);
     mbedtls_ctr_drbg_random(ctr_drbg_.get(), salt.data(), salt.size());
@@ -191,6 +227,10 @@ SessionToken AdminAuthService::GenerateSessionToken() {
     return ToHex(token, sizeof(token));
 }
 
+// No shared state - every input is a parameter, every intermediate is a
+// local mbedtls context. Safe to call concurrently from multiple threads
+// with no lock of any kind, unlike GenerateSalt()/GenerateSessionToken()
+// above.
 std::string AdminAuthService::HashPasswordHex(const std::string& password,
                                                const std::vector<unsigned char>& salt) {
     unsigned char output[kHashBytes];
@@ -247,36 +287,37 @@ std::optional<SessionToken> AdminAuthService::SetInitialPassword(const std::stri
 }
 
 std::optional<SessionToken> AdminAuthService::Login(const std::string& password) {
-    std::lock_guard<std::mutex> lock(mutex_);
     // Locked out entirely - don't even spend the ~2s PBKDF2 cost on a
     // request that's going to be rejected regardless, and don't let a
-    // flood of attempts during the lockout window extend it further.
-    if (time_source_.Now() < locked_until_) {
-        return std::nullopt;
-    }
-
-    bool authenticated = false;
-    auto stored = storage_.GetSecret(kModuleId, kPasswordKey);
-    if (stored.has_value()) {
-        // Format: pbkdf2-sha256$<iterations>$<salt_hex>$<hash_hex>.
-        // iterations_str is parsed and discarded, not used - verification
-        // always hashes at the current kPbkdf2Iterations constant.
-        std::istringstream stream(stored->value);
-        std::string algorithm, iterations_str, salt_hex, hash_hex;
-        std::getline(stream, algorithm, '$');
-        std::getline(stream, iterations_str, '$');
-        std::getline(stream, salt_hex, '$');
-        std::getline(stream, hash_hex, '$');
-        if (algorithm == "pbkdf2-sha256" && !salt_hex.empty() && !hash_hex.empty()) {
-            auto salt = FromHex(salt_hex);
-            auto expected = FromHex(hash_hex);
-            if (salt.has_value() && expected.has_value()) {
-                auto computed = FromHex(HashPasswordHex(password, *salt));
-                authenticated = computed.has_value() && ConstantTimeEquals(*computed, *expected);
-            }
+    // flood of attempts during the lockout window extend it further. The
+    // stored hash is also read here, under the same short-held lock as
+    // the lockout check - Storage::GetSecret() is fast (its own internal
+    // mutex, not this one), unlike the hash-and-compare step below.
+    std::optional<StoredPasswordHash> stored_hash;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (time_source_.Now() < locked_until_) {
+            return std::nullopt;
         }
+        stored_hash = ParseStoredPasswordHash(storage_.GetSecret(kModuleId, kPasswordKey));
     }
 
+    // HashPasswordHex()'s ~2s PBKDF2 cost touches no shared state (unlike
+    // GenerateSalt()/GenerateSessionToken(), it never calls into
+    // ctr_drbg_) - computed outside mutex_ so a concurrent Login()/
+    // ValidateSession() call from another HTTP worker thread isn't
+    // serialized behind it. Holding mutex_ across this used to mean an
+    // unauthenticated caller sending a handful of concurrent login
+    // attempts before the lockout below engaged could stall every other
+    // mutex_-guarded operation - including session validation for every
+    // other authenticated endpoint - for the full ~2s each.
+    bool authenticated = false;
+    if (stored_hash.has_value()) {
+        auto computed = FromHex(HashPasswordHex(password, stored_hash->salt));
+        authenticated = computed.has_value() && ConstantTimeEquals(*computed, stored_hash->hash);
+    }
+
+    std::lock_guard<std::mutex> lock(mutex_);
     if (!authenticated) {
         if (++failed_login_attempts_ >= kMaxFailedLoginAttempts) {
             locked_until_ = time_source_.Now() + kLoginLockoutDuration;
