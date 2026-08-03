@@ -66,7 +66,7 @@ default enabled:
 
 - **Direct provider** — Open-Meteo (no API key required), with the user
   choosing a location via a place-name search (also Open-Meteo, its free
-  geocoding API - see [Status](#status) below). Real as of M2,
+  geocoding API - see [Status](#status) below). Implemented as of M2,
   independent of any module.
 - **Home Assistant provider** — supplied by the HA module (M6) through the
   same interface, reusing whatever weather source the user already has in
