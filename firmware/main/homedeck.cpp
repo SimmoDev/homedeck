@@ -386,9 +386,10 @@ lv_obj_t* InitEventBusAndShowSplash(homedeck::EventBus& event_bus) {
 // ConnectToWifi()'s own task, not the UI task (see ADR-0011).
 void BlockUntilWifiConnected(homedeck::AppCore& app_core) {
     homedeck::WifiUiCallbacks wifi_ui_callbacks;
-    wifi_ui_callbacks.on_setup_needed = [&app_core](const std::string& ap_ssid, const std::string& ap_ip) {
-        homedeck::PostToUiThread([&app_core, ap_ssid, ap_ip]() {
-            app_core.GetWifiSetupScreen().SetApInfo(ap_ssid, ap_ip);
+    wifi_ui_callbacks.on_setup_needed = [&app_core](const std::string& ap_ssid, const std::string& ap_ip,
+                                                     uint16_t port) {
+        homedeck::PostToUiThread([&app_core, ap_ssid, ap_ip, port]() {
+            app_core.GetWifiSetupScreen().SetApInfo(ap_ssid, ap_ip, port);
             app_core.GetNavigation().GoTo("wifi-setup");
         });
     };

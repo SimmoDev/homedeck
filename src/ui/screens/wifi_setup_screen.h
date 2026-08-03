@@ -7,6 +7,7 @@
 #include "ui/keyboard_input.h"
 #include "ui/status_bar.h"
 
+#include <cstdint>
 #include <functional>
 #include <string>
 
@@ -50,8 +51,12 @@ public:
     // Fills in the alternative-device setup instructions, only known once
     // SoftAP actually starts (see wifi_setup.cpp's WifiUiCallbacks) - the
     // screen exists before that, so this is a separate call rather than a
-    // constructor parameter.
-    void SetApInfo(const std::string& ap_ssid, const std::string& ap_ip);
+    // constructor parameter. port defaults to the standard HTTP port (the
+    // initial no-stored-credentials setup flow always uses it); the
+    // recovery access point wifi_setup.cpp can also bring up later runs on
+    // a different, explicit port (see StartRecoveryAccessPoint's own
+    // comment), so it's shown in the URL whenever it isn't 80.
+    void SetApInfo(const std::string& ap_ssid, const std::string& ap_ip, uint16_t port = 80);
 
     // Shows a connect-failure message (see WifiUiCallbacks::on_connect_failed) -
     // the only feedback this screen gives on a failed attempt, since

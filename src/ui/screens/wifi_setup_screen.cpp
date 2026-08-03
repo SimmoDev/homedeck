@@ -69,11 +69,18 @@ WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_rea
 
 WifiSetupScreen::~WifiSetupScreen() { lv_obj_del(root_); }
 
-void WifiSetupScreen::SetApInfo(const std::string& ap_ssid, const std::string& ap_ip) {
-    lv_label_set_text_fmt(ap_info_label_,
-                           "To configure Wi-Fi from a computer or phone, connect to SSID \"%s\" and then "
-                           "navigate to http://%s/ in a web browser.",
-                           ap_ssid.c_str(), ap_ip.c_str());
+void WifiSetupScreen::SetApInfo(const std::string& ap_ssid, const std::string& ap_ip, uint16_t port) {
+    if (port == 80) {
+        lv_label_set_text_fmt(ap_info_label_,
+                               "To configure Wi-Fi from a computer or phone, connect to Wi-Fi Network \"%s\" and then "
+                               "navigate to http://%s/ in a web browser.",
+                               ap_ssid.c_str(), ap_ip.c_str());
+    } else {
+        lv_label_set_text_fmt(ap_info_label_,
+                               "To configure Wi-Fi from a computer or phone, connect to Wi-Fi Network \"%s\" and then "
+                               "navigate to http://%s:%u/ in a web browser.",
+                               ap_ssid.c_str(), ap_ip.c_str(), port);
+    }
 }
 
 void WifiSetupScreen::SetConnectError(const std::string& message) { lv_label_set_text(error_label_, message.c_str()); }

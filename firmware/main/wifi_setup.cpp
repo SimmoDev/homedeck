@@ -39,14 +39,14 @@ constexpr int kMaxSetupReconnectAttempts = 5;
 // intervene is its own real gap if the stored network is genuinely gone
 // for good (moved house, router replaced) rather than just briefly down
 // - see WifiReconnectPolicy::ShouldOfferRecovery() and
-// StartRecoveryAccessPoint() below. At the fixed kReconnectBackoffMs
-// interval below, 240 attempts is ~2 minutes - long enough to ride out a
-// router reboot without offering a recovery access point prematurely,
-// short enough that a genuinely-gone network doesn't leave the device
-// silently unreachable indefinitely. A provisional starting point, not a
-// measured one - same status as this project's other untuned timing
-// thresholds (see docs/decisions/ADR-0005-power-and-sleep-model.md).
-constexpr int kNormalModeRecoveryAttempts = 240;
+// StartRecoveryAccessPoint() below. Confirmed on hardware: each failed
+// attempt costs ~2.9s end to end (kReconnectBackoffMs's 500ms plus the
+// SDIO round trip to the C6 for esp_wifi_connect() to actually fail),
+// not the bare 500ms backoff alone - 40 attempts is ~2 minutes at that
+// real rate, long enough to ride out a router reboot without offering a
+// recovery access point prematurely, short enough that a genuinely-gone
+// network doesn't leave the device silently unreachable indefinitely.
+constexpr int kNormalModeRecoveryAttempts = 40;
 // Fixed, not exponential - this is a single always-on-battery-or-mains
 // device reconnecting to one specific already-trusted AP, not a fleet of
 // clients that could pile up and overwhelm a recovering service (the
@@ -59,6 +59,38 @@ constexpr int kReconnectBackoffMs = 500;
 // esp_netif_get_ip_info() since the default AP netif config is never
 // overridden here.
 constexpr char kApGatewayIp[] = "192.168.4.1";
+
+// The initial no-stored-credentials setup flow's HTTP server runs before
+// homedeck.cpp's own admin Web UI (`web_server`) ever starts (see
+// ConnectToWifi()'s call sequence in app_main()), so the default HTTP
+// port/ctrl port are always free for it.
+constexpr uint16_t kSetupHttpPort = 80;
+// StartRecoveryAccessPoint() (below) can only ever run *after* a first
+// successful connect already started `web_server` on kSetupHttpPort/
+// ESP_HTTPD_DEF_CTRL_PORT (see FinalizeBootAfterWifiConnected() in
+// homedeck.cpp, which never stops it again) - binding the recovery
+// server to either of those would fail (esp_http_server's SO_REUSEADDR
+// only permits rebinding a port already in TIME_WAIT, not two
+// simultaneously live listeners) and abort the firmware via this file's
+// own ESP_ERROR_CHECK-on-httpd_start precedent, crashing the device in
+// exactly the outage this access point exists to recover from. A
+// distinct port and ctrl port sidesteps the conflict entirely.
+constexpr uint16_t kRecoveryHttpPort = 8080;
+constexpr uint16_t kRecoveryHttpCtrlPort = ESP_HTTPD_DEF_CTRL_PORT + 1;
+// HTTPD_DEFAULT_CONFIG()'s max_open_sockets=7 default costs
+// max_open_sockets+3 real LWIP sockets per httpd instance
+// (esp_http_server's own httpd_main.c) - 10 out of this project's
+// CONFIG_LWIP_MAX_SOCKETS=10 budget for homedeck.cpp's `web_server`
+// alone, already running by the time this server can start (see
+// kRecoveryHttpPort's own comment). Left at the default, this server's
+// accept() calls fail outright once web_server has any active
+// connections ("httpd_accept_conn: error in accept (23)" server-side, a
+// dropped connection client-side). This server only ever needs to serve
+// one client's setup form at a time, so a small fixed value both avoids
+// that and leaves real headroom in the shared budget (see
+// sdkconfig.defaults' CONFIG_LWIP_MAX_SOCKETS override for the other
+// half of this fix).
+constexpr size_t kSetupHttpMaxOpenSockets = 3;
 
 // "HomeDeck-" (9 chars) + 6 hex digits of MAC + null terminator, shared
 // by every GetApSsid() caller below (StartSetupAccessPoint(),
@@ -231,7 +263,14 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     return httpd_resp_send(req, kResponse, HTTPD_RESP_USE_STRLEN);
 }
 
-void StartSetupHttpServer() {
+// port/ctrl_port let the two callers below bind to different sockets -
+// see kRecoveryHttpPort's own comment for why that matters. Returns
+// whatever httpd_start() returned rather than aborting itself, so
+// StartRecoveryAccessPoint() can degrade gracefully on failure the same
+// way every other call in that function already does; StartSetupAccessPoint()
+// below still escalates a failure to a hard abort via ESP_ERROR_CHECK,
+// since it has nothing else to fall back to this early in boot.
+esp_err_t StartSetupHttpServer(uint16_t port, uint16_t ctrl_port) {
     // Started into a local handle, not directly into g_state.setup_server -
     // httpd_start() can race OnEvent()'s lock-protected reads of that field
     // on another task otherwise (Wi-Fi events can fire as soon as
@@ -240,7 +279,13 @@ void StartSetupHttpServer() {
     // once the server is fully configured.
     httpd_handle_t server = nullptr;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    ESP_ERROR_CHECK(httpd_start(&server, &config));
+    config.server_port = port;
+    config.ctrl_port = ctrl_port;
+    config.max_open_sockets = kSetupHttpMaxOpenSockets;
+    esp_err_t err = httpd_start(&server, &config);
+    if (err != ESP_OK) {
+        return err;
+    }
 
     // Neither handler needs a user_ctx of its own - HandlePostConnect
     // reaches WifiSetupState only indirectly, through the public
@@ -254,6 +299,7 @@ void StartSetupHttpServer() {
 
     std::lock_guard<std::mutex> lock(g_state_mutex);
     g_state.setup_server = server;
+    return ESP_OK;
 }
 
 void StartSetupAccessPoint() {
@@ -275,17 +321,21 @@ void StartSetupAccessPoint() {
                     "http://%s/ to set up HomeDeck",
              ap_ssid, kApGatewayIp);
 
-    StartSetupHttpServer();
+    // Nothing else in this no-stored-credentials boot path can proceed
+    // without a working setup server - matches every esp_wifi_*() call
+    // above, which already treats failure as unrecoverable via
+    // ESP_ERROR_CHECK.
+    ESP_ERROR_CHECK(StartSetupHttpServer(kSetupHttpPort, ESP_HTTPD_DEF_CTRL_PORT));
     // Copied under lock, then invoked outside it - consistent with this
     // file's own rule of never holding g_state_mutex across a call that
     // isn't a plain state read/write (see OnEvent()'s own comment above).
-    std::function<void(const std::string&, const std::string&)> on_setup_needed;
+    std::function<void(const std::string&, const std::string&, uint16_t)> on_setup_needed;
     {
         std::lock_guard<std::mutex> lock(g_state_mutex);
         on_setup_needed = g_state.ui_callbacks.on_setup_needed;
     }
     if (on_setup_needed) {
-        on_setup_needed(ap_ssid, kApGatewayIp);
+        on_setup_needed(ap_ssid, kApGatewayIp, kSetupHttpPort);
     }
 }
 
@@ -297,9 +347,17 @@ void StartSetupAccessPoint() {
 // failures). Without this, a device whose stored credentials stop
 // working after working once (moved house, router replaced) retries
 // forever with no user-reachable way back in: the Web UI never starts
-// (firmware/main/homedeck.cpp blocks in ConnectToWifi() until connected),
-// and the Touch UI has no affordance to re-enter WifiSetupScreen outside
-// the no-stored-credentials path.
+// (firmware/main/homedeck.cpp blocks in ConnectToWifi() until connected)
+// if this is the very first connect attempt of the boot, and the Touch UI
+// has no affordance to re-enter WifiSetupScreen outside the
+// no-stored-credentials path. Runs on kRecoveryHttpPort, not
+// kSetupHttpPort - unlike that first-boot case, this can *also* fire
+// after a long *mid-session* outage (Wi-Fi worked for a while, then a
+// long-lived router/AP failure crosses the recovery threshold), by which
+// point homedeck.cpp's own admin Web UI has already started and is still
+// listening on kSetupHttpPort/ESP_HTTPD_DEF_CTRL_PORT for the rest of the
+// process's life (it's never stopped) - binding this server to either
+// would fail outright (two live listeners can't share one port).
 //
 // Unlike StartSetupAccessPoint(), Wi-Fi is already running in STA mode
 // here (mid reconnect-retry loop) - esp_wifi_start() can't be called
@@ -340,21 +398,30 @@ void StartRecoveryAccessPoint() {
         return;
     }
 
+    // kRecoveryHttpPort's failure path here degrades the same way every
+    // other call in this function already does - the AP itself is already
+    // up (Wi-Fi-adjacent recovery still works, e.g. a Touch UI resubmission
+    // if it's ever reachable another way), just without this particular
+    // HTTP form; the plain reconnect timer keeps running regardless.
+    if (StartSetupHttpServer(kRecoveryHttpPort, kRecoveryHttpCtrlPort) != ESP_OK) {
+        ESP_LOGW(kTag, "StartRecoveryAccessPoint: failed to start the recovery HTTP server");
+        return;
+    }
+
     ESP_LOGW(kTag,
-             "Still disconnected after %d attempts - offering recovery Wi-Fi network '%s' (open) at http://%s/ "
+             "Still disconnected after %d attempts - offering recovery Wi-Fi network '%s' (open) at http://%s:%u/ "
              "alongside continued reconnect attempts",
-             kNormalModeRecoveryAttempts, ap_ssid, kApGatewayIp);
+             kNormalModeRecoveryAttempts, ap_ssid, kApGatewayIp, kRecoveryHttpPort);
 
     // Same publish-then-invoke pattern as StartSetupAccessPoint() above -
     // see its own comment.
-    StartSetupHttpServer();
-    std::function<void(const std::string&, const std::string&)> on_setup_needed;
+    std::function<void(const std::string&, const std::string&, uint16_t)> on_setup_needed;
     {
         std::lock_guard<std::mutex> lock(g_state_mutex);
         on_setup_needed = g_state.ui_callbacks.on_setup_needed;
     }
     if (on_setup_needed) {
-        on_setup_needed(ap_ssid, kApGatewayIp);
+        on_setup_needed(ap_ssid, kApGatewayIp, kRecoveryHttpPort);
     }
 }
 

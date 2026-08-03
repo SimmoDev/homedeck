@@ -192,3 +192,16 @@ CONFIG_LV_FONT_MONTSERRAT_48=y
 # manual rotation - the standard, low-maintenance way to trust an
 # arbitrary public HTTPS host (Open-Meteo) without pinning one.
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+
+# ESP-IDF's own default (10) is too small once the Wi-Fi recovery access
+# point (firmware/main/wifi_setup.cpp's StartRecoveryAccessPoint) can run
+# a second esp_http_server instance alongside homedeck.cpp's own
+# `web_server` - each instance costs max_open_sockets+3 real LWIP
+# sockets (esp_http_server's own httpd_main.c), so `web_server` alone
+# (max_open_sockets=7, unchanged) already claims 10 of 10 once it has
+# any active connection, starving the recovery server's accept() calls
+# outright. Raised to comfortably cover both servers at their own
+# max_open_sockets budgets (web_server's 10 plus the recovery/setup
+# server's smaller 6, see wifi_setup.cpp's kSetupHttpMaxOpenSockets) with
+# headroom left for mDNS/SNTP/the weather HTTP client's own sockets.
+CONFIG_LWIP_MAX_SOCKETS=20

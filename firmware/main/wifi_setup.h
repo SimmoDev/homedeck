@@ -2,6 +2,7 @@
 
 #include "platform/firmware/network_status.h"
 
+#include <cstdint>
 #include <functional>
 #include <string>
 
@@ -13,16 +14,18 @@ namespace homedeck {
 // can't happen inside this file).
 struct WifiUiCallbacks {
     // Fires whenever a SoftAP + setup form comes up and the caller should
-    // show the Touch UI fallback screen (passing ap_ssid/ap_ip through to
-    // it - see WifiSetupScreen::SetApInfo) so it can tell the user what
+    // show the Touch UI fallback screen (passing ap_ssid/ap_ip/port through
+    // to it - see WifiSetupScreen::SetApInfo) so it can tell the user what
     // to connect to as an alternative. Two distinct cases trigger this,
     // both exactly once per occurrence: no stored credentials exist at
-    // boot (the original case), or a long, unbroken run of normal-mode
-    // reconnect failures against previously-working stored credentials
-    // crosses WifiReconnectPolicy's recovery threshold (credentials that
-    // are no longer valid - moved house, router replaced - rather than a
-    // brief outage). May be empty (no Touch UI hookup).
-    std::function<void(const std::string& ap_ssid, const std::string& ap_ip)> on_setup_needed;
+    // boot (the original case, always port 80), or a long, unbroken run of
+    // normal-mode reconnect failures against previously-working stored
+    // credentials crosses WifiReconnectPolicy's recovery threshold
+    // (credentials that are no longer valid - moved house, router replaced
+    // - rather than a brief outage; this case runs on a distinct port -
+    // see StartRecoveryAccessPoint's own comment for why it can't reuse
+    // 80). May be empty (no Touch UI hookup).
+    std::function<void(const std::string& ap_ssid, const std::string& ap_ip, uint16_t port)> on_setup_needed;
     // Fires once Wi-Fi actually connects - the caller should dismiss the
     // setup screen. May be empty.
     std::function<void()> on_connected;
