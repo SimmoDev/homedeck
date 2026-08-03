@@ -58,6 +58,15 @@ export interface SettingEntry {
   schemaVersion: number;
 }
 
+// Looks up one setting by (module, key) among a GET /api/settings
+// response - the "find the one value this component cares about among
+// everything the generic endpoint returned" step every settings-backed
+// component needs at least once (DeviceNameSettings.svelte,
+// WeatherSettings.svelte).
+export function findSetting(entries: SettingEntry[], module: string, key: string): string | undefined {
+  return entries.find((entry) => entry.module === module && entry.key === key)?.value;
+}
+
 // The battery/power fields both core/diagnostics_routes.cpp and
 // core/ota_routes.cpp report identically from the same BatteryReader -
 // Diagnostics.svelte and Ota.svelte each extend this into their own

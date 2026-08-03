@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, postJson, readErrorBody, type SettingEntry } from "./api";
+  import { findSetting, loadJson, postJson, readErrorBody, type SettingEntry } from "./api";
 
   // The dashboard's weather source (see docs/architecture/dashboard.md's
   // Weather source section and ADR-0008). Backed by the generic
@@ -34,8 +34,7 @@
       return;
     }
     error = undefined;
-    const current = result.data.find((entry) => entry.module === kWeatherModuleId && entry.key === "display_name");
-    displayName = current?.value ?? "";
+    displayName = findSetting(result.data, kWeatherModuleId, "display_name") ?? "";
     loaded = true;
   }
 

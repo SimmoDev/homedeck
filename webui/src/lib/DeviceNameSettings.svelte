@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { loadJson, postJson, type SettingEntry } from "./api";
+  import { findSetting, loadJson, postJson, type SettingEntry } from "./api";
 
   // Device name (see docs/architecture/web-ui.md#scope and
   // docs/decisions/ADR-0023-settings-backup-api.md) - the mDNS hostname
@@ -23,8 +23,7 @@
       return;
     }
     error = undefined;
-    const current = result.data.find((entry) => entry.module === kModuleId && entry.key === kDeviceNameKey);
-    deviceName = current?.value ?? "homedeck";
+    deviceName = findSetting(result.data, kModuleId, kDeviceNameKey) ?? "homedeck";
     loaded = true;
   }
 

@@ -1,5 +1,24 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { downloadFile, loadJson, postJson, readErrorBody, setSessionExpiredHandler } from "./api";
+import { downloadFile, findSetting, loadJson, postJson, readErrorBody, setSessionExpiredHandler } from "./api";
+
+describe("findSetting", () => {
+  const entries = [
+    { module: "core", key: "device_name", value: "living-room", schemaVersion: 1 },
+    { module: "weather", key: "display_name", value: "London, UK", schemaVersion: 1 },
+  ];
+
+  it("returns the value of a matching (module, key) entry", () => {
+    expect(findSetting(entries, "core", "device_name")).toBe("living-room");
+  });
+
+  it("returns undefined when no entry matches", () => {
+    expect(findSetting(entries, "core", "no_such_key")).toBeUndefined();
+  });
+
+  it("does not match a module/key pair split across two different entries", () => {
+    expect(findSetting(entries, "core", "display_name")).toBeUndefined();
+  });
+});
 
 describe("session-expiry notification", () => {
   afterEach(() => {
