@@ -218,14 +218,25 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     // FirmwareHttpServer::DispatchTrampoline's own fix for this bug
     // class (src/platform/firmware/http_server.cpp).
     constexpr int kMaxConsecutiveRecvTimeouts = 3;
+    // kMaxConsecutiveRecvTimeouts alone bounds silence, not total transfer
+    // time - a client trickling in a single byte just under every timeout
+    // would reset that counter forever and hold this server's one worker
+    // thread indefinitely, blocking the setup form for anyone else -
+    // matching http_server.cpp's own kMaxTotalRecvTimeouts fix for the
+    // identical bug class, same reasoning, same value even though this
+    // body is far smaller (consistency over precision - the bound is a
+    // safety ceiling, not something a legitimate 320-byte form submission
+    // ever approaches).
+    constexpr int kMaxTotalRecvTimeouts = 120;
     char body[kMaxBodyBytes + 1] = {};
     size_t total_received = 0;
     size_t body_len = static_cast<size_t>(req->content_len);
     int consecutive_timeouts = 0;
+    int total_timeouts = 0;
     while (total_received < body_len) {
         int received = httpd_req_recv(req, body + total_received, body_len - total_received);
         if (received == HTTPD_SOCK_ERR_TIMEOUT) {
-            if (++consecutive_timeouts > kMaxConsecutiveRecvTimeouts) {
+            if (++consecutive_timeouts > kMaxConsecutiveRecvTimeouts || ++total_timeouts > kMaxTotalRecvTimeouts) {
                 httpd_resp_send_500(req);
                 return ESP_FAIL;
             }

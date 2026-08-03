@@ -53,6 +53,15 @@ std::string StatusLine(int status_code) {
 // of total silence - generous for a slow but alive multi-MB OTA upload,
 // since the counter resets on every call that actually receives data.
 constexpr int kMaxConsecutiveRecvTimeouts = 3;
+// kMaxConsecutiveRecvTimeouts alone bounds silence, not total transfer
+// time - a client trickling in a single byte just under every timeout
+// would reset that counter forever and hold the worker thread for as
+// long as it likes, up to kMaxHttpRequestBodyBytes. This is a separate,
+// never-reset budget across the whole request: 120 timeouts (~10 minutes
+// at the default 5s wait) comfortably covers even a genuinely slow
+// multi-MB OTA upload over a weak link, while still bounding the
+// otherwise-unbounded worst case above.
+constexpr int kMaxTotalRecvTimeouts = 120;
 
 }  // namespace
 
@@ -124,11 +133,13 @@ esp_err_t FirmwareHttpServer::DispatchTrampoline(httpd_req_t* req) {
         // negative result is a real failure.
         size_t total_received = 0;
         int consecutive_timeouts = 0;
+        int total_timeouts = 0;
         while (total_received < request.body.size()) {
             int received = httpd_req_recv(req, request.body.data() + total_received,
                                            request.body.size() - total_received);
             if (received == HTTPD_SOCK_ERR_TIMEOUT) {
-                if (++consecutive_timeouts > kMaxConsecutiveRecvTimeouts) {
+                if (++consecutive_timeouts > kMaxConsecutiveRecvTimeouts ||
+                    ++total_timeouts > kMaxTotalRecvTimeouts) {
                     httpd_resp_send_500(req);
                     return ESP_FAIL;
                 }
