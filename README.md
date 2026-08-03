@@ -42,7 +42,7 @@ possible, but none is planned or committed to.
 
 ## Current status
 
-M2 (Platform Services) is the current milestone. See
+M3 (Harmony) is the current milestone. See
 [docs/roadmap.md](docs/roadmap.md) for what's built, what's in progress,
 and what's still open, and the architectural decisions index.
 

@@ -128,7 +128,7 @@ management state model" item instead.
 live clock and battery status, and the same UI runs in the desktop
 simulator.
 
-## M2 — Platform Services (current)
+## M2 — Platform Services (complete)
 
 - [x] Wi-Fi connectivity, including initial provisioning (SoftAP + a
       minimal HTTP setup form, Touch UI keyboard entry as a fallback via
@@ -355,7 +355,7 @@ administered over the Web UI (after setting an admin password on first
 login) once on the LAN, kept updated over OTA, and the dashboard/widget
 framework is ready for a real module to plug into.
 
-## M3 — Harmony
+## M3 — Harmony (current)
 
 **Goal:** a complete Harmony Hub replacement. Scope does not expand beyond
 this until it's done — see
