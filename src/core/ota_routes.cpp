@@ -15,7 +15,7 @@ void RegisterOtaRoutes(HttpServer& server, EventBus& event_bus, AdminAuthService
         auth.RequireAuth([&battery_reader, writer](const HttpRequest&) {
             OtaGateStatus gate = EvaluateOtaGate(battery_reader);
             nlohmann::json body = {
-                {"batteryPercent", battery_reader.ReadPercent()},
+                {"batteryPercent", gate.battery_percent},
                 {"externalPowerConnected", battery_reader.IsExternalPowerConnected()},
                 {"batteryPresent", battery_reader.IsBatteryPresent()},
                 {"gateOpen", gate.open},

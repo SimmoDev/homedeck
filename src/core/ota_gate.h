@@ -17,19 +17,27 @@ struct OtaGateStatus {
     // ADR-0005's "deferred with a clear explanation, not silently
     // blocked."
     std::string reason;
+    // The battery reading this decision was actually based on - callers
+    // that also report battery percent (e.g. GET /api/ota/status) should
+    // use this rather than taking a second, independent ReadPercent()
+    // call, which could disagree with `open` at a threshold boundary.
+    int battery_percent = 0;
 };
 
 inline OtaGateStatus EvaluateOtaGate(const BatteryReader& battery_reader) {
     constexpr int kMinBatteryPercent = 30;
+    int battery_percent = battery_reader.ReadPercent();
 
-    if (battery_reader.ReadPercent() >= kMinBatteryPercent) {
-        return {true, ""};
+    if (battery_percent >= kMinBatteryPercent) {
+        return {true, "", battery_percent};
     }
     if (battery_reader.IsExternalPowerConnected()) {
-        return {true, ""};
+        return {true, "", battery_percent};
     }
-    return {false, "Battery is below " + std::to_string(kMinBatteryPercent) +
-                        "% and no external power is connected. Connect a charger to update."};
+    return {false,
+            "Battery is below " + std::to_string(kMinBatteryPercent) +
+                "% and no external power is connected. Connect a charger to update.",
+            battery_percent};
 }
 
 }  // namespace homedeck
