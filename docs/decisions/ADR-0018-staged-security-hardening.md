@@ -53,8 +53,10 @@ orthogonal to NVS encryption and already in place (see
 [ADR-0010](ADR-0010-secret-storage.md)). Maximum flashing/debugging
 convenience, zero irreversible state on any development unit.
 
-**This is the current tier**, covering M2 through at least M6 — the point
-at which module credentials actually start accumulating in Storage.
+**This is the current tier**, covering M2 onward until a real module
+credential first exists to protect — as early as M3 (Harmony hub
+credentials), no later than M6 (Home Assistant's long-lived token, the
+last milestone scoped through M6 that's guaranteed to need one).
 
 ### Standard
 
