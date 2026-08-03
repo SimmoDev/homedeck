@@ -120,7 +120,7 @@ worth re-reading in full up front.
 
 The `espressif/idf:v5.4.3` Docker image provides `esp32p4` target support,
 `idf.py build`, and hardware flash/monitor — no native ESP-IDF install
-involved (and no issue with the host's own, very new Python — the
+involved (and no issue with the host's own newer Python — the
 container brings its own 3.12.3). The firmware target builds the
 HomeDeck dashboard (`EventBus`, `Clock`, `DashboardScreen`, reused
 directly from `src/`, plus firmware-specific
