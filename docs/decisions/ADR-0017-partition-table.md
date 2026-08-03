@@ -4,9 +4,11 @@
 
 Accepted — extended by
 [ADR-0027](ADR-0027-secret-store-partition-separation.md), which adds a
-dedicated `secrets` partition carved out of `storage`'s budget. The
-table below is left as originally decided; ADR-0027 is the reference
-for that addition.
+dedicated `secrets` partition carved out of `storage`'s budget, and
+narrowed by [ADR-0025](ADR-0025-webui-static-asset-storage.md), which
+describes the `storage` partition's actual use more precisely than the
+table below does. The table below is left as originally decided;
+ADR-0025/ADR-0027 are the reference for those two refinements.
 
 ## Context
 

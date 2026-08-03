@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Accepted — partially superseded by
+[ADR-0021](ADR-0021-xip-from-psram.md), which resolves the single-write
+display-glitch case this decision's Consequences section says has "no
+safe, available fix." This ADR's own async/batched design is otherwise
+unchanged.
 
 ## Context
 
