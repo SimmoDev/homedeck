@@ -12,23 +12,30 @@ namespace homedeck {
 // provides them (see ConnectToWifi's own comment for why that dispatch
 // can't happen inside this file).
 struct WifiUiCallbacks {
-    // Fires once, only when no stored credentials exist and SoftAP setup
-    // is starting - the caller should show the Touch UI fallback screen,
-    // passing ap_ssid/ap_ip through to it (see WifiSetupScreen::SetApInfo)
-    // so it can tell the user what to connect to as an alternative. May
-    // be empty (no Touch UI hookup).
+    // Fires whenever a SoftAP + setup form comes up and the caller should
+    // show the Touch UI fallback screen (passing ap_ssid/ap_ip through to
+    // it - see WifiSetupScreen::SetApInfo) so it can tell the user what
+    // to connect to as an alternative. Two distinct cases trigger this,
+    // both exactly once per occurrence: no stored credentials exist at
+    // boot (the original case), or a long, unbroken run of normal-mode
+    // reconnect failures against previously-working stored credentials
+    // crosses WifiReconnectPolicy's recovery threshold (credentials that
+    // are no longer valid - moved house, router replaced - rather than a
+    // brief outage). May be empty (no Touch UI hookup).
     std::function<void(const std::string& ap_ssid, const std::string& ap_ip)> on_setup_needed;
     // Fires once Wi-Fi actually connects - the caller should dismiss the
     // setup screen. May be empty.
     std::function<void()> on_connected;
     // Fires when a freshly-submitted set of credentials gives up after
     // kMaxSetupReconnectAttempts failed attempts (wrong password, AP out
-    // of range, etc.) - the SoftAP and setup HTTP server both stay up
+    // of range, etc.), during the *initial*, no-stored-credentials setup
+    // flow specifically - the SoftAP and setup HTTP server both stay up
     // regardless, so resubmitting the form is always still possible; this
     // just tells a caller that already showed the Touch UI fallback
     // screen to surface that the last attempt didn't work. Never fires
-    // once already connected (see OnEvent's own comment for why normal
-    // post-setup reconnects don't have this cap). May be empty.
+    // for a normal post-setup reconnect (see OnEvent's own comment for
+    // why that never gives up outright, even once it starts offering a
+    // recovery access point via on_setup_needed above). May be empty.
     std::function<void()> on_connect_failed;
 };
 

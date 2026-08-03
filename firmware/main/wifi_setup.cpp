@@ -27,12 +27,26 @@ namespace {
 constexpr char kTag[] = "wifi_setup";
 constexpr int kConnectedBit = BIT0;
 
-// Only enforced while WifiSetupState::setup_server is running (freshly-
-// submitted, maybe wrong, credentials) - not during normal reconnects to
-// a network the device already trusts, where giving up would strand it
-// with no Wi-Fi and no way back into setup mode. Resubmitting the setup
-// form resets the count, so a mistyped password is always recoverable.
+// Only enforced during the device's very first, no-stored-credentials
+// setup flow (WifiSetupState::initial_provisioning) - not during normal
+// reconnects to a network the device already trusts, where giving up
+// would strand it with no Wi-Fi and no way back into setup mode.
+// Resubmitting the setup form resets the count, so a mistyped password
+// is always recoverable.
 constexpr int kMaxSetupReconnectAttempts = 5;
+// A normal-mode (already-provisioned) reconnect never gives up per the
+// above, but silently retrying forever with no way for the user to
+// intervene is its own real gap if the stored network is genuinely gone
+// for good (moved house, router replaced) rather than just briefly down
+// - see WifiReconnectPolicy::ShouldOfferRecovery() and
+// StartRecoveryAccessPoint() below. At the fixed kReconnectBackoffMs
+// interval below, 240 attempts is ~2 minutes - long enough to ride out a
+// router reboot without offering a recovery access point prematurely,
+// short enough that a genuinely-gone network doesn't leave the device
+// silently unreachable indefinitely. A provisional starting point, not a
+// measured one - same status as this project's other untuned timing
+// thresholds (see docs/decisions/ADR-0005-power-and-sleep-model.md).
+constexpr int kNormalModeRecoveryAttempts = 240;
 // Fixed, not exponential - this is a single always-on-battery-or-mains
 // device reconnecting to one specific already-trusted AP, not a fleet of
 // clients that could pile up and overwhelm a recovering service (the
@@ -46,6 +60,12 @@ constexpr int kReconnectBackoffMs = 500;
 // overridden here.
 constexpr char kApGatewayIp[] = "192.168.4.1";
 
+// "HomeDeck-" (9 chars) + 6 hex digits of MAC + null terminator, shared
+// by every GetApSsid() caller below (StartSetupAccessPoint(),
+// InitWifiAndCheckStoredCredentials(), StartRecoveryAccessPoint()) rather
+// than each sizing its own local buffer independently.
+constexpr size_t kApSsidBufferSize = 24;
+
 // Global mutable state - a deliberate exception, see
 // docs/decisions/ADR-0026-wifi-provisioning-mechanism.md's own
 // Consequences for why. Passed explicitly through
@@ -55,11 +75,23 @@ constexpr char kApGatewayIp[] = "192.168.4.1";
 struct WifiSetupState {
     EventGroupHandle_t event_group = nullptr;
     httpd_handle_t setup_server = nullptr;
-    // The reconnect-attempt-counting/give-up decision logic itself lives
-    // in the portable, host-testable WifiReconnectPolicy
-    // (src/core/wifi_reconnect_policy.h) - this file just executes
-    // whatever it decides via the ESP-IDF APIs it can't be tested with.
-    WifiReconnectPolicy reconnect_policy{kMaxSetupReconnectAttempts};
+    // The reconnect-attempt-counting/give-up/offer-recovery decision
+    // logic itself lives in the portable, host-testable
+    // WifiReconnectPolicy (src/core/wifi_reconnect_policy.h) - this file
+    // just executes whatever it decides via the ESP-IDF APIs it can't be
+    // tested with.
+    WifiReconnectPolicy reconnect_policy{kMaxSetupReconnectAttempts, kNormalModeRecoveryAttempts};
+    // True only during the device's very first, no-stored-credentials
+    // setup flow (set in ConnectToWifi() before StartSetupAccessPoint(),
+    // cleared on a successful connect) - distinct from `setup_server !=
+    // nullptr`, which also becomes true once StartRecoveryAccessPoint()
+    // brings the *same* access point/form up as a later recovery path.
+    // Kept separate so a long-running, already-provisioned device that
+    // falls back to recovery doesn't inherit the initial flow's much
+    // smaller give-up cap (WifiReconnectPolicy::OnDisconnected() would
+    // otherwise stop retrying almost immediately once setup_server
+    // became non-null for the recovery reason instead).
+    bool initial_provisioning = false;
     WifiUiCallbacks ui_callbacks;
     FirmwareNetworkStatus* network_status = nullptr;
     // The SSID we're configured/attempting to connect to - captured from
@@ -97,6 +129,19 @@ WifiSetupState g_state;
 esp_timer_handle_t g_reconnect_timer = nullptr;
 
 void ReconnectTimerCallback(void* /*arg*/) { esp_wifi_connect(); }
+
+// Runs StartRecoveryAccessPoint() (defined below, forward-declared here)
+// off the ESP-IDF event-loop task - OnEvent() itself must never block
+// (see its own comment), and bringing up an access point involves
+// several blocking esp_wifi_*()/httpd_start() RPC calls, the same reason
+// g_reconnect_timer exists for the plain reconnect retry. A second,
+// separate timer rather than reusing g_reconnect_timer, since both need
+// to be independently schedulable - a recovery access point coming up
+// must not cancel or delay the plain STA reconnect retry loop still
+// running alongside it.
+esp_timer_handle_t g_recovery_timer = nullptr;
+void StartRecoveryAccessPoint();
+void RecoveryTimerCallback(void* /*arg*/) { StartRecoveryAccessPoint(); }
 
 void GetApSsid(char* ssid, size_t max_len) {
     uint8_t mac[6];
@@ -212,7 +257,7 @@ void StartSetupHttpServer() {
 }
 
 void StartSetupAccessPoint() {
-    char ap_ssid[24];
+    char ap_ssid[kApSsidBufferSize];
     GetApSsid(ap_ssid, sizeof(ap_ssid));
 
     wifi_config_t ap_config = {};
@@ -234,6 +279,75 @@ void StartSetupAccessPoint() {
     // Copied under lock, then invoked outside it - consistent with this
     // file's own rule of never holding g_state_mutex across a call that
     // isn't a plain state read/write (see OnEvent()'s own comment above).
+    std::function<void(const std::string&, const std::string&)> on_setup_needed;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        on_setup_needed = g_state.ui_callbacks.on_setup_needed;
+    }
+    if (on_setup_needed) {
+        on_setup_needed(ap_ssid, kApGatewayIp);
+    }
+}
+
+// Brings up the same open SoftAP + minimal HTTP setup form as
+// StartSetupAccessPoint() above, but as a recovery path *after* Wi-Fi was
+// already configured and once connected - see
+// WifiReconnectPolicy::ShouldOfferRecovery()'s own comment for exactly
+// when this fires (a long, unbroken run of normal-mode reconnect
+// failures). Without this, a device whose stored credentials stop
+// working after working once (moved house, router replaced) retries
+// forever with no user-reachable way back in: the Web UI never starts
+// (firmware/main/homedeck.cpp blocks in ConnectToWifi() until connected),
+// and the Touch UI has no affordance to re-enter WifiSetupScreen outside
+// the no-stored-credentials path.
+//
+// Unlike StartSetupAccessPoint(), Wi-Fi is already running in STA mode
+// here (mid reconnect-retry loop) - esp_wifi_start() can't be called
+// again without first stopping the driver (ESP-IDF returns
+// ESP_ERR_WIFI_STATE for a second start while already started).
+// Stop-then-reconfigure-then-start is the conservative, well-established
+// sequence for adding AP mode to an already-running STA session,
+// regardless of whether a live mode switch without stopping first would
+// also work - not verified against real Tab5 hardware in this change,
+// unlike the rest of this file's Wi-Fi behavior (see hardware.md's own
+// "Confirmed" vs. not-yet-confirmed convention for why that distinction
+// matters here). Every esp_wifi_*() call below is checked explicitly
+// rather than via ESP_ERROR_CHECK for the same reason: this path only
+// runs after the device already connected once, so an unexpected failure
+// here should degrade to "still retrying STA in the background, no
+// recovery access point this attempt" rather than crash a device that
+// was otherwise working - the plain reconnect timer keeps running
+// regardless of whether this succeeds.
+void StartRecoveryAccessPoint() {
+    char ap_ssid[kApSsidBufferSize];
+    GetApSsid(ap_ssid, sizeof(ap_ssid));
+
+    if (esp_wifi_stop() != ESP_OK) {
+        ESP_LOGW(kTag, "StartRecoveryAccessPoint: esp_wifi_stop failed, skipping this attempt");
+        return;
+    }
+
+    wifi_config_t ap_config = {};
+    std::snprintf(reinterpret_cast<char*>(ap_config.ap.ssid), sizeof(ap_config.ap.ssid), "%s", ap_ssid);
+    ap_config.ap.ssid_len = static_cast<uint8_t>(std::strlen(ap_ssid));
+    ap_config.ap.channel = 1;
+    ap_config.ap.authmode = WIFI_AUTH_OPEN;
+    ap_config.ap.max_connection = 4;
+
+    if (esp_wifi_set_mode(WIFI_MODE_APSTA) != ESP_OK || esp_wifi_set_config(WIFI_IF_AP, &ap_config) != ESP_OK ||
+        esp_wifi_start() != ESP_OK) {
+        ESP_LOGW(kTag, "StartRecoveryAccessPoint: failed to bring up the recovery access point");
+        return;
+    }
+
+    ESP_LOGW(kTag,
+             "Still disconnected after %d attempts - offering recovery Wi-Fi network '%s' (open) at http://%s/ "
+             "alongside continued reconnect attempts",
+             kNormalModeRecoveryAttempts, ap_ssid, kApGatewayIp);
+
+    // Same publish-then-invoke pattern as StartSetupAccessPoint() above -
+    // see its own comment.
+    StartSetupHttpServer();
     std::function<void(const std::string&, const std::string&)> on_setup_needed;
     {
         std::lock_guard<std::mutex> lock(g_state_mutex);
@@ -268,16 +382,28 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                 break;
             case WIFI_EVENT_STA_DISCONNECTED: {
                 bool give_up = false;
+                bool offer_recovery = false;
                 std::function<void()> on_connect_failed;
                 {
                     std::lock_guard<std::mutex> lock(g_state_mutex);
                     if (state.network_status != nullptr) {
                         state.network_status->SetConnectionState(false, "", "");
                     }
-                    give_up = state.reconnect_policy.OnDisconnected(state.setup_server != nullptr) ==
+                    give_up = state.reconnect_policy.OnDisconnected(state.initial_provisioning) ==
                               WifiReconnectPolicy::Decision::kGiveUp;
                     if (give_up) {
                         on_connect_failed = state.ui_callbacks.on_connect_failed;
+                    } else if (state.setup_server == nullptr) {
+                        // Only offer recovery if some access point/form
+                        // isn't already up - ShouldOfferRecovery() itself
+                        // only returns true once per accrued-attempts
+                        // threshold, but this also skips it while the
+                        // initial no-stored-credentials flow already has
+                        // its own access point up (initial_provisioning
+                        // is true there, so ShouldOfferRecovery() would
+                        // already return false, but checking setup_server
+                        // too keeps this branch's intent explicit).
+                        offer_recovery = state.reconnect_policy.ShouldOfferRecovery(state.initial_provisioning);
                     }
                 }
                 // on_connect_failed() invoked outside g_state_mutex, same as
@@ -294,6 +420,14 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                         on_connect_failed();
                     }
                     break;
+                }
+                if (offer_recovery) {
+                    // Scheduled, not called directly - see
+                    // StartRecoveryAccessPoint()'s own comment for why
+                    // this can't run on this task. The plain reconnect
+                    // retry below is still scheduled regardless -
+                    // bringing up recovery never pauses it.
+                    esp_timer_start_once(g_recovery_timer, 0);
                 }
                 ESP_LOGI(kTag, "Disconnected, retrying in %dms...", kReconnectBackoffMs);
                 // Ignore the return - ESP_ERR_INVALID_STATE just means no
@@ -325,6 +459,16 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
             }
             server_to_stop = state.setup_server;
             state.setup_server = nullptr;
+            state.initial_provisioning = false;
+            // A real successful connection deserves its own full set of
+            // attempts before either the setup-mode cap or the recovery
+            // threshold applies again, the same as a fresh credential
+            // submission already gets via ApplyWifiCredentials() - see
+            // WifiReconnectPolicy::ResetAttempts()'s own comment. Without
+            // this, a device that reconnects successfully and later loses
+            // Wi-Fi again for a second, separate long outage would never
+            // be offered recovery again for the rest of its uptime.
+            state.reconnect_policy.ResetAttempts();
             on_connected = state.ui_callbacks.on_connected;
         }
         // Both block (see this function's own comment above) - deliberately
@@ -389,6 +533,11 @@ WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& ne
     reconnect_timer_args.name = "wifi_reconnect";
     ESP_ERROR_CHECK(esp_timer_create(&reconnect_timer_args, &g_reconnect_timer));
 
+    esp_timer_create_args_t recovery_timer_args = {};
+    recovery_timer_args.callback = &RecoveryTimerCallback;
+    recovery_timer_args.name = "wifi_recovery_ap";
+    ESP_ERROR_CHECK(esp_timer_create(&recovery_timer_args, &g_recovery_timer));
+
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &OnEvent, &g_state));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &OnEvent, &g_state));
 
@@ -402,7 +551,7 @@ WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& ne
     ESP_ERROR_CHECK(esp_wifi_get_config(WIFI_IF_STA, &sta_config));
     g_state.pending_ssid = reinterpret_cast<const char*>(sta_config.sta.ssid);
 
-    char ap_ssid[24];
+    char ap_ssid[kApSsidBufferSize];
     GetApSsid(ap_ssid, sizeof(ap_ssid));
 
     return WifiCredentialsCheck{sta_config.sta.ssid[0] != '\0', ap_ssid, kApGatewayIp};
@@ -422,6 +571,14 @@ void ConnectToWifi(const WifiUiCallbacks& ui_callbacks) {
         ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
         ESP_ERROR_CHECK(esp_wifi_start());
     } else {
+        // Set before StartSetupAccessPoint() (not held across it - see
+        // OnEvent()'s own comment on why blocking esp_wifi_*() calls stay
+        // outside g_state_mutex) so the very first disconnect this flow
+        // can generate already sees initial_provisioning as true.
+        {
+            std::lock_guard<std::mutex> lock(g_state_mutex);
+            g_state.initial_provisioning = true;
+        }
         StartSetupAccessPoint();
     }
 
