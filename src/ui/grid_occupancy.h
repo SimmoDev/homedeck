@@ -120,4 +120,26 @@ private:
     std::vector<std::bitset<Columns>> occupancy_;
 };
 
+// The pure half of DashboardGrid::EnsureRowExists() (src/ui/dashboard_grid.cpp) -
+// growing an LVGL row-descriptor template (N `row_height` entries
+// followed by one terminator sentinel, LVGL's own
+// lv_obj_set_grid_dsc_array() row-template format) to include `row`, a
+// no-op if it already does. `terminator` is a plain int32_t parameter
+// rather than LVGL's own LV_GRID_TEMPLATE_LAST macro so this stays
+// LVGL-free like GridOccupancy above - DashboardGrid itself is what
+// re-points LVGL at the (possibly reallocated) buffer afterward, which
+// this function has no involvement in. Manual index/terminator
+// bookkeeping like this is exactly the kind of off-by-one-prone logic
+// worth testing directly, not just exercising indirectly through the
+// widget it happens to be built for.
+inline void GrowRowDescriptorArray(std::vector<int32_t>& row_dsc, int row, int32_t row_height, int32_t terminator) {
+    if (row < static_cast<int>(row_dsc.size()) - 1) {
+        return;
+    }
+    while (static_cast<int>(row_dsc.size()) - 1 <= row) {
+        row_dsc.back() = row_height;
+        row_dsc.push_back(terminator);
+    }
+}
+
 }  // namespace homedeck

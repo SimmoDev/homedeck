@@ -124,3 +124,43 @@ TEST(GridOccupancyTest, FindPlacementClampsAnExcessiveRowSpanBeforeSearching) {
     EXPECT_EQ(placement.row, 0);
     EXPECT_EQ(placement.col, 0);
 }
+
+namespace {
+constexpr int32_t kTestRowHeight = 240;
+constexpr int32_t kTestTerminator = -12345;
+}  // namespace
+
+TEST(GrowRowDescriptorArrayTest, IsANoOpWhenTheRowIsAlreadyCovered) {
+    std::vector<int32_t> row_dsc{kTestRowHeight, kTestTerminator};
+    homedeck::GrowRowDescriptorArray(row_dsc, /*row=*/0, kTestRowHeight, kTestTerminator);
+    EXPECT_EQ(row_dsc, (std::vector<int32_t>{kTestRowHeight, kTestTerminator}));
+}
+
+TEST(GrowRowDescriptorArrayTest, GrowsByOneRowKeepingTheTerminatorLast) {
+    std::vector<int32_t> row_dsc{kTestRowHeight, kTestTerminator};
+    homedeck::GrowRowDescriptorArray(row_dsc, /*row=*/1, kTestRowHeight, kTestTerminator);
+    EXPECT_EQ(row_dsc, (std::vector<int32_t>{kTestRowHeight, kTestRowHeight, kTestTerminator}));
+}
+
+TEST(GrowRowDescriptorArrayTest, GrowsDirectlyToAFarRowInOneCall) {
+    // A widget with a multi-row span can ask for a row several past the
+    // current end in one call - not just one at a time.
+    std::vector<int32_t> row_dsc{kTestRowHeight, kTestTerminator};
+    homedeck::GrowRowDescriptorArray(row_dsc, /*row=*/3, kTestRowHeight, kTestTerminator);
+    EXPECT_EQ(row_dsc,
+              (std::vector<int32_t>{kTestRowHeight, kTestRowHeight, kTestRowHeight, kTestRowHeight, kTestTerminator}));
+}
+
+TEST(GrowRowDescriptorArrayTest, RepeatedCallsForTheSameRowStayIdempotent) {
+    std::vector<int32_t> row_dsc{kTestRowHeight, kTestTerminator};
+    homedeck::GrowRowDescriptorArray(row_dsc, /*row=*/2, kTestRowHeight, kTestTerminator);
+    std::vector<int32_t> grown_once = row_dsc;
+    homedeck::GrowRowDescriptorArray(row_dsc, /*row=*/2, kTestRowHeight, kTestTerminator);
+    EXPECT_EQ(row_dsc, grown_once);
+}
+
+TEST(GrowRowDescriptorArrayTest, GrowingToALowerRowThanAlreadyCoveredIsANoOp) {
+    std::vector<int32_t> row_dsc{kTestRowHeight, kTestRowHeight, kTestRowHeight, kTestTerminator};
+    homedeck::GrowRowDescriptorArray(row_dsc, /*row=*/0, kTestRowHeight, kTestTerminator);
+    EXPECT_EQ(row_dsc, (std::vector<int32_t>{kTestRowHeight, kTestRowHeight, kTestRowHeight, kTestTerminator}));
+}

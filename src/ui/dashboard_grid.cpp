@@ -50,19 +50,21 @@ DashboardGrid::DashboardGrid(lv_obj_t* parent) : row_dsc_{kRowHeight, LV_GRID_TE
 }
 
 void DashboardGrid::EnsureRowExists(int row) {
-    if (row < static_cast<int>(row_dsc_.size()) - 1) return;
-
-    while (static_cast<int>(row_dsc_.size()) - 1 <= row) {
-        row_dsc_.back() = kRowHeight;
-        row_dsc_.push_back(LV_GRID_TEMPLATE_LAST);
-    }
+    // The actual index/terminator bookkeeping is GrowRowDescriptorArray()
+    // (src/ui/grid_occupancy.h) - pure vector manipulation, host-tested
+    // directly in tests/grid_occupancy_test.cpp. This function's own job
+    // is just the LVGL re-pointing step below, which needs LVGL and so
+    // can't be covered there.
+    GrowRowDescriptorArray(row_dsc_, row, kRowHeight, LV_GRID_TEMPLATE_LAST);
 
     // LVGL's grid style property stores this pointer directly rather
     // than copying the array (confirmed via lv_obj_style_gen.c), so
     // growing row_dsc_ - which may reallocate its buffer - requires
     // re-pointing LVGL at wherever the data actually lives now. Skipping
     // this after a reallocation would leave LVGL holding a dangling
-    // pointer into freed memory.
+    // pointer into freed memory. Harmless to call even when
+    // GrowRowDescriptorArray() above was a no-op (row already covered) -
+    // re-pointing LVGL at an unchanged buffer costs nothing meaningful.
     lv_obj_set_grid_dsc_array(grid_, kColumnTemplate, row_dsc_.data());
 }
 
