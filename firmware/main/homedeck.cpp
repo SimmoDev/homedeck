@@ -43,9 +43,9 @@
 // The real HomeDeck firmware entry point - the dashboard (see
 // docs/architecture/dashboard.md), Navigation and the Wi-Fi setup screen
 // (see docs/architecture/ui.md#status), and the Web Management UI (see
-// docs/architecture/web-ui.md), all running on-device. Display and touch
-// are confirmed working on this hardware - see
-// docs/architecture/hardware.md#display-driver-strategy.
+// docs/architecture/web-ui.md), all running on-device. See
+// docs/architecture/hardware.md#display-driver-strategy for the
+// display/touch driver stack this runs on.
 // firmware/platform/task.cpp and timer.cpp (FreeRTOS-backed, per
 // ADR-0002) exist because Clock needs a working Timer.
 namespace {

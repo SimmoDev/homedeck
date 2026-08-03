@@ -20,8 +20,7 @@ if a fact drifts.
   Kconfig and boot log both call "Hex" (16-line), a P4-specific memory
   controller mode. `firmware/sdkconfig.defaults` reflects this (just
   `CONFIG_SPIRAM=y`, no mode override needed).
-- **Confirmed via first real boot** (minimal `app_main()`, no display/UI —
-  see [roadmap.md](../roadmap.md)'s M1 Tab5 boot item, and
+- **Confirmed** (see [roadmap.md](../roadmap.md)'s M1 Tab5 boot item, and
   `firmware/sdkconfig.defaults`): chip revision v1.3, 16MB flash
   physically detected, 32MB PSRAM detected and initialized (vendor "AP",
   generation 4) with ~33.5MB reported free. Boots at 360MHz by default
@@ -133,10 +132,9 @@ plausibly change that rate one way or the other.
 The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
 see [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md)
-for why. Confirmed working end to end on hardware, including with a
-non-alphanumeric SSID (an apostrophe): SoftAP up, a real phone submitting
-credentials through the form, the device connecting and getting a real
-IP, SoftAP torn down afterward. The form's submitted values are
+for why. Confirmed on hardware with a non-alphanumeric SSID (an apostrophe):
+SoftAP setup, credential submission, connection, and SoftAP teardown all
+work end to end. The form's submitted values are
 percent-decoded and length-validated before being applied
 (`src/core/url_codec.h`, `src/core/wifi_credentials.h`) so a network name
 or password containing a space or symbol is handled correctly rather than
@@ -236,13 +234,12 @@ empty screen / horizontal stripe artifacts, working on v5.4.2 and broken
 on v5.5.x). See [DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for
 the current pinned version and setup instructions.
 
-**Confirmed on hardware:** a solid color fill displays correctly on the
-physical panel, with no PSRAM-DMA underrun (see [Application
+**Confirmed:** a solid color fill displays correctly on the physical
+panel, with no PSRAM-DMA underrun (see [Application
 processor](#application-processor) above for the required PSRAM speed).
-`espressif/m5stack_tab5`'s runtime probing independently detected "board
-version 2 (LCD ST7123, Touch ST7123)" — matching the sticker-confirmed
-controller above without being told. Touch also initialized successfully
-in the same pass (10-point multitouch).
+`espressif/m5stack_tab5`'s runtime probing detects "board version 2 (LCD
+ST7123, Touch ST7123)", matching the physical sticker. Touch initializes
+successfully (10-point multitouch).
 
 **Resolved: portrait, no rotation.** Reported resolution is `720x1280`
 (portrait), not the `1280x720` spec-sheet figure — and this is genuinely
@@ -284,7 +281,7 @@ registered here).
 
 ## On-device dashboard
 
-Confirmed running live on the Tab5, not just the simulator: a real
+**Confirmed:** runs live on the Tab5, not just the simulator - a real
 ticking clock and a real (not mocked) battery percentage, both sourced
 directly from hardware via `BatteryReader`
 (`src/platform/firmware/battery_reader.h`) reading the INA226 (see
@@ -340,9 +337,8 @@ second, conflicting one on the same physical pins.
   which labels them `E1`/`E2` respectively. On `E2` (`0x44`), `P7` is
   `CHG_EN`: not automatic - the enable line needs its high-Z
   (open-drain) bit cleared as well as its output level set, or it stays
-  electrically floating rather than actually driving. **Confirmed on
-  hardware** that battery percentage climbs normally under USB-C power
-  once both are set.
+  electrically floating rather than actually driving. **Confirmed:**
+  battery percentage climbs normally under USB-C power once both are set.
 - **Charge status:** `E2.P6` is `CHG_STAT`, also confirmed against the
   official pinmap - high only while the IP2326 is actively driving
   charge current into a battery, low once charging terminates (e.g. a
@@ -367,9 +363,9 @@ second, conflicting one on the same physical pins.
   pin 2 - the only candidate for a pack-side thermistor line - is
   unconnected on the board side.
 - **Battery presence:** current is the primary signal for whether a
-  battery is physically installed. **Confirmed on hardware** that bus
-  voltage alone cannot tell "no battery" apart from "battery present":
-  with charging enabled and nothing connected to charge, the IP2326
+  battery is physically installed. **Confirmed:** bus voltage alone
+  cannot tell "no battery" apart from "battery present" - with charging
+  enabled and nothing connected to charge, the IP2326
   hunts for its regulation target on the unloaded output, swinging
   between roughly 4V and the 100%-mapped voltage (8.4V, see below)
   every tick rather than settling. Current reads a flat 0.000000A with
@@ -387,8 +383,8 @@ second, conflicting one on the same physical pins.
   sampling, but it is not a dedicated fuel-gauge/coulomb-counter IC — an
   accurate state-of-charge estimate still needs coulomb-counting or a
   voltage/current curve model implemented in firmware, not just reading
-  INA226's instantaneous values directly as a percentage. **Confirmed on
-  hardware:** the simple linear approximation this project uses today
+  INA226's instantaneous values directly as a percentage. **Confirmed:**
+  the simple linear approximation this project uses today
   (see [On-device dashboard](#on-device-dashboard) below) reads ~90%,
   not 100%, on a pack that had been on USB power long enough to be
   fully charged. A real state-of-charge estimate is still M2
@@ -436,9 +432,9 @@ not hypothetical, gap in what's currently verified:
 - **Confirmed:** bus-voltage readings are not meaningful with no battery
   attached - they swing unpredictably (see [Power](#power)'s Battery
   presence bullet), never settling. Current-based detection is the real
-  "no battery installed" vs. "battery installed" signal - confirmed on
-  hardware by removing the battery on the K145 reference unit. A
-  running C145 unit has no possible power source other than USB-C. See
+  "no battery installed" vs. "battery installed" signal on the K145
+  reference unit. A running C145 unit has no possible power source
+  other than USB-C. See
   [dashboard.md](dashboard.md#status) for how the Web/Touch UI uses
   this.
 - **Not yet reflected in the design:** [power-management.md](power-management.md)'s
