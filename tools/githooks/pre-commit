@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Runs the doc-narration and ESP-IDF-return checks against staged files.
+# Both checks warn only - they never block a commit. Activate with:
+#   git config core.hooksPath tools/githooks
+set -uo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+
+doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yaml)$' || true)
+esp_files=$(echo "$staged_files" | grep -E '^(firmware/main|src/platform/firmware)/.*\.cpp$' || true)
+
+found_issue=0
+
+if [ -n "$doc_files" ]; then
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-docs.sh" $doc_files || found_issue=1
+fi
+
+if [ -n "$esp_files" ]; then
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-esp-idf-returns.sh" $esp_files || found_issue=1
+fi
+
+if [ "$found_issue" -ne 0 ]; then
+    echo
+    echo "pre-commit: findings above are warnings, not blockers - review before pushing."
+fi
+
+exit 0

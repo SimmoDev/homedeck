@@ -16,4 +16,21 @@ read that first if a script here does something unexpected.
   that doesn't have one yet (default host `homedeck.local` - pass a real
   IP if mDNS resolution doesn't work on your machine).
 
-All four are confirmed working against the K145 reference unit.
+All four work against the K145 reference unit.
+
+## Pre-commit checks
+
+`githooks/pre-commit` warns (never blocks) about two recurring defect
+classes from past exit reviews: doc narration/banned wording/stale ADR
+cross-references (`githooks/check-docs.sh`), and unchecked ESP-IDF/mDNS/
+httpd return values in `firmware/main/` and `src/platform/firmware/`
+(`githooks/check-esp-idf-returns.sh`). Activate it once per clone:
+
+```
+git config core.hooksPath tools/githooks
+```
+
+The scripts are tracked in the repo like any other file; only the
+`core.hooksPath` setting itself is local to your clone and needs
+re-running after a fresh checkout. `git commit --no-verify` skips it, as
+with any hook.
