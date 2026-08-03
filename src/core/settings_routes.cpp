@@ -51,14 +51,15 @@ nlohmann::json AllSettingsJson(Storage& storage) {
 }  // namespace
 
 void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthService& auth,
-                             DeviceNameChangedFn on_device_name_changed) {
+                             DeviceNameValidateFn on_device_name_validate,
+                             DeviceNameCommittedFn on_device_name_committed) {
     server.RegisterHandler(HttpMethod::kGet, "/api/settings", auth.RequireAuth([&storage](const HttpRequest&) {
                                 return HttpResponse{200, "application/json", AllSettingsJson(storage).dump(), {}};
                             }));
 
     server.RegisterHandler(
         HttpMethod::kPost, "/api/settings",
-        auth.RequireAuth([&storage, on_device_name_changed](const HttpRequest& request) {
+        auth.RequireAuth([&storage, on_device_name_validate, on_device_name_committed](const HttpRequest& request) {
             auto parsed_opt = TryParseJsonObject(request.body);
             if (!parsed_opt.has_value()) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
@@ -93,13 +94,18 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             if (AdminAuthService::IsReservedSettingsKey(module, key)) {
                 return HttpResponse{403, "application/json", R"({"error":"reserved_key"})", {}};
             }
-            if (module == AdminAuthService::kModuleId && key == kDeviceNameKey && on_device_name_changed) {
-                if (!on_device_name_changed(value)) {
-                    return HttpResponse{400, "application/json", R"({"error":"invalid_value"})", {}};
-                }
+            bool is_device_name = module == AdminAuthService::kModuleId && key == kDeviceNameKey;
+            if (is_device_name && on_device_name_validate && !on_device_name_validate(value)) {
+                return HttpResponse{400, "application/json", R"({"error":"invalid_value"})", {}};
             }
             if (!storage.SetSetting(module, key, schema_it->get<int>(), value)) {
                 return HttpResponse{500, "application/json", R"({"error":"write_failed"})", {}};
+            }
+            // Only applied once the value above is actually persisted -
+            // see DeviceNameCommittedFn's own comment for why the ordering
+            // matters.
+            if (is_device_name && on_device_name_committed) {
+                on_device_name_committed(value);
             }
             return HttpResponse{200, "application/json", R"({"status":"ok"})", {}};
         }));

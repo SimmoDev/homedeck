@@ -59,8 +59,9 @@ public:
     // Everything genuinely platform-specific that AppCore still needs
     // injected - the concrete backends behind Core's small abstract
     // interfaces (see src/README.md), plus the handful of callbacks each
-    // target answers differently. See SetOnDeviceNameChanged() below for
-    // the one callback that isn't here.
+    // target answers differently. See SetOnDeviceNameValidate()/
+    // SetOnDeviceNameCommitted() below for the two callbacks that aren't
+    // here.
     struct Dependencies {
         BatteryReader& battery_reader;
         NetworkStatus& network_status;
@@ -99,16 +100,23 @@ public:
     // automatically.
     void Start();
 
-    // Optional; invoked when the device name setting changes via the
-    // Web UI's Settings page (see settings_routes.h's
-    // DeviceNameChangedFn) - e.g. firmware's mDNS re-announce, which
-    // needs GetLogger() below. Deliberately settable after construction,
-    // not a Dependencies member: RegisterSettingsRoutes is called from
+    // Optional; invoked to validate a device name submitted via the Web
+    // UI's Settings page, before it's persisted (see settings_routes.h's
+    // DeviceNameValidateFn). Deliberately settable after construction, not
+    // a Dependencies member: RegisterSettingsRoutes is called from
     // AppCore's own constructor, before a caller-supplied callback could
-    // reference GetLogger() safely. No-op (name change always accepted)
-    // if never set - the simulator's case, which has no mDNS to
+    // reference GetLogger() safely. No-op (name always accepted) if never
+    // set - the simulator's case, which has no hostname rules to check.
+    void SetOnDeviceNameValidate(DeviceNameValidateFn fn) { on_device_name_validate_ = std::move(fn); }
+
+    // Optional; invoked only once the new device name is actually
+    // persisted (see settings_routes.h's DeviceNameCommittedFn) - e.g.
+    // firmware's live mDNS re-announce, which needs GetLogger() below and
+    // must not run before Storage::SetSetting() itself has succeeded. Same
+    // deferred-settable reasoning as SetOnDeviceNameValidate() above.
+    // No-op if never set - the simulator's case, which has no mDNS to
     // re-announce.
-    void SetOnDeviceNameChanged(DeviceNameChangedFn fn) { on_device_name_changed_ = std::move(fn); }
+    void SetOnDeviceNameCommitted(DeviceNameCommittedFn fn) { on_device_name_committed_ = std::move(fn); }
 
     Storage& GetStorage() { return storage_; }
     DashboardScreen& GetDashboard() { return dashboard_; }
@@ -146,7 +154,8 @@ private:
     SteadyTimeSource auth_time_source_;
     AdminAuthService admin_auth_;
 
-    DeviceNameChangedFn on_device_name_changed_;
+    DeviceNameValidateFn on_device_name_validate_;
+    DeviceNameCommittedFn on_device_name_committed_;
 };
 
 }  // namespace homedeck

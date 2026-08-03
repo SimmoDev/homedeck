@@ -271,7 +271,7 @@ anything for the location just chosen.
 **The Wi-Fi credential reset diagnostic aid is also implemented** -
 `POST /api/wifi/reset` (`src/core/wifi_routes.h`/`.cpp`), admin-only,
 calling an injected `WifiResetFn` the same way `OtaWriter`/
-`DeviceNameChangedFn` are injected - firmware wires it to
+`DeviceNameValidateFn`/`DeviceNameCommittedFn` are injected - firmware wires it to
 `ScheduleWifiResetAndReboot()` (`firmware/main/homedeck.cpp`), which
 defers `esp_wifi_restore()` and `esp_restart()` together past the HTTP
 response being sent; the simulator has no Wi-Fi credential storage or

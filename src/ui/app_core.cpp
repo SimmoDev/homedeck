@@ -62,15 +62,21 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
                                deps.read_core_dump);
     RegisterOtaRoutes(deps.http_server, event_bus, admin_auth_, deps.battery_reader, deps.ota_writer,
                        deps.ota_reboot);
-    // Forwards to on_device_name_changed_ so SetOnDeviceNameChanged() can
-    // be called after this constructor returns (see its own comment for
-    // why) - RegisterSettingsRoutes bakes whatever callback it's given
-    // into the handler it registers right now, so a direct
-    // deps.on_device_name_changed wouldn't be able to reference anything
-    // constructed later in this same constructor (namely logger_).
-    RegisterSettingsRoutes(deps.http_server, storage_, admin_auth_, [this](const std::string& value) {
-        return on_device_name_changed_ ? on_device_name_changed_(value) : true;
-    });
+    // Forwards to on_device_name_validate_/on_device_name_committed_ so
+    // SetOnDeviceNameValidate()/SetOnDeviceNameCommitted() can be called
+    // after this constructor returns (see their own comments for why) -
+    // RegisterSettingsRoutes bakes whatever callbacks it's given into the
+    // handler it registers right now, so a direct deps member wouldn't be
+    // able to reference anything constructed later in this same
+    // constructor (namely logger_).
+    RegisterSettingsRoutes(
+        deps.http_server, storage_, admin_auth_,
+        [this](const std::string& value) { return on_device_name_validate_ ? on_device_name_validate_(value) : true; },
+        [this](const std::string& value) {
+            if (on_device_name_committed_) {
+                on_device_name_committed_(value);
+            }
+        });
     RegisterWeatherRoutes(deps.http_server, http_client_, weather_provider_, admin_auth_);
     RegisterWifiRoutes(deps.http_server, admin_auth_, deps.wifi_reset);
 }

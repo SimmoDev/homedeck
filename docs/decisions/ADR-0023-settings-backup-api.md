@@ -120,18 +120,22 @@ existing precedent:
   fault
 
 **Device name is the first real setting**, replacing the hardcoded
-`"homedeck"` mDNS hostname. `RegisterSettingsRoutes` takes an optional
-injected `DeviceNameChangedFn` callback, invoked only for
-`(module="core", key="device_name")` writes, before persisting. On
-firmware it validates the value against RFC 1035/6763 label rules
-(charset, ≤63 chars) and re-calls `mdns_hostname_set()` immediately -
-live-apply, no reboot required, since ESP-IDF's mdns component supports
-re-announcing. Returning `false` makes the route respond 400 rather than
-persisting a value that was rejected. On the simulator the callback is
-omitted entirely (no mDNS to update) - keeps `settings_routes.cpp` fully
-portable, matching `ota_routes.cpp`'s `OtaWriter` injection pattern for
-the same reason. `POST /api/backup/restore`'s generic replay loop does
-**not** invoke this callback - an accepted simplification, not an
+`"homedeck"` mDNS hostname. `RegisterSettingsRoutes` takes two optional
+injected callbacks for `(module="core", key="device_name")` writes:
+`DeviceNameValidateFn`, called before persisting (on firmware, RFC
+1035/6763 label rules - charset, ≤63 chars - returning `false` makes the
+route respond 400 rather than persisting a value that was rejected), and
+`DeviceNameCommittedFn`, called only once `Storage::SetSetting()` has
+actually persisted the new value. Firmware's `DeviceNameCommittedFn`
+re-calls `mdns_hostname_set()` - live-apply, no reboot required, since
+ESP-IDF's mdns component supports re-announcing - deliberately kept out
+of the validator so a live re-announce is never applied against a value
+a subsequent storage-write failure didn't actually save. On the
+simulator both callbacks are omitted entirely (no mDNS to update, no
+hostname rules to check) - keeps `settings_routes.cpp` fully portable,
+matching `ota_routes.cpp`'s `OtaWriter` injection pattern for the same
+reason. `POST /api/backup/restore`'s generic replay loop does
+**not** invoke either callback - an accepted simplification, not an
 oversight: restoring a backup containing a device name change persists
 correctly but only takes effect on the next reboot, since making restore
 aware of per-key semantics would tangle a deliberately generic replay

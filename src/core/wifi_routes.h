@@ -10,7 +10,7 @@
 namespace homedeck {
 
 // Clears stored Wi-Fi credentials and reboots, so the device re-enters
-// SoftAP setup. Injected the same way OtaWriter/DeviceNameChangedFn are
+// SoftAP setup. Injected the same way OtaWriter/DeviceNameValidateFn are
 // (core/ota_routes.h, core/settings_routes.h), but must not block and
 // must not tear down Wi-Fi synchronously - firmware schedules the real
 // esp_wifi_restore() (see docs/architecture/hardware.md#wi-fi-bring-up

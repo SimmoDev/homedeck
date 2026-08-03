@@ -186,11 +186,12 @@ int main() {
                         "This is a simulator-only stub core dump for Web UI development - "
                         "see docs/architecture/diagnostics.md.");
                 },
-            // No device-name-changed callback - there's no mDNS to
-            // re-announce on the simulator, so a device name change just
-            // persists to storage like any other setting (see
-            // AppCore::SetOnDeviceNameChanged()'s own comment on why the
-            // callback is optional).
+            // No device-name callbacks - there's no mDNS to re-announce
+            // and no hostname rules to check on the simulator, so a
+            // device name change just persists to storage like any other
+            // setting (see AppCore::SetOnDeviceNameValidate()/
+            // SetOnDeviceNameCommitted()'s own comments on why both are
+            // optional).
         });
 
     // No real SoftAP here to derive these from - a fixed placeholder is

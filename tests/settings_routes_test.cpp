@@ -263,17 +263,18 @@ TEST_F(SettingsRoutesTest, RestoreReplaysEntriesAndReportsFailures) {
     EXPECT_NE(get.body.find(R"("value":"10.0.0.5")"), std::string::npos);
 }
 
-TEST_F(SettingsRoutesTest, DeviceNameChangedCallbackCanAcceptOrReject) {
-    std::vector<std::string> applied_values;
-    homedeck::DeviceNameChangedFn on_device_name_changed = [&applied_values](const std::string& value) -> bool {
-        if (value == "reject-me") return false;
-        applied_values.push_back(value);
-        return true;
+TEST_F(SettingsRoutesTest, DeviceNameValidateCallbackCanReject) {
+    std::vector<std::string> committed_values;
+    homedeck::DeviceNameValidateFn on_device_name_validate = [](const std::string& value) -> bool {
+        return value != "reject-me";
+    };
+    homedeck::DeviceNameCommittedFn on_device_name_committed = [&committed_values](const std::string& value) {
+        committed_values.push_back(value);
     };
 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, on_device_name_changed);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, on_device_name_validate, on_device_name_committed);
     ASSERT_TRUE(server.Start(18217));
     std::string cookie = Login(18217);
 
@@ -281,19 +282,48 @@ TEST_F(SettingsRoutesTest, DeviceNameChangedCallbackCanAcceptOrReject) {
         18217, "POST", "/api/settings",
         R"({"module":"core","key":"device_name","value":"living-room","schemaVersion":1})", cookie);
     EXPECT_EQ(accepted.status_code, 200);
-    ASSERT_EQ(applied_values.size(), 1u);
-    EXPECT_EQ(applied_values[0], "living-room");
+    ASSERT_EQ(committed_values.size(), 1u);
+    EXPECT_EQ(committed_values[0], "living-room");
 
     auto rejected =
         HttpRequestRaw(18217, "POST", "/api/settings",
                         R"({"module":"core","key":"device_name","value":"reject-me","schemaVersion":1})", cookie);
     EXPECT_EQ(rejected.status_code, 400);
+    // Rejected before ever reaching Storage - the committed callback must
+    // not have fired a second time.
+    EXPECT_EQ(committed_values.size(), 1u);
 
     // The rejected value must not have been persisted - the accepted
     // one from before should still be the current value.
     auto get = HttpRequestRaw(18217, "GET", "/api/settings", "", cookie);
     EXPECT_NE(get.body.find(R"("value":"living-room")"), std::string::npos);
     EXPECT_EQ(get.body.find("reject-me"), std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, DeviceNameCommittedCallbackDoesNotFireWhenTheStorageWriteFails) {
+    FailingSettingsStore failing_settings_store;
+    homedeck::HostCacheStore cache_store(root_dir_ / "device_name_write_fail_case");
+    homedeck::HostSecretStore secret_store(root_dir_ / "device_name_write_fail_case");
+    homedeck::Storage failing_storage(failing_settings_store, cache_store, secret_store);
+    homedeck::AdminAuthService failing_auth(failing_storage, time_source_);
+
+    bool committed_fired = false;
+    homedeck::DeviceNameCommittedFn on_device_name_committed = [&committed_fired](const std::string&) {
+        committed_fired = true;
+    };
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, failing_auth);
+    homedeck::RegisterSettingsRoutes(server, failing_storage, failing_auth, nullptr, on_device_name_committed);
+    ASSERT_TRUE(server.Start(18299));
+    auto setup = HttpRequestRaw(18299, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    std::string cookie = SessionCookieOnly(setup.set_cookie);
+
+    auto result = HttpRequestRaw(
+        18299, "POST", "/api/settings",
+        R"({"module":"core","key":"device_name","value":"living-room","schemaVersion":1})", cookie);
+    EXPECT_EQ(result.status_code, 500);
+    EXPECT_FALSE(committed_fired);
 }
 
 TEST_F(SettingsRoutesTest, PostSettingsReturns500WhenTheStorageWriteFails) {

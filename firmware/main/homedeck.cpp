@@ -568,19 +568,25 @@ extern "C" void app_main(void) {
 
     homedeck::LogCrashDiagnostics(app_core.GetStorage());
 
-    // See settings_routes.h/AppCore::SetOnDeviceNameChanged()'s own
-    // comments - deferred until after AppCore's construction so this can
-    // safely reference GetLogger().
-    app_core.SetOnDeviceNameChanged([&app_core](const std::string& value) -> bool {
-        if (!IsValidHostnameLabel(value)) {
-            return false;
-        }
-        bool ok = mdns_hostname_set(value.c_str()) == ESP_OK;
-        if (ok) {
+    // See settings_routes.h/AppCore::SetOnDeviceNameValidate()/
+    // SetOnDeviceNameCommitted()'s own comments - deferred until after
+    // AppCore's construction so the committed callback can safely
+    // reference GetLogger(). Split across two calls (not one, unlike
+    // before) specifically so the live mDNS re-announce below only ever
+    // runs once Storage::SetSetting() has actually persisted the new
+    // name - never on a name this validator itself already rejected, and
+    // never left applied against a value a later storage-write failure
+    // didn't actually save.
+    app_core.SetOnDeviceNameValidate(
+        [](const std::string& value) -> bool { return IsValidHostnameLabel(value); });
+    app_core.SetOnDeviceNameCommitted([&app_core](const std::string& value) {
+        if (mdns_hostname_set(value.c_str()) == ESP_OK) {
             printf("mDNS re-announced as %s.local\n", value.c_str());
             app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "mdns", "Re-announced as " + value + ".local");
+        } else {
+            app_core.GetLogger().Log(homedeck::LogLevel::kWarning, "mdns",
+                                      "Failed to re-announce as " + value + ".local");
         }
-        return ok;
     });
 
     BlockUntilWifiConnected(app_core);
