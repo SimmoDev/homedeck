@@ -18,13 +18,26 @@ read that first if a script here does something unexpected.
 
 All four target the K145 reference unit.
 
-## Pre-commit checks
+## Commit hooks
 
-`githooks/pre-commit` warns (never blocks) about two recurring defect
-classes from past exit reviews: doc narration/banned wording/stale ADR
-cross-references (`githooks/check-docs.sh`), and unchecked ESP-IDF/mDNS/
-httpd return values in `firmware/main/` and `src/platform/firmware/`
-(`githooks/check-esp-idf-returns.sh`). Activate it once per clone:
+Two git hook stages, both warn-only (never block a commit) - three
+recurring defect classes from past exit reviews:
+
+- `githooks/pre-commit` runs against staged doc/code files: doc
+  narration/banned wording/stale ADR cross-references
+  (`githooks/check-docs.sh`), and unchecked ESP-IDF/mDNS/httpd return
+  values in `firmware/main/` and `src/platform/firmware/`
+  (`githooks/check-esp-idf-returns.sh`).
+- `githooks/commit-msg` runs against the commit message itself, once
+  written - the same narration patterns check-docs.sh checks in files
+  (`githooks/lib-narration-patterns.sh`, shared by both), since a commit
+  message can narrate a review/testing process just as easily as a doc
+  can. This doesn't ban process detail from commit messages - CLAUDE.md's
+  own Documentation section says git history is exactly where "how and
+  why" belongs - only the same verification-log *phrasing* (pass/round
+  tallies, "found N issues, fixed M") the doc checks already flag.
+
+Activate both once per clone:
 
 ```
 git config core.hooksPath tools/githooks

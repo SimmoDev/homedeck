@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Warns about the same narration/\breal\b patterns check-docs.sh checks in
+# doc/code files, applied to the commit message itself - git's commit-msg
+# hook stage, not pre-commit, since the message doesn't exist yet at the
+# pre-commit stage. Non-blocking, same as pre-commit's own checks: commit
+# messages are exactly where CLAUDE.md says process/verification detail
+# belongs (git history records "how and why"), so this only flags the
+# specific narration *style* (verification-log phrasing, pass/fail
+# tallying) those checks already target elsewhere, not the presence of
+# process detail itself.
+set -uo pipefail
+
+msg_file="$1"
+[ -f "$msg_file" ] || exit 0
+
+# shellcheck source=lib-narration-patterns.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib-narration-patterns.sh"
+
+status=0
+
+for pat in "${narration_patterns[@]}"; do
+    matches=$(grep -niE "$pat" "$msg_file" || true)
+    if [ -n "$matches" ]; then
+        echo "[narration] commit message: possible verification-log narration:"
+        echo "$matches" | sed 's/^/    /'
+        status=1
+    fi
+done
+
+real_matches=$(grep -niE '\breal\b' "$msg_file" || true)
+if [ -n "$real_matches" ]; then
+    echo "[wording] commit message: '\breal\b' hit - check it isn't the banned 'is real/are real' implementation-status sense:"
+    echo "$real_matches" | sed 's/^/    /'
+    status=1
+fi
+
+if [ "$status" -ne 0 ]; then
+    echo
+    echo "commit-msg: findings above are warnings, not blockers - review before pushing."
+fi
+
+exit 0
