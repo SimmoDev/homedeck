@@ -106,8 +106,11 @@
     // rest of the real ~30-minute poll interval before showing
     // anything for the location just chosen - fire-and-forget, the
     // widget picks up the result via its own WeatherUpdatedEvent
-    // subscription once the triggered fetch completes.
-    fetch("/api/weather/refresh", { method: "POST" }).catch(() => {});
+    // subscription once the triggered fetch completes. postJson() (not a
+    // bare fetch()) so a session that lapsed at this exact moment still
+    // routes through notifyIfSessionExpired() like every other request in
+    // this app - postJson() never throws, so no .catch() is needed.
+    void postJson("/api/weather/refresh");
   }
 
   loadWeatherLocation();
