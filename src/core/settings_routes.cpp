@@ -1,5 +1,6 @@
 #include "core/settings_routes.h"
 
+#include "core/json_request.h"
 #include "platform/store_key_validation.h"
 #include "third_party/nlohmann/json.hpp"
 
@@ -57,10 +58,11 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
     server.RegisterHandler(
         HttpMethod::kPost, "/api/settings",
         auth.RequireAuth([&storage, on_device_name_changed](const HttpRequest& request) {
-            nlohmann::json parsed = nlohmann::json::parse(request.body, nullptr, /*allow_exceptions=*/false);
-            if (parsed.is_discarded() || !parsed.is_object()) {
+            auto parsed_opt = TryParseJsonObject(request.body);
+            if (!parsed_opt.has_value()) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
             }
+            nlohmann::json& parsed = *parsed_opt;
             auto module_it = parsed.find("module");
             auto key_it = parsed.find("key");
             auto value_it = parsed.find("value");
@@ -100,10 +102,11 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
 
     server.RegisterHandler(
         HttpMethod::kPost, "/api/settings/erase", auth.RequireAuth([&storage](const HttpRequest& request) {
-            nlohmann::json parsed = nlohmann::json::parse(request.body, nullptr, /*allow_exceptions=*/false);
-            if (parsed.is_discarded() || !parsed.is_object()) {
+            auto parsed_opt = TryParseJsonObject(request.body);
+            if (!parsed_opt.has_value()) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
             }
+            nlohmann::json& parsed = *parsed_opt;
             auto module_it = parsed.find("module");
             auto key_it = parsed.find("key");
             if (module_it == parsed.end() || !module_it->is_string() || key_it == parsed.end() ||
@@ -134,10 +137,11 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
 
     server.RegisterHandler(
         HttpMethod::kPost, "/api/backup/restore", auth.RequireAuth([&storage](const HttpRequest& request) {
-            nlohmann::json parsed = nlohmann::json::parse(request.body, nullptr, /*allow_exceptions=*/false);
-            if (parsed.is_discarded() || !parsed.is_object()) {
+            auto parsed_opt = TryParseJsonObject(request.body);
+            if (!parsed_opt.has_value()) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
             }
+            nlohmann::json& parsed = *parsed_opt;
             auto settings_it = parsed.find("settings");
             if (settings_it == parsed.end() || !settings_it->is_array()) {
                 return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"settings"})", {}};

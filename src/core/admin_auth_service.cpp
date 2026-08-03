@@ -1,5 +1,6 @@
 #include "core/admin_auth_service.h"
 
+#include "core/json_request.h"
 #include "third_party/nlohmann/json.hpp"
 
 #include <mbedtls/pkcs5.h>
@@ -393,12 +394,12 @@ std::string SetCookieHeader(const SessionToken& token, long max_age_seconds) {
 }
 
 std::optional<std::string> ReadPasswordField(const std::string& body) {
-    nlohmann::json parsed = nlohmann::json::parse(body, nullptr, /*allow_exceptions=*/false);
-    if (parsed.is_discarded() || !parsed.is_object()) {
+    auto parsed = TryParseJsonObject(body);
+    if (!parsed.has_value()) {
         return std::nullopt;
     }
-    auto it = parsed.find("password");
-    if (it == parsed.end() || !it->is_string()) {
+    auto it = parsed->find("password");
+    if (it == parsed->end() || !it->is_string()) {
         return std::nullopt;
     }
     return it->get<std::string>();
