@@ -75,8 +75,17 @@ void OpenMeteoWeatherProvider::PollOnce() {
     bool configured = latitude.has_value() && longitude.has_value() && ParsesAsNumber(latitude->value) &&
                        ParsesAsNumber(longitude->value);
     if (!configured) {
-        std::lock_guard<std::mutex> lock(mutex_);
-        state_ = WeatherState{false, false, false, 0.0, 0, ""};
+        // Published after mutex_ releases (a nested scope, not held across
+        // the call) - a synchronous (non-UI Subscribe, not SubscribeUi)
+        // WeatherUpdatedEvent subscriber that calls back into Snapshot()
+        // from inside its callback would otherwise self-deadlock on this
+        // same, non-recursive mutex_. Same reasoning as
+        // EventBus::PublishImpl's own comment about copying its subscriber
+        // list out from under its lock before invoking callbacks.
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            state_ = WeatherState{false, false, false, 0.0, 0, ""};
+        }
         event_bus_.Publish(WeatherUpdatedEvent{});
         return;
     }
@@ -108,8 +117,10 @@ void OpenMeteoWeatherProvider::PollOnce() {
                 std::cerr << "OpenMeteoWeatherProvider: failed to persist weather cache\n";
             }
 
-            std::lock_guard<std::mutex> lock(mutex_);
-            state_ = WeatherState{true, true, true, temperature_c, weather_code, name};
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                state_ = WeatherState{true, true, true, temperature_c, weather_code, name};
+            }
             event_bus_.Publish(WeatherUpdatedEvent{});
             return;
         }
@@ -120,13 +131,15 @@ void OpenMeteoWeatherProvider::PollOnce() {
     // successful poll this session) rather than showing blank, marked
     // non-live so the UI can distinguish it from a fresh reading.
     auto cached = storage_.ReadCache(kModuleId, kCacheKey);
-    std::lock_guard<std::mutex> lock(mutex_);
     if (cached.has_value()) {
         nlohmann::json parsed = nlohmann::json::parse(cached->value, nullptr, /*allow_exceptions=*/false);
         if (!parsed.is_discarded() && parsed.is_object() && parsed.contains("temperature_c") &&
             parsed.contains("weather_code")) {
-            state_ = WeatherState{true, true, false, parsed.at("temperature_c").get<double>(),
-                                   parsed.at("weather_code").get<int>(), name};
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                state_ = WeatherState{true, true, false, parsed.at("temperature_c").get<double>(),
+                                       parsed.at("weather_code").get<int>(), name};
+            }
             event_bus_.Publish(WeatherUpdatedEvent{});
             return;
         }
@@ -134,7 +147,10 @@ void OpenMeteoWeatherProvider::PollOnce() {
     // Configured, but no reading has ever been obtained (first poll
     // still in flight or failed, and nothing cached from a prior
     // session either) - has_reading=false, not a real 0.0/0 reading.
-    state_ = WeatherState{true, false, false, 0.0, 0, name};
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state_ = WeatherState{true, false, false, 0.0, 0, name};
+    }
     event_bus_.Publish(WeatherUpdatedEvent{});
 }
 
