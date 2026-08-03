@@ -35,8 +35,8 @@ dependencies:
   # co-processor over SDIO, via esp_hosted. esp_wifi_remote exposes the
   # standard esp_wifi API transparently proxied to the C6, so calling
   # code is unchanged from a chip with native Wi-Fi. Depends on
-  # esp_hosted >=2.11; confirmed via a real build that the resolver picks
-  # a compatible 2.12.x release rather than the newer 3.0.0 line, which
+  # esp_hosted >=2.11; the resolver picks a compatible 2.12.x release
+  # rather than the newer 3.0.0 line, which
   # needs idf >=5.5 and would conflict with the v5.4.3 pin above (ADR-0014).
   # See docs/architecture/hardware.md#wireless.
   espressif/esp_wifi_remote: "*"

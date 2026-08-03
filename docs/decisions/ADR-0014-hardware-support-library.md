@@ -61,10 +61,10 @@ exact detection logic roughly three months before this decision).
 
 **Decided:** `espressif/m5stack_tab5`, pulled as a managed component
 (`firmware/main/idf_component.yml`), for display and touch specifically.
-Confirmed working on the reference hardware: real pixels, correct color,
-the BSP's runtime probing independently identified the same ST7123
-controller already confirmed via the unit's physical sticker, and touch
-initialized successfully in the same pass. Uses the BSP's LVGL-integrated
+Working on the reference hardware: the display renders correctly, the
+BSP's runtime probing independently identified the same ST7123
+controller as the unit's physical sticker, and touch initialized
+successfully in the same pass. Uses the BSP's LVGL-integrated
 API (`bsp_display_start()`) directly, matching this project's own LVGL
 commitment, rather than bypassing it with lower-level panel APIs.
 

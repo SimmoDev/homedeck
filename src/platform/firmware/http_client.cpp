@@ -23,7 +23,7 @@ constexpr int kTimeoutMs = 10000;
 // event regardless of Transfer-Encoding - esp_http_client_is_chunked_
 // response() is for callers choosing whether to trust Content-Length
 // for a fixed-size buffer, not a signal to skip appending here (Open-
-// Meteo's own response is chunked, confirmed on hardware).
+// Meteo's own response is chunked).
 esp_err_t OnHttpEvent(esp_http_client_event_t* event) {
     if (event->event_id == HTTP_EVENT_ON_DATA) {
         auto* body = static_cast<std::string*>(event->user_data);

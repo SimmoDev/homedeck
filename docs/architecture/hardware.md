@@ -132,9 +132,9 @@ plausibly change that rate one way or the other.
 The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
 see [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md)
-for why. Confirmed on hardware with a non-alphanumeric SSID (an apostrophe):
-SoftAP setup, credential submission, connection, and SoftAP teardown all
-work end to end. The form's submitted values are
+for why. SoftAP setup, credential submission, connection, and SoftAP
+teardown all work end to end, including with a non-alphanumeric SSID
+(an apostrophe). The form's submitted values are
 percent-decoded and length-validated before being applied
 (`src/core/url_codec.h`, `src/core/wifi_credentials.h`) so a network name
 or password containing a space or symbol is handled correctly rather than
@@ -374,8 +374,8 @@ second, conflicting one on the same physical pins.
   can't distinguish "no battery" from "battery present, full, charging
   terminated," since both read that same flat zero. Voltage remains
   usable there: an installed battery holds the rail steady via its own
-  chemistry (confirmed on hardware: consecutive readings within tens of
-  mV even right at the charging-terminates transition), unlike the
+  chemistry (consecutive readings stay within tens of mV even right at
+  the charging-terminates transition), unlike the
   multi-volt hunting swing with no battery at all.
 - **Conversion:** MP4560 buck-boost converter.
 - **Power monitoring:** INA226 (I2C), providing real-time voltage *and*

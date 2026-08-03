@@ -151,13 +151,10 @@ loop for a rare, self-inflicted-only case.
 - [roadmap.md](../roadmap.md)'s Status bar item already separately tracks
   `StatusBar`'s clock label not reading `TimeSource` immediately: this
   ADR's `device_name` work doesn't touch that.
-- **Confirmed end to end against the simulator** (`curl` against a real
-  running `HostHttpServer`): setup → set device name → list → backup
-  download → attempted `admin_pw_hash` overwrite via both `POST
-  /api/settings` and `POST /api/backup/restore` (both rejected, original
-  password hash confirmed unchanged and still able to log in) → erase.
-- **Confirmed on real hardware** (Tab5 K145 reference unit, over the
-  LAN) - the same sequence, plus the live mDNS re-announce (serial log:
-  `mDNS re-announced as <name>.local`, no reboot); the reserved-key
+- Both `POST /api/settings` and `POST /api/backup/restore` reject an
+  `admin_pw_hash` overwrite attempt; the original password hash stays
+  unchanged and still logs in. The same holds over the LAN on the Tab5
+  K145 reference unit, including the live mDNS re-announce (serial log:
+  `mDNS re-announced as <name>.local`, no reboot). The reserved-key
   rejection is reliable across repeated attempts, not just occasionally
   correct.

@@ -44,13 +44,11 @@ sensitive display path isn't guaranteed favorable without testing.
 
 **`CONFIG_SPIRAM_XIP_FROM_PSRAM=y`** (`firmware/sdkconfig.defaults`).
 
-Confirmed on the K145 reference unit: 20 consecutive hardware resets
-(real EN-pin resets, not soft `esp_restart()`), each completing a full
-boot through Wi-Fi connect and the async Logger's batched flash write,
-produced zero DSI underrun interrupts and zero visible display
-corruption - both by direct observation and by video, across multiple
-additional manual reboots. The glitch ADR-0020 could not fully resolve
-is gone.
+20 consecutive hardware resets (EN-pin resets, not soft
+`esp_restart()`), each completing a full boot through Wi-Fi connect and
+the async Logger's batched flash write, produce zero DSI underrun
+interrupts and zero visible display corruption. The glitch ADR-0020
+could not fully resolve is gone.
 
 ## Consequences
 

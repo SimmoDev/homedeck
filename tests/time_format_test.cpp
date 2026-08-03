@@ -30,8 +30,7 @@ protected:
         tzset();
     }
 
-    // 2023-11-15 09:00:00 UTC, a Wednesday - confirmed via `date -u -d
-    // @1700038800`.
+    // 2023-11-15 09:00:00 UTC, a Wednesday.
     std::chrono::system_clock::time_point sample_time_ =
         std::chrono::system_clock::from_time_t(1700038800);
 

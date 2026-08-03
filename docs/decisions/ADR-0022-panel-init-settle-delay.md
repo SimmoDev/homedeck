@@ -36,10 +36,10 @@ before the panel had time to optically settle to its commanded colors.
 ## Decision
 
 **Added `delay_ms=120` after Sleep Out (`0x11`) and `delay_ms=100` after
-Display On (`0x29`)** in the ST7123 init table. Confirmed on hardware:
-`Display initialized` now logs ~215ms later than before (matching the
-added delays), and the status bar renders solid black consistently
-across repeated reboots - the grey/fade symptom is gone.
+Display On (`0x29`)** in the ST7123 init table. `Display initialized`
+now logs ~215ms later than before (matching the added delays), and the
+status bar renders solid black consistently across repeated reboots -
+the grey/fade symptom is gone.
 
 **Vendored `espressif/m5stack_tab5` as a git-tracked local component**
 (`firmware/components/m5stack_tab5/`, referenced via `override_path` in
@@ -48,9 +48,9 @@ registry-fetched copy in place. `firmware/managed_components/` is
 gitignored - a patch made there would silently vanish on the next clean
 clone or dependency re-resolution, with no record it ever existed.
 `override_path` is ESP-IDF's own mechanism for exactly this case;
-confirmed via `firmware/dependencies.lock` showing
-`type: local, path: .../firmware/components/m5stack_tab5` and a build
-that no longer touches `managed_components/` for this component at all.
+`firmware/dependencies.lock` shows
+`type: local, path: .../firmware/components/m5stack_tab5`, and a build
+no longer touches `managed_components/` for this component at all.
 
 ## Consequences
 

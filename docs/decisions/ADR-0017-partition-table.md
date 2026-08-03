@@ -19,8 +19,8 @@ pragmatic, temporary measure — not the real OTA A/B scheme, which
 [ADR-0013](ADR-0013-crash-and-reboot-diagnostics.md) already flagged as
 explicit M2 scope. With M2's Wi-Fi/ESP-Hosted stack now linked in
 (`esp_wifi_remote`, `esp_hosted`, `esp_http_server`, `wpa_supplicant`,
-`mbedtls`), that table dropped to 1% free, confirmed via a real build —
-see [hardware.md](../architecture/hardware.md#wi-fi-bring-up).
+`mbedtls`), that table dropped to 1% free — see
+[hardware.md](../architecture/hardware.md#wi-fi-bring-up).
 
 Every M2 roadmap item still ahead needs partition-table space the current
 table doesn't reserve: OTA's real A/B scheme itself; a dedicated core

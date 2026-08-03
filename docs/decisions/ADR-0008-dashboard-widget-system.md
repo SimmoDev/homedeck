@@ -166,7 +166,7 @@ where date/time and battery live.
   into shared status-bar chrome present on every screen, not building a
   grid cell for them.
 
-`StatusBar` (`src/ui/status_bar.h`/`.cpp`) is that relocation, built and
-confirmed on hardware, since joined by a compact Wi-Fi connectivity icon
-— see [dashboard.md](../architecture/dashboard.md#status) for the real
+`StatusBar` (`src/ui/status_bar.h`/`.cpp`) is that relocation, since
+joined by a compact Wi-Fi connectivity icon — see
+[dashboard.md](../architecture/dashboard.md#status) for the
 implementation.

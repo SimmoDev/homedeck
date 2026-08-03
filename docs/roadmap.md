@@ -59,7 +59,7 @@ management state model" item instead.
 - [x] ESP-IDF project scaffolding — `idf.py set-target esp32p4 build`
       produces a real `homedeck.bin` (see
       [firmware/README.md](../firmware/README.md)).
-- [x] Tab5 boot — confirmed on real hardware over USB (see
+- [x] Tab5 boot over USB (see
       [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup) for the
       flash/monitor procedure, including manual download-mode entry).
 - [x] ESP32-C6 co-processor power/SDIO domain wiring — **confirmed
@@ -71,8 +71,8 @@ management state model" item instead.
       the P4 itself is asleep turned out to be moot: the P4 never enters
       deep sleep in this project's design at all — see
       [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md).
-- [x] Display and touch bring-up — real pixels and working touch input
-      confirmed on the Tab5 panel via `espressif/m5stack_tab5`, not
+- [x] Display and touch bring-up — the display renders and touch input
+      works on the Tab5 panel via `espressif/m5stack_tab5`, not
       M5GFX/M5Unified (see
       [hardware.md](architecture/hardware.md#display-driver-strategy)).
       Panel orientation resolved as portrait, no rotation — see
@@ -135,10 +135,10 @@ simulator.
       `WifiSetupScreen` — see
       [networking.md](architecture/networking.md#initial-wi-fi-provisioning)
       and [ADR-0026](decisions/ADR-0026-wifi-provisioning-mechanism.md)
-      for the provisioning mechanism). Implemented and confirmed on
-      hardware, including with a non-alphanumeric SSID — SoftAP
+      for the provisioning mechanism). Implemented — SoftAP
       provisioning, the Touch UI fallback, and reconnecting to stored
-      credentials, all via `firmware/main/wifi_setup.cpp`. The setup
+      credentials, all via `firmware/main/wifi_setup.cpp`, including
+      with a non-alphanumeric SSID. The setup
       form's submitted SSID/password are percent-decoded and
       length-validated (`src/core/url_codec.h`,
       `src/core/wifi_credentials.h`, both host-tested) before being
@@ -166,8 +166,8 @@ simulator.
       feature depends on it.
 - [x] LAN discovery (thin mDNS wrapper — see
       [networking.md](architecture/networking.md#lan-discovery)).
-      Self-advertisement is implemented and confirmed on hardware — the
-      device advertises as `homedeck.local` once Wi-Fi connects (ESP-IDF's
+      Self-advertisement is implemented — the device advertises as
+      `homedeck.local` once Wi-Fi connects (ESP-IDF's
       `mdns` component, called directly from `firmware/main/homedeck.cpp`).
       The mDNS *browsing* wrapper for modules to discover Home
       Assistant/Kodi is out of scope here — tracked against M4/M6
@@ -192,8 +192,8 @@ simulator.
       [ADR-0010](decisions/ADR-0010-secret-storage.md)) and per-module
       namespacing enforced by the service itself, not by convention.
       `Storage` (`src/core/storage.h`) is implemented for the NVS and
-      internal-flash-FAT tiers, unit-tested in `tests/` and confirmed on
-      hardware; `SecretStore` is implemented alongside it
+      internal-flash-FAT tiers, unit-tested in `tests/`; `SecretStore`
+      is implemented alongside it
       (`AdminAuthService`'s password hash uses it). NVS encryption is
       not M2 scope (see
       [ADR-0018](decisions/ADR-0018-staged-security-hardening.md)); the
@@ -206,16 +206,16 @@ simulator.
       input validation on every endpoint (see
       [security.md](architecture/security.md#requirement-validate-api-input)).
       Auth, static assets, the first-login/session UI, diagnostics, OTA,
-      settings, backups, and weather-location search are all implemented
-      and confirmed on both the simulator and hardware — see
-      [web-ui.md](architecture/web-ui.md#status) for the full detail.
+      settings, backups, and weather-location search are all
+      implemented — see [web-ui.md](architecture/web-ui.md#status) for
+      the full detail.
       Module configuration is tracked as its own M3 item below (no module
       exists yet to configure); WebSockets, Wi-Fi management, and
       a factory-reset option are tracked as their own M7 items below.
 - [x] OTA update support, gated on battery threshold or external USB-C
       power (see
       [power-management.md](architecture/power-management.md#explicit-power-states)).
-      Implemented and confirmed on hardware — `GET /api/ota/status`,
+      Implemented — `GET /api/ota/status`,
       `POST /api/ota/upload`, `POST /api/ota/reboot`
       (`src/core/ota_routes.h`/`.cpp`), gated by `EvaluateOtaGate()`
       (`src/core/ota_gate.h`) per
@@ -236,8 +236,7 @@ simulator.
       general structured/leveled logging facility (`Logger`,
       `src/core/logger.h`/`.cpp`, `GET /api/diagnostics/logs` — see
       [ADR-0019](decisions/ADR-0019-structured-logging.md)) are all
-      implemented and confirmed on hardware, including a real triggered
-      panic and clean reboot — see
+      implemented, including a triggered panic and clean reboot — see
       [diagnostics.md#status](architecture/diagnostics.md#status) for the
       full detail. Persistence is asynchronous and batched (see
       [ADR-0020](decisions/ADR-0020-async-log-persistence.md) and
@@ -287,7 +286,7 @@ simulator.
       the weather widget (Core `WeatherProvider` interface, Open-Meteo
       as the direct provider — see
       [dashboard.md](architecture/dashboard.md#weather-source)).
-      Implemented and confirmed on hardware — see
+      Implemented — see
       [dashboard.md](architecture/dashboard.md#status) for the
       `Widget`/`DashboardGrid` interface and every widget built on it
       (`ClockWidget`, `NetworkStatusWidget`, `WeatherWidget`,
@@ -303,7 +302,7 @@ simulator.
 - [x] Status bar (persistent date/time and battery, shown on every screen —
       not a dashboard widget, see
       [ADR-0008](decisions/ADR-0008-dashboard-widget-system.md#decision-status-bar-vs-dashboard-only-widgets)).
-      Implemented and confirmed on hardware — `StatusBar`
+      Implemented — `StatusBar`
       (`src/ui/status_bar.h`/`.cpp`), constructed by every screen (see
       [dashboard.md](architecture/dashboard.md#status)), including
       charging/no-battery detection backed by real INA226/IO-expander
@@ -320,10 +319,10 @@ simulator.
       (`src/core/power_manager.h`/`.cpp`) is implemented for
       `Active`/`Idle`/`Sleeping`/`Updating`/`Error`, including the
       sleep-veto mechanism (unit-tested; `RequestSleepVeto` itself still
-      has no module caller until M3+), and confirmed on hardware
-      including wake-to-full-brightness from `Sleeping` on real touch.
-      `Sleeping` isn't real ESP32 deep sleep - display off, CPU stays
-      active, touch-wake by polling - since M5Stack's own official Tab5
+      has no module caller until M3+), including wake-to-full-brightness
+      from `Sleeping` on touch. `Sleeping` isn't real ESP32 deep sleep -
+      display off, CPU stays active, touch-wake by polling - since
+      M5Stack's own official Tab5
       firmware uses the same pattern for the same reason (see
       [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)).
       `Error` is implemented for one of its three ADR-0005-scoped fault
