@@ -215,11 +215,22 @@ std::string ResolveDeviceName(homedeck::Storage& storage) {
 void RegisterMdns(const std::string& device_name, homedeck::Logger& logger) {
     esp_err_t mdns_result = mdns_init();
     if (mdns_result == ESP_OK) {
-        mdns_hostname_set(device_name.c_str());
-        mdns_instance_name_set("HomeDeck");
-        mdns_service_add(nullptr, "_http", "_tcp", 80, nullptr, 0);
-        printf("mDNS advertising as %s.local\n", device_name.c_str());
-        logger.Log(homedeck::LogLevel::kInfo, "mdns", "Advertising as " + device_name + ".local");
+        // Checked individually rather than assuming success once mdns_init()
+        // is OK - a partial failure here would otherwise still log "Advertising
+        // as X.local" below even though the device isn't actually reachable
+        // there.
+        bool setup_ok = mdns_hostname_set(device_name.c_str()) == ESP_OK;
+        setup_ok = (mdns_instance_name_set("HomeDeck") == ESP_OK) && setup_ok;
+        setup_ok = (mdns_service_add(nullptr, "_http", "_tcp", 80, nullptr, 0) == ESP_OK) && setup_ok;
+        if (setup_ok) {
+            printf("mDNS advertising as %s.local\n", device_name.c_str());
+            logger.Log(homedeck::LogLevel::kInfo, "mdns", "Advertising as " + device_name + ".local");
+        } else {
+            printf("mDNS setup for %s.local partially failed - it may not be reachable there\n",
+                   device_name.c_str());
+            logger.Log(homedeck::LogLevel::kWarning, "mdns",
+                       "Setup for " + device_name + ".local partially failed - it may not be reachable there");
+        }
     } else {
         printf("mDNS init failed: %s\n", esp_err_to_name(mdns_result));
         logger.Log(homedeck::LogLevel::kError, "mdns",

@@ -176,8 +176,14 @@ void StartRecoveryAccessPoint();
 void RecoveryTimerCallback(void* /*arg*/) { StartRecoveryAccessPoint(); }
 
 void GetApSsid(char* ssid, size_t max_len) {
-    uint8_t mac[6];
-    esp_wifi_get_mac(WIFI_IF_STA, mac);
+    // Zero-initialized, not left uninitialized: this SSID is the recovery
+    // hotspot's name, the only thing a locked-out user has to find it by -
+    // a failed read must still produce a deterministic, loggable name, not
+    // whatever garbage was on the stack.
+    uint8_t mac[6] = {};
+    if (esp_wifi_get_mac(WIFI_IF_STA, mac) != ESP_OK) {
+        ESP_LOGW(kTag, "esp_wifi_get_mac failed - recovery AP SSID will use a zeroed suffix");
+    }
     std::snprintf(ssid, max_len, "HomeDeck-%02X%02X%02X", mac[3], mac[4], mac[5]);
 }
 
@@ -509,7 +515,9 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                     // this can't run on this task. The plain reconnect
                     // retry below is still scheduled regardless -
                     // bringing up recovery never pauses it.
-                    esp_timer_start_once(g_recovery_timer, 0);
+                    if (esp_timer_start_once(g_recovery_timer, 0) != ESP_OK) {
+                        ESP_LOGW(kTag, "Failed to schedule the recovery access point - staying unreachable");
+                    }
                 }
                 ESP_LOGI(kTag, "Disconnected, retrying in %dms...", kReconnectBackoffMs);
                 // Ignore the return - ESP_ERR_INVALID_STATE just means no
@@ -557,7 +565,9 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
         // outside g_state_mutex.
         if (server_to_stop != nullptr) {
             httpd_stop(server_to_stop);
-            esp_wifi_set_mode(WIFI_MODE_STA);
+            if (esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK) {
+                ESP_LOGW(kTag, "Failed to drop out of AP+STA mode after recovery - staying in AP+STA");
+            }
         }
         if (on_connected) {
             on_connected();
