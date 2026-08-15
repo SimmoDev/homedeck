@@ -29,6 +29,15 @@ constexpr int32_t kRowHeight =
     (kPanelWidth - 2 * kGridPadding - (DashboardGrid::kColumns - 1) * kCellGap) /
     DashboardGrid::kColumns;
 
+// LV_EVENT_CLICKED callback wired to every widget's Root() below -
+// user_data is the Widget& itself, so this just forwards to its OnTap().
+// A free function/trampoline rather than a lambda: lv_obj_add_event_cb()
+// wants a plain function pointer with no captures.
+void OnWidgetTileTapped(lv_event_t* event) {
+    auto* widget = static_cast<Widget*>(lv_event_get_user_data(event));
+    widget->OnTap();
+}
+
 }  // namespace
 
 DashboardGrid::DashboardGrid(lv_obj_t* parent) : row_dsc_{kRowHeight, LV_GRID_TEMPLATE_LAST} {
@@ -92,6 +101,11 @@ void DashboardGrid::AddWidget(Widget& widget) {
     // still nest its own scrollable child inside Root(), since this only
     // affects Root() itself.
     lv_obj_clear_flag(widget.Root(), LV_OBJ_FLAG_SCROLLABLE);
+    // Registered for every widget uniformly - see Widget::OnTap()'s own
+    // comment. Root() is already LVGL-clickable by default (plain
+    // lv_obj_create() containers are), so this adds behavior, not a new
+    // visual pressed-state that wasn't already there.
+    lv_obj_add_event_cb(widget.Root(), OnWidgetTileTapped, LV_EVENT_CLICKED, &widget);
 }
 
 }  // namespace homedeck

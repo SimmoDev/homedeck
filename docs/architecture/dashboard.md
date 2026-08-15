@@ -158,10 +158,14 @@ not-yet-built follow-up.
 
 The widget framework's interface and layout half is implemented: `Widget`
 (`src/ui/widget.h`) is the standard contribution interface — a `Root()`
-accessor plus a `ColumnSpan()`/`RowSpan()` footprint (both default to 1,
-override to occupy more); no live/cached/offline freshness reporting
-yet, left out as ADR-0008 says it should be until a real widget exists
-to design against. `DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`)
+accessor, a `ColumnSpan()`/`RowSpan()` footprint (both default to 1,
+override to occupy more), and an `OnTap()` handler (no-op default;
+`DashboardGrid::AddWidget()` wires every widget's `Root()` to it
+uniformly) - deferred until a widget genuinely needed tap-for-detail
+(`HarmonyWidget` below, M3), not designed speculatively against an
+earlier widget alone. No live/cached/offline freshness reporting yet,
+left out as ADR-0008 says it should be until a real widget exists to
+design against. `DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`)
 hosts widgets on a fixed, first-fit-packed grid — see its own header
 comment for the column count, row-growth, and placement-algorithm
 rationale. Built into `DashboardScreen` on both targets.

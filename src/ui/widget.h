@@ -31,6 +31,14 @@ public:
     // rather than assuming every implementation gets this right.
     virtual int ColumnSpan() const { return 1; }
     virtual int RowSpan() const { return 1; }
+
+    // Called when the widget's tile is tapped - see DashboardGrid::AddWidget(),
+    // which wires every widget's Root() to this uniformly. No-op default:
+    // most widgets are glanceable-only, nothing to navigate to. HarmonyWidget
+    // (src/ui/harmony_widget.h) is the first override - deferred until a
+    // real widget needed tap-for-detail, per this project's "no premature
+    // abstraction" discipline (see roadmap.md's M2 Widget framework item).
+    virtual void OnTap() {}
 };
 
 }  // namespace homedeck
