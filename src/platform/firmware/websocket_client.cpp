@@ -1,6 +1,7 @@
 #include "platform/firmware/websocket_client.h"
 
 #include "esp_event.h"
+#include "esp_log.h"
 #include "esp_websocket_client.h"
 #include "freertos/FreeRTOS.h"
 
@@ -8,6 +9,7 @@ namespace homedeck {
 
 namespace {
 
+constexpr char kTag[] = "websocket_client";
 constexpr int kConnectTimeoutMs = 10000;
 constexpr int kSendTimeoutMs = 10000;
 
@@ -61,7 +63,17 @@ bool FirmwareWebSocketClient::Connect(const std::string& url) {
     }
     closed_ = false;
 
-    esp_websocket_register_events(client_, WEBSOCKET_EVENT_ANY, &OnWebSocketEvent, this);
+    // A failure here means Connect() would otherwise block for the full
+    // kConnectTimeoutMs with no way for it to ever succeed - no event
+    // handler is registered to observe WEBSOCKET_EVENT_CONNECTED at all -
+    // so this is reported immediately rather than left to degrade into a
+    // silent timeout later.
+    if (esp_websocket_register_events(client_, WEBSOCKET_EVENT_ANY, &OnWebSocketEvent, this) != ESP_OK) {
+        ESP_LOGW(kTag, "esp_websocket_register_events() failed for %s", url.c_str());
+        esp_websocket_client_destroy(client_);
+        client_ = nullptr;
+        return false;
+    }
 
     if (esp_websocket_client_start(client_) != ESP_OK) {
         esp_websocket_client_destroy(client_);
