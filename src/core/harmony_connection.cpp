@@ -18,7 +18,7 @@ constexpr char kProvisionInfoRequestBody[] = R"({"id":1,"cmd":"setup.account?get
 // The hub's HTTP handshake endpoint rejects the request with a 400
 // unless this exact Origin is present - confirmed against the reference
 // hub during this feature's own design and verification passes (see
-// ADR-0029). Not a real browser origin, just what the hub's own
+// ADR-0029). Not an actual browser origin, just what the hub's own
 // (presumably myharmony.com-web-app-derived) validation checks for.
 constexpr char kHandshakeOrigin[] = "http://sl.dhg.myharmony.com";
 

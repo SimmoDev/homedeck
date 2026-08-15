@@ -95,7 +95,7 @@ already establishes: construct everything, then an explicit `Start()`).
 implementation, covering this pass's scope: Storage-backed settings (a
 manually-entered hub address), a background `Task`-owned connection loop,
 and `EventBus` events for connection state and fetched config. Screens,
-dashboard widgets, and API endpoints beyond a settings page are real parts
+dashboard widgets, and API endpoints beyond a settings page are all parts
 of the contract this document describes above, but Harmony doesn't
 exercise them yet — see [roadmap.md](../roadmap.md)'s M3 section for what
 remains.
@@ -104,6 +104,6 @@ A module being "enabled" is Core constructing and `Start()`-ing an
 instance of it; "disabled" is simply not doing so. `AppCore` holds exactly
 one `HarmonyConnection` today — the same single-member shape every other
 Core service already has (e.g. `OpenMeteoWeatherProvider`) — which
-generalizes to a real per-module-type instance list without redesign once
+generalizes to a per-module-type instance list without redesign once
 a second concurrent instance of the same module type is a genuine need,
 not built speculatively ahead of one.

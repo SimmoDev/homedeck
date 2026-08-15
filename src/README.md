@@ -166,7 +166,7 @@ inside ESP-IDF's own component system (see
 `firmware/main/CMakeLists.txt`'s own comment for why).
 
 `core/module.h` is the module lifecycle contract ADR-0003 deferred until
-Harmony (the reference module) needed it for real - `Start()`/`Stop()`,
+Harmony (the reference module) needed it - `Start()`/`Stop()`,
 construction as Init, the destructor as teardown. `core/harmony_connection.h`/
 `.cpp` is the first (and so far only) implementation: hub connection over
 a new `platform/websocket_client.h` (`HostWebSocketClient`/

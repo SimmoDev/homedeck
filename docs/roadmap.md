@@ -385,7 +385,7 @@ this until it's done — see
       ADR-0029's Consequences. `GET /api/harmony/status` and
       `POST /api/harmony/reconnect`
       (`src/core/harmony_routes.h`/`.cpp`) expose it to the Web UI.
-      Verified against the reference hub: a real device/activity list
+      Verified against the reference hub: a device/activity list
       (household AV equipment and activities) is fetched and stays
       connected across the liveness-probe interval. First-time cloud
       pairing remains out of scope, unconfirmed either way. Devices/

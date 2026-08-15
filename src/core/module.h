@@ -20,9 +20,9 @@ namespace homedeck {
 // per-module-type instance list decision (docs/decisions/ADR-0003-module-architecture.md).
 // AppCore holds exactly one HarmonyConnection today (the same
 // single-member shape every other Core service already has - e.g.
-// OpenMeteoWeatherProvider), which generalizes to a real list without
+// OpenMeteoWeatherProvider), which generalizes to a list without
 // redesign once a second concurrent instance of the same module type is
-// ever a real need - not built now, since nothing needs it yet.
+// ever needed - not built now, since nothing needs it yet.
 class Module {
 public:
     virtual ~Module() = default;

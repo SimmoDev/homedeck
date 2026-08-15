@@ -84,9 +84,9 @@ public:
     static constexpr char kModuleId[] = "harmony";
     static constexpr char kHubHostKey[] = "hub_host";
 
-    // initial_backoff/max_backoff are injectable (defaulted to real
-    // values) so tests can exercise the retry path without waiting out a
-    // real 2s/60s backoff - the same "real default, test-overridable"
+    // initial_backoff/max_backoff are injectable (defaulted to production
+    // values) so tests can exercise the retry path without waiting out
+    // the full 2s/60s backoff - the same "real default, test-overridable"
     // shape OpenMeteoWeatherProvider::poll_interval already uses.
     HarmonyConnection(HttpClient& http_client, WebSocketClientFactory make_websocket_client, Storage& storage,
                        EventBus& event_bus, std::chrono::milliseconds initial_backoff = std::chrono::seconds(2),

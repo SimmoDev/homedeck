@@ -246,10 +246,10 @@ TEST_F(HarmonyConnectionTest, TriggerReconnectPicksUpANewlySavedAddressImmediate
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
     homedeck::Storage storage(settings_store, cache_store, secret_store);
-    // Deliberately not configured yet - the unconfigured path's own
-    // 5s recheck interval is real and not injectable (see
-    // harmony_connection.h), so this test relies on TriggerReconnect()
-    // to short-circuit that wait rather than waiting one out.
+    // Deliberately not configured yet - the unconfigured path's own 5s
+    // recheck interval is fixed, not injectable (see harmony_connection.h),
+    // so this test relies on TriggerReconnect() to short-circuit that
+    // wait rather than waiting one out.
 
     homedeck::EventBus bus;
     FakeHttpClient http_client;
