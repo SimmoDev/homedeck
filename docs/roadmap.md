@@ -403,13 +403,20 @@ this until it's done — see
       (`src/core/harmony_connection.h`) already publish over the
       `EventBus` as part of the Hub connection item above; publishing a
       `NotificationEvent` (e.g. on a connection failure) is not done yet
-- [ ] Web Management UI module configuration page for Harmony (hub
+- [x] Web Management UI module configuration page for Harmony (hub
       address only — no credential exists in this protocol, see
-      [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md)) — the
-      generic settings API (M2) is ready for a consumer; the API-level
-      wiring (`GET`/`POST /api/settings` module `harmony`, plus
-      `GET /api/harmony/status`/`POST /api/harmony/reconnect`) is done,
-      but no `webui/` page surfaces it yet — this item is the frontend
+      [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md)).
+      `HarmonySettings.svelte` (`webui/src/lib/`), following
+      `WeatherSettings.svelte`'s existing pattern: reads/writes the hub
+      address through the generic `/api/settings` API (module `harmony`,
+      key `hub_host`), shows live connection status via
+      `GET /api/harmony/status` with a manual Refresh button (no
+      polling - no live-push mechanism exists for the Web UI yet, same
+      reasoning as the M7 WebSockets item below), and triggers
+      `POST /api/harmony/reconnect` on save. Verified in a real browser
+      against the reference hub - address pre-fills, status correctly
+      reads connected with the real device/activity counts, and editing/
+      saving/restoring the address round-trips correctly.
 
 **Exit criteria:** a user can fully replace their physical Harmony remote's
 day-to-day usage with HomeDeck.

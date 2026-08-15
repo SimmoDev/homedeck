@@ -1,0 +1,210 @@
+<script lang="ts">
+  import { findSetting, loadJson, postJson, type SettingEntry } from "./api";
+
+  // Harmony Hub module configuration (see docs/roadmap.md's M3 section
+  // and docs/decisions/ADR-0029-harmony-local-protocol.md) - just a hub
+  // address, no credential field: this protocol has no authentication
+  // step at all. Backed by the generic /api/settings endpoint, same as
+  // WeatherSettings.svelte/DeviceNameSettings.svelte, plus
+  // core/harmony_routes.h's two Harmony-specific endpoints for status/
+  // reconnect.
+  const kModuleId = "harmony";
+  const kHubHostKey = "hub_host";
+  const kSchemaVersion = 1;
+
+  interface HarmonyDevice {
+    id: string;
+    label: string;
+  }
+
+  interface HarmonyActivity {
+    id: string;
+    label: string;
+  }
+
+  interface HarmonyStatus {
+    state: "disconnected" | "connecting" | "connected" | "error";
+    hasConfig: boolean;
+    devices: HarmonyDevice[];
+    activities: HarmonyActivity[];
+  }
+
+  let error: string | undefined = $state(undefined);
+  let loaded = $state(false);
+  let hubHost = $state("");
+  let saving = $state(false);
+  let saveError: string | undefined = $state(undefined);
+  let saved = $state(false);
+
+  let status: HarmonyStatus | undefined = $state(undefined);
+  let statusError: string | undefined = $state(undefined);
+  let statusLoading = $state(false);
+
+  async function loadHubHost() {
+    const result = await loadJson<SettingEntry[]>("/api/settings");
+    if (result.error !== undefined) {
+      error = result.error;
+      return;
+    }
+    error = undefined;
+    hubHost = findSetting(result.data, kModuleId, kHubHostKey) ?? "";
+    loaded = true;
+  }
+
+  async function loadStatus() {
+    statusLoading = true;
+    const result = await loadJson<HarmonyStatus>("/api/harmony/status");
+    statusLoading = false;
+    if (result.error !== undefined) {
+      statusError = result.error;
+      return;
+    }
+    statusError = undefined;
+    status = result.data;
+  }
+
+  async function saveHubHost() {
+    saving = true;
+    saveError = undefined;
+    saved = false;
+    const result = await postJson("/api/settings", {
+      module: kModuleId,
+      key: kHubHostKey,
+      value: hubHost,
+      schemaVersion: kSchemaVersion,
+    });
+    saving = false;
+    if (!result.ok) {
+      saveError = result.kind === "network" ? result.message : `Save failed: ${result.status}`;
+      return;
+    }
+    saved = true;
+    // Fire-and-forget, same shape as WeatherSettings.svelte's post-save
+    // refresh trigger - wakes HarmonyConnection's own connect loop
+    // immediately rather than leaving it to notice the new address on
+    // its own retry schedule. postJson() (not a bare fetch()) so a
+    // lapsed session still routes through notifyIfSessionExpired() like
+    // every other request in this app.
+    void postJson("/api/harmony/reconnect");
+    // Best-effort - the connect attempt this just triggered happens
+    // asynchronously over the network, so this snapshot will often still
+    // read "connecting"; the Refresh button below covers the rest, since
+    // no live-push mechanism exists yet for the Web UI (see
+    // docs/decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server).
+    loadStatus();
+  }
+
+  function stateLabel(state: HarmonyStatus["state"]): string {
+    switch (state) {
+      case "disconnected":
+        return "Not connected";
+      case "connecting":
+        return "Connecting...";
+      case "connected":
+        return "Connected";
+      case "error":
+        return "Connection error - retrying";
+    }
+  }
+
+  loadHubHost();
+  loadStatus();
+</script>
+
+<div class="section">
+  <h3>Harmony Hub</h3>
+  {#if error}
+    <p class="error">Error: {error}</p>
+  {:else if !loaded}
+    <p class="hint">Loading...</p>
+  {:else}
+    <div class="row">
+      <input
+        id="harmony-hub-host"
+        type="text"
+        placeholder="Hub IP address or hostname"
+        bind:value={hubHost}
+        disabled={saving}
+        oninput={() => (saved = false)}
+      />
+      <button onclick={saveHubHost} disabled={saving || hubHost.trim().length === 0}>
+        {saving ? "Saving..." : "Save"}
+      </button>
+    </div>
+    <p class="hint">
+      No password or account needed - already-paired Harmony Hubs have no authentication step on the local
+      network.
+    </p>
+    {#if saveError}
+      <p class="error">{saveError}</p>
+    {:else if saved}
+      <p class="hint">Saved.</p>
+    {/if}
+
+    <div class="row status-row">
+      {#if statusError}
+        <p class="error">Status error: {statusError}</p>
+      {:else if status}
+        <p>
+          Status: <strong>{stateLabel(status.state)}</strong>
+          {#if status.state === "connected" && status.hasConfig}
+            &mdash; {status.devices.length} device{status.devices.length === 1 ? "" : "s"}, {status.activities
+              .length}
+            activit{status.activities.length === 1 ? "y" : "ies"}
+          {/if}
+        </p>
+      {/if}
+      <button onclick={loadStatus} disabled={statusLoading}>
+        {statusLoading ? "Refreshing..." : "Refresh"}
+      </button>
+    </div>
+  {/if}
+</div>
+
+<style>
+  .section {
+    text-align: left;
+    margin-bottom: 1.25rem;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+  }
+
+  p {
+    margin: 0 0 0.5rem;
+  }
+
+  .row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  .status-row {
+    justify-content: space-between;
+  }
+
+  .status-row p {
+    margin: 0;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+  }
+
+  .hint {
+    color: #4b5563;
+    font-size: 0.875rem;
+  }
+
+  .error {
+    color: #b91c1c;
+    font-size: 0.875rem;
+  }
+</style>

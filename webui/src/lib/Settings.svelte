@@ -6,6 +6,7 @@
   // than sharing one parent-fetched state.
   import BackupSettings from "./BackupSettings.svelte";
   import DeviceNameSettings from "./DeviceNameSettings.svelte";
+  import HarmonySettings from "./HarmonySettings.svelte";
   import WeatherSettings from "./WeatherSettings.svelte";
 </script>
 
@@ -13,6 +14,7 @@
   <h2>Settings</h2>
   <DeviceNameSettings />
   <WeatherSettings />
+  <HarmonySettings />
   <BackupSettings />
 </div>
 
