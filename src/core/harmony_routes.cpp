@@ -34,6 +34,7 @@ nlohmann::json SnapshotToJson(const HarmonyConnectionSnapshot& snapshot) {
         {"hasConfig", snapshot.has_config},
         {"devices", std::move(devices)},
         {"activities", std::move(activities)},
+        {"currentActivityId", snapshot.current_activity_id},
     };
 }
 

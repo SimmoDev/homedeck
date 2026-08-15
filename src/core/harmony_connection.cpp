@@ -24,7 +24,6 @@ constexpr char kHandshakeOrigin[] = "http://sl.dhg.myharmony.com";
 
 constexpr int kConfigFetchTimeoutMs = 10000;
 constexpr int kLivenessProbeTimeoutMs = 10000;
-constexpr std::chrono::seconds kLivenessInterval{30};
 constexpr std::chrono::seconds kUnconfiguredRecheckInterval{5};
 
 std::string HandshakeUrl(const std::string& hub_host) { return "http://" + hub_host + ":8088/"; }
@@ -68,12 +67,14 @@ std::vector<Entry> ParseIdLabelArray(const nlohmann::json& array) {
 
 HarmonyConnection::HarmonyConnection(HttpClient& http_client, WebSocketClientFactory make_websocket_client,
                                       Storage& storage, EventBus& event_bus,
-                                      std::chrono::milliseconds initial_backoff, std::chrono::milliseconds max_backoff)
+                                      std::chrono::milliseconds initial_backoff, std::chrono::milliseconds max_backoff,
+                                      std::chrono::milliseconds liveness_interval)
     : http_client_(http_client),
       make_websocket_client_(std::move(make_websocket_client)),
       storage_(storage),
       event_bus_(event_bus),
-      backoff_(initial_backoff, max_backoff) {}
+      backoff_(initial_backoff, max_backoff),
+      liveness_interval_(liveness_interval) {}
 
 void HarmonyConnection::Start() {
     if (task_) return;  // already running
@@ -97,15 +98,30 @@ void HarmonyConnection::TriggerReconnect() {
     wake_cv_.notify_one();
 }
 
-HarmonyConnection::WakeReason HarmonyConnection::Sleep(std::chrono::milliseconds delay, std::stop_token stop) {
+void HarmonyConnection::StartActivity(const std::string& activity_id) {
+    {
+        std::lock_guard<std::mutex> lock(wake_mutex_);
+        pending_activity_id_ = activity_id;
+        command_pending_ = true;
+    }
+    wake_cv_.notify_one();
+}
+
+HarmonyConnection::WakeReason HarmonyConnection::Sleep(std::chrono::milliseconds delay, std::stop_token stop,
+                                                        bool watch_commands) {
     std::unique_lock<std::mutex> lock(wake_mutex_);
-    wake_cv_.wait_for(lock, delay, [this, &stop] { return wake_requested_ || stop.stop_requested(); });
+    wake_cv_.wait_for(lock, delay, [this, &stop, watch_commands] {
+        return wake_requested_ || (watch_commands && command_pending_) || stop.stop_requested();
+    });
     if (stop.stop_requested()) {
         return WakeReason::kStopRequested;
     }
     if (wake_requested_) {
         wake_requested_ = false;
         return WakeReason::kTriggered;
+    }
+    if (watch_commands && command_pending_) {
+        return WakeReason::kCommandPending;
     }
     return WakeReason::kTimeout;
 }
@@ -133,14 +149,14 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         std::optional<VersionedValue> hub_host_setting = storage_.GetSetting(kModuleId, kHubHostKey);
         if (!hub_host_setting.has_value() || hub_host_setting->value.empty()) {
             SetState(HarmonyConnectionState::kDisconnected);
-            Sleep(kUnconfiguredRecheckInterval, stop);
+            Sleep(kUnconfiguredRecheckInterval, stop, /*watch_commands=*/false);
             continue;
         }
 
         SetState(HarmonyConnectionState::kConnecting);
         if (!ConnectAndFetchConfig(hub_host_setting->value)) {
             SetState(HarmonyConnectionState::kError);
-            Sleep(backoff_.NextDelay(), stop);
+            Sleep(backoff_.NextDelay(), stop, /*watch_commands=*/false);
             continue;
         }
         backoff_.ResetAttempts();
@@ -148,10 +164,14 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         event_bus_.Publish(HarmonyConfigUpdatedEvent{});
 
         while (!stop.stop_requested()) {
-            WakeReason reason = Sleep(kLivenessInterval, stop);
+            WakeReason reason = Sleep(liveness_interval_, stop, /*watch_commands=*/true);
             if (reason == WakeReason::kStopRequested) break;
             if (reason == WakeReason::kTriggered) break;  // re-check the configured address
-            if (!ProbeLiveness()) break;                  // connection silently dropped
+            if (reason == WakeReason::kCommandPending) {
+                SendPendingActivityCommand();
+                continue;  // stay connected - a command isn't a reconnect request
+            }
+            if (!FetchCurrentActivity()) break;  // connection silently dropped
         }
 
         if (ws_client_) {
@@ -234,14 +254,19 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host) {
         state_.activities = std::move(activities);
         state_.has_config = true;
     }
+    // Best-effort - its own failure doesn't fail the connect (has_config
+    // is already true above); the next liveness probe retries it. See
+    // this class's own header comment on the current-activity freshness
+    // trade-off.
+    FetchCurrentActivity();
     return true;
 }
 
-bool HarmonyConnection::ProbeLiveness() {
+bool HarmonyConnection::FetchCurrentActivity() {
     if (!ws_client_) {
         return false;
     }
-    nlohmann::json probe = {
+    nlohmann::json request = {
         {"hubId", hub_id_},
         {"timeout", 30},
         {"hbus",
@@ -249,10 +274,73 @@ bool HarmonyConnection::ProbeLiveness() {
           {"id", "0"},
           {"params", {{"verb", "get"}}}}},
     };
-    if (!ws_client_->SendText(probe.dump())) {
+    if (!ws_client_->SendText(request.dump())) {
         return false;
     }
-    return ws_client_->ReceiveText(kLivenessProbeTimeoutMs).has_value();
+    std::optional<std::string> response_text = ws_client_->ReceiveText(kLivenessProbeTimeoutMs);
+    if (!response_text.has_value()) {
+        return false;
+    }
+    nlohmann::json response = nlohmann::json::parse(*response_text, nullptr, /*allow_exceptions=*/false);
+    if (response.is_discarded() || !response.is_object()) {
+        return false;
+    }
+    auto data_it = response.find("data");
+    if (data_it == response.end() || !data_it->is_object()) {
+        return false;
+    }
+    auto result_it = data_it->find("result");
+    if (result_it == data_it->end()) {
+        return false;
+    }
+    std::string activity_id = NumberOrStringToString(*result_it);
+
+    bool changed = false;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (state_.current_activity_id != activity_id) {
+            state_.current_activity_id = activity_id;
+            changed = true;
+        }
+    }
+    // Published after mutex_ releases - see SetState()'s identical
+    // reasoning.
+    if (changed) {
+        event_bus_.Publish(HarmonyCurrentActivityChangedEvent{activity_id});
+    }
+    return true;
+}
+
+void HarmonyConnection::SendPendingActivityCommand() {
+    std::string activity_id;
+    {
+        std::lock_guard<std::mutex> lock(wake_mutex_);
+        if (!command_pending_) {
+            return;
+        }
+        activity_id = pending_activity_id_;
+        command_pending_ = false;
+        pending_activity_id_.clear();
+    }
+    if (!ws_client_) {
+        return;  // shouldn't happen - only called from the connected inner loop - but defensive regardless
+    }
+
+    nlohmann::json request = {
+        {"hubId", hub_id_},
+        {"timeout", 30},
+        {"hbus",
+         {{"cmd", "vnd.logitech.harmony/vnd.logitech.harmony.engine?startactivity"},
+          {"id", "0"},
+          {"params",
+           {{"async", "true"}, {"timestamp", 0}, {"args", {{"rule", "start"}}}, {"activityId", activity_id}}}}},
+    };
+    ws_client_->SendText(request.dump());
+    // Best-effort immediate refresh - the hub's own activity switch is
+    // itself asynchronous, so this may still read the old value; the
+    // next liveness-probe cycle catches up regardless - see this class's
+    // own header comment on the freshness trade-off.
+    FetchCurrentActivity();
 }
 
 }  // namespace homedeck

@@ -6,12 +6,14 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <deque>
 #include <filesystem>
 #include <memory>
 #include <mutex>
+#include <string>
 #include <thread>
 
 namespace {
@@ -113,6 +115,15 @@ constexpr char kHandshakeSuccessBody[] =
 
 constexpr char kConfigSuccessBody[] =
     R"({"data":{"device":[{"id":"1","label":"TV"}],"activity":[{"id":"-1","label":"Off"},{"id":"123","label":"Watch TV"}]}})";
+
+std::string CurrentActivityResponseBody(const std::string& activity_id) {
+    return R"({"data":{"result":")" + activity_id + R"("}})";
+}
+
+void PushResponse(const std::shared_ptr<WsScript>& script, std::string response) {
+    std::lock_guard<std::mutex> lock(script->mutex);
+    script->responses.push_back(std::move(response));
+}
 
 class HarmonyConnectionTest : public ::testing::Test {
 protected:
@@ -271,6 +282,119 @@ TEST_F(HarmonyConnectionTest, TriggerReconnectPicksUpANewlySavedAddressImmediate
     connection.TriggerReconnect();
 
     ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }, /*max_attempts=*/500));
+
+    connection.Stop();
+}
+
+TEST_F(HarmonyConnectionTest, ConnectFetchesCurrentActivityAndPublishesItsChange) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("123"));
+
+    std::atomic<int> activity_events{0};
+    std::string last_activity_id;
+    auto activity_sub = bus.Subscribe<homedeck::HarmonyCurrentActivityChangedEvent>(
+        [&](const homedeck::HarmonyCurrentActivityChangedEvent& event) {
+            last_activity_id = event.activity_id;
+            activity_events++;
+        });
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return !connection.Snapshot().current_activity_id.empty(); }));
+    EXPECT_EQ(connection.Snapshot().current_activity_id, "123");
+    ASSERT_TRUE(WaitFor([&] { return activity_events.load() > 0; }));
+    EXPECT_EQ(last_activity_id, "123");
+
+    connection.Stop();
+}
+
+TEST_F(HarmonyConnectionTest, StartActivitySendsTheStartCommandAndRefreshesCurrentActivity) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));  // initial current activity: off
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "-1"; }));
+
+    // Queued before StartActivity() so it's ready the instant the
+    // connection loop's own immediate follow-up FetchCurrentActivity()
+    // call reads it.
+    PushResponse(script, CurrentActivityResponseBody("123"));
+    connection.StartActivity("123");
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "123"; }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        auto start_command = std::find_if(script->sent_texts.begin(), script->sent_texts.end(), [](const std::string& text) {
+            return text.find("startactivity") != std::string::npos;
+        });
+        ASSERT_NE(start_command, script->sent_texts.end());
+        EXPECT_NE(start_command->find(R"("activityId":"123")"), std::string::npos);
+    }
+
+    connection.Stop();
+}
+
+TEST_F(HarmonyConnectionTest, PeriodicLivenessProbePicksUpAHubSideActivityChange) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    // A fast liveness interval (unlike the 30s production default) so the
+    // periodic probe path is exercisable without a real 30s wait - the
+    // same injectable-for-tests shape as initial_backoff/max_backoff.
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff, /*liveness_interval=*/std::chrono::milliseconds(30));
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "-1"; }));
+
+    // Simulates the hub switching activity on its own (e.g. from its
+    // physical remote) - not something StartActivity() triggered here,
+    // only the next periodic probe should pick it up.
+    PushResponse(script, CurrentActivityResponseBody("123"));
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "123"; }));
 
     connection.Stop();
 }
