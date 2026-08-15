@@ -380,8 +380,9 @@ TEST_F(HarmonyConnectionTest, PeriodicLivenessProbePicksUpAHubSideActivityChange
     PushResponse(script, CurrentActivityResponseBody("-1"));
 
     // A fast liveness interval (unlike the 30s production default) so the
-    // periodic probe path is exercisable without a real 30s wait - the
-    // same injectable-for-tests shape as initial_backoff/max_backoff.
+    // periodic probe path is exercisable without waiting out the full
+    // 30s - the same injectable-for-tests shape as
+    // initial_backoff/max_backoff.
     homedeck::HarmonyConnection connection(
         http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
         kFastBackoff, /*liveness_interval=*/std::chrono::milliseconds(30));

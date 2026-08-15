@@ -88,8 +88,8 @@ struct HarmonyCurrentActivityChangedEvent {
 // Current-activity freshness is best-effort, not push-driven: the hub's
 // WS protocol can send unsolicited notifications, but this class's
 // transport is a simple synchronous request/response loop (send one
-// command, read exactly one reply) - real push-message handling would be
-// a substantially bigger, separate undertaking. Freshness instead comes
+// command, read exactly one reply) - push-message handling would be a
+// substantially bigger, separate undertaking. Freshness instead comes
 // from three points: right after connecting, right after StartActivity()
 // sends its command, and the existing liveness-probe cycle otherwise -
 // worst case kLivenessInterval (default 30s) stale if a hub-side change
@@ -105,8 +105,8 @@ public:
     // initial_backoff/max_backoff/liveness_interval are injectable
     // (defaulted to production values) so tests can exercise the retry
     // path and the periodic current-activity refresh without waiting out
-    // the full 2s/60s backoff or a real 30s liveness interval - the same
-    // "real default, test-overridable" shape
+    // the full 2s/60s backoff or the full 30s liveness interval - the
+    // same "real default, test-overridable" shape
     // OpenMeteoWeatherProvider::poll_interval already uses.
     HarmonyConnection(HttpClient& http_client, WebSocketClientFactory make_websocket_client, Storage& storage,
                        EventBus& event_bus, std::chrono::milliseconds initial_backoff = std::chrono::seconds(2),
