@@ -29,6 +29,7 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
     : storage_(deps.settings_store, deps.cache_store, deps.secret_store),
       http_client_(deps.http_client),
       weather_provider_(deps.http_client, storage_, event_bus),
+      harmony_connection_(deps.http_client, deps.make_websocket_client, storage_, event_bus),
       dashboard_(event_bus, deps.battery_reader, deps.network_status),
       clock_widget_(dashboard_.Grid().Container(), event_bus),
       network_status_widget_(dashboard_.Grid().Container(), event_bus, deps.network_status),
@@ -78,9 +79,13 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
             }
         });
     RegisterWeatherRoutes(deps.http_server, http_client_, weather_provider_, admin_auth_);
+    RegisterHarmonyRoutes(deps.http_server, harmony_connection_, admin_auth_);
     RegisterWifiRoutes(deps.http_server, admin_auth_, deps.wifi_reset);
 }
 
-void AppCore::Start() { clock_.Start(); }
+void AppCore::Start() {
+    clock_.Start();
+    harmony_connection_.Start();
+}
 
 }  // namespace homedeck

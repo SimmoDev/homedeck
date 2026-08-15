@@ -47,6 +47,7 @@ add_executable(homedeck_tests
   power_manager_test.cpp
   display_brightness_test.cpp
   weather_provider_test.cpp
+  harmony_connection_test.cpp
   notification_sound_test.cpp
   admin_auth_service_test.cpp
   admin_auth_routes_test.cpp
@@ -55,6 +56,7 @@ add_executable(homedeck_tests
   ota_routes_test.cpp
   settings_routes_test.cpp
   weather_routes_test.cpp
+  harmony_routes_test.cpp
   wifi_routes_test.cpp
   logger_test.cpp
 )

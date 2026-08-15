@@ -165,7 +165,16 @@ files it needs directly, rather than nesting this plain-CMake build
 inside ESP-IDF's own component system (see
 `firmware/main/CMakeLists.txt`'s own comment for why).
 
-No module code exists yet — modules arrive in M3, built against whatever
-concrete needs the Harmony module (the reference module, per
-[ADR-0003](../docs/decisions/ADR-0003-module-architecture.md)) actually
-has, not designed speculatively ahead of it.
+`core/module.h` is the module lifecycle contract ADR-0003 deferred until
+Harmony (the reference module) needed it for real - `Start()`/`Stop()`,
+construction as Init, the destructor as teardown. `core/harmony_connection.h`/
+`.cpp` is the first (and so far only) implementation: hub connection over
+a new `platform/websocket_client.h` (`HostWebSocketClient`/
+`FirmwareWebSocketClient`, see
+[ADR-0029](../docs/decisions/ADR-0029-harmony-local-protocol.md)), a
+generic `core/retry_backoff.h` exponential-backoff utility
+([ADR-0006](../docs/decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership)'s
+previously-unbuilt default), and `core/harmony_routes.h`/`.cpp` for its
+Web UI status/reconnect endpoints. Screens, dashboard widgets, and
+command-sending are still ahead - see
+[roadmap.md](../docs/roadmap.md)'s M3 section.

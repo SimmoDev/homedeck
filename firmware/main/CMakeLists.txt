@@ -46,6 +46,8 @@ idf_component_register(
         "../../src/core/wifi_routes.cpp"
         "../../src/core/logger.cpp"
         "../../src/core/notification_sound.cpp"
+        "../../src/core/harmony_connection.cpp"
+        "../../src/core/harmony_routes.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
         "../../src/ui/screens/wifi_setup_screen.cpp"
         "../../src/ui/time_format.cpp"

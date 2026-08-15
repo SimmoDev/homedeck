@@ -361,21 +361,55 @@ framework is ready for a real module to plug into.
 this until it's done — see
 [ADR-0001](decisions/ADR-0001-project-vision.md).
 
-- [ ] Hub discovery on the LAN (scoped to already-paired hubs — see [known
-      risk in
-      ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control))
-- [ ] Local authentication against an already-paired hub (local XMPP-based
-      protocol). First-time cloud pairing is out of scope unless it later
-      proves necessary.
+- [x] Hub connection (scoped to already-paired hubs — see [known risk in
+      ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control)).
+      Combines the milestone's original "Hub discovery on the LAN" and
+      "Local authentication" items, reworded: a live probe against the
+      project's own reference hub found it speaks a local WebSocket/JSON
+      API with no discovery protocol and no authentication step at all,
+      not the XMPP-based, discoverable protocol originally assumed — see
+      [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md) for the
+      full protocol facts and why. Implemented as `HarmonyConnection`
+      (`src/core/harmony_connection.h`/`.cpp`, this module's first Core
+      contract implementation — see [ADR-0003](decisions/ADR-0003-module-architecture.md)):
+      a manually-entered hub address (`POST`/`GET /api/settings`, module
+      `harmony`, key `hub_host` — no dedicated endpoint needed, the
+      generic settings API from M2 already covers it) drives a background
+      connect/handshake/config-fetch loop with exponential-backoff retry
+      (`src/core/retry_backoff.h`, the generic Core utility
+      [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership)
+      already named but nothing had built yet), publishing connection-
+      state and config-fetched events over the `EventBus`. A new
+      `WebSocketClient` platform capability
+      (`src/platform/websocket_client.h`) backs the WebSocket half — see
+      ADR-0029's Consequences. `GET /api/harmony/status` and
+      `POST /api/harmony/reconnect`
+      (`src/core/harmony_routes.h`/`.cpp`) expose it to the Web UI.
+      Verified against the reference hub: a real device/activity list
+      (household AV equipment and activities) is fetched and stays
+      connected across the liveness-probe interval. First-time cloud
+      pairing remains out of scope, unconfirmed either way. Devices/
+      activities screens, remote control, and a Web UI settings *page*
+      (the field exists via the generic settings API; a dedicated Harmony
+      settings UI in `webui/` does not yet) are separate items below, not
+      built in this pass.
 - [ ] Activities (list, start, current, status)
 - [ ] Devices (enumerate, capabilities, commands, inputs, power state where
       available)
 - [ ] Remote control (navigation, volume, channel, numeric keypad, transport
       controls, long-press actions where supported)
-- [ ] Status/events integrated with Core's event bus and notifications
+- [ ] Status/events integrated with Core's event bus and notifications.
+      `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`
+      (`src/core/harmony_connection.h`) already publish over the
+      `EventBus` as part of the Hub connection item above; publishing a
+      `NotificationEvent` (e.g. on a connection failure) is not done yet
 - [ ] Web Management UI module configuration page for Harmony (hub
-      IP/credentials) — the generic settings API (M2) is ready for a
-      consumer; this is its first real one
+      address only — no credential exists in this protocol, see
+      [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md)) — the
+      generic settings API (M2) is ready for a consumer; the API-level
+      wiring (`GET`/`POST /api/settings` module `harmony`, plus
+      `GET /api/harmony/status`/`POST /api/harmony/reconnect`) is done,
+      but no `webui/` page surfaces it yet — this item is the frontend
 
 **Exit criteria:** a user can fully replace their physical Harmony remote's
 day-to-day usage with HomeDeck.
@@ -585,5 +619,6 @@ index — decision name, ADR, one-line outcome.
 | Wi-Fi provisioning mechanism | [ADR-0026](decisions/ADR-0026-wifi-provisioning-mechanism.md) | HomeDeck-owned SoftAP + HTTP form, not ESP-IDF's `wifi_provisioning` — no usable transport on this project's `esp_wifi_remote` stack |
 | SecretStore partition separation | [ADR-0027](decisions/ADR-0027-secret-store-partition-separation.md) | A dedicated `secrets` NVS partition, not a shared one with SettingsStore — structurally excludes secrets from `ListAll()`/backups, not just the reserved-key guard |
 | Time synchronization | [ADR-0028](decisions/ADR-0028-time-synchronization.md) | SNTP against `pool.ntp.org` once Wi-Fi connects, corrected back into the physical RTC on every sync — not a manual set-time affordance; no timezone handling added |
-| Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol specifics investigated in M3 |
+| Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol confirmed in M3 — see ADR-0029 |
+| Harmony local protocol | [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md) | Local WebSocket/JSON API on port 8088, not XMPP; no authentication step; manual hub IP entry, no discovery protocol |
 | Module interface (exact API) | [modules.md](architecture/modules.md#status) | Deferred by design — defined when Harmony (M3) is built |

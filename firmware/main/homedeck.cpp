@@ -29,6 +29,7 @@
 #include "platform/firmware/cache_store.h"
 #include "platform/firmware/display_brightness.h"
 #include "platform/firmware/http_client.h"
+#include "platform/firmware/websocket_client.h"
 #include "platform/firmware/http_server.h"
 #include "platform/firmware/network_status.h"
 #include "platform/firmware/secret_store.h"
@@ -535,6 +536,7 @@ extern "C" void app_main(void) {
             .secret_store = secret_store,
             .http_client = http_client,
             .http_server = web_server,
+            .make_websocket_client = [] { return std::make_unique<homedeck::FirmwareWebSocketClient>(); },
             .time_source = time_source,
             .wifi_submit =
                 [](const std::string& ssid, const std::string& password) {

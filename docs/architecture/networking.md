@@ -54,10 +54,11 @@ this project's `esp_wifi_remote` stack, not a design preference).
 Core provides a thin wrapper around ESP-IDF's `mdns` component for modules
 whose external service supports standard mDNS/Zeroconf discovery — Home
 Assistant and Kodi both do. This is deliberately not a universal discovery
-abstraction: Harmony Hub discovery uses a proprietary UDP broadcast
-protocol that doesn't fit an mDNS shape, and Uptime Kuma has no discovery
-protocol at all (manual URL entry) — Harmony's discovery logic stays
-entirely inside the Harmony module. See
+abstraction: Harmony Hub has no confirmed working discovery protocol at
+all for current-generation firmware (a manually-entered hub address is
+its own module's mechanism instead — see
+[ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md)), and Uptime
+Kuma has no discovery protocol either (manual URL entry). See
 [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape)
 for why a universal abstraction was rejected.
 

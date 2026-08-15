@@ -72,7 +72,7 @@ the module boundary does for it.
 
 | Module | Milestone | Status |
 |---|---|---|
-| Harmony Hub | M3 | Not started — see [roadmap.md](../roadmap.md) |
+| Harmony Hub | M3 | In progress — see [roadmap.md](../roadmap.md) |
 | Kodi | M4 | Not started |
 | Uptime Kuma | M5 | Not started |
 | Home Assistant | M6 | Not started |
@@ -85,8 +85,25 @@ scope-control guidance in [CLAUDE.md](../../CLAUDE.md).
 
 ## Status
 
-The concrete module interface (exact base class/lifecycle methods, exact
-registration API) is intentionally undefined here. [CLAUDE.md](../../CLAUDE.md) instructs
-against making assumptions about APIs before implementation; the interface
-will be defined when Harmony (the reference module) is built in M3, and this
-document updated to reflect the actual contract rather than a speculative one.
+The module interface is defined now that Harmony (the reference module,
+[ADR-0003](../decisions/ADR-0003-module-architecture.md)) is being built:
+`Module` (`src/core/module.h`) is a deliberately minimal lifecycle
+contract — `Start()`/`Stop()`, with construction as Init and the
+destructor as teardown (RAII, the same two-phase shape `AppCore` itself
+already establishes: construct everything, then an explicit `Start()`).
+`HarmonyConnection` (`src/core/harmony_connection.h`/`.cpp`) is the first
+implementation, covering this pass's scope: Storage-backed settings (a
+manually-entered hub address), a background `Task`-owned connection loop,
+and `EventBus` events for connection state and fetched config. Screens,
+dashboard widgets, and API endpoints beyond a settings page are real parts
+of the contract this document describes above, but Harmony doesn't
+exercise them yet — see [roadmap.md](../roadmap.md)'s M3 section for what
+remains.
+
+A module being "enabled" is Core constructing and `Start()`-ing an
+instance of it; "disabled" is simply not doing so. `AppCore` holds exactly
+one `HarmonyConnection` today — the same single-member shape every other
+Core service already has (e.g. `OpenMeteoWeatherProvider`) — which
+generalizes to a real per-module-type instance list without redesign once
+a second concurrent instance of the same module type is a genuine need,
+not built speculatively ahead of one.

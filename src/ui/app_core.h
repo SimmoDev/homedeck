@@ -5,6 +5,8 @@
 #include "core/critical_battery_monitor.h"
 #include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
+#include "core/harmony_connection.h"
+#include "core/harmony_routes.h"
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
 #include "core/network_status_monitor.h"
@@ -28,6 +30,7 @@
 #include "platform/steady_time_source.h"
 #include "platform/time_source.h"
 #include "platform/user_activity_source.h"
+#include "platform/websocket_client.h"
 #include "ui/clock_widget.h"
 #include "ui/navigation.h"
 #include "ui/network_status_widget.h"
@@ -73,6 +76,13 @@ public:
         SecretStore& secret_store;
         HttpClient& http_client;
         HttpServer& http_server;
+        // A fresh WebSocketClient per (re)connect attempt, not a shared
+        // instance - HarmonyConnection (the only caller) owns exactly one
+        // at a time and replaces it on every reconnect, the same shape
+        // HttpClient's stateless-per-call Get()/Post() doesn't need but a
+        // stateful connection genuinely does. Firmware passes a factory
+        // returning FirmwareWebSocketClient, the simulator HostWebSocketClient.
+        HarmonyConnection::WebSocketClientFactory make_websocket_client;
         // Wall-clock time - Clock and Logger's shared source. Firmware
         // passes Rx8130TimeSource, the simulator HostTimeSource.
         TimeSource& time_source;
@@ -128,6 +138,7 @@ private:
     Storage storage_;
     HttpClient& http_client_;
     OpenMeteoWeatherProvider weather_provider_;
+    HarmonyConnection harmony_connection_;
 
     DashboardScreen dashboard_;
     ClockWidget clock_widget_;

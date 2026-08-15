@@ -10,6 +10,7 @@
 #include "platform/host/file_backed_store.h"
 #include "platform/host/http_client.h"
 #include "platform/host/http_server.h"
+#include "platform/host/websocket_client.h"
 #include "platform/host/network_status.h"
 #include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
@@ -154,6 +155,7 @@ int main() {
             .secret_store = secret_store,
             .http_client = http_client,
             .http_server = web_server,
+            .make_websocket_client = [] { return std::make_unique<homedeck::HostWebSocketClient>(); },
             .time_source = time_source,
             .wifi_submit =
                 [](const std::string& ssid, const std::string& /*password*/) {
