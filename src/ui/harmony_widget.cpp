@@ -30,7 +30,7 @@ std::string StatusLine(const HarmonyConnectionSnapshot& snapshot) {
     }
     // Connected, has a config, but current_activity_id is either still
     // empty (first fetch hasn't landed yet) or doesn't match anything in
-    // `activities` (shouldn't happen - defensive, not a real case seen).
+    // `activities` (shouldn't happen - defensive, not an observed case).
     return "Connected";
 }
 

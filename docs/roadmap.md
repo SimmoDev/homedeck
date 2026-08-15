@@ -415,10 +415,9 @@ this until it's done — see
       new navigation concept — see the M2 Widget framework item above.
       Verified against the reference hub end-to-end, repeatedly and in
       both directions: its activities listed, current activity
-      highlighted correctly, starting a different activity via a Touch
-      UI tap actually switches the hub (confirmed via the hub's own
-      response) and the dashboard/Activities screen both update once it
-      does.
+      highlighted correctly, and a Touch UI tap switches the hub's own
+      running activity, not just local state - the dashboard/Activities
+      screen both update once it does.
 - [ ] Devices (enumerate, capabilities, commands, inputs, power state where
       available)
 - [ ] Remote control (navigation, volume, channel, numeric keypad, transport

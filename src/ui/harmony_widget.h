@@ -11,7 +11,7 @@ namespace homedeck {
 // Current Harmony activity (Harmony module) - the dashboard grid widget
 // docs/architecture/dashboard.md's Widget system section already names
 // as an example. Tapping it opens ActivitiesScreen
-// (src/ui/screens/activities_screen.h) - the first real use of
+// (src/ui/screens/activities_screen.h) - the first use of
 // Widget::OnTap(), per that same doc's Status section and
 // roadmap.md's M2 Widget framework item.
 class HarmonyWidget : public Widget {

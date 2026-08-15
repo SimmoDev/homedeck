@@ -8,8 +8,9 @@ namespace homedeck {
 namespace {
 
 // Plain accent color, not a considered design choice - same "placeholder
-// styling, real theme styling is M7 scope" reasoning WifiSetupScreen's
-// error_label_ already documents. Green, not LVGL's default button blue
+// styling, considered theme styling is M7 scope" reasoning
+// WifiSetupScreen's error_label_ already documents. Green, not LVGL's
+// default button blue
 // (LV_PALETTE_BLUE) - that would be visually indistinguishable from
 // every other, non-current button's own default theme color.
 constexpr lv_palette_t kCurrentActivityPalette = LV_PALETTE_GREEN;
@@ -48,7 +49,7 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     lv_obj_remove_style_all(list_container_);
     lv_obj_set_size(list_container_, LV_PCT(90), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(list_container_, LV_FLEX_FLOW_COLUMN);
-    // Real spacing between genuinely large buttons, not a tight list -
+    // Deliberate spacing between genuinely large buttons, not a tight list -
     // see each button's own pad_ver comment below for why "large" is the
     // deliberate target here, not a compact default. root_ (the screen
     // itself) is left scrollable, same as DashboardGrid's own "content
@@ -89,9 +90,9 @@ void ActivitiesScreen::Rebuild() {
         // This is the remote control - the primary reason CLAUDE.md
         // calls for "large touch targets" in the Touch UI at all, not a
         // settings list. The theme's own default button padding is too
-        // small for comfortable one-handed use on the Tab5's real
-        // screen - a remote's buttons need to be large and easy to
-        // press without looking, sized well beyond that default.
+        // small for comfortable one-handed use on the Tab5's screen - a
+        // remote's buttons need to be large and easy to press without
+        // looking, sized well beyond that default.
         lv_obj_set_style_pad_ver(button, 28, 0);
         lv_obj_add_event_cb(button, OnActivityButtonClicked, LV_EVENT_CLICKED, this);
 
