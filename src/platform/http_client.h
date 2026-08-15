@@ -36,7 +36,7 @@ public:
     // generalizing ahead of that need. extra_headers is (name, value)
     // pairs sent in addition to Content-Type - added for
     // HarmonyConnection's hub handshake, which a live probe against the
-    // real hub confirmed requires an Origin header the hub otherwise
+    // reference hub confirmed requires an Origin header the hub otherwise
     // rejects with a 400 (see ADR-0029); kept generic here (not a
     // hardcoded Origin) rather than baking Harmony-specific knowledge
     // into this shared platform interface, per ADR-0003's "Core stays

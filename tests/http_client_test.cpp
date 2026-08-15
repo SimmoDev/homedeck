@@ -73,12 +73,12 @@ TEST(HostHttpClient, PostSendsJsonBodyAndReturnsARealResponse) {
 // sent the way PostSendsJsonBodyAndReturnsARealResponse above proves the
 // body was. A raw listening socket, reading the request as plain text,
 // is the only way to see it - the same "test for real, not mocked"
-// reasoning this file's own top comment already follows. This is a real
-// regression test, not incidental coverage: extra_headers exists
-// specifically because a live probe against the reference Harmony hub
-// during this feature's design found its handshake endpoint rejects the
-// request without an Origin header (see ADR-0029) - silently dropping
-// this parameter again would resurface that exact failure.
+// reasoning this file's own top comment already follows. This guards
+// against a specific regression, not incidental coverage: extra_headers
+// exists because a live probe against the reference Harmony hub during
+// this feature's design found its handshake endpoint rejects the request
+// without an Origin header (see ADR-0029) - silently dropping this
+// parameter again would resurface that exact failure.
 TEST(HostHttpClient, PostSendsExtraHeaders) {
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     ASSERT_GE(listen_fd, 0);
