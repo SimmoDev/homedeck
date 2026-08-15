@@ -413,10 +413,10 @@ this until it's done — see
       `GET /api/harmony/status` with a manual Refresh button (no
       polling - no live-push mechanism exists for the Web UI yet, same
       reasoning as the M7 WebSockets item below), and triggers
-      `POST /api/harmony/reconnect` on save. Verified in a real browser
+      `POST /api/harmony/reconnect` on save. Verified in a browser
       against the reference hub - address pre-fills, status correctly
-      reads connected with the real device/activity counts, and editing/
-      saving/restoring the address round-trips correctly.
+      reads connected with the actual device/activity counts, and
+      editing/saving/restoring the address round-trips correctly.
 
 **Exit criteria:** a user can fully replace their physical Harmony remote's
 day-to-day usage with HomeDeck.
