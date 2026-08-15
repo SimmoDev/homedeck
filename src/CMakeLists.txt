@@ -68,6 +68,7 @@ add_library(homedeck_platform_host
   platform/host/cache_store.cpp
   platform/host/http_server.cpp
   platform/host/http_client.cpp
+  platform/host/websocket_client.cpp
   platform/static_assets.cpp
 )
 target_include_directories(homedeck_platform_host PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

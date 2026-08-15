@@ -26,6 +26,13 @@ public:
         return response_;
     }
 
+    // Not exercised by this test file's own weather-focused cases - only
+    // present so this fake satisfies HttpClient's full interface.
+    homedeck::HttpClientResponse Post(const std::string& /*url*/, const std::string& /*json_body*/,
+                                       const std::vector<std::pair<std::string, std::string>>& /*extra_headers*/ = {}) override {
+        return response_;
+    }
+
     void SetResponse(homedeck::HttpClientResponse response) {
         std::lock_guard<std::mutex> lock(mutex_);
         response_ = std::move(response);

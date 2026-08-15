@@ -75,6 +75,7 @@ idf_component_register(
         "../../src/platform/firmware/cache_store.cpp"
         "../../src/platform/firmware/http_server.cpp"
         "../../src/platform/firmware/http_client.cpp"
+        "../../src/platform/firmware/websocket_client.cpp"
         "../../src/platform/firmware/audio_output.cpp"
         "../../src/platform/firmware/display_brightness.cpp"
         "../../src/ui/lvgl_user_activity_source.cpp"
@@ -88,6 +89,7 @@ idf_component_register(
         esp_event
         esp_http_server
         esp_http_client
+        esp_websocket_client
         esp-tls
         mdns
         nvs_flash

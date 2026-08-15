@@ -45,3 +45,9 @@ dependencies:
   # espressif/idf:v5.4.3 image) - needed for self-advertising the device
   # as homedeck.local (see docs/architecture/networking.md#lan-discovery).
   espressif/mdns: "*"
+  # Espressif's own WebSocket client - backs
+  # src/platform/firmware/websocket_client.h, the transport
+  # HarmonyConnection (src/core/harmony_connection.h) uses for the
+  # Harmony Hub's local control API - see
+  # docs/decisions/ADR-0029-harmony-local-protocol.md.
+  espressif/esp_websocket_client: "*"

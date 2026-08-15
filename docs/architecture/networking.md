@@ -127,11 +127,24 @@ second. The Web UI's Wi-Fi management page named above is still open, a
 now-unblocked follow-up, not built yet.
 
 Outbound HTTP(S) is also implemented — a portable `HttpClient` interface
-(`src/platform/http_client.h`, GET-only) backed by `FirmwareHttpClient`
-(`esp_http_client`, TLS verified via ESP-IDF's built-in certificate
-bundle rather than a pinned cert) and `HostHttpClient` (libcurl) for the
-simulator. The first consumer is the weather widget's Open-Meteo
-integration (see [dashboard.md](dashboard.md#status)); the same
+(`src/platform/http_client.h`, `Get()`/`Post()`) backed by
+`FirmwareHttpClient` (`esp_http_client`, TLS verified via ESP-IDF's
+built-in certificate bundle rather than a pinned cert) and
+`HostHttpClient` (libcurl) for the simulator. The first consumer was the
+weather widget's Open-Meteo integration (GET-only, see
+[dashboard.md](dashboard.md#status)); `Post()` (with an optional
+extra-headers list) was added for Harmony's hub handshake (see
+[ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md)). The same
 interface is expected to back Kodi/Uptime Kuma/Home Assistant's own
 outbound calls once those modules exist (M4-M6), not a single-purpose
 addition.
+
+A portable outbound `WebSocketClient` interface
+(`src/platform/websocket_client.h`) is also implemented — text-frame
+only, a blocking connect/send/receive shape a caller's own background
+`Task` drives directly. `HostWebSocketClient` backs it with libcurl's WS
+API on the simulator; `FirmwareWebSocketClient` bridges
+`espressif/esp_websocket_client`'s event-callback API to the same
+blocking shape on firmware. `HarmonyConnection`
+(`src/core/harmony_connection.h`) is the first (and so far only)
+consumer — see ADR-0029.

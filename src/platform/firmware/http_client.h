@@ -12,6 +12,8 @@ namespace homedeck {
 class FirmwareHttpClient : public HttpClient {
 public:
     HttpClientResponse Get(const std::string& url) override;
+    HttpClientResponse Post(const std::string& url, const std::string& json_body,
+                             const std::vector<std::pair<std::string, std::string>>& extra_headers = {}) override;
 };
 
 }  // namespace homedeck

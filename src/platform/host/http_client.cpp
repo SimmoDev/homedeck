@@ -28,21 +28,11 @@ size_t WriteToString(char* data, size_t size, size_t count, void* user_data) {
     return size * count;
 }
 
-}  // namespace
-
-HttpClientResponse HostHttpClient::Get(const std::string& url) {
-    EnsureGlobalInit();
-
-    CURL* curl = curl_easy_init();
-    if (curl == nullptr) {
-        HttpClientResponse response;
-        response.success = false;
-        response.status_code = 0;
-        return response;
-    }
+// Shared by Get()/Post() below - runs whatever request-specific options
+// the caller already set on curl (method, body), then performs and
+// extracts the common success/status/body shape both callers return.
+HttpClientResponse PerformCommon(CURL* curl) {
     std::string body;
-
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteToString);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &body);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, kTimeoutSeconds);
@@ -59,7 +49,54 @@ HttpClientResponse HostHttpClient::Get(const std::string& url) {
         response.status_code = static_cast<int>(status_code);
     }
     response.body = std::move(body);
+    return response;
+}
 
+}  // namespace
+
+HttpClientResponse HostHttpClient::Get(const std::string& url) {
+    EnsureGlobalInit();
+
+    CURL* curl = curl_easy_init();
+    if (curl == nullptr) {
+        HttpClientResponse response;
+        response.success = false;
+        response.status_code = 0;
+        return response;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+
+    HttpClientResponse response = PerformCommon(curl);
+    curl_easy_cleanup(curl);
+    return response;
+}
+
+HttpClientResponse HostHttpClient::Post(const std::string& url, const std::string& json_body,
+                                         const std::vector<std::pair<std::string, std::string>>& extra_headers) {
+    EnsureGlobalInit();
+
+    CURL* curl = curl_easy_init();
+    if (curl == nullptr) {
+        HttpClientResponse response;
+        response.success = false;
+        response.status_code = 0;
+        return response;
+    }
+
+    curl_slist* headers = curl_slist_append(nullptr, "Content-Type: application/json");
+    for (const auto& [name, value] : extra_headers) {
+        headers = curl_slist_append(headers, (name + ": " + value).c_str());
+    }
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_body.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(json_body.size()));
+
+    HttpClientResponse response = PerformCommon(curl);
+
+    curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
     return response;
 }
