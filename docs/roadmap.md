@@ -292,11 +292,11 @@ simulator.
       (`ClockWidget`, `NetworkStatusWidget`, `WeatherWidget`,
       `NotificationWidget`). Still open, deliberately out of scope for
       this pass: weather condition icons and Fahrenheit/Celsius
-      selection (both M7 polish, see the M7 section below); a tap
-      handler on `Widget` itself (no widget has one today) - deferred
-      until Harmony (M3) or Kodi (M4) first need tap-for-detail, rather
-      than designed speculatively against weather alone; and the
-      enable/disable/reorder widget customization named in
+      selection (both M7 polish, see the M7 section below). A tap
+      handler on `Widget` itself, deferred here until Harmony (M3) or
+      Kodi (M4) first needed tap-for-detail, is now built — see the M3
+      Activities item below. The enable/disable/reorder widget
+      customization named in
       [dashboard.md](architecture/dashboard.md#customization-future),
       separate M7 scope.
 - [x] Status bar (persistent date/time and battery, shown on every screen —
@@ -393,16 +393,42 @@ this until it's done — see
       (the field exists via the generic settings API; a dedicated Harmony
       settings UI in `webui/` does not yet) are separate items below, not
       built in this pass.
-- [ ] Activities (list, start, current, status)
+- [x] Activities (list, start, current, status). Touch UI scope (Web UI
+      is administration, not day-to-day control — see
+      [CLAUDE.md](../CLAUDE.md)), and the module's first Touch UI screen
+      and first dashboard widget. `HarmonyConnection` gained
+      `current_activity_id` (fetched right after connecting, best-effort,
+      and refreshed on the existing liveness-probe cycle),
+      `HarmonyCurrentActivityChangedEvent`, and `StartActivity()`
+      (`src/core/harmony_connection.h`/`.cpp`) — a UI-thread-safe call
+      that wakes the connection loop's own thread to actually send the
+      command, since `ws_client_` stays single-owner. Freshness is
+      best-effort, not push-driven (see that class's own header comment)
+      — up to `liveness_interval` (30s by default) stale in the worst
+      case; `ActivitiesScreen` (`src/ui/screens/activities_screen.h`/
+      `.cpp`) covers the common case with an optimistic local "Starting
+      <name>..." status line on tap. Reached by tapping `HarmonyWidget`
+      (`src/ui/harmony_widget.h`/`.cpp`, showing the current activity) on
+      the dashboard — the dashboard is deliberately not an app-launcher
+      grid (ADR-0004), so this is `Widget`'s new `OnTap()` handler
+      (`src/ui/widget.h`, wired in `DashboardGrid::AddWidget()`), not a
+      new navigation concept — see the M2 Widget framework item above.
+      Verified against the reference hub end-to-end, repeatedly and in
+      both directions: its activities listed, current activity
+      highlighted correctly, starting a different activity via a Touch
+      UI tap actually switches the hub (confirmed via the hub's own
+      response) and the dashboard/Activities screen both update once it
+      does.
 - [ ] Devices (enumerate, capabilities, commands, inputs, power state where
       available)
 - [ ] Remote control (navigation, volume, channel, numeric keypad, transport
       controls, long-press actions where supported)
 - [ ] Status/events integrated with Core's event bus and notifications.
-      `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`
-      (`src/core/harmony_connection.h`) already publish over the
-      `EventBus` as part of the Hub connection item above; publishing a
-      `NotificationEvent` (e.g. on a connection failure) is not done yet
+      `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
+      `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
+      already publish over the `EventBus` as part of the Hub connection/
+      Activities items above; publishing a `NotificationEvent` (e.g. on a
+      connection failure) is not done yet
 - [x] Web Management UI module configuration page for Harmony (hub
       address only — no credential exists in this protocol, see
       [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md)).

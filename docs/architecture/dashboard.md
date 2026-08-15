@@ -238,3 +238,13 @@ notification per episode. Subscribes directly to `NotificationEvent`,
 the same as `NotificationBanner`'s own screen-banner presentation of
 the same event - no new Core-owned state exists purely to back this
 widget.
+
+`HarmonyWidget` (`src/ui/harmony_widget.h`/`.cpp`) is the "Current
+Harmony activity" tile this doc's [Widget system](#widget-system)
+section names above, and the framework's first `OnTap()` implementation
+— tapping it opens `ActivitiesScreen` (`src/ui/screens/activities_screen.h`/
+`.cpp`, see [roadmap.md](../roadmap.md)'s M3 Activities item), not a
+launcher grid ([ADR-0004](../decisions/ADR-0004-ui-philosophy.md)). A
+2-column tile showing the connection state, or (once connected) the
+current activity's own label, sourced from `HarmonyConnection`
+(`src/core/harmony_connection.h`).

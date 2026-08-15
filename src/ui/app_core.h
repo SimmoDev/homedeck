@@ -32,11 +32,13 @@
 #include "platform/user_activity_source.h"
 #include "platform/websocket_client.h"
 #include "ui/clock_widget.h"
+#include "ui/harmony_widget.h"
 #include "ui/navigation.h"
 #include "ui/network_status_widget.h"
 #include "ui/notification_banner.h"
 #include "ui/notification_widget.h"
 #include "ui/quick_settings_panel.h"
+#include "ui/screens/activities_screen.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/weather_widget.h"
@@ -158,6 +160,14 @@ private:
 
     Navigation navigation_;
     WifiSetupScreen wifi_setup_screen_;
+    // Both need Navigation& (harmony_widget_ for OnTap(), activities_screen_
+    // for its home affordance) - declared after navigation_, unlike the
+    // other dashboard widgets above, which predate any module needing
+    // navigation at all. Still added to dashboard_.Grid() / registered
+    // with navigation_ from the constructor body, same as every other
+    // widget/screen.
+    HarmonyWidget harmony_widget_;
+    ActivitiesScreen activities_screen_;
 
     Clock clock_;
     Logger logger_;

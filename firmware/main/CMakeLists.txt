@@ -50,6 +50,8 @@ idf_component_register(
         "../../src/core/harmony_routes.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
         "../../src/ui/screens/wifi_setup_screen.cpp"
+        "../../src/ui/screens/activities_screen.cpp"
+        "../../src/ui/harmony_widget.cpp"
         "../../src/ui/time_format.cpp"
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"

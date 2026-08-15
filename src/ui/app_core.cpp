@@ -45,18 +45,23 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
       quick_settings_panel_(event_bus, power_manager_, notification_sound_, storage_),
       navigation_("dashboard", dashboard_.Root()),
       wifi_setup_screen_(event_bus, deps.battery_reader, deps.network_status, deps.wifi_submit),
+      harmony_widget_(dashboard_.Grid().Container(), event_bus, harmony_connection_, navigation_),
+      activities_screen_(event_bus, deps.battery_reader, deps.network_status, harmony_connection_, navigation_),
       clock_(deps.time_source, event_bus),
       logger_(storage_, deps.time_source),
       admin_auth_(storage_, auth_time_source_) {
-    // AddWidget order matches each widget's declaration order above -
-    // no ordering requirement of its own, just kept consistent for
-    // readability.
+    // AddWidget order matches each widget's declaration order above,
+    // except harmony_widget_ - declared later (it needs navigation_, see
+    // its own member comment) but placed here, last, which is where its
+    // grid position belongs regardless.
     dashboard_.Grid().AddWidget(clock_widget_);
     dashboard_.Grid().AddWidget(network_status_widget_);
     dashboard_.Grid().AddWidget(weather_widget_);
     dashboard_.Grid().AddWidget(notification_widget_);
+    dashboard_.Grid().AddWidget(harmony_widget_);
 
     navigation_.Register("wifi-setup", wifi_setup_screen_.Root());
+    navigation_.Register("harmony-activities", activities_screen_.Root());
 
     RegisterAdminAuthRoutes(deps.http_server, admin_auth_);
     RegisterDiagnosticsRoutes(deps.http_server, storage_, admin_auth_, deps.battery_reader, logger_,

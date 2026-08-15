@@ -123,8 +123,10 @@ if(TARGET lvgl)
     ui/notification_widget.cpp
     ui/quick_settings_panel.cpp
     ui/keyboard_input.cpp
+    ui/harmony_widget.cpp
     ui/screens/dashboard_screen.cpp
     ui/screens/wifi_setup_screen.cpp
+    ui/screens/activities_screen.cpp
     ui/lvgl_user_activity_source.cpp
     ui/app_core.cpp
     # None of these three is a portable UI file - HostAudioOutput
