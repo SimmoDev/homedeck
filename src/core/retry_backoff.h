@@ -11,15 +11,15 @@ namespace homedeck {
 // top") - nothing generic existed yet before this; WifiReconnectPolicy
 // (wifi_reconnect_policy.h) is Wi-Fi-radio-specific (fixed interval, by
 // its own documented design), not this. HarmonyConnection
-// (harmony_connection.h) is the first real consumer.
+// (harmony_connection.h) is the first consumer.
 //
 // A pure decision object with no I/O, sleep, or Task/Timer of its own -
-// same shape WifiReconnectPolicy already established - so it's directly
-// host-testable without waiting out real delays.
+// same shape WifiReconnectPolicy already established - so tests can
+// exercise it directly without waiting out the delays it returns.
 class RetryBackoff {
 public:
     // Doubles the delay after each failure, starting at initial_delay,
-    // capped at max_delay. ResetAttempts() (a real successful connection)
+    // capped at max_delay. ResetAttempts() (a successful connection)
     // starts the sequence over from initial_delay again.
     RetryBackoff(std::chrono::milliseconds initial_delay, std::chrono::milliseconds max_delay)
         : initial_delay_(initial_delay), max_delay_(max_delay) {}
