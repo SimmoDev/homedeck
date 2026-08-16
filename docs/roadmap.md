@@ -470,23 +470,40 @@ this until it's done — see
 - [ ] Remote control (navigation, volume, channel, numeric keypad,
       transport controls, long-press actions where supported). Sending
       any command works via `SendDeviceCommand()`/`DevicesScreen` above.
-      Each control group's commands now render in a 3-per-row wrapping
-      grid (`DevicesScreen::ShowDeviceDetail()`) instead of one full-width
-      button per row - a plain fixed rule applied uniformly to every
-      group, a deliberate choice over a bespoke shape per control type
-      (D-pad cross, paired volume +/-, etc.): simpler, and avoids keying
-      off `HarmonyControlGroup::name` strings a different hub vendor
-      might not share. `CreateRemoteButton()` (`src/ui/remote_button.h`/
-      `.cpp`) gained an optional `width` (existing callers unaffected,
-      still default full-width) and now explicitly wraps its label
-      instead of relying on the button to clip it - without a width
-      constraint on the label itself, `LV_LABEL_LONG_WRAP` (the default
-      long mode already) had nothing to wrap against, so a label wider
-      than the 31%-wide grid buttons clipped at the button's edge rather
-      than wrapping to a second line. Long-press actions - sustained
-      repeat while a command button stays held, not just the immediate
-      press+release pair `SendDeviceCommand()` sends today - remains this
-      item's own open scope.
+      Most control groups render in a 3-per-row wrapping grid
+      (`DevicesScreen::RenderGenericGrid()`) instead of one full-width
+      button per row - command labels are short and predictable, unlike
+      device/activity labels, so one per row wasted width and, on a
+      device with many commands, turned into a long scroll for no
+      reason. Two groups are common and consistent enough across every
+      device on the reference hub to get their own shape instead of the
+      generic grid: `NumericBasic` (`RenderNumericKeypad()`) as a
+      1-2-3/4-5-6/7-8-9/Clear-0-Dot keypad, in that position order, not
+      raw hub order (which returns 0 first); `NavigationBasic`
+      (`RenderDPad()`) as a cross with empty corners, using
+      `LV_SYMBOL_UP`/`DOWN`/`LEFT`/`RIGHT`/`OK` icons rather than text.
+      Matching by `HarmonyControlGroup::name` is a protocol-level
+      vocabulary the hub uses the same way across every device that has
+      these groups, not per-device-model hardcoding. Every group heading
+      and every generic-grid label runs through the new `SplitCamelCase()`
+      (`src/ui/text_format.h`/`.cpp`) first - the hub's own `label` field
+      is inconsistently spaced ("Volume Down" already reads fine,
+      "RightBumper"/"TVShows" don't), and unspaced labels wider than a
+      grid button's 31% width were wrapping mid-word with nothing else
+      to fix it. `VolumeUp`/`VolumeDown`/`ChannelUp`/`ChannelDown` (5-6
+      of 8 devices) get `LV_SYMBOL_PLUS`/`MINUS` icons too, matching the
+      D-pad's icon-based directions; `Mute`/`PrevChannel` have no obvious
+      icon and stay as text. `CreateRemoteButton()`
+      (`src/ui/remote_button.h`/`.cpp`) gained optional `width`/`height`
+      parameters (existing callers unaffected, still default full-width/
+      auto-height) and now explicitly wraps and vertically centers its
+      label - neither was needed while every button auto-fit its own
+      one-line content; both matter now that DevicesScreen's grid gives
+      every button the same fixed width and height
+      regardless of its own label's line count. Long-press actions -
+      sustained repeat while a command button stays held, not just the
+      immediate press+release pair `SendDeviceCommand()` sends today -
+      remains this item's own open scope.
 - [ ] Status/events integrated with Core's event bus and notifications.
       `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
       `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
