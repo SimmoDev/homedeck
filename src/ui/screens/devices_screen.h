@@ -26,7 +26,7 @@ namespace homedeck {
 // device's commands), not two Navigation routes - this project's
 // Navigation has no back-stack (see roadmap.md's M7 Gesture navigation
 // item), so a second route would need its own bespoke "back" handling
-// for no real benefit over a local state toggle.
+// for no benefit over a local state toggle.
 //
 // "Power state" (a device's own Capabilities/powerFeatures fields) isn't
 // shown - empty on every device this project has seen against the
