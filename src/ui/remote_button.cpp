@@ -2,9 +2,10 @@
 
 namespace homedeck {
 
-lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, int32_t width) {
+lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, int32_t width, int32_t height) {
     lv_obj_t* button = lv_button_create(parent);
     lv_obj_set_width(button, width);
+    lv_obj_set_height(button, height);
     lv_obj_set_style_pad_ver(button, 28, 0);
 
     lv_obj_t* label = lv_label_create(button);
@@ -20,6 +21,15 @@ lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, in
     // looking the same as a single-line one instead of defaulting left.
     lv_obj_set_width(label, LV_PCT(100));
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+    // lv_button_create() doesn't give its child a centering layout of its
+    // own (confirmed against LVGL's source - no flex/grid set on the
+    // button, default theme included), so the label sits at its default
+    // top-left position rather than centering vertically - invisible
+    // while every button's height auto-fit its own one-line label (no
+    // vertical slack to reveal it), became visible once DevicesScreen's
+    // grid started giving every button the same fixed height regardless
+    // of its own label's line count.
+    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
 
     return button;
 }
