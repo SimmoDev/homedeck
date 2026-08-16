@@ -94,6 +94,7 @@ add_library(homedeck_core
   core/logger.cpp
   core/notification_sound.cpp
   core/harmony_connection.cpp
+  core/harmony_notification_bridge.cpp
   core/harmony_routes.cpp
   # Lives in ui/ (it's a UI-formatting concern, called from
   # ClockWidget/StatusBar), but is genuinely LVGL-free - built here

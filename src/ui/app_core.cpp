@@ -40,6 +40,7 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
       low_battery_monitor_(event_bus, deps.battery_reader),
       critical_battery_monitor_(event_bus, deps.battery_reader),
       network_status_monitor_(event_bus, deps.network_status),
+      harmony_notification_bridge_(event_bus),
       power_manager_(event_bus, deps.user_activity_source, deps.display_brightness, power_time_source_,
                      ReadIntSetting(storage_, "power", "brightness", 100)),
       quick_settings_panel_(event_bus, power_manager_, notification_sound_, storage_),

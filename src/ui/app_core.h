@@ -6,6 +6,7 @@
 #include "core/diagnostics_routes.h"
 #include "core/event_bus.h"
 #include "core/harmony_connection.h"
+#include "core/harmony_notification_bridge.h"
 #include "core/harmony_routes.h"
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
@@ -154,6 +155,7 @@ private:
     LowBatteryMonitor low_battery_monitor_;
     CriticalBatteryMonitor critical_battery_monitor_;
     NetworkStatusMonitor network_status_monitor_;
+    HarmonyNotificationBridge harmony_notification_bridge_;
 
     SteadyTimeSource power_time_source_;
     PowerManager power_manager_;

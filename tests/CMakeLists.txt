@@ -49,6 +49,7 @@ add_executable(homedeck_tests
   display_brightness_test.cpp
   weather_provider_test.cpp
   harmony_connection_test.cpp
+  harmony_notification_bridge_test.cpp
   notification_sound_test.cpp
   admin_auth_service_test.cpp
   admin_auth_routes_test.cpp
