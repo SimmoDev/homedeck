@@ -24,7 +24,7 @@ lv_obj_t* CreateHomeAffordance(lv_obj_t* parent, Navigation& navigation) {
     // this is navigation chrome, not an action, and blended in against
     // them otherwise. Plain placeholder differentiation, not considered
     // theme styling - see ActivitiesScreen's own kCurrentActivityPalette
-    // comment for that same "real theme work is M7 scope" precedent.
+    // comment for that same "considered theme styling is M7 scope" precedent.
     lv_obj_set_style_bg_color(button, lv_palette_main(LV_PALETTE_GREY), 0);
     lv_obj_add_event_cb(button, OnHomeClicked, LV_EVENT_CLICKED, &navigation);
 
