@@ -2,9 +2,74 @@
 
 #include "ui/home_affordance.h"
 #include "ui/remote_button.h"
+#include "ui/text_format.h"
 #include "ui/theme.h"
 
 namespace homedeck {
+
+namespace {
+
+// Every command grid button is this size, including RenderDPad()'s
+// spacers - LV_SIZE_CONTENT (each button auto-fitting its own label)
+// looked fine when every button happened to need the same number of
+// text lines, but a device with mixed one-line/two-line labels in the
+// same row (e.g. "Volume Up" vs "Volume Down") made otherwise-identical
+// buttons different heights. 110 = kBodyFont's 27px line height * 2
+// (room for a two-line label) + the 28px top/bottom padding
+// CreateRemoteButton already applies * 2.
+constexpr int32_t kGridButtonWidth = LV_PCT(31);
+constexpr int32_t kGridButtonHeight = 110;
+constexpr int32_t kGridGap = 12;
+
+// VolumeUp/VolumeDown/ChannelUp/ChannelDown are common enough (5-6 of
+// the reference hub's 8 devices each) to be worth an icon instead of
+// relying on SplitCamelCase's text - a plain command-name lookup,
+// not a per-device-model special case. Mute/PrevChannel have no obvious
+// icon and stay as text.
+const char* IconForCommandName(const std::string& name) {
+    if (name == "VolumeUp" || name == "ChannelUp") return LV_SYMBOL_PLUS;
+    if (name == "VolumeDown" || name == "ChannelDown") return LV_SYMBOL_MINUS;
+    return nullptr;
+}
+
+lv_obj_t* CreateRowWrapGrid(lv_obj_t* parent) {
+    lv_obj_t* grid = lv_obj_create(parent);
+    lv_obj_remove_style_all(grid);
+    lv_obj_set_size(grid, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(grid, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_style_pad_row(grid, kGridGap, 0);
+    lv_obj_set_style_pad_column(grid, kGridGap, 0);
+    return grid;
+}
+
+lv_obj_t* CreateDPadRow(lv_obj_t* parent) {
+    lv_obj_t* row = lv_obj_create(parent);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(row, kGridGap, 0);
+    return row;
+}
+
+// A structurally-empty D-pad corner (top-left, top-right, bottom-left,
+// bottom-right) - unconditional, unlike AddDPadCell()'s own placeholder
+// for a direction/Select command this specific device happens not to
+// have.
+void AddDPadSpacer(lv_obj_t* row) {
+    lv_obj_t* spacer = lv_obj_create(row);
+    lv_obj_remove_style_all(spacer);
+    lv_obj_set_size(spacer, kGridButtonWidth, kGridButtonHeight);
+}
+
+const HarmonyCommand* FindCommand(const std::vector<HarmonyCommand>& commands, const char* name) {
+    for (const HarmonyCommand& command : commands) {
+        if (command.name == name) return &command;
+    }
+    return nullptr;
+}
+
+}  // namespace
 
 DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                               HarmonyConnection& harmony_connection, Navigation& navigation)
@@ -132,36 +197,125 @@ void DevicesScreen::ShowDeviceDetail(const std::string& device_id) {
         if (group.commands.empty()) {
             continue;
         }
-        lv_obj_t* heading = lv_label_create(commands_container_);
-        lv_label_set_text(heading, group.name.c_str());
-        lv_obj_set_style_text_color(heading, lv_palette_main(LV_PALETTE_GREY), 0);
-
-        // A row-wrap grid, not commands_container_'s own single column -
-        // command labels are short and predictable (unlike device/activity
-        // labels), so one per row wastes width and, on a device with many
-        // commands, turns into a long scroll for no reason. 3 per row is a
-        // plain fixed rule (not tailored per group/control type - see
-        // roadmap.md's own reasoning for avoiding that), and still leaves
-        // each button comfortably large - the same "large, easy to press"
-        // requirement CreateRemoteButton's default shape exists for.
-        lv_obj_t* group_grid = lv_obj_create(commands_container_);
-        lv_obj_remove_style_all(group_grid);
-        lv_obj_set_size(group_grid, LV_PCT(100), LV_SIZE_CONTENT);
-        lv_obj_set_flex_flow(group_grid, LV_FLEX_FLOW_ROW_WRAP);
-        lv_obj_set_style_pad_row(group_grid, 12, 0);
-        lv_obj_set_style_pad_column(group_grid, 12, 0);
-
-        for (const HarmonyCommand& command : group.commands) {
-            // 31%, not a third - room for the two 12px column gaps above
-            // between three buttons on the same row without overflowing.
-            lv_obj_t* button = CreateRemoteButton(group_grid, command.label, LV_PCT(31));
-            lv_obj_add_event_cb(button, OnCommandButtonClicked, LV_EVENT_CLICKED, this);
-            command_button_actions_[button] = command.action;
-        }
+        RenderControlGroup(group);
     }
 
     lv_obj_add_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
     lv_obj_clear_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void DevicesScreen::RenderControlGroup(const HarmonyControlGroup& group) {
+    lv_obj_t* heading = lv_label_create(commands_container_);
+    lv_label_set_text(heading, SplitCamelCase(group.name).c_str());
+    lv_obj_set_style_text_color(heading, lv_palette_main(LV_PALETTE_GREY), 0);
+
+    if (group.name == "NumericBasic") {
+        RenderNumericKeypad(commands_container_, group.commands);
+    } else if (group.name == "NavigationBasic") {
+        RenderDPad(commands_container_, group.commands);
+    } else {
+        RenderGenericGrid(commands_container_, group.commands);
+    }
+}
+
+void DevicesScreen::RenderGenericGrid(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands) {
+    // command labels are short and predictable (unlike device/activity
+    // labels), so one per row wastes width and, on a device with many
+    // commands, turns into a long scroll for no reason. 3 per row is a
+    // plain fixed rule (not tailored per group/control type beyond the
+    // Numeric/Navigation groups broken out above - see roadmap.md's own
+    // reasoning for not going further than that), and still leaves each
+    // button comfortably large - the same "large, easy to press"
+    // requirement CreateRemoteButton's default shape exists for.
+    lv_obj_t* grid = CreateRowWrapGrid(parent);
+
+    for (const HarmonyCommand& command : commands) {
+        const char* icon = IconForCommandName(command.name);
+        std::string label = icon != nullptr ? std::string(icon) : SplitCamelCase(command.label);
+        lv_obj_t* button = CreateRemoteButton(grid, label, kGridButtonWidth, kGridButtonHeight);
+        lv_obj_add_event_cb(button, OnCommandButtonClicked, LV_EVENT_CLICKED, this);
+        command_button_actions_[button] = command.action;
+    }
+}
+
+void DevicesScreen::RenderNumericKeypad(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands) {
+    // Fixed keypad position order, not raw hub order (the hub returns
+    // Number0 first, then 1-9) - a numeric keypad reads
+    // 1-2-3/4-5-6/7-8-9/Clear-0-Dot.
+    static constexpr const char* kKeypadOrder[] = {
+        "Number1", "Number2", "Number3", "Number4", "Number5", "Number6",
+        "Number7", "Number8", "Number9", "Clear",    "Number0", "Dot",
+    };
+
+    lv_obj_t* grid = CreateRowWrapGrid(parent);
+    std::unordered_set<std::string> placed;
+
+    for (const char* wanted_name : kKeypadOrder) {
+        const HarmonyCommand* command = FindCommand(commands, wanted_name);
+        // Not every device has all twelve keys (one device only has
+        // Number1-3) - the row-wrap grid just re-flows around a missing
+        // one (a keypad without a Dot key has a shorter last row, not
+        // an empty cell), unlike RenderDPad()'s cross, where an empty
+        // cell would break the shape.
+        if (command == nullptr) {
+            continue;
+        }
+        lv_obj_t* button = CreateRemoteButton(grid, command->label, kGridButtonWidth, kGridButtonHeight);
+        lv_obj_add_event_cb(button, OnCommandButtonClicked, LV_EVENT_CLICKED, this);
+        command_button_actions_[button] = command->action;
+        placed.insert(wanted_name);
+    }
+
+    RenderUnmatchedCommands(parent, commands, placed);
+}
+
+void DevicesScreen::RenderDPad(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands) {
+    lv_obj_t* rows = lv_obj_create(parent);
+    lv_obj_remove_style_all(rows);
+    lv_obj_set_size(rows, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(rows, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(rows, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(rows, kGridGap, 0);
+
+    lv_obj_t* top_row = CreateDPadRow(rows);
+    AddDPadSpacer(top_row);
+    AddDPadCell(top_row, FindCommand(commands, "DirectionUp"), LV_SYMBOL_UP);
+    AddDPadSpacer(top_row);
+
+    lv_obj_t* middle_row = CreateDPadRow(rows);
+    AddDPadCell(middle_row, FindCommand(commands, "DirectionLeft"), LV_SYMBOL_LEFT);
+    AddDPadCell(middle_row, FindCommand(commands, "Select"), LV_SYMBOL_OK);
+    AddDPadCell(middle_row, FindCommand(commands, "DirectionRight"), LV_SYMBOL_RIGHT);
+
+    lv_obj_t* bottom_row = CreateDPadRow(rows);
+    AddDPadSpacer(bottom_row);
+    AddDPadCell(bottom_row, FindCommand(commands, "DirectionDown"), LV_SYMBOL_DOWN);
+    AddDPadSpacer(bottom_row);
+
+    RenderUnmatchedCommands(parent, commands, {"DirectionUp", "DirectionDown", "DirectionLeft", "DirectionRight", "Select"});
+}
+
+void DevicesScreen::AddDPadCell(lv_obj_t* row, const HarmonyCommand* command, const char* icon) {
+    if (command == nullptr) {
+        AddDPadSpacer(row);
+        return;
+    }
+    lv_obj_t* button = CreateRemoteButton(row, icon, kGridButtonWidth, kGridButtonHeight);
+    lv_obj_add_event_cb(button, OnCommandButtonClicked, LV_EVENT_CLICKED, this);
+    command_button_actions_[button] = command->action;
+}
+
+void DevicesScreen::RenderUnmatchedCommands(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands,
+                                             const std::unordered_set<std::string>& matched_names) {
+    std::vector<HarmonyCommand> unmatched;
+    for (const HarmonyCommand& command : commands) {
+        if (matched_names.find(command.name) == matched_names.end()) {
+            unmatched.push_back(command);
+        }
+    }
+    if (!unmatched.empty()) {
+        RenderGenericGrid(parent, unmatched);
+    }
 }
 
 void DevicesScreen::ShowDeviceList() {

@@ -10,6 +10,8 @@
 
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace homedeck {
 
@@ -63,6 +65,39 @@ private:
     // each time it's entered).
     void ShowDeviceDetail(const std::string& device_id);
     void ShowDeviceList();
+
+    // One control group's commands, dispatched by HarmonyControlGroup::name
+    // to whichever of the three below matches its own observed shape
+    // (see each one's own comment) - a plain row-wrap grid otherwise.
+    // Matching by name is a protocol-level vocabulary Harmony's own hub
+    // uses consistently across every device that has these groups
+    // (confirmed against all 8 devices on the reference hub, not just
+    // one), not the kind of per-device-model hardcoding CLAUDE.md warns
+    // against.
+    void RenderControlGroup(const HarmonyControlGroup& group);
+    void RenderGenericGrid(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands);
+    // NumericBasic: Number0-Number9 plus optional Clear/Dot, in raw hub
+    // order (0 first) - reordered into a keypad's 1-2-3/4-5-6/7-8-9/
+    // Clear-0-Dot shape instead. Not every device has all twelve - one
+    // device only has Number1-3 - whichever exist just render in this
+    // order.
+    void RenderNumericKeypad(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands);
+    // NavigationBasic: consistently exactly DirectionUp/Down/Left/Right +
+    // Select across every device that has it. A cross, not a row-wrap
+    // grid - the four corners need to stay empty, which a reflowing grid
+    // can't do on its own.
+    void RenderDPad(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands);
+    // command, if present, or an empty placeholder occupying the same
+    // space (so the cross stays a cross even when e.g. Select is
+    // missing) - shared by RenderDPad()'s three rows.
+    void AddDPadCell(lv_obj_t* row, const HarmonyCommand* command, const char* icon);
+    // Commands from a NumericBasic/NavigationBasic group that don't
+    // match any of that layout's known positions - not observed on any
+    // of the reference hub's 8 devices, but rendering them via the
+    // generic grid rather than silently dropping them costs little.
+    void RenderUnmatchedCommands(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands,
+                                  const std::unordered_set<std::string>& matched_names);
+
     static void OnDeviceButtonClicked(lv_event_t* e);
     static void OnCommandButtonClicked(lv_event_t* e);
     static void OnBackButtonClicked(lv_event_t* e);
