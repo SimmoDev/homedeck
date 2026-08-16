@@ -93,8 +93,9 @@ its own manual URL entry.
   hub's own protocol design, not something HomeDeck's implementation
   introduces; `HarmonyConnection` never reads or stores that field.
 - The WebSocket message shapes for activities/devices beyond the
-  device/activity `id`/`label` fields HarmonyConnection currently parses
-  (`type`, `controlGroup`, per-device command lists, etc.) remain
-  community-documented but not independently field-verified - open
-  scope for the Devices/Remote control roadmap items still ahead, not
-  solved here.
+  device/activity `id`/`label` fields HarmonyConnection parses (`type`,
+  `controlGroup`, per-device command lists, etc.) were community-
+  documented but not independently field-verified at the time this ADR
+  was written - since field-verified against the reference hub's own
+  8-device config, see [roadmap.md](../roadmap.md)'s M3 Devices/Remote
+  control items.
