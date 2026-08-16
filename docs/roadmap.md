@@ -467,9 +467,9 @@ this until it's done — see
       button to the front once its own content exists. The home button
       also got a distinct grey, since it was otherwise the same blue as
       every action/remote button.
-- [ ] Remote control (navigation, volume, channel, numeric keypad,
+- [x] Remote control (navigation, volume, channel, numeric keypad,
       transport controls, long-press actions where supported). Sending
-      any command works via `SendDeviceCommand()`/`DevicesScreen` above.
+      any command works via `PressDeviceCommand()`/`DevicesScreen` above.
       Most control groups render in a 3-per-row wrapping grid
       (`DevicesScreen::RenderGenericGrid()`) instead of one full-width
       button per row - command labels are short and predictable, unlike
@@ -501,9 +501,21 @@ this until it's done — see
       one-line content; both matter now that DevicesScreen's grid gives
       every button the same fixed width and height
       regardless of its own label's line count. Long-press actions -
-      sustained repeat while a command button stays held, not just the
-      immediate press+release pair `SendDeviceCommand()` sends today -
-      remains this item's own open scope.
+      sustained repeat while a command button stays held - are built:
+      `HarmonyConnection::SendDeviceCommand()` (a single press+release
+      pair per call) is now three separate calls
+      (`PressDeviceCommand()`/`HoldDeviceCommand()`/`ReleaseDeviceCommand()`),
+      matching the hub's own three-state `holdAction` protocol, driven by
+      `DevicesScreen`'s own `LV_EVENT_LONG_PRESSED`/`LONG_PRESSED_REPEAT`/
+      `RELEASED` handlers rather than `CLICKED` - `RELEASED` fires on
+      every release including a scroll that happened to start on a
+      command button, where `CLICKED` (and, more importantly,
+      `LV_EVENT_PRESSED`, which fires before LVGL can know a touch will
+      become a scroll at all) would risk sending a command from an
+      accidental drag. Verified against the reference hub: a quick tap
+      sends press+release, holding sends one press then repeated holds
+      then one release on lift, and a drag that starts on a command
+      button sends nothing while still scrolling normally.
 - [ ] Status/events integrated with Core's event bus and notifications.
       `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
       `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
