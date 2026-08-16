@@ -32,6 +32,7 @@ add_executable(homedeck_tests
   battery_reader_test.cpp
   clock_test.cpp
   time_format_test.cpp
+  text_format_test.cpp
   grid_occupancy_test.cpp
   wifi_reconnect_policy_test.cpp
   retry_backoff_test.cpp

@@ -55,6 +55,7 @@ idf_component_register(
         "../../src/ui/harmony_widget.cpp"
         "../../src/ui/remote_button.cpp"
         "../../src/ui/time_format.cpp"
+        "../../src/ui/text_format.cpp"
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"
         "../../src/ui/widget_tile.cpp"

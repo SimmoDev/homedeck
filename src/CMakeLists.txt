@@ -101,6 +101,9 @@ add_library(homedeck_core
   # fetches LVGL. homedeck_ui already links homedeck_core, so this is
   # still reachable identically from every existing call site.
   ui/time_format.cpp
+  # Same reasoning as ui/time_format.cpp above - a pure string helper
+  # (DevicesScreen's own call site), not an LVGL concern.
+  ui/text_format.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 
