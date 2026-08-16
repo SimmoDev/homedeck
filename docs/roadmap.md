@@ -419,27 +419,23 @@ this until it's done — see
       running activity, not just local state - the dashboard/Activities
       screen both update once it does.
 - [x] Devices (enumerate, capabilities, commands, inputs, power state where
-      available) and Remote control (navigation, volume, channel, numeric
-      keypad, transport controls, long-press actions where supported).
-      Combined into one pass: a live probe against the reference hub found
-      a device's capabilities and its remote-control commands are the same
-      data (`controlGroup: [{name, function: [{name, label, action}]}]`,
+      available). Built in the same pass as Remote control below: a live
+      probe against the reference hub found a device's capabilities and
+      its remote-control commands are the same data
+      (`controlGroup: [{name, function: [{name, label, action}]}]`,
       `action` a ready-to-send command string the hub hands back verbatim)
-      — "Devices" as a read-only capability browser and "Remote control"
-      as a separate later pass would have meant shipping un-tappable
-      buttons first, then coming back to wire them up. "Inputs" are just
-      more commands in a `Miscellaneous` group, not a separate structure.
-      "Power state" (`Capabilities`/`powerFeatures`) comes back empty on
-      every device on the reference hub — IR is one-way, nothing to poll
-      — so it isn't built; a gap if a future hub reports it, not an
-      oversight. `HarmonyConnection` gained `HarmonyDevice::control_groups`
-      and `SendDeviceCommand()` (`src/core/harmony_connection.h`/`.cpp`),
-      generalizing the single pending-activity slot into a
-      `PendingCommand` queue so activity-start and device-command sends
-      share one UI-thread-safe path to the connection loop's own thread.
-      A command send is a `holdAction` press message immediately followed
-      by a release — true press-and-hold repeat while held is separate
-      interaction work, not built here. `DevicesScreen`
+      — a read-only capability browser first, wired up to actually send
+      later, would have meant shipping un-tappable buttons first. "Inputs"
+      are just more commands in a `Miscellaneous` group, not a separate
+      structure. "Power state" (`Capabilities`/`powerFeatures`) comes back
+      empty on every device on the reference hub — IR is one-way, nothing
+      to poll — so it isn't built; a gap if a future hub reports it, not
+      an oversight. `HarmonyConnection` gained
+      `HarmonyDevice::control_groups` and `SendDeviceCommand()`
+      (`src/core/harmony_connection.h`/`.cpp`), generalizing the single
+      pending-activity slot into a `PendingCommand` queue so
+      activity-start and device-command sends share one UI-thread-safe
+      path to the connection loop's own thread. `DevicesScreen`
       (`src/ui/screens/devices_screen.h`/`.cpp`) is one screen with two
       internal view states (list, then a device's commands grouped the
       way the hub groups them) rather than a second `Navigation` route —
@@ -471,6 +467,21 @@ this until it's done — see
       button to the front once its own content exists. The home button
       also got a distinct grey, since it was otherwise the same blue as
       every action/remote button.
+- [ ] Remote control (navigation, volume, channel, numeric keypad,
+      transport controls, long-press actions where supported). Sending
+      any command works today via `SendDeviceCommand()`/`DevicesScreen`
+      above, but every command currently renders as an identical
+      full-width button in one scrolling column regardless of type - not
+      the differentiated interaction shapes this item's own listed
+      controls (and a physical remote) imply: a numeric keypad reads as a
+      compact grid, navigation as a D-pad cross, volume as a paired
+      +/- control, not same-sized rows in a list.
+      `HarmonyControlGroup::name` (`NumericBasic`, `Navigation`, etc.,
+      see Devices above) already carries the grouping a smarter renderer
+      could key off, without needing new hub data. Long-press actions -
+      sustained repeat while a command button stays held, not just the
+      immediate press+release pair `SendDeviceCommand()` sends today - is
+      also this item's own scope, not built.
 - [ ] Status/events integrated with Core's event bus and notifications.
       `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
       `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
