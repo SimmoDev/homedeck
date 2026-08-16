@@ -130,7 +130,13 @@ void ActivitiesScreen::RestyleButtons() {
     if (current_id == starting_activity_id_) {
         starting_activity_id_.clear();
     }
-    lv_label_set_text(status_label_, "");
+    // Only blank while nothing is pending - called right after
+    // OnActivityButtonClicked() sets this to "Starting <name>...", and
+    // blanking unconditionally here would erase that in the same
+    // synchronous call before it's ever rendered.
+    if (starting_activity_id_.empty()) {
+        lv_label_set_text(status_label_, "");
+    }
 
     for (const auto& [id, button] : activity_buttons_) {
         if (id == current_id) {
