@@ -113,12 +113,9 @@ ESP32-P4+C6 combination. See git history for the diagnostic detail behind
 this conclusion.
 
 Reproducing this repeatedly no longer needs a full
-`tools/factory-reset.sh` erase-and-reflash cycle per attempt - the Web
-UI's Diagnostics page has a **Reset Wi-Fi credentials** action
-(`POST /api/wifi/reset`, see [web-ui.md](web-ui.md#diagnostics)) that
-clears just the stored Wi-Fi credentials and reboots automatically so
-the device re-enters SoftAP setup, isolating the connect burst without
-touching Core's own `Storage` state.
+`tools/factory-reset.sh` erase-and-reflash cycle per attempt - see
+[web-ui.md](web-ui.md#diagnostics) for the Web UI's Reset Wi-Fi
+credentials diagnostic aid.
 
 **Accepted risk:** carried forward into M3 as a known, explicitly
 accepted gap, not resolved. The device recovers on its own (a
@@ -142,14 +139,11 @@ corrupted.
 
 Two standing facts about this flow:
 - **Wi-Fi credentials live on the C6 co-processor's own flash, not the
-  P4's `nvs` partition** — `esp_wifi_get_config`/`esp_wifi_set_config`
-  are RPC calls proxied to the C6 via `esp_wifi_remote`, and the C6
-  persists them itself. `esp_wifi_restore()` (also proxied), not erasing
-  the P4's `nvs` region, is the correct way to clear them. Moving
-  credential storage onto Core's own service (a known gap, see
-  [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md#consequences))
-  will need `esp_wifi`'s storage mode set to `WIFI_STORAGE_RAM` so the
-  co-processor stops persisting it a second time.
+  P4's `nvs` partition** — Wi-Fi configuration calls are proxied to the
+  C6 over `esp_wifi_remote`, which persists them there itself. Moving
+  credential storage onto Core's own service is a known gap - see
+  [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md#consequences)
+  for what that would need.
 - **`esp_http_server`'s max request header size is raised to 4096 bytes**
   (`CONFIG_HTTPD_MAX_REQ_HDR_LEN`) — the 512-byte default is too small
   for a real mobile browser's POST to the setup form. A RAM buffer, not
@@ -246,38 +240,15 @@ successfully (10-point multitouch).
 the panel's native scan direction, not just a default init flag: the BSP
 hardcodes it as `BSP_LCD_H_RES`/`BSP_LCD_V_RES` in
 `managed_components/espressif__m5stack_tab5/include/bsp/display.h`, with
-no swap_xy applied at panel-init time. A 90° software rotation to
-landscape is available via the BSP's `bsp_display_rotate()` (wrapping
-LVGL's `lv_disp_set_rotation()`), but was rejected: the BSP's own source
-flags that its anti-tearing mode isn't supported under software rotation,
-and a different project (ESPHome) hit an open, unresolved bug combining
-LVGL + 90° rotation on this same MIPI-DSI panel class — a blank screen
-from a driver/LVGL dimension mismatch
-([esphome/esphome#10740](https://github.com/esphome/esphome/issues/10740)),
-corroborating real risk, not just a hypothetical one. Also weighed: the
-battery pack's kickstand tilt (see [Physical form
-factor](#physical-form-factor) below) lifts the device's top edge in
-portrait — an easel angle facing the viewer — versus a sideways lean off
-the right edge in landscape. `DashboardScreen`'s widgets needed no layout
-changes either way, since both are placed with `LV_ALIGN_CENTER`/
-`LV_ALIGN_TOP_RIGHT` relative to the parent, not fixed coordinates — only
-the simulator's window resolution constants (`simulator/main.cpp`) and
-its `UiTask`'s new desktop-only `zoom` parameter (SDL window size, not
-LVGL's logical resolution, so a 1280px-tall canvas doesn't demand that
-much vertical monitor space during development) changed. Firmware needed
-no change at all — `homedeck.cpp` never called `bsp_display_rotate()`, so
-it was already running the resolved orientation without knowing it.
+no swap_xy applied at panel-init time. See
+[ADR-0015](../decisions/ADR-0015-display-orientation.md) for why a
+software rotation to landscape was rejected instead.
 
 **Touch confirmed working end to end, not just controller init.**
-`bsp_display_start()` already wires the touch controller into LVGL as a
-real input device (`lvgl_port_add_touch()`, called internally — no extra
-plumbing needed on this project's side). Verified on hardware with a real
-on-screen touch handler: tapping the panel logs real coordinates, all
-within the confirmed `720x1280` bounds, and visibly reacts (a color
-toggle). `LV_EVENT_PRESSED` fires once per discrete touch-down, confirmed
-by holding and dragging a finger on hardware — exactly one log line for
-the whole press, not a stream (that would be `LV_EVENT_PRESSING`, not
-registered here).
+Tapping the panel reports coordinates within the confirmed `720x1280`
+bounds and reacts correctly on-screen; a discrete touch-down maps to
+exactly one input event, not a stream repeating for the duration of a
+press.
 
 ## On-device dashboard
 

@@ -62,3 +62,11 @@ Two consequences of this mechanism, stated plainly:
   a second instance is never a real possibility the way it would be for,
   say, a module type; `esp_wifi`'s own C API is itself global/singleton
   underneath regardless of how this file's state is shaped.
+- Wi-Fi credentials persist on the C6 co-processor's own flash today (via
+  `esp_wifi_remote`'s proxying, see
+  [hardware.md](../architecture/hardware.md#wi-fi-bring-up)), not through
+  Core's `Storage` service - a known, low-priority gap, not active scope,
+  since both locations are equally unencrypted flash and no feature
+  depends on it. Moving it onto `Storage` would need `esp_wifi`'s storage
+  mode set to `WIFI_STORAGE_RAM` so the co-processor stops persisting a
+  second copy underneath Core's own.
