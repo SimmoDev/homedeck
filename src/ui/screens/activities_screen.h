@@ -23,10 +23,14 @@ namespace homedeck {
 // - see HarmonyConnection's own header comment for why. This screen
 // shows an optimistic local "Starting <name>..." status line right away
 // and clears it once HarmonyCurrentActivityChangedEvent actually
-// confirms the switch; there's no separate client-side timeout for that
-// message getting stuck - HarmonyConnection's own liveness cycle
-// guarantees a correction within its liveness_interval regardless (30s
-// by default), the same bound the class-level trade-off already accepts.
+// confirms the switch. A confirming event only fires on an actual
+// activity-ID change, so a command that fails to reach the hub (no
+// change to detect) would otherwise leave this message stuck forever -
+// this screen also clears it on any HarmonyConnectionStateChangedEvent
+// away from kConnected, since HarmonyConnection's own connection loop
+// treats a failed send the same as a dropped connection and reconnects,
+// making a state change a reliable enough signal that the pending tap is
+// no longer trustworthy.
 class ActivitiesScreen {
 public:
     ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
@@ -80,6 +84,7 @@ private:
 
     EventBus::ScopedSubscription config_sub_;
     EventBus::ScopedSubscription activity_sub_;
+    EventBus::ScopedSubscription state_sub_;
 };
 
 }  // namespace homedeck

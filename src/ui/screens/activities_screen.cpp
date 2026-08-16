@@ -82,6 +82,18 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
         [this](const HarmonyConfigUpdatedEvent&) { Rebuild(); });
     activity_sub_ = event_bus.SubscribeUi<HarmonyCurrentActivityChangedEvent>(
         [this](const HarmonyCurrentActivityChangedEvent&) { RestyleButtons(); });
+    // A pending "Starting <name>..." tap only clears via an activity-ID
+    // change (above) - a send that never reached the hub produces no
+    // change to detect, so this class's own header comment on why a
+    // connection-state change is treated as an equally valid correction
+    // signal.
+    state_sub_ = event_bus.SubscribeUi<HarmonyConnectionStateChangedEvent>(
+        [this](const HarmonyConnectionStateChangedEvent& event) {
+            if (event.state != HarmonyConnectionState::kConnected && !starting_activity_id_.empty()) {
+                starting_activity_id_.clear();
+                RestyleButtons();
+            }
+        });
 
     Rebuild();
 
