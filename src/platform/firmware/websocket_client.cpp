@@ -162,11 +162,10 @@ void FirmwareWebSocketClient::HandleClosed() {
 void FirmwareWebSocketClient::HandleData(const void* event_data) {
     // esp_websocket_event_data_t - payload_offset/payload_len/data_len
     // describe one chunk of a possibly-fragmented message, per ESP-IDF's
-    // own websocket example. Not yet exercised against the reference hub
-    // in this pass (see ADR-0029's Consequences) - the host backend is
-    // what this project's live-hub verification covered; this firmware
-    // path needs its own on-hardware confirmation before it's trusted the
-    // same way.
+    // own websocket example. Exercised on-device against the reference
+    // hub, not just the host backend - see roadmap.md's M3 Devices item,
+    // whose 8-device config fetch (and the many-command-buttons LVGL bug
+    // it surfaced) went through this exact path.
     const auto* data = static_cast<const esp_websocket_event_data_t*>(event_data);
     bool message_complete = false;
     {
