@@ -99,7 +99,7 @@ std::vector<HarmonyControlGroup> ParseControlGroups(const nlohmann::json& array)
         }
         // A group with no (or no valid) commands is still kept - an empty
         // heading in the UI is harmless, and dropping it would silently
-        // hide a real group name the hub reported.
+        // hide a group name the hub reported.
         groups.push_back(std::move(group));
     }
     return groups;

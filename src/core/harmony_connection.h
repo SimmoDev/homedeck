@@ -112,8 +112,8 @@ struct HarmonyCurrentActivityChangedEvent {
 // events. Not in scope: sustained press-and-hold repeat while a command
 // button stays held (CLAUDE.md's "long-press actions where supported") -
 // SendDeviceCommand() sends one press+release pair per call, correct for
-// a simple tap but not a real hold gesture - tracked as a separate,
-// later follow-up.
+// a simple tap but not a hold gesture - tracked as a separate, later
+// follow-up.
 //
 // Current-activity freshness is best-effort, not push-driven: the hub's
 // WS protocol can send unsolicited notifications, but this class's

@@ -113,9 +113,9 @@ bool WaitFor(Predicate predicate, int max_attempts = 300) {
 constexpr char kHandshakeSuccessBody[] =
     R"({"id":1,"msg":"OK","data":{"activeRemoteId":17389408,"email":"someone@example.com"}})";
 
-// The device entry's controlGroup/function/action shape matches a real
-// config payload pulled from the reference hub during this feature's own
-// design pass (see ADR-0029's Consequences) - not a guessed shape.
+// The device entry's controlGroup/function/action shape matches a config
+// payload pulled from the reference hub during this feature's own design
+// pass (see ADR-0029's Consequences) - not a guessed shape.
 constexpr char kConfigSuccessBody[] =
     R"({"data":{)"
     R"("device":[{"id":"1","label":"TV","controlGroup":[)"
