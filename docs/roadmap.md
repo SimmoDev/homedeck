@@ -516,12 +516,21 @@ this until it's done — see
       sends press+release, holding sends one press then repeated holds
       then one release on lift, and a drag that starts on a command
       button sends nothing while still scrolling normally.
-- [ ] Status/events integrated with Core's event bus and notifications.
+- [x] Status/events integrated with Core's event bus and notifications.
       `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
       `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
-      already publish over the `EventBus` as part of the Hub connection/
-      Activities items above; publishing a `NotificationEvent` (e.g. on a
-      connection failure) is not done yet
+      already published over the `EventBus` as part of the Hub connection/
+      Activities items above; the missing piece was a `NotificationEvent`
+      on a connection failure, now `HarmonyNotificationBridge`
+      (`src/core/harmony_notification_bridge.h`/`.cpp`) - subscribes to
+      `HarmonyConnectionStateChangedEvent` directly (it already carries
+      the new state, so there's nothing to poll) and publishes once on
+      entering `kError`, latched the same way `LowBatteryMonitor`'s own
+      `NotificationEvent` is so a sustained outage's retry/backoff loop
+      doesn't spam one notification per attempt. `NotificationBanner`/
+      `NotificationWidget`/`NotificationSound` already subscribe
+      generically to `NotificationEvent`, so this one small bridge class
+      was the only piece needed.
 - [x] Web Management UI module configuration page for Harmony (hub
       address only — no credential exists in this protocol, see
       [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md)).
