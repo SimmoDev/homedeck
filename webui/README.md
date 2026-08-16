@@ -19,14 +19,19 @@ validation/error-mapping logic pulled out into
 component-testing stack (see `npm run test` below).
 Once authenticated, `App.svelte` composes three real screens:
 `src/lib/Settings.svelte` (device name, weather location search/save,
-backup download/restore), `src/lib/Ota.svelte` (current version, the
+Harmony hub configuration, backup download/restore - each its own
+self-contained sub-component: `DeviceNameSettings.svelte`,
+`WeatherSettings.svelte`, `HarmonySettings.svelte`,
+`BackupSettings.svelte`), `src/lib/Ota.svelte` (current version, the
 battery/power gate's status, upload progress, reboot), and
-`src/lib/Diagnostics.svelte` (reset reason, downloadable core dump,
-live battery/power state, and a level/component-filterable structured
-log view). See
-[docs/architecture/web-ui.md](../docs/architecture/web-ui.md) for the
-full scope, including what's still open (WebSockets for live updates,
-module configuration, Wi-Fi management).
+`src/lib/Diagnostics.svelte` (also a thin composer of three
+self-contained sub-components: `CrashDiagnostics.svelte` - reset reason,
+downloadable core dump, live battery/power state;
+`DiagnosticsLogs.svelte` - a level/component-filterable structured log
+view; `WifiReset.svelte` - the Wi-Fi credential reset diagnostic aid).
+See [docs/architecture/web-ui.md](../docs/architecture/web-ui.md) for
+the full scope, including what's still open (WebSockets for live
+updates, module configuration for a second module, Wi-Fi management).
 
 Build:
 
