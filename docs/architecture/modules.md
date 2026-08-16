@@ -72,7 +72,7 @@ the module boundary does for it.
 
 | Module | Milestone | Status |
 |---|---|---|
-| Harmony Hub | M3 | Complete — see [roadmap.md](../roadmap.md) |
+| Harmony Hub | M3 | M3 roadmap items complete — see [roadmap.md](../roadmap.md) |
 | Kodi | M4 | Not started |
 | Uptime Kuma | M5 | Not started |
 | Home Assistant | M6 | Not started |
