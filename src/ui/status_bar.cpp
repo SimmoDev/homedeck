@@ -79,23 +79,31 @@ void RefreshStatusLabel(lv_obj_t* label, BatteryReader& battery_reader, bool wif
 
 StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status)
     : battery_reader_(battery_reader), wifi_connected_(network_status.Snapshot().connected) {
-    lv_obj_t* bar = lv_obj_create(parent);
-    lv_obj_set_size(bar, LV_PCT(100), kHeight);
-    lv_obj_align(bar, LV_ALIGN_TOP_MID, 0, 0);
-    lv_obj_set_style_pad_all(bar, 0, 0);
-    lv_obj_set_style_radius(bar, 0, 0);
-    lv_obj_set_style_border_width(bar, 0, 0);
+    bar_ = lv_obj_create(parent);
+    lv_obj_set_size(bar_, LV_PCT(100), kHeight);
+    lv_obj_align(bar_, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_pad_all(bar_, 0, 0);
+    lv_obj_set_style_radius(bar_, 0, 0);
+    lv_obj_set_style_border_width(bar_, 0, 0);
     // Solid dark chrome, closer to how Android/iOS render a status bar,
     // rather than blending into the light default theme background.
-    lv_obj_set_style_bg_color(bar, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(bar_, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(bar_, LV_OPA_COVER, 0);
     // lv_obj_create() is scrollable by default (for arbitrary content
     // containers); a fixed-height status bar should never itself scroll -
     // leaving it enabled produces a visible scrollbar and drag-to-scroll
     // on what's meant to be static chrome.
-    lv_obj_clear_flag(bar, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(bar_, LV_OBJ_FLAG_SCROLLABLE);
+    // Without this, `bar_` is just a normal child of `parent` (each
+    // screen's own scrolling root_) - it scrolls out of view with the
+    // rest of the content on a screen tall enough to scroll, and drags
+    // down with root_'s own elastic overscroll bounce on any screen.
+    // FLOATING keeps it pinned at its aligned position regardless of
+    // root_'s scroll offset, the standard LVGL idiom for a fixed status
+    // bar over scrollable content.
+    lv_obj_add_flag(bar_, LV_OBJ_FLAG_FLOATING);
 
-    clock_label_ = lv_label_create(bar);
+    clock_label_ = lv_label_create(bar_);
     lv_obj_set_style_text_font(clock_label_, kBodyFont, 0);
     lv_obj_set_style_text_color(clock_label_, lv_color_white(), 0);
     lv_obj_align(clock_label_, LV_ALIGN_LEFT_MID, 12, 0);
@@ -116,7 +124,7 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     // RefreshStatusLabel changes battery_label_'s content, keeping a
     // consistent gap between them and the cluster's right edge pinned via
     // the same lv_obj_align() the rest of this bar already uses.
-    lv_obj_t* right_cluster = lv_obj_create(bar);
+    lv_obj_t* right_cluster = lv_obj_create(bar_);
     lv_obj_set_size(right_cluster, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_style_bg_opa(right_cluster, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(right_cluster, 0, 0);

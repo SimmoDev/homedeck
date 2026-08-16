@@ -65,6 +65,11 @@ WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_rea
     // rationale as NotificationBanner's own accent color; real severity
     // styling is M7 scope.
     lv_obj_set_style_text_color(error_label_, lv_palette_main(LV_PALETTE_RED), 0);
+
+    // status_bar_ is constructed before container above, so container's
+    // content would otherwise paint over it once scrolled - see
+    // StatusBar::Root()'s own comment.
+    lv_obj_move_foreground(status_bar_.Root());
 }
 
 WifiSetupScreen::~WifiSetupScreen() { lv_obj_del(root_); }

@@ -25,7 +25,16 @@ public:
 
     StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status);
 
+    // So a screen can raise the bar above content added after it (see
+    // FLOATING's own comment in the constructor - FLOATING only excludes
+    // it from scrolling, not from paint order, and status_bar_ is
+    // typically a member constructed before the rest of a screen's own
+    // content in its constructor body). Call once, after a screen's
+    // constructor has added everything else.
+    lv_obj_t* Root() const { return bar_; }
+
 private:
+    lv_obj_t* bar_;
     BatteryReader& battery_reader_;
     lv_obj_t* clock_label_;
     // Battery percentage and the Wi-Fi icon share this one label (rather
