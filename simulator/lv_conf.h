@@ -40,7 +40,15 @@
  * - LV_STDLIB_RTTHREAD:    RT-Thread implementation
  * - LV_STDLIB_CUSTOM:      Implement the functions externally
  */
-#define LV_USE_STDLIB_MALLOC    LV_STDLIB_BUILTIN
+// CLIB (plain malloc/free), not the built-in fixed-size pool - matches
+// firmware's own choice (firmware/sdkconfig.defaults' LV_USE_CLIB_MALLOC
+// comment has the full reasoning: AppCore builds every screen/widget up
+// front, so a fixed pool has to cover all of them at once and either
+// silently exhausts or, sized generously, competes with other consumers
+// of the same constrained memory). Keeping both targets on the same
+// backend avoids exactly that kind of works-on-one-target-not-the-other
+// divergence.
+#define LV_USE_STDLIB_MALLOC    LV_STDLIB_CLIB
 
 /** Possible values
  * - LV_STDLIB_BUILTIN:     LVGL's built in implementation
@@ -68,8 +76,16 @@
 #define LV_STDARG_INCLUDE       <stdarg.h>
 
 #if LV_USE_STDLIB_MALLOC == LV_STDLIB_BUILTIN
-    /** Size of memory available for `lv_malloc()` in bytes (>= 2kB) */
-    #define LV_MEM_SIZE (64 * 1024U)          /**< [bytes] */
+    /** Size of memory available for `lv_malloc()` in bytes (>= 2kB).
+     *  AppCore builds every screen/widget up front (see its own comment
+     *  on why), so this must cover all of them at once, not just
+     *  whichever one is currently visible. `LV_USE_ASSERT_MALLOC`'s
+     *  failure handler below is `while(1)` with `LV_USE_LOG` off by
+     *  default - exhaustion hangs the UI thread with no error output -
+     *  so this stays budgeted generously on desktop, where memory is
+     *  effectively free, rather than tuned tightly against current
+     *  usage. */
+    #define LV_MEM_SIZE (1024 * 1024U)          /**< [bytes] */
 
     /** Size of the memory expand for `lv_malloc()` in bytes */
     #define LV_MEM_POOL_EXPAND_SIZE 0
@@ -456,8 +472,11 @@
  * Logging
  *-----------*/
 
-/** Enable log module */
-#define LV_USE_LOG 0
+/** Enable log module - see LV_MEM_SIZE's own comment above for why this
+ *  stays on here even though it costs a small amount of desktop-only
+ *  binary size: WARN level surfaces LVGL-internal failures (out-of-
+ *  memory chief among them) that otherwise fail silently. */
+#define LV_USE_LOG 1
 #if LV_USE_LOG
     /** Set value to one of the following levels of logging detail:
      *  - LV_LOG_LEVEL_TRACE    Log detailed information.
@@ -470,7 +489,7 @@
 
     /** - 1: Print log with 'printf';
      *  - 0: User needs to register a callback with `lv_log_register_print_cb()`. */
-    #define LV_LOG_PRINTF 0
+    #define LV_LOG_PRINTF 1
 
     /** Set callback to print logs.
      *  E.g `my_print`. The prototype should be `void my_print(lv_log_level_t level, const char * buf)`.

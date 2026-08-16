@@ -214,3 +214,25 @@ CONFIG_LV_BUILD_EXAMPLES=n
 # server's smaller 6, see wifi_setup.cpp's kSetupHttpMaxOpenSockets) with
 # headroom left for mDNS/SNTP/the weather HTTP client's own sockets.
 CONFIG_LWIP_MAX_SOCKETS=20
+
+# AppCore builds every screen/widget up front (see its own comment on
+# why), so whatever backs LVGL's own object allocations has to cover
+# all of them at once, not just whichever screen is currently visible -
+# real, growing pressure as more screens land. LVGL's default backend
+# (LV_USE_BUILTIN_MALLOC) is a fixed-size static pool: left at its
+# default size it silently exhausts as more screens are added
+# (LV_USE_ASSERT_MALLOC's failure handler is `while(1)` with LV_USE_LOG
+# off by default, so exhaustion hangs the UI task with no error output),
+# and raising that size is its own problem - it's a static internal-RAM
+# allocation competing with everything else needing internal RAM,
+# confirmed via a real flash/boot cycle on the Tab5 where a 256kB pool
+# collided with bsp_display_start()'s own DMA-capable framebuffer
+# allocation and aborted before app_main ever ran. LV_USE_CLIB_MALLOC
+# routes LVGL's allocations through ESP-IDF's normal malloc instead,
+# which spans into the 31MB of otherwise-idle PSRAM automatically once
+# PSRAM is enabled (CONFIG_SPIRAM above) - no fixed ceiling, and no more
+# internal-RAM contention with the display driver. PSRAM access is
+# higher-latency than internal SRAM, but this is UI object bookkeeping
+# (buttons, labels, styles), not the framebuffer or anything
+# per-frame-critical.
+CONFIG_LV_USE_CLIB_MALLOC=y
