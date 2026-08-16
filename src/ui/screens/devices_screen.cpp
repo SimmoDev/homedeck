@@ -136,8 +136,25 @@ void DevicesScreen::ShowDeviceDetail(const std::string& device_id) {
         lv_label_set_text(heading, group.name.c_str());
         lv_obj_set_style_text_color(heading, lv_palette_main(LV_PALETTE_GREY), 0);
 
+        // A row-wrap grid, not commands_container_'s own single column -
+        // command labels are short and predictable (unlike device/activity
+        // labels), so one per row wastes width and, on a device with many
+        // commands, turns into a long scroll for no reason. 3 per row is a
+        // plain fixed rule (not tailored per group/control type - see
+        // roadmap.md's own reasoning for avoiding that), and still leaves
+        // each button comfortably large - the same "large, easy to press"
+        // requirement CreateRemoteButton's default shape exists for.
+        lv_obj_t* group_grid = lv_obj_create(commands_container_);
+        lv_obj_remove_style_all(group_grid);
+        lv_obj_set_size(group_grid, LV_PCT(100), LV_SIZE_CONTENT);
+        lv_obj_set_flex_flow(group_grid, LV_FLEX_FLOW_ROW_WRAP);
+        lv_obj_set_style_pad_row(group_grid, 12, 0);
+        lv_obj_set_style_pad_column(group_grid, 12, 0);
+
         for (const HarmonyCommand& command : group.commands) {
-            lv_obj_t* button = CreateRemoteButton(commands_container_, command.label);
+            // 31%, not a third - room for the two 12px column gaps above
+            // between three buttons on the same row without overflowing.
+            lv_obj_t* button = CreateRemoteButton(group_grid, command.label, LV_PCT(31));
             lv_obj_add_event_cb(button, OnCommandButtonClicked, LV_EVENT_CLICKED, this);
             command_button_actions_[button] = command.action;
         }
