@@ -469,19 +469,24 @@ this until it's done — see
       every action/remote button.
 - [ ] Remote control (navigation, volume, channel, numeric keypad,
       transport controls, long-press actions where supported). Sending
-      any command works today via `SendDeviceCommand()`/`DevicesScreen`
-      above, but every command currently renders as an identical
-      full-width button in one scrolling column regardless of type - not
-      the differentiated interaction shapes this item's own listed
-      controls (and a physical remote) imply: a numeric keypad reads as a
-      compact grid, navigation as a D-pad cross, volume as a paired
-      +/- control, not same-sized rows in a list.
-      `HarmonyControlGroup::name` (`NumericBasic`, `Navigation`, etc.,
-      see Devices above) already carries the grouping a smarter renderer
-      could key off, without needing new hub data. Long-press actions -
-      sustained repeat while a command button stays held, not just the
-      immediate press+release pair `SendDeviceCommand()` sends today - is
-      also this item's own scope, not built.
+      any command works via `SendDeviceCommand()`/`DevicesScreen` above.
+      Each control group's commands now render in a 3-per-row wrapping
+      grid (`DevicesScreen::ShowDeviceDetail()`) instead of one full-width
+      button per row - a plain fixed rule applied uniformly to every
+      group, a deliberate choice over a bespoke shape per control type
+      (D-pad cross, paired volume +/-, etc.): simpler, and avoids keying
+      off `HarmonyControlGroup::name` strings a different hub vendor
+      might not share. `CreateRemoteButton()` (`src/ui/remote_button.h`/
+      `.cpp`) gained an optional `width` (existing callers unaffected,
+      still default full-width) and now explicitly wraps its label
+      instead of relying on the button to clip it - without a width
+      constraint on the label itself, `LV_LABEL_LONG_WRAP` (the default
+      long mode already) had nothing to wrap against, so a label wider
+      than the 31%-wide grid buttons clipped at the button's edge rather
+      than wrapping to a second line. Long-press actions - sustained
+      repeat while a command button stays held, not just the immediate
+      press+release pair `SendDeviceCommand()` sends today - remains this
+      item's own open scope.
 - [ ] Status/events integrated with Core's event bus and notifications.
       `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
       `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
