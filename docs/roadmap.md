@@ -418,10 +418,59 @@ this until it's done — see
       highlighted correctly, and a Touch UI tap switches the hub's own
       running activity, not just local state - the dashboard/Activities
       screen both update once it does.
-- [ ] Devices (enumerate, capabilities, commands, inputs, power state where
-      available)
-- [ ] Remote control (navigation, volume, channel, numeric keypad, transport
-      controls, long-press actions where supported)
+- [x] Devices (enumerate, capabilities, commands, inputs, power state where
+      available) and Remote control (navigation, volume, channel, numeric
+      keypad, transport controls, long-press actions where supported).
+      Combined into one pass: a live probe against the reference hub found
+      a device's capabilities and its remote-control commands are the same
+      data (`controlGroup: [{name, function: [{name, label, action}]}]`,
+      `action` a ready-to-send command string the hub hands back verbatim)
+      — "Devices" as a read-only capability browser and "Remote control"
+      as a separate later pass would have meant shipping un-tappable
+      buttons first, then coming back to wire them up. "Inputs" are just
+      more commands in a `Miscellaneous` group, not a separate structure.
+      "Power state" (`Capabilities`/`powerFeatures`) comes back empty on
+      every device on the reference hub — IR is one-way, nothing to poll
+      — so it isn't built; a gap if a future hub reports it, not an
+      oversight. `HarmonyConnection` gained `HarmonyDevice::control_groups`
+      and `SendDeviceCommand()` (`src/core/harmony_connection.h`/`.cpp`),
+      generalizing the single pending-activity slot into a
+      `PendingCommand` queue so activity-start and device-command sends
+      share one UI-thread-safe path to the connection loop's own thread.
+      A command send is a `holdAction` press message immediately followed
+      by a release — true press-and-hold repeat while held is separate
+      interaction work, not built here. `DevicesScreen`
+      (`src/ui/screens/devices_screen.h`/`.cpp`) is one screen with two
+      internal view states (list, then a device's commands grouped the
+      way the hub groups them) rather than a second `Navigation` route —
+      this project's `Navigation` has no back-stack (see the M7 Gesture
+      navigation item below). Reached from a "Devices" button on
+      `ActivitiesScreen`. Shares `CreateRemoteButton()`
+      (`src/ui/remote_button.h`/`.cpp`) with `ActivitiesScreen` for
+      consistent large touch targets. Verified against the reference
+      hub's 8-device list, including a device with enough commands to
+      need on-screen scrolling — building that many buttons at once
+      exposed LVGL's default allocator silently exhausting its
+      fixed-size pool (`LV_USE_ASSERT_MALLOC`'s failure handler is
+      `while(1)`, and `LV_USE_LOG` defaults off, so the UI thread hung
+      with no error output); fixed by switching both targets to
+      `LV_USE_CLIB_MALLOC` (`simulator/lv_conf.h`,
+      `firmware/sdkconfig.defaults`), which routes LVGL's own
+      allocations through the platform's normal heap instead of a
+      separate reserved block, removing the fixed ceiling. The simulator
+      also now runs LVGL's own warning/error log by default so a future
+      allocation failure surfaces instead of hanging silently again.
+      The same on-device pass found `StatusBar`/`CreateHomeAffordance`
+      scrolling away and dragging with overscroll on a tall screen (both
+      were plain children of each screen's scrolling root, not excluded
+      from it), and scrolled content painting over the status bar even
+      after that fix (paint order follows child-insertion order
+      independently of scroll behavior, and the bar is typically
+      constructed before a screen's own content) - fixed with
+      `LV_OBJ_FLAG_FLOATING` plus every screen raising the bar/home
+      button to the front once its own content exists. The home button
+      also got a distinct grey, since it was otherwise the same blue as
+      every action/remote button.
 - [ ] Status/events integrated with Core's event bus and notifications.
       `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
       `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
