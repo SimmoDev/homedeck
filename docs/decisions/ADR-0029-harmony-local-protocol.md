@@ -77,6 +77,11 @@ its own manual URL entry.
 - [networking.md](../architecture/networking.md#lan-discovery)'s "Harmony
   Hub discovery uses a proprietary UDP broadcast protocol" line is
   corrected - no discovery protocol is used at all.
+- [ADR-0006](ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape)'s
+  LAN discovery decision carries the same now-wrong characterization -
+  corrected there with a reciprocal pointer; the decision itself (a thin
+  mDNS wrapper only) stands unchanged, since Harmony was never going to
+  use that wrapper either way.
 - New platform capability:
   `WebSocketClient` (`src/platform/websocket_client.h`), backed by
   libcurl's WS API on the simulator and `espressif/esp_websocket_client`

@@ -4,7 +4,14 @@
 
 Accepted — the Initial Wi-Fi provisioning flow decision's *mechanism* is
 superseded by [ADR-0026](ADR-0026-wifi-provisioning-mechanism.md); its
-SoftAP + captive-portal *architecture* stands.
+SoftAP + captive-portal *architecture* stands. The LAN discovery service
+shape decision's characterization of Harmony Hub discovery below ("a
+proprietary UDP broadcast protocol") is superseded by
+[ADR-0029](ADR-0029-harmony-local-protocol.md), which found no discovery
+protocol at all for the reference hub's current-generation firmware; the
+decision itself (a thin mDNS wrapper only, not a universal abstraction)
+stands unchanged - Harmony was never going to use that wrapper either
+way.
 
 ## Context
 
