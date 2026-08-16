@@ -227,14 +227,18 @@ private:
     // from the connected loop's own thread only. One
     // FetchCurrentActivity() follow-up at the end if any drained entry
     // was a startactivity, not one per entry - a burst of queued
-    // commands only needs one refresh.
-    void SendPendingCommands();
+    // commands only needs one refresh. Returns false if any send failed
+    // (a dropped connection mid-batch) - the caller treats that the same
+    // as a failed liveness probe rather than silently discarding it,
+    // since a silent send failure would otherwise strand a queued command
+    // with no feedback and no retry until the next liveness_interval_.
+    bool SendPendingCommands();
     // Enqueues a device command with the given status - the shared body
     // of PressDeviceCommand()/HoldDeviceCommand()/ReleaseDeviceCommand(),
     // which differ only in which status they pass.
     void EnqueueDeviceCommand(const std::string& action, const std::string& status);
-    // One holdAction message.
-    void SendHoldAction(const std::string& action, const std::string& status);
+    // One holdAction message. Returns SendText()'s own result.
+    bool SendHoldAction(const std::string& action, const std::string& status);
     void SetState(HarmonyConnectionState state);
     // watch_commands: only the connected loop's own wait should notice a
     // pending command (ws_client_ only exists then); the unconfigured/

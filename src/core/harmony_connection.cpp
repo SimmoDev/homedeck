@@ -240,7 +240,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
             if (reason == WakeReason::kStopRequested) break;
             if (reason == WakeReason::kTriggered) break;  // re-check the configured address
             if (reason == WakeReason::kCommandPending) {
-                SendPendingCommands();
+                if (!SendPendingCommands()) break;  // connection dropped mid-send
                 continue;  // stay connected - a command isn't a reconnect request
             }
             if (!FetchCurrentActivity()) break;  // connection silently dropped
@@ -383,17 +383,18 @@ bool HarmonyConnection::FetchCurrentActivity() {
     return true;
 }
 
-void HarmonyConnection::SendPendingCommands() {
+bool HarmonyConnection::SendPendingCommands() {
     std::deque<PendingCommand> commands;
     {
         std::lock_guard<std::mutex> lock(wake_mutex_);
         commands.swap(pending_commands_);
     }
     if (!ws_client_) {
-        return;  // shouldn't happen - only called from the connected inner loop - but defensive regardless
+        return false;  // shouldn't happen - only called from the connected inner loop - but defensive regardless
     }
 
     bool started_activity = false;
+    bool all_sent = true;
     for (const PendingCommand& command : commands) {
         if (command.activity_id) {
             nlohmann::json request = {
@@ -408,10 +409,10 @@ void HarmonyConnection::SendPendingCommands() {
                     {"args", {{"rule", "start"}}},
                     {"activityId", *command.activity_id}}}}},
             };
-            ws_client_->SendText(request.dump());
+            all_sent = ws_client_->SendText(request.dump()) && all_sent;
             started_activity = true;
         } else if (command.device_command) {
-            SendHoldAction(command.device_command->action, command.device_command->status);
+            all_sent = SendHoldAction(command.device_command->action, command.device_command->status) && all_sent;
         }
     }
 
@@ -422,9 +423,10 @@ void HarmonyConnection::SendPendingCommands() {
         // class's own header comment on the freshness trade-off.
         FetchCurrentActivity();
     }
+    return all_sent;
 }
 
-void HarmonyConnection::SendHoldAction(const std::string& action, const std::string& status) {
+bool HarmonyConnection::SendHoldAction(const std::string& action, const std::string& status) {
     nlohmann::json request = {
         {"hubId", hub_id_},
         {"timeout", 30},
@@ -433,7 +435,7 @@ void HarmonyConnection::SendHoldAction(const std::string& action, const std::str
           {"id", "0"},
           {"params", {{"status", status}, {"timestamp", "0"}, {"verb", "render"}, {"action", action}}}}},
     };
-    ws_client_->SendText(request.dump());
+    return ws_client_->SendText(request.dump());
 }
 
 }  // namespace homedeck

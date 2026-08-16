@@ -617,3 +617,45 @@ TEST_F(HarmonyConnectionTest, PressThenReleaseSendsExactlyThoseTwoMessagesInOrde
 
     connection.Stop();
 }
+
+// A command send failing (e.g. the connection dropped between the last
+// liveness probe and this send) must not be silently swallowed - the
+// connection loop should notice and re-enter its retry cycle rather than
+// staying kConnected while commands quietly go nowhere.
+TEST_F(HarmonyConnectionTest, FailedCommandSendDropsTheConnectionAndReconnects) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kConnected);
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->send_should_succeed = false;
+    }
+    connection.PressDeviceCommand(R"({"command":"VolumeUp","type":"IRCommand","deviceId":"1"})");
+
+    // The failed send drops the connection; the reconnect attempt's own
+    // config-fetch send fails too (send_should_succeed is still false),
+    // so the loop lands in kError rather than silently staying
+    // kConnected.
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+
+    connection.Stop();
+}
