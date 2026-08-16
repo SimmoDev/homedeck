@@ -10,9 +10,11 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -30,9 +32,34 @@ enum class HarmonyConnectionState {
     kError,  // most recent attempt failed; a retry is scheduled
 };
 
+// One entry from a device's controlGroup[].function[] - a single sendable
+// IR command. `action` is the hub's own ready-to-send JSON string (e.g.
+// `{"command":"VolumeUp","type":"IRCommand","deviceId":"74494839"}`),
+// passed through unchanged rather than reconstructed - see
+// SendDeviceCommand()'s own comment.
+struct HarmonyCommand {
+    std::string name;
+    std::string label;
+    std::string action;
+};
+
+// One controlGroup - a named cluster of related commands (e.g. "Volume",
+// "NavigationBasic") the hub itself groups commands into. Devices/Remote
+// control (docs/roadmap.md's M3 section, ADR-0029's Consequences) render
+// these groups directly rather than inventing a different grouping -
+// "inputs" has no separate structure (it's just commands in a
+// "Miscellaneous" group), and a device's own `Capabilities`/
+// `powerFeatures` fields aren't rendered at all (empty on every device
+// this project has seen - IR is one-way, nothing to poll).
+struct HarmonyControlGroup {
+    std::string name;
+    std::vector<HarmonyCommand> commands;
+};
+
 struct HarmonyDevice {
     std::string id;
     std::string label;
+    std::vector<HarmonyControlGroup> control_groups;
 };
 
 struct HarmonyActivity {
@@ -80,10 +107,13 @@ struct HarmonyCurrentActivityChangedEvent {
 // mutex-guarded Snapshot(), no LVGL dependency, fully host-testable.
 //
 // Scope: connect to a manually-configured hub address, fetch its device/
-// activity list and current activity, start an activity, and publish
-// connection-state/config/current-activity events. Sending IR commands
-// (Devices/Remote control) is a separate, later M3 roadmap item - this
-// class does not do that yet.
+// activity list and current activity, start an activity, send a device's
+// own IR commands, and publish connection-state/config/current-activity
+// events. Not in scope: sustained press-and-hold repeat while a command
+// button stays held (CLAUDE.md's "long-press actions where supported") -
+// SendDeviceCommand() sends one press+release pair per call, correct for
+// a simple tap but not a real hold gesture - tracked as a separate,
+// later follow-up.
 //
 // Current-activity freshness is best-effort, not push-driven: the hub's
 // WS protocol can send unsolicited notifications, but this class's
@@ -134,7 +164,27 @@ public:
     // connection exists to send it over.
     void StartActivity(const std::string& activity_id);
 
+    // Sends one IR command - `action` is a device's own HarmonyCommand::action
+    // string, passed through as-is (see that struct's own comment). Same
+    // any-thread-safe shape as StartActivity() - sends a press then a
+    // release message back to back (see this class's own header comment
+    // on why a release always follows, and on why sustained hold-repeat
+    // isn't built here).
+    void SendDeviceCommand(const std::string& action);
+
 private:
+    // One queued, not-yet-sent command - raw intent only (an activity id
+    // or a device action string), not a pre-built JSON payload. Building
+    // the actual payload needs hub_id_, which - like ws_client_ - only
+    // the connection loop's own thread may touch (see SendPendingCommands());
+    // StartActivity()/SendDeviceCommand() are called from other threads
+    // (e.g. the UI thread), so they can't safely read hub_id_ themselves
+    // to pre-build it. Exactly one field is set per entry.
+    struct PendingCommand {
+        std::optional<std::string> activity_id;    // startactivity
+        std::optional<std::string> device_action;  // holdAction (press then release)
+    };
+
     enum class WakeReason { kTimeout, kTriggered, kCommandPending, kStopRequested };
 
     void ConnectionLoop(std::stop_token stop);
@@ -155,15 +205,25 @@ private:
     // clean close from a timeout, and why this probe-based approach
     // works around that rather than needing it to.
     bool FetchCurrentActivity();
-    // Reads and clears any activity StartActivity() queued, sending it
-    // over ws_client_ - called from the connected loop's own thread only.
-    void SendPendingActivityCommand();
+    // Drains every PendingCommand StartActivity()/SendDeviceCommand()
+    // queued, building and sending each one's actual payload here (not
+    // in StartActivity()/SendDeviceCommand() themselves - see
+    // PendingCommand's own comment on why) - called from the connected
+    // loop's own thread only. One FetchCurrentActivity() follow-up at
+    // the end if any drained entry was a startactivity, not one per
+    // entry - a burst of queued commands only needs one refresh.
+    void SendPendingCommands();
+    // One holdAction message - status is "press" or "release".
+    // SendPendingCommands() sends both for a single SendDeviceCommand()
+    // call (see this class's own header comment on why a release always
+    // follows).
+    void SendHoldAction(const std::string& action, const std::string& status);
     void SetState(HarmonyConnectionState state);
     // watch_commands: only the connected loop's own wait should notice a
-    // pending StartActivity() request (ws_client_ only exists then); the
-    // unconfigured/error-backoff waits leave it queued rather than
-    // waking early on it, since waking with nothing to send over would
-    // otherwise busy-loop (the flag stays set until actually consumed).
+    // pending command (ws_client_ only exists then); the unconfigured/
+    // error-backoff waits leave it queued rather than waking early on
+    // it, since waking with nothing to send over would otherwise
+    // busy-loop (entries stay queued until actually consumed).
     WakeReason Sleep(std::chrono::milliseconds delay, std::stop_token stop, bool watch_commands);
 
     HttpClient& http_client_;
@@ -186,12 +246,12 @@ private:
     std::mutex wake_mutex_;
     std::condition_variable wake_cv_;
     bool wake_requested_ = false;
-    // Guarded by wake_mutex_ too, not a separate mutex - StartActivity()
-    // and TriggerReconnect() both just need to wake the same connection-
-    // loop thread, so one wake channel is enough (see Sleep()'s
-    // watch_commands parameter for how the loop tells the two apart).
-    bool command_pending_ = false;
-    std::string pending_activity_id_;
+    // Guarded by wake_mutex_ too, not a separate mutex - StartActivity()/
+    // SendDeviceCommand() and TriggerReconnect() both just need to wake
+    // the same connection-loop thread, so one wake channel is enough
+    // (see Sleep()'s watch_commands parameter for how the loop tells
+    // them apart).
+    std::deque<PendingCommand> pending_commands_;
 
     // Constructed by Start(), destroyed (stopped and joined) by Stop() -
     // see Module's own comment on why this class's Start()/Stop() control

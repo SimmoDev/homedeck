@@ -42,13 +42,12 @@ std::string NumberOrStringToString(const nlohmann::json& value) {
     return "";
 }
 
-// data.device[]/data.activity[] entries are expected to carry "id"/
-// "label" fields per the community-documented config schema (aioharmony,
-// the Home Assistant pyharmony websockets branch) - not yet confirmed
-// against the reference hub's actual config payload the way the
-// handshake step above was (see ADR-0029's Consequences). Entries
-// missing either field are skipped rather than surfaced with a blank
-// label.
+// data.activity[] entries carry "id"/"label" fields - confirmed against
+// the reference hub's actual config payload (see ADR-0029's
+// Consequences). Entries missing either field are skipped rather than
+// surfaced with a blank label. Devices need more than this (see
+// ParseDevices() below), so this stays activity-only despite the name
+// it had when both shared it.
 template <typename Entry>
 std::vector<Entry> ParseIdLabelArray(const nlohmann::json& array) {
     std::vector<Entry> result;
@@ -61,6 +60,66 @@ std::vector<Entry> ParseIdLabelArray(const nlohmann::json& array) {
         result.push_back(Entry{NumberOrStringToString(*id_it), label_it->get<std::string>()});
     }
     return result;
+}
+
+// data.device[].controlGroup[].function[] entries carry "name"/"label"/
+// "action" - confirmed against the reference hub's actual config payload
+// (see ADR-0029's Consequences). `action` is already a ready-to-send
+// JSON string (e.g. `{"command":"VolumeUp","type":"IRCommand","deviceId":"..."}`)
+// - passed through as-is, not reconstructed from `name`/deviceId, since
+// the hub's own copy is authoritative and this project has no reason to
+// assume it could rebuild an equivalent string correctly for every
+// command type.
+std::vector<HarmonyControlGroup> ParseControlGroups(const nlohmann::json& array) {
+    std::vector<HarmonyControlGroup> groups;
+    if (!array.is_array()) return groups;
+    for (const auto& group_item : array) {
+        if (!group_item.is_object()) continue;
+        auto name_it = group_item.find("name");
+        if (name_it == group_item.end() || !name_it->is_string()) continue;
+
+        HarmonyControlGroup group;
+        group.name = name_it->get<std::string>();
+
+        auto function_it = group_item.find("function");
+        if (function_it != group_item.end() && function_it->is_array()) {
+            for (const auto& function_item : *function_it) {
+                if (!function_item.is_object()) continue;
+                auto fn_name_it = function_item.find("name");
+                auto fn_label_it = function_item.find("label");
+                auto fn_action_it = function_item.find("action");
+                if (fn_name_it == function_item.end() || !fn_name_it->is_string() ||
+                    fn_label_it == function_item.end() || !fn_label_it->is_string() ||
+                    fn_action_it == function_item.end() || !fn_action_it->is_string()) {
+                    continue;
+                }
+                group.commands.push_back(HarmonyCommand{fn_name_it->get<std::string>(), fn_label_it->get<std::string>(),
+                                                          fn_action_it->get<std::string>()});
+            }
+        }
+        // A group with no (or no valid) commands is still kept - an empty
+        // heading in the UI is harmless, and dropping it would silently
+        // hide a real group name the hub reported.
+        groups.push_back(std::move(group));
+    }
+    return groups;
+}
+
+std::vector<HarmonyDevice> ParseDevices(const nlohmann::json& array) {
+    std::vector<HarmonyDevice> devices;
+    if (!array.is_array()) return devices;
+    for (const auto& item : array) {
+        if (!item.is_object()) continue;
+        auto id_it = item.find("id");
+        auto label_it = item.find("label");
+        if (id_it == item.end() || label_it == item.end() || !label_it->is_string()) continue;
+        HarmonyDevice device;
+        device.id = NumberOrStringToString(*id_it);
+        device.label = label_it->get<std::string>();
+        device.control_groups = ParseControlGroups(item.value("controlGroup", nlohmann::json::array()));
+        devices.push_back(std::move(device));
+    }
+    return devices;
 }
 
 }  // namespace
@@ -101,8 +160,15 @@ void HarmonyConnection::TriggerReconnect() {
 void HarmonyConnection::StartActivity(const std::string& activity_id) {
     {
         std::lock_guard<std::mutex> lock(wake_mutex_);
-        pending_activity_id_ = activity_id;
-        command_pending_ = true;
+        pending_commands_.push_back(PendingCommand{activity_id, std::nullopt});
+    }
+    wake_cv_.notify_one();
+}
+
+void HarmonyConnection::SendDeviceCommand(const std::string& action) {
+    {
+        std::lock_guard<std::mutex> lock(wake_mutex_);
+        pending_commands_.push_back(PendingCommand{std::nullopt, action});
     }
     wake_cv_.notify_one();
 }
@@ -111,7 +177,7 @@ HarmonyConnection::WakeReason HarmonyConnection::Sleep(std::chrono::milliseconds
                                                         bool watch_commands) {
     std::unique_lock<std::mutex> lock(wake_mutex_);
     wake_cv_.wait_for(lock, delay, [this, &stop, watch_commands] {
-        return wake_requested_ || (watch_commands && command_pending_) || stop.stop_requested();
+        return wake_requested_ || (watch_commands && !pending_commands_.empty()) || stop.stop_requested();
     });
     if (stop.stop_requested()) {
         return WakeReason::kStopRequested;
@@ -120,7 +186,7 @@ HarmonyConnection::WakeReason HarmonyConnection::Sleep(std::chrono::milliseconds
         wake_requested_ = false;
         return WakeReason::kTriggered;
     }
-    if (watch_commands && command_pending_) {
+    if (watch_commands && !pending_commands_.empty()) {
         return WakeReason::kCommandPending;
     }
     return WakeReason::kTimeout;
@@ -168,7 +234,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
             if (reason == WakeReason::kStopRequested) break;
             if (reason == WakeReason::kTriggered) break;  // re-check the configured address
             if (reason == WakeReason::kCommandPending) {
-                SendPendingActivityCommand();
+                SendPendingCommands();
                 continue;  // stay connected - a command isn't a reconnect request
             }
             if (!FetchCurrentActivity()) break;  // connection silently dropped
@@ -244,7 +310,7 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host) {
         return false;
     }
 
-    std::vector<HarmonyDevice> devices = ParseIdLabelArray<HarmonyDevice>(config_data_it->value("device", nlohmann::json::array()));
+    std::vector<HarmonyDevice> devices = ParseDevices(config_data_it->value("device", nlohmann::json::array()));
     std::vector<HarmonyActivity> activities =
         ParseIdLabelArray<HarmonyActivity>(config_data_it->value("activity", nlohmann::json::array()));
 
@@ -311,36 +377,58 @@ bool HarmonyConnection::FetchCurrentActivity() {
     return true;
 }
 
-void HarmonyConnection::SendPendingActivityCommand() {
-    std::string activity_id;
+void HarmonyConnection::SendPendingCommands() {
+    std::deque<PendingCommand> commands;
     {
         std::lock_guard<std::mutex> lock(wake_mutex_);
-        if (!command_pending_) {
-            return;
-        }
-        activity_id = pending_activity_id_;
-        command_pending_ = false;
-        pending_activity_id_.clear();
+        commands.swap(pending_commands_);
     }
     if (!ws_client_) {
         return;  // shouldn't happen - only called from the connected inner loop - but defensive regardless
     }
 
+    bool started_activity = false;
+    for (const PendingCommand& command : commands) {
+        if (command.activity_id) {
+            nlohmann::json request = {
+                {"hubId", hub_id_},
+                {"timeout", 30},
+                {"hbus",
+                 {{"cmd", "vnd.logitech.harmony/vnd.logitech.harmony.engine?startactivity"},
+                  {"id", "0"},
+                  {"params",
+                   {{"async", "true"},
+                    {"timestamp", 0},
+                    {"args", {{"rule", "start"}}},
+                    {"activityId", *command.activity_id}}}}},
+            };
+            ws_client_->SendText(request.dump());
+            started_activity = true;
+        } else if (command.device_action) {
+            SendHoldAction(*command.device_action, "press");
+            SendHoldAction(*command.device_action, "release");
+        }
+    }
+
+    if (started_activity) {
+        // Best-effort immediate refresh - the hub's own activity switch is
+        // itself asynchronous, so this may still read the old value; the
+        // next liveness-probe cycle catches up regardless - see this
+        // class's own header comment on the freshness trade-off.
+        FetchCurrentActivity();
+    }
+}
+
+void HarmonyConnection::SendHoldAction(const std::string& action, const std::string& status) {
     nlohmann::json request = {
         {"hubId", hub_id_},
         {"timeout", 30},
         {"hbus",
-         {{"cmd", "vnd.logitech.harmony/vnd.logitech.harmony.engine?startactivity"},
+         {{"cmd", "vnd.logitech.harmony/vnd.logitech.harmony.engine?holdAction"},
           {"id", "0"},
-          {"params",
-           {{"async", "true"}, {"timestamp", 0}, {"args", {{"rule", "start"}}}, {"activityId", activity_id}}}}},
+          {"params", {{"status", status}, {"timestamp", "0"}, {"verb", "render"}, {"action", action}}}}},
     };
     ws_client_->SendText(request.dump());
-    // Best-effort immediate refresh - the hub's own activity switch is
-    // itself asynchronous, so this may still read the old value; the
-    // next liveness-probe cycle catches up regardless - see this class's
-    // own header comment on the freshness trade-off.
-    FetchCurrentActivity();
 }
 
 }  // namespace homedeck

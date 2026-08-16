@@ -113,8 +113,20 @@ bool WaitFor(Predicate predicate, int max_attempts = 300) {
 constexpr char kHandshakeSuccessBody[] =
     R"({"id":1,"msg":"OK","data":{"activeRemoteId":17389408,"email":"someone@example.com"}})";
 
+// The device entry's controlGroup/function/action shape matches a real
+// config payload pulled from the reference hub during this feature's own
+// design pass (see ADR-0029's Consequences) - not a guessed shape.
 constexpr char kConfigSuccessBody[] =
-    R"({"data":{"device":[{"id":"1","label":"TV"}],"activity":[{"id":"-1","label":"Off"},{"id":"123","label":"Watch TV"}]}})";
+    R"({"data":{)"
+    R"("device":[{"id":"1","label":"TV","controlGroup":[)"
+    R"({"name":"Power","function":[{"name":"PowerToggle","label":"Power Toggle","action":"{\"command\":\"PowerToggle\",\"type\":\"IRCommand\",\"deviceId\":\"1\"}"}]},)"
+    R"({"name":"Volume","function":[)"
+    R"({"name":"VolumeUp","label":"VolumeUp","action":"{\"command\":\"VolumeUp\",\"type\":\"IRCommand\",\"deviceId\":\"1\"}"},)"
+    R"({"name":"VolumeDown","label":"VolumeDown","action":"{\"command\":\"VolumeDown\",\"type\":\"IRCommand\",\"deviceId\":\"1\"}"})"
+    R"(]})"
+    R"(]}],)"
+    R"("activity":[{"id":"-1","label":"Off"},{"id":"123","label":"Watch TV"}])"
+    R"(}})";
 
 std::string CurrentActivityResponseBody(const std::string& activity_id) {
     return R"({"data":{"result":")" + activity_id + R"("}})";
@@ -204,6 +216,17 @@ TEST_F(HarmonyConnectionTest, ConfiguredHandshakeAndConfigFetchSucceedPublishesC
     ASSERT_EQ(snapshot.devices.size(), 1u);
     EXPECT_EQ(snapshot.devices[0].id, "1");
     EXPECT_EQ(snapshot.devices[0].label, "TV");
+    ASSERT_EQ(snapshot.devices[0].control_groups.size(), 2u);
+    EXPECT_EQ(snapshot.devices[0].control_groups[0].name, "Power");
+    ASSERT_EQ(snapshot.devices[0].control_groups[0].commands.size(), 1u);
+    EXPECT_EQ(snapshot.devices[0].control_groups[0].commands[0].name, "PowerToggle");
+    EXPECT_EQ(snapshot.devices[0].control_groups[0].commands[0].label, "Power Toggle");
+    EXPECT_EQ(snapshot.devices[0].control_groups[0].commands[0].action,
+              R"({"command":"PowerToggle","type":"IRCommand","deviceId":"1"})");
+    EXPECT_EQ(snapshot.devices[0].control_groups[1].name, "Volume");
+    ASSERT_EQ(snapshot.devices[0].control_groups[1].commands.size(), 2u);
+    EXPECT_EQ(snapshot.devices[0].control_groups[1].commands[0].name, "VolumeUp");
+    EXPECT_EQ(snapshot.devices[0].control_groups[1].commands[1].name, "VolumeDown");
     ASSERT_EQ(snapshot.activities.size(), 2u);
     EXPECT_EQ(snapshot.activities[1].id, "123");
     EXPECT_EQ(snapshot.activities[1].label, "Watch TV");
@@ -396,6 +419,70 @@ TEST_F(HarmonyConnectionTest, PeriodicLivenessProbePicksUpAHubSideActivityChange
     PushResponse(script, CurrentActivityResponseBody("123"));
 
     ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "123"; }));
+
+    connection.Stop();
+}
+
+TEST_F(HarmonyConnectionTest, SendDeviceCommandSendsAPressThenAReleaseWithTheGivenAction) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    const std::string action = R"({"command":"VolumeUp","type":"IRCommand","deviceId":"1"})";
+    size_t sent_before;
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        sent_before = script->sent_texts.size();
+    }
+    connection.SendDeviceCommand(action);
+
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->sent_texts.size() >= sent_before + 2;
+    }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        const std::string& press = script->sent_texts[sent_before];
+        const std::string& release = script->sent_texts[sent_before + 1];
+        EXPECT_NE(press.find("holdAction"), std::string::npos);
+        EXPECT_NE(press.find(R"("status":"press")"), std::string::npos);
+        EXPECT_NE(release.find(R"("status":"release")"), std::string::npos);
+        // action is embedded as a JSON string value, so its own quotes
+        // come back escaped (\") in the serialized payload.
+        EXPECT_NE(press.find(R"(\"command\":\"VolumeUp\")"), std::string::npos);
+        EXPECT_NE(release.find(R"(\"command\":\"VolumeUp\")"), std::string::npos);
+    }
+
+    // A device command must never trigger the startactivity-only
+    // current-activity refresh - no extra WS round trip (a third sent
+    // message) beyond the two holdAction messages themselves. A brief
+    // settle wait first: if the extra fetch were incorrectly sent, it
+    // would show up almost immediately, not eventually - unlike the
+    // WaitFor() above, this is deliberately checking that something
+    // *doesn't* happen.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->sent_texts.size(), sent_before + 2);
+    }
 
     connection.Stop();
 }
