@@ -1,6 +1,7 @@
 #include "ui/screens/activities_screen.h"
 
 #include "ui/home_affordance.h"
+#include "ui/remote_button.h"
 #include "ui/theme.h"
 
 namespace homedeck {
@@ -20,6 +21,7 @@ constexpr lv_palette_t kCurrentActivityPalette = LV_PALETTE_GREEN;
 ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                                     HarmonyConnection& harmony_connection, Navigation& navigation)
     : harmony_connection_(harmony_connection),
+      navigation_(navigation),
       root_(lv_obj_create(nullptr)),
       status_bar_(root_, event_bus, battery_reader, network_status) {
     lv_obj_set_style_text_font(root_, kBodyFont, 0);
@@ -57,7 +59,24 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     // still works.
     lv_obj_set_style_pad_row(list_container_, 12, 0);
 
-    CreateHomeAffordance(root_, navigation);
+    lv_obj_t* home_button = CreateHomeAffordance(root_, navigation);
+
+    // A secondary, lighter-weight affordance than the home button/activity
+    // buttons - Devices is the advanced/raw-command surface (see
+    // DevicesScreen's own header comment), not the primary
+    // remote-replacement interaction this screen already is.
+    lv_obj_t* devices_button = lv_button_create(root_);
+    // Below StatusBar::kHeight, not just root_'s bare top-right corner -
+    // that would sit inside the status bar's own chrome.
+    lv_obj_align(devices_button, LV_ALIGN_TOP_RIGHT, -16, StatusBar::kHeight + 16);
+    // Same reason as CreateHomeAffordance's own FLOATING flag - without
+    // it, this button scrolls away with list_container_'s content and
+    // drags with root_'s overscroll bounce instead of staying put as
+    // fixed chrome.
+    lv_obj_add_flag(devices_button, LV_OBJ_FLAG_FLOATING);
+    lv_obj_add_event_cb(devices_button, OnDevicesButtonClicked, LV_EVENT_CLICKED, this);
+    lv_obj_t* devices_label = lv_label_create(devices_button);
+    lv_label_set_text(devices_label, "Devices");
 
     config_sub_ = event_bus.SubscribeUi<HarmonyConfigUpdatedEvent>(
         [this](const HarmonyConfigUpdatedEvent&) { Rebuild(); });
@@ -65,6 +84,17 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
         [this](const HarmonyCurrentActivityChangedEvent&) { RestyleButtons(); });
 
     Rebuild();
+
+    // status_bar_ is constructed before any of this screen's own content
+    // (member-initializer order), so list_container_'s scrolled content
+    // would otherwise paint over it, and home_button/devices_button would
+    // paint under whatever's added after them - see StatusBar::Root()'s
+    // own comment. FLOATING (above) only excludes these three from
+    // scrolling, not from paint order, which is separate and still
+    // follows child-insertion order.
+    lv_obj_move_foreground(status_bar_.Root());
+    lv_obj_move_foreground(home_button);
+    lv_obj_move_foreground(devices_button);
 }
 
 ActivitiesScreen::~ActivitiesScreen() { lv_obj_del(root_); }
@@ -85,19 +115,8 @@ void ActivitiesScreen::Rebuild() {
     lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
 
     for (const HarmonyActivity& activity : snapshot.activities) {
-        lv_obj_t* button = lv_button_create(list_container_);
-        lv_obj_set_width(button, LV_PCT(100));
-        // This is the remote control - the primary reason CLAUDE.md
-        // calls for "large touch targets" in the Touch UI at all, not a
-        // settings list. The theme's own default button padding is too
-        // small for comfortable one-handed use on the Tab5's screen - a
-        // remote's buttons need to be large and easy to press without
-        // looking, sized well beyond that default.
-        lv_obj_set_style_pad_ver(button, 28, 0);
+        lv_obj_t* button = CreateRemoteButton(list_container_, activity.label);
         lv_obj_add_event_cb(button, OnActivityButtonClicked, LV_EVENT_CLICKED, this);
-
-        lv_obj_t* label = lv_label_create(button);
-        lv_label_set_text(label, activity.label.c_str());
 
         activity_buttons_[activity.id] = button;
         button_activity_ids_[button] = activity.id;
@@ -147,6 +166,11 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
     lv_label_set_text_fmt(self->status_label_, "Starting %s...", lv_label_get_text(label));
 
     self->RestyleButtons();
+}
+
+void ActivitiesScreen::OnDevicesButtonClicked(lv_event_t* e) {
+    auto* self = static_cast<ActivitiesScreen*>(lv_event_get_user_data(e));
+    self->navigation_.GoTo("harmony-devices");
 }
 
 }  // namespace homedeck

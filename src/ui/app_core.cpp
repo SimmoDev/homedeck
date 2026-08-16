@@ -47,6 +47,7 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
       wifi_setup_screen_(event_bus, deps.battery_reader, deps.network_status, deps.wifi_submit),
       harmony_widget_(dashboard_.Grid().Container(), event_bus, harmony_connection_, navigation_),
       activities_screen_(event_bus, deps.battery_reader, deps.network_status, harmony_connection_, navigation_),
+      devices_screen_(event_bus, deps.battery_reader, deps.network_status, harmony_connection_, navigation_),
       clock_(deps.time_source, event_bus),
       logger_(storage_, deps.time_source),
       admin_auth_(storage_, auth_time_source_) {
@@ -62,6 +63,7 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
 
     navigation_.Register("wifi-setup", wifi_setup_screen_.Root());
     navigation_.Register("harmony-activities", activities_screen_.Root());
+    navigation_.Register("harmony-devices", devices_screen_.Root());
 
     RegisterAdminAuthRoutes(deps.http_server, admin_auth_);
     RegisterDiagnosticsRoutes(deps.http_server, storage_, admin_auth_, deps.battery_reader, logger_,

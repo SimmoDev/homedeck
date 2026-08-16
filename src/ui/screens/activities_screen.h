@@ -54,8 +54,10 @@ private:
     // and right after a tap, without touching the button list itself.
     void RestyleButtons();
     static void OnActivityButtonClicked(lv_event_t* e);
+    static void OnDevicesButtonClicked(lv_event_t* e);
 
     HarmonyConnection& harmony_connection_;
+    Navigation& navigation_;
 
     lv_obj_t* root_;
     StatusBar status_bar_;

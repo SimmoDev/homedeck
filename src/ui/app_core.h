@@ -40,6 +40,7 @@
 #include "ui/quick_settings_panel.h"
 #include "ui/screens/activities_screen.h"
 #include "ui/screens/dashboard_screen.h"
+#include "ui/screens/devices_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/weather_widget.h"
 
@@ -168,6 +169,7 @@ private:
     // widget/screen.
     HarmonyWidget harmony_widget_;
     ActivitiesScreen activities_screen_;
+    DevicesScreen devices_screen_;
 
     Clock clock_;
     Logger logger_;
