@@ -280,8 +280,20 @@ reboot of its own, so it's a no-op returning true. See
 automatically rather than on a second confirmed step, and how it's
 scoped.
 
+**Harmony's module configuration page is also implemented** (M3) - the
+first consumer of the generic settings API's "module configuration"
+scope above. `HarmonySettings.svelte` reads/writes the hub address
+through the existing generic `/api/settings` API (module `harmony`, key
+`hub_host` - no dedicated save endpoint, same as weather location
+above), shows live connection status via `GET /api/harmony/status` with
+a manual Refresh button (no polling, same reasoning as the WebSockets
+item below), and triggers `POST /api/harmony/reconnect` on save. Both
+routes (`src/core/harmony_routes.h`/`.cpp`) are admin-only via
+`RequireAuth()`, same as every other route on this page. See
+[modules.md](modules.md#status) for Harmony's module-contract detail
+this settings page is one part of.
+
 Still open, each its own future pass: WebSockets for live updates,
-module configuration specifically (no module exists yet to configure -
-the generic settings API above is ready for one), Wi-Fi management
-(view/change post-provisioning), factory-reset, and the NVS-encryption
-follow-up named above.
+module configuration *for a second module* (Harmony above is the first,
+not a gap any more), Wi-Fi management (view/change post-provisioning),
+factory-reset, and the NVS-encryption follow-up named above.
