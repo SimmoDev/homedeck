@@ -34,14 +34,16 @@ reading, in order:
    ownership decision applies to it) and the offline-behaviour contract
    a module's own connection state should follow.
 6. [docs/architecture/web-ui.md](docs/architecture/web-ui.md) — Harmony's
-   module configuration page (hub IP/credentials) is the settings API's
-   first real consumer; see [ADR-0023](docs/decisions/ADR-0023-settings-backup-api.md)
-   for the endpoint shapes and [ADR-0010](docs/decisions/ADR-0010-secret-storage.md)
-   for why credentials route through `SecretStore`, not the generic
-   settings path. Harmony's hub credentials are also the real module
-   credential [ADR-0018](docs/decisions/ADR-0018-staged-security-hardening.md)
-   names as the trigger for activating NVS encryption — worth checking
-   whether that timing decision needs revisiting once this module exists.
+   module configuration page (hub address only - no credential exists in
+   this protocol, see
+   [ADR-0029](docs/decisions/ADR-0029-harmony-local-protocol.md)) is the
+   settings API's first consumer; see
+   [ADR-0023](docs/decisions/ADR-0023-settings-backup-api.md) for the
+   endpoint shapes. `SecretStore`/[ADR-0010](docs/decisions/ADR-0010-secret-storage.md)
+   don't apply here - there's nothing to protect that way. ADR-0018's
+   NVS-encryption trigger (a real module credential existing) hasn't
+   fired through Harmony for the same reason; still worth checking
+   against whichever module first has an actual credential.
 7. [docs/architecture/dashboard.md](docs/architecture/dashboard.md) — the
    `Widget`/`DashboardGrid` interface, if Harmony surfaces current-activity
    status on the dashboard.
