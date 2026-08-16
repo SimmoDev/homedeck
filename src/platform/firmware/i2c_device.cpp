@@ -24,6 +24,8 @@ I2cDevice::I2cDevice(i2c_master_bus_handle_t bus, uint8_t address) {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
         .device_address = address,
         .scl_speed_hz = kSclSpeedHz,
+        .scl_wait_us = 0,  // 0 = driver's own default register value
+        .flags = {},
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &dev_cfg, &handle_));
 }

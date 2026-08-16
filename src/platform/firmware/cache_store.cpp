@@ -26,6 +26,8 @@ FirmwareCacheStore::FirmwareCacheStore() {
         .format_if_mount_failed = true,
         .max_files = 4,
         .allocation_unit_size = CONFIG_WL_SECTOR_SIZE,
+        .disk_status_check_enable = false,  // SD-card-only option, not applicable to wear-levelled flash
+        .use_one_fat = false,               // 2 FATs (the default) - reliability over the small space saving
     };
     esp_err_t err = esp_vfs_fat_spiflash_mount_rw_wl(kMountPoint, kPartitionLabel, &config, &wl_handle_);
     if (err != ESP_OK) {
