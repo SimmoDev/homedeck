@@ -72,7 +72,7 @@ the module boundary does for it.
 
 | Module | Milestone | Status |
 |---|---|---|
-| Harmony Hub | M3 | In progress — see [roadmap.md](../roadmap.md) |
+| Harmony Hub | M3 | Complete — see [roadmap.md](../roadmap.md) |
 | Kodi | M4 | Not started |
 | Uptime Kuma | M5 | Not started |
 | Home Assistant | M6 | Not started |
@@ -85,20 +85,25 @@ scope-control guidance in [CLAUDE.md](../../CLAUDE.md).
 
 ## Status
 
-The module interface is defined now that Harmony (the reference module,
-[ADR-0003](../decisions/ADR-0003-module-architecture.md)) is being built:
-`Module` (`src/core/module.h`) is a deliberately minimal lifecycle
-contract — `Start()`/`Stop()`, with construction as Init and the
-destructor as teardown (RAII, the same two-phase shape `AppCore` itself
-already establishes: construct everything, then an explicit `Start()`).
-`HarmonyConnection` (`src/core/harmony_connection.h`/`.cpp`) is the first
-implementation, covering this pass's scope: Storage-backed settings (a
-manually-entered hub address), a background `Task`-owned connection loop,
-and `EventBus` events for connection state and fetched config. Screens,
-dashboard widgets, and API endpoints beyond a settings page are all parts
-of the contract this document describes above, but Harmony doesn't
-exercise them yet — see [roadmap.md](../roadmap.md)'s M3 section for what
-remains.
+The module interface is defined via `Module` (`src/core/module.h`) — a
+deliberately minimal lifecycle contract, `Start()`/`Stop()`, with
+construction as Init and the destructor as teardown (RAII, the same
+two-phase shape `AppCore` itself already establishes: construct
+everything, then an explicit `Start()`).
+
+Harmony (the reference module,
+[ADR-0003](../decisions/ADR-0003-module-architecture.md)) is the first
+implementation and exercises every part of the contract this document
+describes above: `HarmonyConnection` (`src/core/harmony_connection.h`/
+`.cpp`) is Storage-backed settings (a manually-entered hub address) plus
+a background `Task`-owned connection loop; `ActivitiesScreen`/
+`DevicesScreen` (`src/ui/screens/`) are its registered screens;
+`HarmonyWidget` (`src/ui/harmony_widget.h`/`.cpp`) is its dashboard
+widget; `RegisterHarmonyRoutes` (`src/core/harmony_routes.h`/`.cpp`)
+plus the generic settings API are its API endpoints;
+`HarmonyNotificationBridge` (`src/core/harmony_notification_bridge.h`/
+`.cpp`) publishes its notifications; and `EventBus` events cover
+connection state, fetched config, and current-activity changes.
 
 A module being "enabled" is Core constructing and `Start()`-ing an
 instance of it; "disabled" is simply not doing so. `AppCore` holds exactly
