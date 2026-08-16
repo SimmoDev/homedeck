@@ -3,7 +3,12 @@
 ## Status
 
 Accepted (contract shape) — exact interfaces to be finalized during M3
-implementation, not defined here.
+implementation, not defined here. The Known External Risk section below's
+XMPP protocol framing is superseded by
+[ADR-0029](ADR-0029-harmony-local-protocol.md), which confirms the
+reference hub instead speaks a local WebSocket/JSON API on port 8088;
+that section's project-context conclusion (scoped to local control of an
+already-paired hub) stands unchanged.
 
 ## Context
 
