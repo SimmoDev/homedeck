@@ -140,7 +140,7 @@ they should eventually be unified — or whether a broader app-switcher dock
 should absorb the home affordance instead, as discussed alongside this
 decision — is an open question deferred until there's a real module
 catalog to design a dock against (see the M2 widget framework item in
-[roadmap.md](../roadmap.md#m2--platform-services-current)). This ADR only settles
+[roadmap.md](../roadmap.md#m2--platform-services-complete)). This ADR only settles
 where date/time and battery live.
 
 ## Consequences
