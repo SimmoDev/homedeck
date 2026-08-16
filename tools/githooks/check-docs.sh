@@ -75,6 +75,33 @@ for f in "$@"; do
             status=1
         fi
     done < <(grep -nE 'ADR-[0-9]{4}.{0,40}"' "$f" || true)
+
+    # One-sided ADR supersession: every other superseded ADR in this repo
+    # carries its own "superseded by ADR-NNNN" note in its own Status
+    # section (ADR-0002/0005/0006/0009/0010/0014 all do this) - the
+    # convention this project actually follows is a reciprocal pointer,
+    # not just the new ADR's own "Supersedes ADR-NNNN" claim. Caught once
+    # already (M2 exit review, commit dca9456) and recurred once more
+    # (ADR-0029 supersedes part of ADR-0003 with no backlink added) -
+    # this check is scoped to files under docs/decisions/ only, since
+    # "Supersedes" language elsewhere (e.g. a roadmap line describing an
+    # ADR) isn't the ADR's own declaration.
+    case "$f" in
+        docs/decisions/ADR-*.md)
+            this_adr=$(basename "$f" | grep -oE 'ADR-[0-9]{4}' | head -1)
+            while IFS= read -r line; do
+                target_adr=$(echo "$line" | grep -oE 'ADR-[0-9]{4}' | head -1)
+                [ -n "$target_adr" ] || continue
+                [ "$target_adr" != "$this_adr" ] || continue
+                target=$(find "$repo_root/docs/decisions" -iname "${target_adr}-*.md" 2>/dev/null | head -1)
+                [ -n "$target" ] || continue
+                if ! grep -q "$this_adr" "$target"; then
+                    echo "[crossref] $f: claims to supersede $target_adr, but $(basename "$target") has no reciprocal pointer back to $this_adr"
+                    status=1
+                fi
+            done < <(grep -niE 'supersede[sd]?[^.]*ADR-[0-9]{4}' "$f" || true)
+            ;;
+    esac
 done
 
 exit $status
