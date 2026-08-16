@@ -206,6 +206,9 @@ void DevicesScreen::ShowDeviceDetail(const std::string& device_id) {
 
     lv_obj_clean(commands_container_);
     command_button_actions_.clear();
+    // The buttons long_press_active_buttons_ refers to are about to be
+    // deleted (lv_obj_clean() above) - stale pointers otherwise.
+    long_press_active_buttons_.clear();
 
     for (const HarmonyControlGroup& group : device->control_groups) {
         // A group with no commands is kept in the parsed data (see
@@ -251,8 +254,7 @@ void DevicesScreen::RenderGenericGrid(lv_obj_t* parent, const std::vector<Harmon
         const char* icon = IconForCommandName(command.name);
         std::string label = icon != nullptr ? std::string(icon) : SplitCamelCase(command.label);
         lv_obj_t* button = CreateRemoteButton(grid, label, kGridButtonWidth, kGridButtonHeight);
-        lv_obj_add_event_cb(button, OnCommandButtonClicked, LV_EVENT_CLICKED, this);
-        command_button_actions_[button] = command.action;
+        WireCommandButton(button, command.action);
     }
 }
 
@@ -279,8 +281,7 @@ void DevicesScreen::RenderNumericKeypad(lv_obj_t* parent, const std::vector<Harm
             continue;
         }
         lv_obj_t* button = CreateRemoteButton(grid, command->label, kGridButtonWidth, kGridButtonHeight);
-        lv_obj_add_event_cb(button, OnCommandButtonClicked, LV_EVENT_CLICKED, this);
-        command_button_actions_[button] = command->action;
+        WireCommandButton(button, command->action);
         placed.insert(wanted_name);
     }
 
@@ -319,8 +320,14 @@ void DevicesScreen::AddDPadCell(lv_obj_t* row, const HarmonyCommand* command, co
         return;
     }
     lv_obj_t* button = CreateRemoteButton(row, icon, kGridButtonWidth, kGridButtonHeight);
-    lv_obj_add_event_cb(button, OnCommandButtonClicked, LV_EVENT_CLICKED, this);
-    command_button_actions_[button] = command->action;
+    WireCommandButton(button, command->action);
+}
+
+void DevicesScreen::WireCommandButton(lv_obj_t* button, const std::string& action) {
+    lv_obj_add_event_cb(button, OnCommandButtonLongPressed, LV_EVENT_LONG_PRESSED, this);
+    lv_obj_add_event_cb(button, OnCommandButtonLongPressRepeat, LV_EVENT_LONG_PRESSED_REPEAT, this);
+    lv_obj_add_event_cb(button, OnCommandButtonReleased, LV_EVENT_RELEASED, this);
+    command_button_actions_[button] = action;
 }
 
 void DevicesScreen::RenderUnmatchedCommands(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands,
@@ -352,7 +359,7 @@ void DevicesScreen::OnDeviceButtonClicked(lv_event_t* e) {
     self->ShowDeviceDetail(it->second);
 }
 
-void DevicesScreen::OnCommandButtonClicked(lv_event_t* e) {
+void DevicesScreen::OnCommandButtonLongPressed(lv_event_t* e) {
     auto* self = static_cast<DevicesScreen*>(lv_event_get_user_data(e));
     auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
 
@@ -360,7 +367,45 @@ void DevicesScreen::OnCommandButtonClicked(lv_event_t* e) {
     if (it == self->command_button_actions_.end()) {
         return;
     }
-    self->harmony_connection_.SendDeviceCommand(it->second);
+    self->harmony_connection_.PressDeviceCommand(it->second);
+    self->long_press_active_buttons_.insert(button);
+}
+
+void DevicesScreen::OnCommandButtonLongPressRepeat(lv_event_t* e) {
+    auto* self = static_cast<DevicesScreen*>(lv_event_get_user_data(e));
+    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
+
+    auto it = self->command_button_actions_.find(button);
+    if (it == self->command_button_actions_.end()) {
+        return;
+    }
+    self->harmony_connection_.HoldDeviceCommand(it->second);
+}
+
+void DevicesScreen::OnCommandButtonReleased(lv_event_t* e) {
+    auto* self = static_cast<DevicesScreen*>(lv_event_get_user_data(e));
+    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
+
+    auto it = self->command_button_actions_.find(button);
+    if (it == self->command_button_actions_.end()) {
+        return;
+    }
+
+    if (self->long_press_active_buttons_.erase(button) > 0) {
+        // Was already pressed (and possibly held) - always send the
+        // matching release, regardless of what the touch did afterward.
+        self->harmony_connection_.ReleaseDeviceCommand(it->second);
+        return;
+    }
+
+    // Never long-pressed - same check LVGL's own CLICKED implementation
+    // makes, done here directly instead of relying on a separate CLICKED
+    // handler (see this method's own declaration comment for why).
+    if (lv_indev_get_scroll_obj(lv_indev_active()) != nullptr) {
+        return;  // this was a drag/scroll that happened to start on the button, not a tap
+    }
+    self->harmony_connection_.PressDeviceCommand(it->second);
+    self->harmony_connection_.ReleaseDeviceCommand(it->second);
 }
 
 void DevicesScreen::OnBackButtonClicked(lv_event_t* e) {

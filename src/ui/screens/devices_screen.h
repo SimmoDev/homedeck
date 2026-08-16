@@ -33,9 +33,11 @@ namespace homedeck {
 // "Power state" (a device's own Capabilities/powerFeatures fields) isn't
 // shown - empty on every device this project has seen against the
 // reference hub (IR is one-way, nothing to poll) - see
-// HarmonyControlGroup's own comment. Sending a command is a press+release
-// pair per tap; sustained press-and-hold repeat isn't built - see
-// HarmonyConnection's own header comment.
+// HarmonyControlGroup's own comment. A tap sends a press+release pair;
+// holding a command button past LVGL's own long-press threshold sends a
+// press, then repeated holds for as long as it's held, then a release on
+// lift - see OnCommandButtonReleased()'s own comment for the exact
+// mechanics (touch-and-drag safety in particular).
 class DevicesScreen {
 public:
     DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
@@ -97,9 +99,41 @@ private:
     // generic grid rather than silently dropping them costs little.
     void RenderUnmatchedCommands(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands,
                                   const std::unordered_set<std::string>& matched_names);
+    // Registers the long-press/release event trio (see
+    // OnCommandButtonReleased()'s own comment) and records `action` in
+    // command_button_actions_ - shared by every place a command button
+    // gets created (RenderGenericGrid(), RenderNumericKeypad(),
+    // AddDPadCell()).
+    void WireCommandButton(lv_obj_t* button, const std::string& action);
 
     static void OnDeviceButtonClicked(lv_event_t* e);
-    static void OnCommandButtonClicked(lv_event_t* e);
+    // LV_EVENT_LONG_PRESSED - fires once, and (per LVGL's own indev.c)
+    // only if this press hasn't already turned into a scroll. Sends the
+    // command's initial press and marks the button as mid-long-press for
+    // OnCommandButtonReleased() below.
+    static void OnCommandButtonLongPressed(lv_event_t* e);
+    // LV_EVENT_LONG_PRESSED_REPEAT - fires repeatedly (LVGL's own
+    // long_press_repeat_time) after LONG_PRESSED, same scroll exclusion.
+    // Sends one hold per firing.
+    static void OnCommandButtonLongPressRepeat(lv_event_t* e);
+    // LV_EVENT_RELEASED, not CLICKED - a drag that starts on a command
+    // button and turns into a scroll must send nothing at all (the same
+    // safety a plain CLICKED-driven press+release already had), which
+    // rules out driving the initial press from LV_EVENT_PRESSED: PRESSED
+    // fires immediately on touch-down, before LVGL can know whether the
+    // touch will become a scroll, so a scroll starting on a button would
+    // send a press with no way to take it back. long_press_active_buttons_
+    // (set only from LONG_PRESSED, which - confirmed against LVGL's own
+    // indev.c - it never sends once a scroll starts) exists to avoid
+    // that: if a button is marked, this is a genuine long press, so a
+    // release always gets sent here regardless of what the touch did
+    // afterward (dragging while still holding must not leave the device
+    // thinking the button is stuck down). If it isn't marked,
+    // lv_indev_get_scroll_obj() - the same check LVGL's own CLICKED
+    // implementation makes - tells a plain tap (send press+release) apart
+    // from a scroll that happened to start on this button (send
+    // nothing).
+    static void OnCommandButtonReleased(lv_event_t* e);
     static void OnBackButtonClicked(lv_event_t* e);
 
     HarmonyConnection& harmony_connection_;
@@ -121,6 +155,12 @@ private:
     // button -> the command's own action string, rebuilt fresh every
     // ShowDeviceDetail() call.
     std::unordered_map<lv_obj_t*, std::string> command_button_actions_;
+    // Buttons currently mid-long-press (OnCommandButtonLongPressed() set
+    // it, OnCommandButtonReleased() clears it) - see the latter's own
+    // comment. Cleared alongside command_button_actions_ on every
+    // ShowDeviceDetail() rebuild, not just erased per-button on release,
+    // since the buttons themselves get deleted then too.
+    std::unordered_set<lv_obj_t*> long_press_active_buttons_;
 
     EventBus::ScopedSubscription config_sub_;
 };
