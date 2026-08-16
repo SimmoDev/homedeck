@@ -102,6 +102,78 @@ for f in "$@"; do
             done < <(grep -niE 'supersede[sd]?[^.]*ADR-[0-9]{4}' "$f" || true)
             ;;
     esac
+
+    # Broken relative-Markdown-link targets/anchors: a link's target file
+    # must exist, and if it names a `#anchor`, some heading in the target
+    # file must slugify to it (GitHub's algorithm: lowercase, drop
+    # everything outside [a-z0-9_ -], spaces -> hyphens, no further
+    # collapsing - "M2 — Platform Services (complete)" ->
+    # "m2--platform-services-complete", matching this repo's own existing
+    # anchors). Caught two real breakages during the M3 exit review's
+    # second pass (roadmap.md's M2/M3 headings gaining "(complete)"/
+    # "(current)" suffixes left two ADRs' deep links pointing at
+    # anchors that no longer exist) that no prior automated check caught -
+    # only a one-off manual sweep during that review found them. Only
+    # .md targets are anchor-checked (this repo's own convention links to
+    # other .md files' sections, never a source file's own #anchor); a
+    # non-.md target is still existence-checked. Doesn't handle GitHub's
+    # duplicate-heading "-1"/"-2" suffixing - a false negative on that
+    # rare case, not a false positive risk.
+    case "$f" in
+        *.md)
+            slugify() {
+                local s
+                s=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+                s=$(printf '%s' "$s" | sed -E 's/[^a-z0-9_ -]//g')
+                printf '%s' "$s" | sed -E 's/ /-/g'
+            }
+            file_dir=$(dirname "$f")
+            while IFS= read -r match; do
+                target="${match#](}"
+                target="${target%)}"
+                case "$target" in
+                    http://*|https://*|mailto:*|"") continue ;;
+                esac
+                anchor=""
+                path="$target"
+                if [[ "$target" == *"#"* ]]; then
+                    path="${target%%#*}"
+                    anchor="${target#*#}"
+                fi
+                if [ -z "$path" ]; then
+                    target_file="$f"
+                else
+                    case "$path" in
+                        /*) target_file="$repo_root$path" ;;
+                        *) target_file="$file_dir/$path" ;;
+                    esac
+                fi
+                if [ ! -e "$target_file" ]; then
+                    echo "[link] $f: target not found for link ($target)"
+                    status=1
+                    continue
+                fi
+                case "$target_file" in
+                    *.md) : ;;
+                    *) continue ;;
+                esac
+                if [ -n "$anchor" ]; then
+                    found=0
+                    while IFS= read -r heading; do
+                        htext=$(echo "$heading" | sed -E 's/^#+[[:space:]]+//')
+                        if [ "$(slugify "$htext")" = "$anchor" ]; then
+                            found=1
+                            break
+                        fi
+                    done < <(grep -E '^#+[[:space:]]' "$target_file" || true)
+                    if [ "$found" -eq 0 ]; then
+                        echo "[link] $f: anchor #$anchor not found in $target_file"
+                        status=1
+                    fi
+                fi
+            done < <(grep -oE '\]\([^)]*\)' "$f" || true)
+            ;;
+    esac
 done
 
 exit $status
