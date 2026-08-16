@@ -36,7 +36,7 @@ enum class HarmonyConnectionState {
 // IR command. `action` is the hub's own ready-to-send JSON string (e.g.
 // `{"command":"VolumeUp","type":"IRCommand","deviceId":"74494839"}`),
 // passed through unchanged rather than reconstructed - see
-// SendDeviceCommand()'s own comment.
+// PressDeviceCommand()'s own comment.
 struct HarmonyCommand {
     std::string name;
     std::string label;
@@ -108,12 +108,15 @@ struct HarmonyCurrentActivityChangedEvent {
 //
 // Scope: connect to a manually-configured hub address, fetch its device/
 // activity list and current activity, start an activity, send a device's
-// own IR commands, and publish connection-state/config/current-activity
-// events. Not in scope: sustained press-and-hold repeat while a command
-// button stays held (CLAUDE.md's "long-press actions where supported") -
-// SendDeviceCommand() sends one press+release pair per call, correct for
-// a simple tap but not a hold gesture - tracked as a separate, later
-// follow-up.
+// own IR commands (including sustained press-and-hold repeat while a
+// command button stays held - CLAUDE.md's "long-press actions where
+// supported"), and publish connection-state/config/current-activity
+// events. PressDeviceCommand()/HoldDeviceCommand()/ReleaseDeviceCommand()
+// map directly onto the hub's own three-state holdAction protocol
+// (press/hold/release - see ADR-0029's Consequences); which of the three
+// to send and when is a UI-layer decision driven by touch timing
+// (DevicesScreen's own comment covers why), not something this class
+// infers on its own.
 //
 // Current-activity freshness is best-effort, not push-driven: the hub's
 // WS protocol can send unsolicited notifications, but this class's
@@ -164,25 +167,37 @@ public:
     // connection exists to send it over.
     void StartActivity(const std::string& activity_id);
 
-    // Sends one IR command - `action` is a device's own HarmonyCommand::action
-    // string, passed through as-is (see that struct's own comment). Same
-    // any-thread-safe shape as StartActivity() - sends a press then a
-    // release message back to back (see this class's own header comment
-    // on why a release always follows, and on why sustained hold-repeat
-    // isn't built here).
-    void SendDeviceCommand(const std::string& action);
+    // Sends one IR command's press/hold/release phase - `action` is a
+    // device's own HarmonyCommand::action string, passed through as-is
+    // (see that struct's own comment). Same any-thread-safe shape as
+    // StartActivity(). All three exist because a caller (DevicesScreen)
+    // needs to drive them independently as press/hold/release
+    // happens - a single call that always sends a press+release pair
+    // can't represent "still being held." A plain tap is just
+    // PressDeviceCommand() immediately followed by ReleaseDeviceCommand().
+    void PressDeviceCommand(const std::string& action);
+    void HoldDeviceCommand(const std::string& action);
+    void ReleaseDeviceCommand(const std::string& action);
 
 private:
-    // One queued, not-yet-sent command - raw intent only (an activity id
-    // or a device action string), not a pre-built JSON payload. Building
-    // the actual payload needs hub_id_, which - like ws_client_ - only
-    // the connection loop's own thread may touch (see SendPendingCommands());
-    // StartActivity()/SendDeviceCommand() are called from other threads
-    // (e.g. the UI thread), so they can't safely read hub_id_ themselves
-    // to pre-build it. Exactly one field is set per entry.
+    // action/status for one queued holdAction send - status is "press",
+    // "hold", or "release" (see PressDeviceCommand()/HoldDeviceCommand()/
+    // ReleaseDeviceCommand()).
+    struct DeviceCommandRequest {
+        std::string action;
+        std::string status;
+    };
+
+    // One queued, not-yet-sent command - raw intent only, not a pre-built
+    // JSON payload. Building the actual payload needs hub_id_, which -
+    // like ws_client_ - only the connection loop's own thread may touch
+    // (see SendPendingCommands()); StartActivity()/PressDeviceCommand()/
+    // HoldDeviceCommand()/ReleaseDeviceCommand() are called from other
+    // threads (e.g. the UI thread), so they can't safely read hub_id_
+    // themselves to pre-build it. Exactly one field is set per entry.
     struct PendingCommand {
-        std::optional<std::string> activity_id;    // startactivity
-        std::optional<std::string> device_action;  // holdAction (press then release)
+        std::optional<std::string> activity_id;  // startactivity
+        std::optional<DeviceCommandRequest> device_command;  // holdAction
     };
 
     enum class WakeReason { kTimeout, kTriggered, kCommandPending, kStopRequested };
@@ -205,18 +220,20 @@ private:
     // clean close from a timeout, and why this probe-based approach
     // works around that rather than needing it to.
     bool FetchCurrentActivity();
-    // Drains every PendingCommand StartActivity()/SendDeviceCommand()
-    // queued, building and sending each one's actual payload here (not
-    // in StartActivity()/SendDeviceCommand() themselves - see
-    // PendingCommand's own comment on why) - called from the connected
-    // loop's own thread only. One FetchCurrentActivity() follow-up at
-    // the end if any drained entry was a startactivity, not one per
-    // entry - a burst of queued commands only needs one refresh.
+    // Drains every PendingCommand StartActivity()/PressDeviceCommand()/
+    // HoldDeviceCommand()/ReleaseDeviceCommand() queued, building and
+    // sending each one's actual payload here (not in those methods
+    // themselves - see PendingCommand's own comment on why) - called
+    // from the connected loop's own thread only. One
+    // FetchCurrentActivity() follow-up at the end if any drained entry
+    // was a startactivity, not one per entry - a burst of queued
+    // commands only needs one refresh.
     void SendPendingCommands();
-    // One holdAction message - status is "press" or "release".
-    // SendPendingCommands() sends both for a single SendDeviceCommand()
-    // call (see this class's own header comment on why a release always
-    // follows).
+    // Enqueues a device command with the given status - the shared body
+    // of PressDeviceCommand()/HoldDeviceCommand()/ReleaseDeviceCommand(),
+    // which differ only in which status they pass.
+    void EnqueueDeviceCommand(const std::string& action, const std::string& status);
+    // One holdAction message.
     void SendHoldAction(const std::string& action, const std::string& status);
     void SetState(HarmonyConnectionState state);
     // watch_commands: only the connected loop's own wait should notice a
@@ -247,10 +264,10 @@ private:
     std::condition_variable wake_cv_;
     bool wake_requested_ = false;
     // Guarded by wake_mutex_ too, not a separate mutex - StartActivity()/
-    // SendDeviceCommand() and TriggerReconnect() both just need to wake
-    // the same connection-loop thread, so one wake channel is enough
-    // (see Sleep()'s watch_commands parameter for how the loop tells
-    // them apart).
+    // Press/Hold/ReleaseDeviceCommand() and TriggerReconnect() both just
+    // need to wake the same connection-loop thread, so one wake channel
+    // is enough (see Sleep()'s watch_commands parameter for how the loop
+    // tells them apart).
     std::deque<PendingCommand> pending_commands_;
 
     // Constructed by Start(), destroyed (stopped and joined) by Stop() -

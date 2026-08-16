@@ -423,7 +423,7 @@ TEST_F(HarmonyConnectionTest, PeriodicLivenessProbePicksUpAHubSideActivityChange
     connection.Stop();
 }
 
-TEST_F(HarmonyConnectionTest, SendDeviceCommandSendsAPressThenAReleaseWithTheGivenAction) {
+TEST_F(HarmonyConnectionTest, PressDeviceCommandSendsAPressWithTheGivenAction) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
@@ -451,7 +451,148 @@ TEST_F(HarmonyConnectionTest, SendDeviceCommandSendsAPressThenAReleaseWithTheGiv
         std::lock_guard<std::mutex> lock(script->mutex);
         sent_before = script->sent_texts.size();
     }
-    connection.SendDeviceCommand(action);
+    connection.PressDeviceCommand(action);
+
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->sent_texts.size() >= sent_before + 1;
+    }));
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        const std::string& sent = script->sent_texts[sent_before];
+        EXPECT_NE(sent.find("holdAction"), std::string::npos);
+        EXPECT_NE(sent.find(R"("status":"press")"), std::string::npos);
+        // action is embedded as a JSON string value, so its own quotes
+        // come back escaped (\") in the serialized payload.
+        EXPECT_NE(sent.find(R"(\"command\":\"VolumeUp\")"), std::string::npos);
+    }
+
+    connection.Stop();
+}
+
+TEST_F(HarmonyConnectionTest, HoldDeviceCommandSendsAHoldWithTheGivenAction) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    const std::string action = R"({"command":"VolumeUp","type":"IRCommand","deviceId":"1"})";
+    size_t sent_before;
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        sent_before = script->sent_texts.size();
+    }
+    connection.HoldDeviceCommand(action);
+
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->sent_texts.size() >= sent_before + 1;
+    }));
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        const std::string& sent = script->sent_texts[sent_before];
+        EXPECT_NE(sent.find("holdAction"), std::string::npos);
+        EXPECT_NE(sent.find(R"("status":"hold")"), std::string::npos);
+    }
+
+    connection.Stop();
+}
+
+TEST_F(HarmonyConnectionTest, ReleaseDeviceCommandSendsAReleaseWithTheGivenAction) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    const std::string action = R"({"command":"VolumeUp","type":"IRCommand","deviceId":"1"})";
+    size_t sent_before;
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        sent_before = script->sent_texts.size();
+    }
+    connection.ReleaseDeviceCommand(action);
+
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->sent_texts.size() >= sent_before + 1;
+    }));
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        const std::string& sent = script->sent_texts[sent_before];
+        EXPECT_NE(sent.find("holdAction"), std::string::npos);
+        EXPECT_NE(sent.find(R"("status":"release")"), std::string::npos);
+    }
+
+    connection.Stop();
+}
+
+// A tap is PressDeviceCommand() immediately followed by
+// ReleaseDeviceCommand() (see DevicesScreen's own comment) - this
+// confirms the two calls send exactly two messages, in that order, and
+// - like a single device command always has - never trigger the
+// startactivity-only current-activity refresh.
+TEST_F(HarmonyConnectionTest, PressThenReleaseSendsExactlyThoseTwoMessagesInOrderWithNoExtraFetch) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    const std::string action = R"({"command":"VolumeUp","type":"IRCommand","deviceId":"1"})";
+    size_t sent_before;
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        sent_before = script->sent_texts.size();
+    }
+    connection.PressDeviceCommand(action);
+    connection.ReleaseDeviceCommand(action);
 
     ASSERT_TRUE(WaitFor([&] {
         std::lock_guard<std::mutex> lock(script->mutex);
@@ -460,21 +601,11 @@ TEST_F(HarmonyConnectionTest, SendDeviceCommandSendsAPressThenAReleaseWithTheGiv
 
     {
         std::lock_guard<std::mutex> lock(script->mutex);
-        const std::string& press = script->sent_texts[sent_before];
-        const std::string& release = script->sent_texts[sent_before + 1];
-        EXPECT_NE(press.find("holdAction"), std::string::npos);
-        EXPECT_NE(press.find(R"("status":"press")"), std::string::npos);
-        EXPECT_NE(release.find(R"("status":"release")"), std::string::npos);
-        // action is embedded as a JSON string value, so its own quotes
-        // come back escaped (\") in the serialized payload.
-        EXPECT_NE(press.find(R"(\"command\":\"VolumeUp\")"), std::string::npos);
-        EXPECT_NE(release.find(R"(\"command\":\"VolumeUp\")"), std::string::npos);
+        EXPECT_NE(script->sent_texts[sent_before].find(R"("status":"press")"), std::string::npos);
+        EXPECT_NE(script->sent_texts[sent_before + 1].find(R"("status":"release")"), std::string::npos);
     }
 
-    // A device command must never trigger the startactivity-only
-    // current-activity refresh - no extra WS round trip (a third sent
-    // message) beyond the two holdAction messages themselves. A brief
-    // settle wait first: if the extra fetch were incorrectly sent, it
+    // A brief settle wait: if the extra fetch were incorrectly sent, it
     // would show up almost immediately, not eventually - unlike the
     // WaitFor() above, this is deliberately checking that something
     // *doesn't* happen.

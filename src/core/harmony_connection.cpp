@@ -165,10 +165,16 @@ void HarmonyConnection::StartActivity(const std::string& activity_id) {
     wake_cv_.notify_one();
 }
 
-void HarmonyConnection::SendDeviceCommand(const std::string& action) {
+void HarmonyConnection::PressDeviceCommand(const std::string& action) { EnqueueDeviceCommand(action, "press"); }
+
+void HarmonyConnection::HoldDeviceCommand(const std::string& action) { EnqueueDeviceCommand(action, "hold"); }
+
+void HarmonyConnection::ReleaseDeviceCommand(const std::string& action) { EnqueueDeviceCommand(action, "release"); }
+
+void HarmonyConnection::EnqueueDeviceCommand(const std::string& action, const std::string& status) {
     {
         std::lock_guard<std::mutex> lock(wake_mutex_);
-        pending_commands_.push_back(PendingCommand{std::nullopt, action});
+        pending_commands_.push_back(PendingCommand{std::nullopt, DeviceCommandRequest{action, status}});
     }
     wake_cv_.notify_one();
 }
@@ -404,9 +410,8 @@ void HarmonyConnection::SendPendingCommands() {
             };
             ws_client_->SendText(request.dump());
             started_activity = true;
-        } else if (command.device_action) {
-            SendHoldAction(*command.device_action, "press");
-            SendHoldAction(*command.device_action, "release");
+        } else if (command.device_command) {
+            SendHoldAction(command.device_command->action, command.device_command->status);
         }
     }
 
