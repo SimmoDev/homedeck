@@ -445,28 +445,19 @@ this until it's done — see
       (`src/ui/remote_button.h`/`.cpp`) with `ActivitiesScreen` for
       consistent large touch targets. Verified against the reference
       hub's 8-device list, including a device with enough commands to
-      need on-screen scrolling — building that many buttons at once
-      exposed LVGL's default allocator silently exhausting its
-      fixed-size pool (`LV_USE_ASSERT_MALLOC`'s failure handler is
-      `while(1)`, and `LV_USE_LOG` defaults off, so the UI thread hung
-      with no error output); fixed by switching both targets to
-      `LV_USE_CLIB_MALLOC` (`simulator/lv_conf.h`,
-      `firmware/sdkconfig.defaults`), which routes LVGL's own
-      allocations through the platform's normal heap instead of a
-      separate reserved block, removing the fixed ceiling. The simulator
-      also now runs LVGL's own warning/error log by default so a future
-      allocation failure surfaces instead of hanging silently again.
-      The same on-device pass found `StatusBar`/`CreateHomeAffordance`
-      scrolling away and dragging with overscroll on a tall screen (both
-      were plain children of each screen's scrolling root, not excluded
-      from it), and scrolled content painting over the status bar even
-      after that fix (paint order follows child-insertion order
-      independently of scroll behavior, and the bar is typically
-      constructed before a screen's own content) - fixed with
-      `LV_OBJ_FLAG_FLOATING` plus every screen raising the bar/home
-      button to the front once its own content exists. The home button
-      also got a distinct grey, since it was otherwise the same blue as
-      every action/remote button.
+      need on-screen scrolling. Both targets use `LV_USE_CLIB_MALLOC`
+      (`simulator/lv_conf.h`, `firmware/sdkconfig.defaults`), routing
+      LVGL's own allocations through the platform's normal heap rather
+      than a fixed-size reserved block with a ceiling a screen with many
+      buttons can exceed; the simulator also runs LVGL's own
+      warning/error log by default, since `LV_USE_ASSERT_MALLOC`'s
+      default failure handler (`while(1)`) gives no error output on its
+      own once `LV_USE_LOG` is off. `StatusBar`/`CreateHomeAffordance`
+      carry `LV_OBJ_FLAG_FLOATING`, excluding them from a screen's own
+      scroll/overscroll, and are raised to the front once a screen's own
+      content exists - paint order otherwise follows child-insertion
+      order independently of scroll behavior. The home button uses a
+      distinct grey, not the same blue as every action/remote button.
 - [x] Remote control (navigation, volume, channel, numeric keypad,
       transport controls, long-press actions where supported). Sending
       any command works via `PressDeviceCommand()`/`DevicesScreen` above.
