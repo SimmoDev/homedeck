@@ -21,14 +21,32 @@ constexpr int32_t kGridButtonWidth = LV_PCT(31);
 constexpr int32_t kGridButtonHeight = 110;
 constexpr int32_t kGridGap = 12;
 
-// VolumeUp/VolumeDown/ChannelUp/ChannelDown are common enough (5-6 of
-// the reference hub's 8 devices each) to be worth an icon instead of
-// relying on SplitCamelCase's text - a plain command-name lookup,
-// not a per-device-model special case. Mute/PrevChannel have no obvious
-// icon and stay as text.
+// A plain command-name lookup, not a per-device-model special case -
+// every name below is common across several of the reference hub's 8
+// devices, not specific to one. Deliberately not exhaustive: some
+// commands have no icon that uniquely identifies them without also
+// being misread as a different command. PowerOff/PowerOn/PowerToggle
+// are the clearest case - LVGL has exactly one power icon, and showing
+// it on three buttons that do three different things would be worse
+// than the text it'd replace. FastForward/Rewind are the other way
+// round - no seek icon exists at all, and reusing PREV/NEXT (SkipBackward/
+// SkipForward's own icons below) would make both pairs ambiguous on any
+// device that has both groups. PrevChannel got the same treatment for
+// the inverse reason: it read as a same-family action to ChannelDown's
+// own "-" icon (jump back to the last-watched channel, not step down
+// one), which text alone didn't make clear.
 const char* IconForCommandName(const std::string& name) {
     if (name == "VolumeUp" || name == "ChannelUp") return LV_SYMBOL_PLUS;
     if (name == "VolumeDown" || name == "ChannelDown") return LV_SYMBOL_MINUS;
+    if (name == "PrevChannel") return LV_SYMBOL_LOOP;
+    if (name == "Mute") return LV_SYMBOL_MUTE;
+    if (name == "Play") return LV_SYMBOL_PLAY;
+    if (name == "Pause") return LV_SYMBOL_PAUSE;
+    if (name == "Stop") return LV_SYMBOL_STOP;
+    if (name == "Eject") return LV_SYMBOL_EJECT;
+    if (name == "SkipBackward") return LV_SYMBOL_PREV;
+    if (name == "SkipForward") return LV_SYMBOL_NEXT;
+    if (name == "Home") return LV_SYMBOL_HOME;
     return nullptr;
 }
 
