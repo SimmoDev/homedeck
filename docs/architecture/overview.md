@@ -5,7 +5,7 @@
 HomeDeck is organized into four layers, each depending only on the layer
 below it:
 
-```
+```text
 UI
   ↓
 HomeDeck Core
@@ -38,7 +38,7 @@ modules only through Core-mediated registration — see
 State changes flow up through events rather than the UI or Core polling
 modules. A representative flow:
 
-```
+```text
 Touch Input
   ↓
 Application Event
@@ -111,9 +111,11 @@ bottom.
 - [power-management.md](power-management.md) — power states
 - [networking.md](networking.md) — networking and connectivity
 - [simulator.md](simulator.md) — desktop simulator design
-- [hardware.md](hardware.md) — confirmed Tab5 hardware reference (chip/BOM
+- [hardware.md](hardware.md) — Tab5 hardware reference (chip/BOM
   facts — not to be confused with the [hardware/](../../hardware/)
   directory described above)
+- [harmony.md](harmony.md) — the Harmony module (connection, activities,
+  devices/remote control, status/notifications, Web UI)
 - [security.md](security.md) — cross-cutting security requirements and
   where each is addressed
 - [diagnostics.md](diagnostics.md) — cross-cutting diagnostics requirements
