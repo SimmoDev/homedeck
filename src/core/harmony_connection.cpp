@@ -127,13 +127,15 @@ std::vector<HarmonyDevice> ParseDevices(const nlohmann::json& array) {
 HarmonyConnection::HarmonyConnection(HttpClient& http_client, WebSocketClientFactory make_websocket_client,
                                       Storage& storage, EventBus& event_bus,
                                       std::chrono::milliseconds initial_backoff, std::chrono::milliseconds max_backoff,
-                                      std::chrono::milliseconds liveness_interval)
+                                      std::chrono::milliseconds liveness_interval,
+                                      std::chrono::milliseconds max_pending_command_age)
     : http_client_(http_client),
       make_websocket_client_(std::move(make_websocket_client)),
       storage_(storage),
       event_bus_(event_bus),
       backoff_(initial_backoff, max_backoff),
-      liveness_interval_(liveness_interval) {}
+      liveness_interval_(liveness_interval),
+      max_pending_command_age_(max_pending_command_age) {}
 
 void HarmonyConnection::Start() {
     if (task_) return;  // already running
@@ -158,11 +160,7 @@ void HarmonyConnection::TriggerReconnect() {
 }
 
 void HarmonyConnection::StartActivity(const std::string& activity_id) {
-    {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
-        pending_commands_.push_back(PendingCommand{activity_id, std::nullopt});
-    }
-    wake_cv_.notify_one();
+    EnqueueCommand(PendingCommand{activity_id, std::nullopt, std::chrono::steady_clock::now()});
 }
 
 void HarmonyConnection::PressDeviceCommand(const std::string& action) { EnqueueDeviceCommand(action, "press"); }
@@ -172,9 +170,16 @@ void HarmonyConnection::HoldDeviceCommand(const std::string& action) { EnqueueDe
 void HarmonyConnection::ReleaseDeviceCommand(const std::string& action) { EnqueueDeviceCommand(action, "release"); }
 
 void HarmonyConnection::EnqueueDeviceCommand(const std::string& action, const std::string& status) {
+    EnqueueCommand(PendingCommand{std::nullopt, DeviceCommandRequest{action, status}, std::chrono::steady_clock::now()});
+}
+
+void HarmonyConnection::EnqueueCommand(PendingCommand command) {
     {
         std::lock_guard<std::mutex> lock(wake_mutex_);
-        pending_commands_.push_back(PendingCommand{std::nullopt, DeviceCommandRequest{action, status}});
+        pending_commands_.push_back(std::move(command));
+        while (pending_commands_.size() > kMaxPendingCommands) {
+            pending_commands_.pop_front();
+        }
     }
     wake_cv_.notify_one();
 }
@@ -395,7 +400,11 @@ bool HarmonyConnection::SendPendingCommands() {
 
     bool started_activity = false;
     bool all_sent = true;
+    auto now = std::chrono::steady_clock::now();
     for (const PendingCommand& command : commands) {
+        if (now - command.enqueued_at > max_pending_command_age_) {
+            continue;  // stale - see max_pending_command_age_'s own comment
+        }
         if (command.activity_id) {
             nlohmann::json request = {
                 {"hubId", hub_id_},

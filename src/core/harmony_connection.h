@@ -135,16 +135,17 @@ public:
     static constexpr char kModuleId[] = "harmony";
     static constexpr char kHubHostKey[] = "hub_host";
 
-    // initial_backoff/max_backoff/liveness_interval are injectable
-    // (defaulted to production values) so tests can exercise the retry
-    // path and the periodic current-activity refresh without waiting out
-    // the full 2s/60s backoff or the full 30s liveness interval - the
-    // same "real default, test-overridable" shape
+    // initial_backoff/max_backoff/liveness_interval/max_pending_command_age
+    // are injectable (defaulted to production values) so tests can
+    // exercise the retry path and the periodic current-activity refresh
+    // without waiting out the full 2s/60s backoff or the full 30s
+    // liveness interval - the same "real default, test-overridable" shape
     // OpenMeteoWeatherProvider::poll_interval already uses.
     HarmonyConnection(HttpClient& http_client, WebSocketClientFactory make_websocket_client, Storage& storage,
                        EventBus& event_bus, std::chrono::milliseconds initial_backoff = std::chrono::seconds(2),
                        std::chrono::milliseconds max_backoff = std::chrono::seconds(60),
-                       std::chrono::milliseconds liveness_interval = std::chrono::seconds(30));
+                       std::chrono::milliseconds liveness_interval = std::chrono::seconds(30),
+                       std::chrono::milliseconds max_pending_command_age = std::chrono::seconds(5));
 
     // Module:
     void Start() override;
@@ -195,10 +196,24 @@ private:
     // HoldDeviceCommand()/ReleaseDeviceCommand() are called from other
     // threads (e.g. the UI thread), so they can't safely read hub_id_
     // themselves to pre-build it. Exactly one field is set per entry.
+    // enqueued_at backs SendPendingCommands()'s staleness check below.
     struct PendingCommand {
         std::optional<std::string> activity_id;  // startactivity
         std::optional<DeviceCommandRequest> device_command;  // holdAction
+        std::chrono::steady_clock::time_point enqueued_at;
     };
+
+    // Bounds how many commands can accumulate while disconnected/
+    // reconnecting - without a cap, a held remote button's own repeat
+    // events (DevicesScreen's LONG_PRESSED_REPEAT handler) can queue
+    // dozens of entries during even a brief drop, all replayed
+    // back-to-back on reconnect. The oldest entry is dropped first once
+    // full - most-recent intent matters more for a live remote.
+    static constexpr size_t kMaxPendingCommands = 20;
+
+    // Appends to pending_commands_ and enforces kMaxPendingCommands,
+    // shared by StartActivity()/EnqueueDeviceCommand() below.
+    void EnqueueCommand(PendingCommand command);
 
     enum class WakeReason { kTimeout, kTriggered, kCommandPending, kStopRequested };
 
@@ -254,6 +269,11 @@ private:
 
     RetryBackoff backoff_;
     std::chrono::milliseconds liveness_interval_;
+    // SendPendingCommands() drops any entry older than this rather than
+    // sending it - a queued command from long enough ago no longer
+    // reflects what the user actually wants sent to a hub whose
+    // real-world state has moved on.
+    std::chrono::milliseconds max_pending_command_age_;
 
     // Owned by, and only ever touched from, task_'s own thread - no mutex
     // needed for this member specifically, same single-owner reasoning

@@ -659,3 +659,113 @@ TEST_F(HarmonyConnectionTest, FailedCommandSendDropsTheConnectionAndReconnects) 
 
     connection.Stop();
 }
+
+// Enqueueing while disconnected (hub_host unset, so the connection loop
+// never wakes on a pending command) must not accumulate unbounded - the
+// documented cap is 20 (HarmonyConnection::kMaxPendingCommands), and the
+// oldest entries are dropped first so the most recent intent survives.
+TEST_F(HarmonyConnectionTest, EnqueueingPastTheCapDropsTheOldestEntriesFirst) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    // hub_host deliberately not set yet - the connection loop stays in its
+    // unconfigured wait, which never wakes early on a queued command (see
+    // ConnectionLoop()'s watch_commands=false there), so 25 rapid enqueues
+    // below are guaranteed to all land before any get sent.
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    constexpr int kEnqueued = 25;
+    constexpr int kCap = 20;
+    for (int i = 0; i < kEnqueued; ++i) {
+        connection.PressDeviceCommand(R"({"idx":")" + std::to_string(i) + R"("})");
+    }
+
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+    connection.TriggerReconnect();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        // The connect itself sends 2 messages (config fetch, current-
+        // activity fetch) before the capped 20 queued commands drain.
+        return script->sent_texts.size() >= 2 + kCap;
+    }));
+
+    // A brief settle wait: if more than the cap were sent, it would show
+    // up almost immediately.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->sent_texts.size(), 2u + kCap);
+        for (const std::string& sent : script->sent_texts) {
+            for (int i = 0; i < kEnqueued - kCap; ++i) {
+                EXPECT_EQ(sent.find(R"("idx":")" + std::to_string(i) + R"(")"), std::string::npos)
+                    << "dropped index " << i << " should never have been sent";
+            }
+        }
+    }
+
+    connection.Stop();
+}
+
+// A command still queued from before a connectivity gap no longer
+// reflects what the user actually wants sent once too much time has
+// passed - it must be dropped, not fired stale on reconnect.
+TEST_F(HarmonyConnectionTest, StaleQueuedCommandsAreDroppedOnReconnect) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    // hub_host deliberately not set yet - see the cap test above.
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    constexpr std::chrono::milliseconds kFastMaxAge{50};
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff, std::chrono::seconds(30), kFastMaxAge);
+    connection.Start();
+
+    connection.PressDeviceCommand(R"({"command":"stale"})");
+    std::this_thread::sleep_for(kFastMaxAge * 3);  // let it go stale
+
+    connection.PressDeviceCommand(R"({"command":"fresh"})");
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+    connection.TriggerReconnect();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return std::any_of(script->sent_texts.begin(), script->sent_texts.end(),
+                            [](const std::string& s) { return s.find("fresh") != std::string::npos; });
+    }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        for (const std::string& sent : script->sent_texts) {
+            EXPECT_EQ(sent.find("stale"), std::string::npos) << "stale command should have been dropped, not sent";
+        }
+    }
+
+    connection.Stop();
+}
