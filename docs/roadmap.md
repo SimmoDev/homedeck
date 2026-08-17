@@ -747,4 +747,4 @@ index — decision name, ADR, one-line outcome.
 | Time synchronization | [ADR-0028](decisions/ADR-0028-time-synchronization.md) | SNTP against `pool.ntp.org` once Wi-Fi connects, corrected back into the physical RTC on every sync — not a manual set-time affordance; no timezone handling added |
 | Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol confirmed in M3 — see ADR-0029 |
 | Harmony local protocol | [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md) | Local WebSocket/JSON API on port 8088, not XMPP; no authentication step; manual hub IP entry, no discovery protocol |
-| Module interface (exact API) | [modules.md](architecture/modules.md#status) | Deferred by design — defined when Harmony (M3) is built |
+| Module interface (exact API) | [modules.md](architecture/modules.md#status) | `Module` (`src/core/module.h`): a minimal `Start()`/`Stop()` lifecycle contract, finalized via Harmony's (M3) implementation |
