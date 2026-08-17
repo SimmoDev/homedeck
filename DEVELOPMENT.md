@@ -6,63 +6,57 @@ This document describes the development workflow for HomeDeck. See
 ## Where to start
 
 The architecture documentation has grown large (12 architecture docs, 28
-ADRs) across M0's design work and the M1/M2 implementation work since.
-Not all of it is relevant to starting M3 (Harmony) — most of the M1/M2-
-specific bring-up detail is settled and only worth consulting when it's
-actually touched. If you're implementing M3, this is the essential
-reading, in order:
+ADRs) across M0's design work and the M1/M2/M3 implementation work
+since. Not all of it is relevant to building a new module — most of the
+M1/M2-specific bring-up detail is settled and only worth consulting when
+it's actually touched. If you're implementing a module (see
+[docs/roadmap.md](docs/roadmap.md) for which one is current), this is
+the essential reading, in order:
 
 1. [README.md](README.md) — what HomeDeck is, in brief.
 2. [docs/architecture/modules.md](docs/architecture/modules.md) — the
-   module contract every M3+ integration is built against: what a module
+   module contract every integration is built against: what a module
    may provide, why it registers with Core instead of coupling to it
    directly, and why modules never talk to each other except through the
    event bus.
 3. [ADR-0003](docs/decisions/ADR-0003-module-architecture.md) — the
-   reasoning behind that contract, and its "Known External Risk: Harmony
-   Hub Local Control" section specifically — the local-control scope this
-   project's own reference hub is confirmed to need.
+   reasoning behind that contract; its "Known External Risk: Harmony Hub
+   Local Control" section is a worked example of scoping a module's own
+   external-system risk, not a template to copy literally.
 4. [docs/architecture/core.md](docs/architecture/core.md#status) — what
-   Core actually offers a module to build against (see
-   [docs/roadmap.md](docs/roadmap.md) for current milestone status): the
-   event bus, `Storage`/`SecretStore`, the widget system, and
-   Notifications, all implemented, not just the design each originally
-   named.
+   Core actually offers a module to build against: the event bus,
+   `Storage`/`SecretStore`, the widget system, and Notifications, all
+   implemented, not just the design each originally named.
 5. [docs/architecture/networking.md](docs/architecture/networking.md) —
-   LAN discovery (Harmony's own hub-discovery protocol is out of scope
-   for the shared mDNS wrapper described here, but the retry/backoff
-   ownership decision applies to it) and the offline-behaviour contract
-   a module's own connection state should follow.
-6. [docs/architecture/web-ui.md](docs/architecture/web-ui.md) — Harmony's
-   module configuration page (hub address only - no credential exists in
-   this protocol, see
-   [ADR-0029](docs/decisions/ADR-0029-harmony-local-protocol.md)) is the
-   settings API's first consumer; see
-   [ADR-0023](docs/decisions/ADR-0023-settings-backup-api.md) for the
-   endpoint shapes. `SecretStore`/[ADR-0010](docs/decisions/ADR-0010-secret-storage.md)
-   don't apply here - there's nothing to protect that way. ADR-0018's
-   NVS-encryption trigger (a real module credential existing) hasn't
-   fired through Harmony for the same reason; still worth checking
-   against whichever module first has an actual credential.
+   LAN discovery and the offline-behaviour contract a module's own
+   connection state should follow.
+6. [docs/architecture/web-ui.md](docs/architecture/web-ui.md) — how a
+   module's own configuration page is built on the generic settings API
+   (`HarmonySettings.svelte`/`WeatherSettings.svelte` are worked
+   examples); see [ADR-0023](docs/decisions/ADR-0023-settings-backup-api.md)
+   for the endpoint shapes. If the module has an actual credential to
+   protect, `SecretStore`/[ADR-0010](docs/decisions/ADR-0010-secret-storage.md)
+   and ADR-0018's NVS-encryption trigger apply - neither has fired yet
+   (Harmony's local protocol has no credential at all).
 7. [docs/architecture/dashboard.md](docs/architecture/dashboard.md) — the
-   `Widget`/`DashboardGrid` interface, if Harmony surfaces current-activity
-   status on the dashboard.
+   `Widget`/`DashboardGrid` interface, if the module surfaces status on
+   the dashboard (`HarmonyWidget` is a worked example).
 8. [docs/architecture/power-management.md](docs/architecture/power-management.md) —
    the sleep-veto mechanism and background-task constraints every
-   module's own polling/connection-handling must respect; Harmony is a
-   plausible first real `RequestSleepVeto` caller (e.g. mid-activity).
-9. [docs/roadmap.md](docs/roadmap.md)'s M3 section — the actual task
-   list, which links out to anything else specific as it comes up.
+   module's own polling/connection-handling must respect.
+9. [docs/roadmap.md](docs/roadmap.md)'s section for the current
+   milestone — the actual task list, which links out to anything else
+   specific as it comes up.
 
 Everything else — the M1/M2 hardware bring-up detail in
 [hardware.md](docs/architecture/hardware.md),
 [simulator.md](docs/architecture/simulator.md),
 [ui.md](docs/architecture/ui.md)'s Rendering/Thread-safety sections, and most of
 the ADRs numbered 0009 and below plus 0011–0022 — is settled
-implementation this milestone builds on top of, not something M3 itself
-changes. Worth consulting when a specific M3 need actually touches one
-of those areas (e.g. a new background task's threading rules), not
-worth re-reading in full up front.
+implementation to build on top of, not something a new module changes.
+Worth consulting when a specific need actually touches one of those
+areas (e.g. a new background task's threading rules), not worth
+re-reading in full up front.
 
 ## Required tools
 
