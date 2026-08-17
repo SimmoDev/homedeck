@@ -131,8 +131,13 @@ internal tier's bounded retention - the one concrete use
 [ADR-0012](../decisions/ADR-0012-storage-tiers.md) names for that tier
 - is not built.
 
-Still not implemented: module status and connection state (no modules
-exist to report on yet). Error reporting's mechanism is ready —
-Notifications is implemented (see [core.md](core.md#status)) — but nothing
-publishes an error through it yet, since no module exists to report
-one.
+Still not implemented: the generic Web UI Diagnostics page doesn't yet
+surface per-module status/connection state — Harmony's own connection
+status is shown on its own Web UI settings page
+(`webui/src/lib/HarmonySettings.svelte`), not the shared Diagnostics
+page, see [web-ui.md](web-ui.md#status). Error reporting's mechanism is
+implemented, not just ready: `HarmonyNotificationBridge`
+(`src/core/harmony_notification_bridge.h`/`.cpp`) publishes a
+`NotificationEvent` when Harmony's connection enters `kError`, the same
+Core notification/diagnostics path this requirement names — see
+[core.md](core.md#status).
