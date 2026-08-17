@@ -78,12 +78,13 @@ the module boundary does for it.
 | Home Assistant | M6 | Not started |
 | MQTT, Jellyfin, Plex, Spotify, Prometheus, Grafana, ESPHome, Shelly | Future | Not scoped |
 
-Each module-specific architecture document (e.g. [harmony.md](harmony.md),
-written once Harmony's own design was actually being implemented in M3 —
-a future `docs/architecture/kodi.md` and so on will follow the same rule)
-is written once that module's design is actually being implemented, not
-speculatively ahead of it — see the scope-control guidance in
-[CLAUDE.md](../../CLAUDE.md).
+Each module-specific architecture document is written once that
+module's design is actually being implemented, not speculatively ahead
+of it — see the scope-control guidance in
+[CLAUDE.md](../../CLAUDE.md). [harmony.md](harmony.md) is the first
+example, written once Harmony's own design was actually being
+implemented in M3; a future `docs/architecture/kodi.md` and so on will
+follow the same rule.
 
 ## Status
 
