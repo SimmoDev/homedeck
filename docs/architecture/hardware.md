@@ -122,9 +122,13 @@ accepted gap, not resolved. The device recovers on its own (a
 self-triggered reboot, not a hang). Accepted specifically because every
 root-cause avenue available without JTAG or upstream engagement has
 already been exhausted, not because the reproduction rate is considered
-acceptable in the abstract - re-evaluate once M3 adds more Wi-Fi-adjacent
-activity at boot/connect time (Harmony hub discovery, etc.), which could
-plausibly change that rate one way or the other.
+acceptable in the abstract. M3's Harmony module added its own
+Wi-Fi-adjacent activity at connect time (`HarmonyConnection`'s background
+WebSocket connect/reconnect loop, not hub discovery —
+[ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md) established
+Harmony has no discovery protocol at all), but the crash rate hasn't been
+re-evaluated against it - still an open, accepted gap, not a resolved
+one.
 
 The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
