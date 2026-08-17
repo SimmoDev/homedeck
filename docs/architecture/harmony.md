@@ -108,7 +108,11 @@ through the generic settings API, shows live connection status via
 `GET /api/harmony/status` with a manual Refresh button (no live-push
 mechanism exists for the Web UI yet — see
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server)),
-and triggers `POST /api/harmony/reconnect` on save.
+and triggers `POST /api/harmony/reconnect` on save. Saving with the
+field empty un-configures the hub — `IsValidHubHost()` accepts empty
+(see its own comment) and `ConnectionLoop()` treats it as "not yet
+configured," so the reconnect trigger disconnects any active connection
+the same way a first-time save connects one.
 
 ## Status
 

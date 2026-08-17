@@ -144,13 +144,13 @@
         disabled={saving}
         oninput={() => (saved = false)}
       />
-      <button onclick={saveHubHost} disabled={saving || hubHost.trim().length === 0}>
+      <button onclick={saveHubHost} disabled={saving}>
         {saving ? "Saving..." : "Save"}
       </button>
     </div>
     <p class="hint">
       No password or account needed - already-paired Harmony Hubs have no authentication step on the local
-      network.
+      network. Save with the field empty to disconnect and clear the configured hub.
     </p>
     {#if saveError}
       <p class="error">{saveError}</p>
