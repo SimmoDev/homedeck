@@ -40,9 +40,17 @@ been pulled out into portable, LVGL/ESP-IDF-free units
 specifically so they're testable here - the rest of that file is 100%
 ESP-IDF-coupled and unreachable from this suite. `url_codec_test.cpp`
 covers the percent-decoding shared by that same form-parsing path and
-`weather_routes.cpp`'s GET query parsing (`src/core/url_codec.h`). Real
-module tests arrive alongside the modules they test, not before they
-exist.
+`weather_routes.cpp`'s GET query parsing (`src/core/url_codec.h`).
+
+`harmony_connection_test.cpp` covers `HarmonyConnection` (M3, the first
+module test) - connect/retry/liveness-probe behavior and the
+press/hold/release device-command path - against a scriptable
+`WebSocketClient` double, the same fake-transport-double approach
+`weather_provider_test.cpp` already established for `HttpClient`.
+`harmony_notification_bridge_test.cpp` covers `HarmonyNotificationBridge`'s
+notify-once-per-outage latch, and `harmony_routes_test.cpp` covers its two
+Web UI routes. Further module tests arrive alongside the modules they
+test, not before they exist.
 
 Build and run locally:
 
