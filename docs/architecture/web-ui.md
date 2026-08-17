@@ -171,9 +171,11 @@ touches. Session expiry uses a monotonic clock
 `std::chrono::steady_clock`) on both targets rather than the wall-clock
 `TimeSource` — the correct mechanism for expiry comparisons regardless
 of target, and specifically necessary on firmware, where the wall-clock
-`Rx8130TimeSource` reads the RTC over I2C on every call and the RTC has
-a known, pre-existing never-calibrated gap (see
-[ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)).
+`Rx8130TimeSource` reads the RTC over I2C on every call and isn't
+guaranteed monotonic —
+[ADR-0028](../decisions/ADR-0028-time-synchronization.md)'s periodic
+SNTP resync corrects it, which can jump the reading forward or backward,
+unsuitable for elapsed-time comparisons.
 
 `esp_http_server`'s task stack is raised to 8KB
 (`FirmwareHttpServer::Start()`, `src/platform/firmware/http_server.cpp`)

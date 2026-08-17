@@ -8,11 +8,11 @@ namespace homedeck {
 // shape purely for duration arithmetic - never displayed as a wall-clock
 // date. For callers that need reliable elapsed-time comparisons (e.g.
 // AdminAuthService's session expiry) rather than an actual calendar date,
-// where the wall-clock TimeSource implementations aren't trustworthy: on
+// where the wall-clock TimeSource implementations aren't monotonic: on
 // firmware, Rx8130TimeSource reads the RTC over I2C on every call, and
-// that RTC has a known, pre-existing gap (never calibrated - see
-// hardware.md) with no guarantee its readings are even self-consistent
-// call to call, let alone correct, until that's fixed. std::chrono::
+// ADR-0028's periodic SNTP resync corrects that reading, which can jump
+// it forward or backward between calls - unsuitable for elapsed-time
+// comparisons even though the value itself is accurate. std::chrono::
 // steady_clock has neither problem - it's standard C++, identical on
 // host and firmware (ESP-IDF's newlib backs it with esp_timer), so no
 // host/firmware split is needed here the way most platform/ interfaces

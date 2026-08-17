@@ -62,9 +62,9 @@ src/
 │                than a wall clock, for callers that need reliable
 │                elapsed-time comparisons rather than a calendar date
 │                (AdminAuthService's session expiry, since firmware's
-│                RTC-backed TimeSource has no guaranteed
-│                call-to-call consistency until ADR-0016's
-│                never-calibrated-RTC gap is fixed).
+│                RTC-backed TimeSource isn't guaranteed monotonic -
+│                ADR-0028's periodic SNTP resync can jump it forward
+│                or backward).
 ├── core/        EventBus - publish/subscribe with reference-counted
 │                payloads (see ADR-0011). Deliberately has no LVGL
 │                dependency, so it's fully unit-testable in tests/. Also
