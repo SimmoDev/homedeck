@@ -103,6 +103,25 @@ for f in "$@"; do
             ;;
     esac
 
+    # New test file not mentioned in tests/README.md: that doc is a
+    # deliberately exhaustive per-subsystem inventory of every test file
+    # in the suite (see its own opening paragraphs), not a general
+    # description - a new *_test.cpp with no mention there means the
+    # inventory is now incomplete. Caught once already (M3 exit review's
+    # third pass: three Harmony test files landed with no update to this
+    # doc's inventory, since the pre-commit hook only ever saw each file
+    # on the commit that added it, never a later commit to re-flag it).
+    case "$f" in
+        tests/*_test.cpp)
+            readme="$repo_root/tests/README.md"
+            base=$(basename "$f")
+            if [ -f "$readme" ] && ! grep -qF "$base" "$readme"; then
+                echo "[docs] $f: not mentioned by name in tests/README.md's test inventory"
+                status=1
+            fi
+            ;;
+    esac
+
     # Broken relative-Markdown-link targets/anchors: a link's target file
     # must exist, and if it names a `#anchor`, some heading in the target
     # file must slugify to it (GitHub's algorithm: lowercase, drop
