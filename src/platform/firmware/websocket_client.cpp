@@ -61,7 +61,10 @@ bool FirmwareWebSocketClient::Connect(const std::string& url) {
         connect_pending_ = true;
         connect_succeeded_ = false;
     }
-    closed_ = false;
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex_);
+        closed_ = false;
+    }
 
     // A failure here means Connect() would otherwise block for the full
     // kConnectTimeoutMs with no way for it to ever succeed - no event
