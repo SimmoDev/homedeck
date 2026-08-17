@@ -278,6 +278,52 @@ TEST_F(HarmonyConnectionTest, ConfiguredHandshakeAndConfigFetchSucceedPublishesC
     connection.Stop();
 }
 
+// Regression test for the un-configure-doesn't-clear-cached-config bug
+// (M3 exit review pass 6): saving hub_host back to empty - the Web UI's
+// "clear the configured hub" flow, HarmonySettings.svelte - must actually
+// clear devices/activities/current_activity_id/has_config, not just move
+// state to kDisconnected while leaving ActivitiesScreen/DevicesScreen (both
+// keyed on has_config alone, not state) still rendering the previous hub's
+// stale, tappable list forever.
+TEST_F(HarmonyConnectionTest, UnconfiguringAfterConnectingClearsTheCachedConfig) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->responses.push_back(kConfigSuccessBody);
+    }
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_FALSE(connection.Snapshot().devices.empty());
+    ASSERT_FALSE(connection.Snapshot().activities.empty());
+
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, ""));
+    connection.TriggerReconnect();
+
+    ASSERT_TRUE(WaitFor([&] { return !connection.Snapshot().has_config; }));
+    homedeck::HarmonyConnectionSnapshot snapshot = connection.Snapshot();
+    EXPECT_EQ(snapshot.state, homedeck::HarmonyConnectionState::kDisconnected);
+    EXPECT_TRUE(snapshot.devices.empty());
+    EXPECT_TRUE(snapshot.activities.empty());
+    EXPECT_TRUE(snapshot.current_activity_id.empty());
+
+    connection.Stop();
+}
+
 TEST_F(HarmonyConnectionTest, HandshakeFailureEntersErrorStateThenRecoversOnceItSucceeds) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

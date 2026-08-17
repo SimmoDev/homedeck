@@ -238,6 +238,23 @@ void HarmonyConnection::SetState(HarmonyConnectionState state) {
     event_bus_.Publish(HarmonyConnectionStateChangedEvent{state});
 }
 
+void HarmonyConnection::ClearConfigIfPresent() {
+    bool had_config;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        had_config = state_.has_config;
+        if (had_config) {
+            state_.has_config = false;
+            state_.devices.clear();
+            state_.activities.clear();
+            state_.current_activity_id.clear();
+        }
+    }
+    if (had_config) {
+        event_bus_.Publish(HarmonyConfigUpdatedEvent{});
+    }
+}
+
 void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
     // Woken on request_stop() too, not just by TriggerReconnect() or a
     // Sleep() timeout - preserves Task::~Task()'s "stops and joins
@@ -248,6 +265,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
     while (!stop.stop_requested()) {
         std::optional<VersionedValue> hub_host_setting = storage_.GetSetting(kModuleId, kHubHostKey);
         if (!hub_host_setting.has_value() || hub_host_setting->value.empty()) {
+            ClearConfigIfPresent();
             SetState(HarmonyConnectionState::kDisconnected);
             Sleep(kUnconfiguredRecheckInterval, stop, /*watch_commands=*/false);
             continue;

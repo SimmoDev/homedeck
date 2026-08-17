@@ -275,6 +275,21 @@ private:
     // One holdAction message. Returns SendText()'s own result.
     bool SendHoldAction(const std::string& action, const std::string& status);
     void SetState(HarmonyConnectionState state);
+    // Called from the "hub_host is unconfigured" branch of ConnectionLoop()
+    // - clears devices/activities/current_activity_id and has_config back
+    // to their construction-time defaults, and publishes
+    // HarmonyConfigUpdatedEvent so ActivitiesScreen/DevicesScreen (which
+    // key their entire rendered list on has_config) drop the previous
+    // hub's now-meaningless data instead of continuing to show it as if
+    // still live. A no-op (and doesn't publish) if has_config is already
+    // false - keeps the unconfigured branch's own 5s recheck loop from
+    // publishing the event every cycle once already cleared. Deliberately
+    // not shared with the transient disconnect/error paths - those keep
+    // showing the last-known state on purpose (see
+    // HarmonyConnectionSnapshot::has_config's own comment); this is only
+    // for the "user explicitly removed the hub" case, which has no
+    // "the hub might come back on its own" reasoning to preserve.
+    void ClearConfigIfPresent();
     // watch_commands: only the connected loop's own wait should notice a
     // pending command (ws_client_ only exists then); the unconfigured/
     // error-backoff waits leave it queued rather than waking early on

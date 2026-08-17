@@ -112,7 +112,13 @@ and triggers `POST /api/harmony/reconnect` on save. Saving with the
 field empty un-configures the hub — `IsValidHubHost()` accepts empty
 (see its own comment) and `ConnectionLoop()` treats it as "not yet
 configured," so the reconnect trigger disconnects any active connection
-the same way a first-time save connects one.
+the same way a first-time save connects one. Unlike a transient
+disconnect/error (which keeps showing the last-known devices/activities —
+see `HarmonyConnectionSnapshot::has_config`'s own comment), un-configuring
+also clears them (`HarmonyConnection::ClearConfigIfPresent()`) and
+publishes `HarmonyConfigUpdatedEvent`, so `ActivitiesScreen`/
+`DevicesScreen` drop the previous hub's now-meaningless list instead of
+continuing to render it as if still live.
 
 ## Status
 
