@@ -3,9 +3,8 @@ name: Docs check
 # Runs tools/githooks/check-docs.sh against every tracked doc/code file,
 # not just a commit's diff. The pre-commit hook only ever sees staged
 # files, so a narration/wording violation in a file nobody happens to
-# touch again stays invisible indefinitely - found by the M3 exit
-# review's third pass (src/ui/dashboard_grid.cpp had carried a banned
-# "is real" wording since M2, unflagged because it was never re-staged).
+# touch again stays invisible indefinitely - a full-repo periodic run is
+# the only way to catch it.
 # Non-blocking, same as the pre-commit hook itself: a full-repo run also
 # surfaces plenty of pre-existing, legitimate "real"-as-adjective usage
 # and the project's own "**Confirmed:**"-as-fact-marker convention in

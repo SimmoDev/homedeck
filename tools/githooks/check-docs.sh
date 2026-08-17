@@ -80,12 +80,10 @@ for f in "$@"; do
     # carries its own "superseded by ADR-NNNN" note in its own Status
     # section (ADR-0002/0005/0006/0009/0010/0014 all do this) - the
     # convention this project actually follows is a reciprocal pointer,
-    # not just the new ADR's own "Supersedes ADR-NNNN" claim. Caught once
-    # already (M2 exit review, commit dca9456) and recurred once more
-    # (ADR-0029 supersedes part of ADR-0003 with no backlink added) -
-    # this check is scoped to files under docs/decisions/ only, since
-    # "Supersedes" language elsewhere (e.g. a roadmap line describing an
-    # ADR) isn't the ADR's own declaration.
+    # not just the new ADR's own "Supersedes ADR-NNNN" claim. This check
+    # is scoped to files under docs/decisions/ only, since "Supersedes"
+    # language elsewhere (e.g. a roadmap line describing an ADR) isn't
+    # the ADR's own declaration.
     case "$f" in
         docs/decisions/ADR-*.md)
             this_adr=$(basename "$f" | grep -oE 'ADR-[0-9]{4}' | head -1)
@@ -107,10 +105,10 @@ for f in "$@"; do
     # deliberately exhaustive per-subsystem inventory of every test file
     # in the suite (see its own opening paragraphs), not a general
     # description - a new *_test.cpp with no mention there means the
-    # inventory is now incomplete. Caught once already (M3 exit review's
-    # third pass: three Harmony test files landed with no update to this
-    # doc's inventory, since the pre-commit hook only ever saw each file
-    # on the commit that added it, never a later commit to re-flag it).
+    # inventory is now incomplete. A full-repo run (see docs.yml) is
+    # needed to catch this reliably: the pre-commit hook only ever sees
+    # a file on the commit that adds it, never a later commit that would
+    # re-flag a since-gone-stale inventory entry.
     case "$f" in
         tests/*_test.cpp)
             readme="$repo_root/tests/README.md"
@@ -128,16 +126,15 @@ for f in "$@"; do
     # everything outside [a-z0-9_ -], spaces -> hyphens, no further
     # collapsing - "M2 — Platform Services (complete)" ->
     # "m2--platform-services-complete", matching this repo's own existing
-    # anchors). Caught two real breakages during the M3 exit review's
-    # second pass (roadmap.md's M2/M3 headings gaining "(complete)"/
-    # "(current)" suffixes left two ADRs' deep links pointing at
-    # anchors that no longer exist) that no prior automated check caught -
-    # only a one-off manual sweep during that review found them. Only
-    # .md targets are anchor-checked (this repo's own convention links to
-    # other .md files' sections, never a source file's own #anchor); a
-    # non-.md target is still existence-checked. Doesn't handle GitHub's
-    # duplicate-heading "-1"/"-2" suffixing - a false negative on that
-    # rare case, not a false positive risk.
+    # anchors). A heading text change anywhere (e.g. a milestone gaining a
+    # "(complete)"/"(current)" suffix) can silently break any deep link
+    # into it elsewhere in the repo, which a plain target-file-existence
+    # check wouldn't catch. Only .md targets are anchor-checked (this
+    # repo's own convention links to other .md files' sections, never a
+    # source file's own #anchor); a non-.md target is still
+    # existence-checked. Doesn't handle GitHub's duplicate-heading
+    # "-1"/"-2" suffixing - a false negative on that rare case, not a
+    # false positive risk.
     case "$f" in
         *.md)
             slugify() {
