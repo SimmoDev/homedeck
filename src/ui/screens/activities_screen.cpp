@@ -181,6 +181,16 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
         return;
     }
     const std::string& activity_id = it->second;
+    if (activity_id == self->harmony_connection_.Snapshot().current_activity_id) {
+        // Already the running activity - nothing to start, and showing
+        // "Starting <name>..." here would never clear: a same-activity
+        // StartActivity() send produces no activity-ID change, so
+        // FetchCurrentActivity() never publishes
+        // HarmonyCurrentActivityChangedEvent to clear it (that event
+        // only fires on an actual ID change - see this screen's own
+        // subscription above).
+        return;
+    }
 
     self->harmony_connection_.StartActivity(activity_id);
     self->starting_activity_id_ = activity_id;
