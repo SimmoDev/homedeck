@@ -155,7 +155,13 @@ LVGL overlay on the simulator via
 gated by the sleep-veto mechanism (`PowerManager::RequestSleepVeto`/
 `HasActiveSleepVeto`) — `HasActiveSleepVeto()` is consulted by that
 transition, though `RequestSleepVeto()` itself still has no module
-caller until M3+.
+caller. Harmony (M3), the first plausible candidate, turned out not to
+need one: a user actively driving the remote already keeps
+`PowerManager` in `Active` through `UserActivitySource`'s own
+touch-driven idle reset, and `HarmonyConnection`'s background
+reconnect/liveness loop has no reason to keep the display on while
+genuinely idle. Still available for a future module whose background
+work can't tolerate the display going dark mid-operation.
 
 `Updating` is also implemented: `POST /api/ota/upload` publishes
 `OtaUpdateStateChangedEvent` immediately around the actual flash write,
