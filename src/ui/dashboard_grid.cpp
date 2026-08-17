@@ -55,7 +55,7 @@ DashboardGrid::DashboardGrid(lv_obj_t* parent) : row_dsc_{kRowHeight, LV_GRID_TE
     // stays enabled here. This is the opposite fix from status_bar.cpp,
     // which clears scrolling to prevent it happening *accidentally* from
     // small content overflowing tight padding; this container's
-    // scrolling is real and wanted, not a default left in by mistake.
+    // scrolling is deliberate and wanted, not a default left in by mistake.
 }
 
 void DashboardGrid::EnsureRowExists(int row) {
