@@ -1,5 +1,6 @@
 <script lang="ts">
   import { findSetting, loadJson, postJson, type SettingEntry } from "./api";
+  import { hubHostError } from "./harmonyValidation";
 
   // Harmony Hub module configuration (see docs/roadmap.md's M3 section
   // and docs/decisions/ADR-0029-harmony-local-protocol.md) - just a hub
@@ -64,13 +65,20 @@
   }
 
   async function saveHubHost() {
+    const trimmed = hubHost.trim();
+    const validationError = hubHostError(trimmed);
+    if (validationError) {
+      saveError = validationError;
+      saved = false;
+      return;
+    }
     saving = true;
     saveError = undefined;
     saved = false;
     const result = await postJson("/api/settings", {
       module: kModuleId,
       key: kHubHostKey,
-      value: hubHost,
+      value: trimmed,
       schemaVersion: kSchemaVersion,
     });
     saving = false;
@@ -78,6 +86,7 @@
       saveError = result.kind === "network" ? result.message : `Save failed: ${result.status}`;
       return;
     }
+    hubHost = trimmed;
     saved = true;
     // Fire-and-forget, same shape as WeatherSettings.svelte's post-save
     // refresh trigger - wakes HarmonyConnection's own connect loop
