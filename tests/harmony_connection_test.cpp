@@ -275,6 +275,135 @@ TEST_F(HarmonyConnectionTest, HandshakeFailureEntersErrorStateThenRecoversOnceIt
     connection.Stop();
 }
 
+// Distinct from HandshakeFailureEntersErrorStateThenRecoversOnceItSucceeds
+// above (a transport-level failure) - this is a 200 response whose body
+// isn't valid JSON at all. ConnectAndFetchConfig()'s parse guard
+// (parsed.is_discarded()) must reject it the same way, not crash or
+// misbehave.
+TEST_F(HarmonyConnectionTest, HandshakeWithMalformedJsonBodyEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, "not valid json{{{"});
+
+    auto script = std::make_shared<WsScript>();
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+
+    connection.Stop();
+}
+
+// A well-formed JSON object missing the field this class actually needs
+// (activeRemoteId) - the hub returning a shape this project doesn't
+// recognize must not be treated as success.
+TEST_F(HarmonyConnectionTest, HandshakeMissingActiveRemoteIdEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(
+        homedeck::HttpClientResponse{true, 200, R"({"id":1,"msg":"OK","data":{"email":"someone@example.com"}})"});
+
+    auto script = std::make_shared<WsScript>();
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+
+    connection.Stop();
+}
+
+// The handshake succeeds, but the WebSocket config-fetch response isn't
+// valid JSON - ConnectAndFetchConfig()'s second parse guard must reject
+// it the same way as the handshake's own, leaving ws_client_ closed
+// rather than left dangling half-open.
+TEST_F(HarmonyConnectionTest, ConfigFetchWithMalformedJsonResponseEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, "{not json at all");
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+
+    connection.Stop();
+}
+
+// The periodic liveness probe's own response (getCurrentActivity) can be
+// malformed independently of the config fetch - it must be treated the
+// same as any other failed liveness probe (drop the connection, retry),
+// not crash or silently keep a stale current_activity_id forever.
+TEST_F(HarmonyConnectionTest, MalformedCurrentActivityResponseDropsTheConnection) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    // Consumed by ConnectAndFetchConfig()'s own best-effort fetch - a
+    // well-formed response, so has_config/current_activity_id come up
+    // clean before the malformed one below is ever reached.
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+    // Consumed by the first periodic liveness probe after connecting -
+    // missing the "result" field FetchCurrentActivity() actually reads.
+    PushResponse(script, R"({"data":{"result_typo":"-1"}})");
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff, /*liveness_interval=*/std::chrono::milliseconds(30));
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kConnected);
+
+    // The next liveness probe (30ms later) gets the malformed response
+    // above - FetchCurrentActivity() must fail cleanly (not crash, not
+    // silently keep the stale current_activity_id forever), and the loop
+    // must notice and re-enter its retry cycle rather than staying
+    // kConnected on a connection that can't be trusted.
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+
+    connection.Stop();
+}
+
 TEST_F(HarmonyConnectionTest, TriggerReconnectPicksUpANewlySavedAddressImmediately) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
