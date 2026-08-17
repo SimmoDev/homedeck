@@ -21,9 +21,9 @@ src/
 │                TimeSource implementations reading real hardware (the
 │                INA226 power monitor, the RX8130CE RTC - see
 │                docs/architecture/hardware.md#on-device-dashboard).
-│                Queue<T>'s firmware backend is confirmed working - see
-│                Logger (core/ below) and ADR-0020 for its first firmware
-│                use. BatteryReader/TimeSource/SettingsStore/
+│                Queue<T>'s firmware backend backs Logger (core/
+│                below)'s async persistence - see ADR-0020.
+│                BatteryReader/TimeSource/SettingsStore/
 │                SecretStore/CacheStore are small virtual interfaces (not
 │                pImpl'd like Task/Timer - simple, infrequently-called,
 │                and directly mockable matters more than dispatch cost).
