@@ -108,6 +108,13 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         }
         accumulated.append(buffer, received);
         if (meta->bytesleft == 0) {
+            // bytesleft tracks the current WS frame, not a WS-level
+            // continuation (FIN) sequence across multiple frames - treating
+            // one frame as one message is correct for every payload this
+            // project has observed (see ADR-0029's Consequences: the
+            // reference hub's config/status responses each arrive as a
+            // single frame), but would need a FIN check added if a future
+            // caller's counterpart ever fragments a message across frames.
             return accumulated;  // last chunk of this frame delivered
         }
         // Large/fragmented frame - loop to collect the rest within the
