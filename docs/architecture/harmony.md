@@ -53,6 +53,18 @@ the current activity, not an app-launcher grid, per
 [ADR-0004](../decisions/ADR-0004-ui-philosophy.md)'s dashboard
 philosophy.
 
+Activities render in the order the hub's config response lists them
+(`ParseIdLabelArray()`, `src/core/harmony_connection.cpp`) — neither this
+project's own live-hub probe (see ADR-0029) nor `aioharmony` (the
+actively-maintained community client library ADR-0029 cites) found a
+distinct sequence/order field in the config payload, so array order is
+the only ordering this protocol exposes. The official Harmony app's own
+"Reorder Activities" feature isn't backed by one shared hub-side order
+either — Logitech's own documentation states reordering in the app and
+reordering on the physical remote don't sync to each other — so there is
+no known "official order" for HomeDeck to mirror even in principle.
+Devices below follow the same array-order rule.
+
 ## Devices and remote control
 
 A device's capabilities and its remote-control commands are the same
