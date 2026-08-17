@@ -83,7 +83,14 @@
     });
     saving = false;
     if (!result.ok) {
-      saveError = result.kind === "network" ? result.message : `Save failed: ${result.status}`;
+      saveError =
+        result.kind === "network"
+          ? result.message
+          : result.body.error === "invalid_value"
+            ? "Not a valid hub address."
+            : result.body.error === "value_too_long"
+              ? "Hub address is too long."
+              : `Save failed: ${result.status}`;
       return;
     }
     hubHost = trimmed;
@@ -132,6 +139,7 @@
         id="harmony-hub-host"
         type="text"
         placeholder="Hub IP address or hostname"
+        maxlength="255"
         bind:value={hubHost}
         disabled={saving}
         oninput={() => (saved = false)}
