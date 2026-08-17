@@ -79,7 +79,20 @@ src/
 │                deliberately not built yet (see ADR-0018/ADR-0012). Also
 │                notification.h/LowBatteryMonitor - the Notifications
 │                service's urgency-tagged event and its first real
-│                publisher (see core.md#status). Also AdminAuthService -
+│                publisher (see core.md#status). Also
+│                critical_battery_monitor.h - CriticalBatteryMonitor,
+│                the second publisher, transitioning PowerManager into
+│                kError below a critical battery threshold. Also
+│                power_manager.h - PowerManager, the
+│                Active/Idle/Sleeping/Updating/Error state machine (see
+│                power-management.md#status), driving DisplayBrightness
+│                and consulted by the sleep-veto mechanism. Also
+│                json_request.h - a small shared helper for parsing a
+│                JSON request body, used across the Web UI route
+│                registration files below. Also wifi_credentials.h/
+│                wifi_reconnect_policy.h - the two portable, testable
+│                pieces pulled out of firmware/main/wifi_setup.cpp (see
+│                tests/README.md). Also AdminAuthService -
 │                the Web Management UI's admin authentication (see
 │                web-ui.md#status): PBKDF2-SHA256 password hashing and
 │                session-token generation via mbedtls (the same library
@@ -95,7 +108,8 @@ src/
 │                - see ADR-0005), diagnostics_routes (reset reason, core
 │                dump download, structured logs - see diagnostics.md),
 │                and weather_routes (the location-search/save endpoints
-│                proxying Open-Meteo's geocoding API). Also
+│                proxying Open-Meteo's geocoding API), and wifi_routes
+│                (POST /api/wifi/reset, see web-ui.md#status). Also
 │                weather_provider.h/.cpp - OpenMeteoWeatherProvider, the
 │                pluggable WeatherProvider interface's direct
 │                implementation (see ADR-0008), polling on its own
