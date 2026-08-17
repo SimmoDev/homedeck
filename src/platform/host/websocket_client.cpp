@@ -19,6 +19,13 @@ void EnsureGlobalInit() {
     (void)unused;
 }
 
+// Bounds how long the connect handshake below can block - libcurl's own
+// default connect timeout (300s) would otherwise leave the connection-loop
+// thread (and Task::~Task() during shutdown) unresponsive for minutes
+// against an unreachable/black-hole host. Same reasoning as
+// platform/host/http_client.cpp's kTimeoutSeconds.
+constexpr long kConnectTimeoutSeconds = 10;
+
 }  // namespace
 
 HostWebSocketClient::~HostWebSocketClient() { Close(); }
@@ -37,6 +44,7 @@ bool HostWebSocketClient::Connect(const std::string& url) {
     // then return with the connection left open for curl_ws_recv/
     // curl_ws_send below - see https://curl.se/libcurl/c/libcurl-ws.html.
     curl_easy_setopt(curl, CURLOPT_CONNECT_ONLY, 2L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, kConnectTimeoutSeconds);
 
     CURLcode result = curl_easy_perform(curl);
     if (result != CURLE_OK) {
