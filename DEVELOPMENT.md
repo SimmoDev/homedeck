@@ -289,10 +289,10 @@ Once the simulator target exists (M1):
 
 ## Continuous integration
 
-GitHub Actions runs on every push and PR against `main`, as three
-independent workflows (separate files, not jobs within one workflow, so
-each gets its own status badge — see [README.md](README.md)) mirroring
-the three build/test commands above:
+GitHub Actions runs on every push and PR against `main`, as independent
+workflows (separate files, not jobs within one workflow, so each gets
+its own status badge — see [README.md](README.md)). Three mirror the
+three build/test commands above:
 
 - [`simulator.yml`](.github/workflows/simulator.yml) — builds the Web UI
   bundle (including the `svelte-check` type-check gate — see
@@ -306,6 +306,15 @@ the three build/test commands above:
 
 All three were verified locally with [`act`](https://github.com/nektos/act)
 before being relied on.
+
+A fourth, [`docs.yml`](.github/workflows/docs.yml), runs
+`tools/githooks/check-docs.sh` against every tracked doc/code file (push,
+PR, and weekly) rather than just a commit's own diff, the way the
+pre-commit hook is scoped — catching narration/wording drift in files
+nobody happens to touch again. Deliberately non-blocking
+(`continue-on-error`), same as the hook itself: a full-repo run also
+surfaces plenty of pre-existing, legitimate usage not worth gating a
+build on.
 
 ## Status
 
