@@ -82,11 +82,10 @@ cycle, no RTC-timed wake, and no Wi-Fi reassociation cost to reason about
 for this state — the device is never disconnected in the first place.
 
 `NotificationSeverity`'s `kDeferred`/`kAlertPriority` distinction
-(`src/core/notification.h`) still exists and needs no change, but its
-original justification (gating a periodic wake cycle) no longer applies —
+(`src/core/notification.h`) does not gate any wake-cycle behavior (see
+[ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md#decision));
 it remains available as a presentation-layer distinction (e.g. a
-different sound) whenever a real consumer needs one, per
-[ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md#decision).
+different sound) whenever a real consumer needs one.
 
 ## Hardware capabilities involved
 
@@ -155,8 +154,8 @@ LVGL overlay on the simulator via
 gated by the sleep-veto mechanism (`PowerManager::RequestSleepVeto`/
 `HasActiveSleepVeto`) — `HasActiveSleepVeto()` is consulted by that
 transition, though `RequestSleepVeto()` itself still has no module
-caller. Harmony (M3), the first plausible candidate, turned out not to
-need one: a user actively driving the remote already keeps
+caller. Harmony (M3), the first plausible candidate, doesn't need one:
+a user actively driving the remote already keeps
 `PowerManager` in `Active` through `UserActivitySource`'s own
 touch-driven idle reset, and `HarmonyConnection`'s background
 reconnect/liveness loop has no reason to keep the display on while

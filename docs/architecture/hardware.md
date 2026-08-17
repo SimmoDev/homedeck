@@ -67,13 +67,11 @@ if a fact drifts.
   necessary together with the correct SDIO pins above; not verified in
   isolation. No automatic hardware coupling to the P4's own sleep state
   exists in that BSP source — the C6's power rail is independently
-  switchable, not wired to collapse whenever the P4 sleeps. This answers
-  the "are they wired together" question the alert-priority wake cycle's
-  original design once cared about — see
-  [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for why
-  that design no longer applies, which makes whether the C6 can stay
-  associated through P4 deep sleep moot for `Sleeping` (P4 never sleeps
-  in the redefined design). Whether it would still matter for a possible
+  switchable, not wired to collapse whenever the P4 sleeps, which makes
+  whether the C6 can stay associated through P4 deep sleep moot for
+  `Sleeping`: the P4 never enters deep sleep at all (see
+  [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)). Whether
+  it would still matter for a possible
   future full board power-off feature depends on what `VDD_STBY` on the
   PMS150G-U06 actually powers, which isn't confirmed — see [Wake
   sources](#power) under Power above; that feature would need its own
@@ -93,7 +91,8 @@ pins and power enable above:
   already relies on.
 - The `esp_wifi_remote`/`esp_hosted` dependency resolves to the
   `esp_hosted` `2.12.x` line, not `3.0.0`, which requires `idf >=5.5` and
-  would conflict with this project's `v5.4.3` pin (ADR-0014).
+  would conflict with this project's `v5.4.3` pin
+  ([ADR-0014](../decisions/ADR-0014-hardware-support-library.md)).
 
 **Known follow-up, not blocking:** the connection log includes `Version
 mismatch: Host [2.12.0] > Co-proc [0.0.0] ==> Upgrade co-proc to avoid RPC
@@ -112,7 +111,7 @@ signature doesn't match any currently-open upstream issue for this exact
 ESP32-P4+C6 combination. See git history for the diagnostic detail behind
 this conclusion.
 
-Reproducing this repeatedly no longer needs a full
+Reproducing this repeatedly doesn't need a full
 `tools/factory-reset.sh` erase-and-reflash cycle per attempt - see
 [web-ui.md](web-ui.md#diagnostics) for the Web UI's Reset Wi-Fi
 credentials diagnostic aid.
@@ -291,7 +290,8 @@ second, conflicting one on the same physical pins.
   philosophy. Not corrected to the user's actual local timezone — the
   RTC's raw fields are interpreted with no timezone math anywhere in this
   project (see [On-device dashboard](#on-device-dashboard) below and
-  ADR-0028's own Consequences), a known, separate gap.
+  [ADR-0028](../decisions/ADR-0028-time-synchronization.md)'s own
+  Consequences), a known, separate gap.
 
 ## Power
 
