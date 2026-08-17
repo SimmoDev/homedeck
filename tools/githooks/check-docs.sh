@@ -29,8 +29,14 @@ for f in "$@"; do
     # (e.g. "...ruled out every software\nexplanation" or "...confirmed
     # against the project's own\nreference unit"). Flatten the file to one
     # line and re-check; only report what the line-by-line pass missed, to
-    # avoid double-reporting the common case.
-    flattened=$(tr '\n' ' ' < "$f")
+    # avoid double-reporting the common case. Squeeze runs of whitespace
+    # down to a single space too, not just newlines - a list continuation
+    # line's own leading indentation (e.g. six spaces before "manually")
+    # otherwise survives the newline-to-space swap and leaves multiple
+    # spaces between the two halves of a phrase, which a pattern written
+    # with a single literal space (e.g. "confirmed manually") then fails
+    # to match at all.
+    flattened=$(tr '\n' ' ' < "$f" | tr -s '[:space:]' ' ')
     for pat in "${narration_patterns[@]}"; do
         if echo "$flattened" | grep -qiE "$pat"; then
             if ! grep -qiE "$pat" "$f"; then

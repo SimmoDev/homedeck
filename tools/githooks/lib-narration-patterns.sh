@@ -36,11 +36,19 @@ narration_patterns=(
     # tallying found-vs-fixed issues describes the review process itself
     # rather than stating what changed, the same class of narration as
     # the hardware-verification patterns above, just for review/testing
-    # activity instead of hardware bring-up. Caught in a commit message
-    # closing M2 that a human reviewer flagged as narration despite not
-    # matching any pattern above - added to close that gap.
+    # activity instead of hardware bring-up.
     '[0-9]+ (passes|rounds) (of|total)'
     '(found|fixed) [0-9]+ (issue|bug|finding)'
     'zero (blocker|high|medium|low)'
     '(re-)?verified (after|following) (the|every|each) fix'
+    # "X turned out to Y" narrates the process of discovering a fact
+    # rather than stating the fact itself - one of CLAUDE.md's own named
+    # banned-phrase examples.
+    'turned out (to|not)'
+    # "confirmed reverting"/"confirmed surviving" etc. - a narrative verb
+    # form distinct from hardware.md's own whitelisted "**Confirmed:**"
+    # fact-marker convention (see this file's own header comment), which
+    # only ever pairs "confirmed" with a noun/adjective, not a bare -ing
+    # verb describing an activity performed.
+    'confirmed (reverting|surviving|persisting)'
 )
