@@ -81,7 +81,15 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     config_sub_ = event_bus.SubscribeUi<HarmonyConfigUpdatedEvent>(
         [this](const HarmonyConfigUpdatedEvent&) { Rebuild(); });
     activity_sub_ = event_bus.SubscribeUi<HarmonyCurrentActivityChangedEvent>(
-        [this](const HarmonyCurrentActivityChangedEvent&) { RestyleButtons(); });
+        [this](const HarmonyCurrentActivityChangedEvent&) {
+            // The current activity changed - whatever it changed to,
+            // any "Starting <name>..." wait this screen was showing is
+            // over: either it's the one that was requested, or something
+            // else (a second Harmony client) changed it instead - either
+            // way, there's nothing left to keep waiting for.
+            starting_activity_id_.clear();
+            RestyleButtons();
+        });
     // A pending "Starting <name>..." tap only clears via an activity-ID
     // change (above) - a send that never reached the hub produces no
     // change to detect, so this class's own header comment on why a
@@ -139,9 +147,6 @@ void ActivitiesScreen::Rebuild() {
 
 void ActivitiesScreen::RestyleButtons() {
     std::string current_id = harmony_connection_.Snapshot().current_activity_id;
-    if (current_id == starting_activity_id_) {
-        starting_activity_id_.clear();
-    }
     // Only blank while nothing is pending - called right after
     // OnActivityButtonClicked() sets this to "Starting <name>...", and
     // blanking unconditionally here would erase that in the same
