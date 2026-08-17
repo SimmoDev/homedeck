@@ -399,12 +399,12 @@ bool HarmonyConnection::SendPendingCommands() {
     }
 
     bool started_activity = false;
-    bool all_sent = true;
     auto now = std::chrono::steady_clock::now();
     for (const PendingCommand& command : commands) {
         if (now - command.enqueued_at > max_pending_command_age_) {
             continue;  // stale - see max_pending_command_age_'s own comment
         }
+        bool sent;
         if (command.activity_id) {
             nlohmann::json request = {
                 {"hubId", hub_id_},
@@ -418,10 +418,19 @@ bool HarmonyConnection::SendPendingCommands() {
                     {"args", {{"rule", "start"}}},
                     {"activityId", *command.activity_id}}}}},
             };
-            all_sent = ws_client_->SendText(request.dump()) && all_sent;
-            started_activity = true;
+            sent = ws_client_->SendText(request.dump());
+            if (sent) started_activity = true;
         } else if (command.device_command) {
-            all_sent = SendHoldAction(command.device_command->action, command.device_command->status) && all_sent;
+            sent = SendHoldAction(command.device_command->action, command.device_command->status);
+        } else {
+            continue;
+        }
+        // Stop at the first failed send rather than chasing it with more -
+        // a dropped connection won't suddenly start succeeding mid-batch,
+        // and every remaining entry in this batch would otherwise also
+        // block on the same dead transport for no benefit.
+        if (!sent) {
+            return false;
         }
     }
 
@@ -432,7 +441,7 @@ bool HarmonyConnection::SendPendingCommands() {
         // class's own header comment on the freshness trade-off.
         FetchCurrentActivity();
     }
-    return all_sent;
+    return true;
 }
 
 bool HarmonyConnection::SendHoldAction(const std::string& action, const std::string& status) {

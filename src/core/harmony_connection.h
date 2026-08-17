@@ -239,14 +239,19 @@ private:
     // HoldDeviceCommand()/ReleaseDeviceCommand() queued, building and
     // sending each one's actual payload here (not in those methods
     // themselves - see PendingCommand's own comment on why) - called
-    // from the connected loop's own thread only. One
-    // FetchCurrentActivity() follow-up at the end if any drained entry
-    // was a startactivity, not one per entry - a burst of queued
-    // commands only needs one refresh. Returns false if any send failed
-    // (a dropped connection mid-batch) - the caller treats that the same
-    // as a failed liveness probe rather than silently discarding it,
-    // since a silent send failure would otherwise strand a queued command
-    // with no feedback and no retry until the next liveness_interval_.
+    // from the connected loop's own thread only. Stops at the first
+    // failed send rather than attempting the rest of the batch - a
+    // dropped connection won't start succeeding mid-batch, so there's
+    // nothing to gain from chasing it with more sends (each one able to
+    // block on the same dead transport). One FetchCurrentActivity()
+    // follow-up at the end if any successfully-sent entry was a
+    // startactivity, not one per entry - a burst of queued commands only
+    // needs one refresh. Returns false if any send failed (a dropped
+    // connection mid-batch) - the caller treats that the same as a
+    // failed liveness probe rather than silently discarding it, since a
+    // silent send failure would otherwise strand the remaining queued
+    // commands with no feedback and no retry until the next
+    // liveness_interval_.
     bool SendPendingCommands();
     // Enqueues a device command with the given status - the shared body
     // of PressDeviceCommand()/HoldDeviceCommand()/ReleaseDeviceCommand(),

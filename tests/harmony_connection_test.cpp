@@ -660,6 +660,64 @@ TEST_F(HarmonyConnectionTest, FailedCommandSendDropsTheConnectionAndReconnects) 
     connection.Stop();
 }
 
+// A batch of queued commands must stop at the first failed send rather
+// than attempting every remaining entry against a connection that just
+// proved it's dead - the second command here should never be attempted.
+TEST_F(HarmonyConnectionTest, FailedSendStopsTheBatchWithoutAttemptingLaterCommands) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kConnected);
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->send_should_succeed = false;
+    }
+    // Both are enqueued before the connection loop wakes to drain them -
+    // FakeWebSocketClient::SendText() still records a "failed" send into
+    // sent_texts (it only fails the return value), so VolumeDown ever
+    // appearing would mean the second command was attempted anyway,
+    // despite the first one already having failed.
+    connection.PressDeviceCommand(R"({"command":"VolumeUp"})");
+    connection.PressDeviceCommand(R"({"command":"VolumeDown"})");
+
+    // The failed send drops the connection; the reconnect attempt's own
+    // config-fetch send fails too (send_should_succeed is still false),
+    // so the loop lands in kError, the same shape
+    // FailedCommandSendDropsTheConnectionAndReconnects above already
+    // covers - this test's own focus is VolumeDown below, not this part.
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        bool volume_up_attempted = false;
+        for (const std::string& sent : script->sent_texts) {
+            EXPECT_EQ(sent.find("VolumeDown"), std::string::npos) << "second command should never have been attempted";
+            if (sent.find("VolumeUp") != std::string::npos) volume_up_attempted = true;
+        }
+        EXPECT_TRUE(volume_up_attempted) << "first command should have been attempted before failing";
+    }
+
+    connection.Stop();
+}
+
 // Enqueueing while disconnected (hub_host unset, so the connection loop
 // never wakes on a pending command) must not accumulate unbounded - the
 // documented cap is 20 (HarmonyConnection::kMaxPendingCommands), and the
