@@ -5,7 +5,7 @@ This document describes the development workflow for HomeDeck. See
 
 ## Where to start
 
-The architecture documentation has grown large (12 architecture docs, 28
+The architecture documentation has grown large (12 architecture docs, 29
 ADRs) across M0's design work and the M1/M2/M3 implementation work
 since. Not all of it is relevant to building a new module — most of the
 M1/M2-specific bring-up detail is settled and only worth consulting when
