@@ -138,6 +138,9 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
 
     device_title_label_ = lv_label_create(detail_container_);
 
+    status_label_ = lv_label_create(detail_container_);
+    lv_label_set_text(status_label_, "");  // LVGL defaults a new label's text to "Text" otherwise.
+
     commands_container_ = lv_obj_create(detail_container_);
     lv_obj_remove_style_all(commands_container_);
     lv_obj_set_size(commands_container_, LV_PCT(100), LV_SIZE_CONTENT);
@@ -148,6 +151,19 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
 
     config_sub_ = event_bus.SubscribeUi<HarmonyConfigUpdatedEvent>(
         [this](const HarmonyConfigUpdatedEvent&) { RebuildDeviceList(); });
+    // A command send has no result of its own to check (Press/Hold/
+    // ReleaseDeviceCommand() are all void) - this is the only signal
+    // available that one just failed, so it's shown regardless of
+    // whether kError was actually caused by a command send or something
+    // else (e.g. a liveness probe) - both mean the same thing to a user
+    // looking at this screen: the connection can't currently be trusted.
+    state_sub_ = event_bus.SubscribeUi<HarmonyConnectionStateChangedEvent>([this](const HarmonyConnectionStateChangedEvent& event) {
+        if (event.state == HarmonyConnectionState::kError) {
+            lv_label_set_text(status_label_, "Connection lost - retrying...");
+        } else if (event.state == HarmonyConnectionState::kConnected) {
+            lv_label_set_text(status_label_, "");
+        }
+    });
 
     RebuildDeviceList();
 

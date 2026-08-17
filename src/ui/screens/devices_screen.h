@@ -142,8 +142,15 @@ private:
     StatusBar status_bar_;
     lv_obj_t* hint_label_;         // shown instead of the list when has_config is false
     lv_obj_t* list_container_;     // scrollable flex-column of device buttons
-    lv_obj_t* detail_container_;   // back button + device title + commands_container_
+    lv_obj_t* detail_container_;   // back button + device title + status_label_ + commands_container_
     lv_obj_t* device_title_label_;
+    // A command send has no synchronous result to wait on (unlike
+    // ActivitiesScreen's "Starting <name>..." label, which clears once
+    // the activity it's waiting on actually changes) - this only ever
+    // shows/clears in response to HarmonyConnectionStateChangedEvent
+    // (see state_sub_ below), since that's the only signal a send
+    // failure actually produces.
+    lv_obj_t* status_label_;
     lv_obj_t* commands_container_;  // group headings + command buttons for the selected device
 
     // button -> device id, for OnDeviceButtonClicked() (LVGL event
@@ -163,6 +170,7 @@ private:
     std::unordered_set<lv_obj_t*> long_press_active_buttons_;
 
     EventBus::ScopedSubscription config_sub_;
+    EventBus::ScopedSubscription state_sub_;
 };
 
 }  // namespace homedeck
