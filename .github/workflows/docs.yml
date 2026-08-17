@@ -1,0 +1,39 @@
+name: Docs check
+
+# Runs tools/githooks/check-docs.sh against every tracked doc/code file,
+# not just a commit's diff. The pre-commit hook only ever sees staged
+# files, so a narration/wording violation in a file nobody happens to
+# touch again stays invisible indefinitely - found by the M3 exit
+# review's third pass (src/ui/dashboard_grid.cpp had carried a banned
+# "is real" wording since M2, unflagged because it was never re-staged).
+# Non-blocking, same as the pre-commit hook itself: a full-repo run also
+# surfaces plenty of pre-existing, legitimate "real"-as-adjective usage
+# and the project's own "**Confirmed:**"-as-fact-marker convention in
+# hardware.md, neither worth gating a build on. This is a periodic
+# report, not a merge gate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly rather than only on push/PR - catches drift in files that
+    # simply haven't been touched by any commit recently.
+    - cron: "0 6 * * 1"
+
+jobs:
+  check-docs:
+    name: Full-repo check-docs.sh sweep
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run check-docs.sh against every tracked doc/code file
+        continue-on-error: true
+        run: |
+          files=$(git ls-files -- \
+            '*.md' '*.cpp' '*.cc' '*.h' '*.hpp' '*.ts' '*.svelte' '*.yml' '*.yaml' \
+            ':!firmware/components/m5stack_tab5/**' \
+            ':!src/third_party/nlohmann/**')
+          bash tools/githooks/check-docs.sh $files
