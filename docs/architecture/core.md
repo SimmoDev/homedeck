@@ -164,8 +164,11 @@ error reporting) remains unbuilt — see
 are the standard interface modules will contribute dashboard content
 through — see [dashboard.md](dashboard.md#status) for the widgets built
 on it so far (clock, network status, weather, notifications).
-Module-contributed widgets (Harmony activity, Kodi, Uptime Kuma, Home
-Assistant) remain a follow-up pending those modules existing.
+Module-contributed widgets: `HarmonyWidget` (`src/ui/`) is the first,
+showing the current activity and reached by tap into Harmony's
+Activities screen — see [dashboard.md](dashboard.md#status). Kodi/Uptime
+Kuma/Home Assistant's own widgets remain a follow-up pending those
+modules existing.
 
 **Notifications** are implemented: the urgency concept ADR-0005 requires
 (`NotificationSeverity`, `src/core/notification.h`), the `EventBus`-based
@@ -202,9 +205,9 @@ known, deliberately deferred gap — see
 the direct implementation feeding `WeatherWidget` — see
 [dashboard.md](dashboard.md#weather-source).
 
-**Application lifecycle** is still just the required responsibility, not
-a finalized API: module init/start/stop/teardown has no real consumer
-until a module exists (see
-[ADR-0003](../decisions/ADR-0003-module-architecture.md)), so this stays
-deferred to M3 by design rather than designed speculatively ahead of
-Harmony's concrete needs.
+**Application lifecycle**: `core/module.h`'s `Start()`/`Stop()` contract
+(see [ADR-0003](../decisions/ADR-0003-module-architecture.md)) has its
+first implementation in `HarmonyConnection : public Module` — the
+interface was deliberately left unfinalized until Harmony's concrete
+needs shaped it, per that ADR, rather than designed speculatively ahead
+of them.
