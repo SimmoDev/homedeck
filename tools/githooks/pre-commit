@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Runs the doc-narration and ESP-IDF-return checks against staged files.
-# Both checks warn only - they never block a commit. Activate with:
+# Runs the doc-narration, ESP-IDF-return, and curl-timeout checks against
+# staged files. All three checks warn only - they never block a commit.
+# Activate with:
 #   git config core.hooksPath tools/githooks
 set -uo pipefail
 
@@ -9,6 +10,7 @@ staged_files=$(git diff --cached --name-only --diff-filter=ACM)
 
 doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yaml)$' || true)
 esp_files=$(echo "$staged_files" | grep -E '^(firmware/main|src/platform/firmware)/.*\.cpp$' || true)
+cpp_files=$(echo "$staged_files" | grep -E '\.cpp$' || true)
 
 found_issue=0
 
@@ -20,6 +22,11 @@ fi
 if [ -n "$esp_files" ]; then
     # shellcheck disable=SC2086
     "$repo_root/tools/githooks/check-esp-idf-returns.sh" $esp_files || found_issue=1
+fi
+
+if [ -n "$cpp_files" ]; then
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-curl-timeouts.sh" $cpp_files || found_issue=1
 fi
 
 if [ "$found_issue" -ne 0 ]; then
