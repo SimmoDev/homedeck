@@ -319,7 +319,10 @@ simulator.
       (`src/core/power_manager.h`/`.cpp`) is implemented for
       `Active`/`Idle`/`Sleeping`/`Updating`/`Error`, including the
       sleep-veto mechanism (unit-tested; `RequestSleepVeto` itself still
-      has no module caller until M3+), including wake-to-full-brightness
+      has no module caller — Harmony (M3), the first plausible candidate,
+      turned out not to need one, see
+      [power-management.md](architecture/power-management.md#status)),
+      including wake-to-full-brightness
       from `Sleeping` on touch. `Sleeping` isn't real ESP32 deep sleep -
       display off, CPU stays active, touch-wake by polling - since
       M5Stack's own official Tab5
