@@ -40,8 +40,15 @@ using DeviceNameCommittedFn = std::function<void(const std::string& value)>;
 // are already validated as safe store-key segments by the time this is
 // called. Returning false makes the route respond 400 rather than
 // persisting a value that was rejected. Not consulted by
-// POST /api/backup/restore's replay - same accepted simplification as
-// DeviceNameValidateFn, see docs/decisions/ADR-0023-settings-backup-api.md.
+// POST /api/backup/restore's replay, for the same generic-replay-loop
+// reason DeviceNameValidateFn above isn't (see its own comment, and
+// docs/decisions/ADR-0023-settings-backup-api.md, which covers that
+// case specifically): restoring a backup containing a malformed value
+// persists it, and it only surfaces once something reads it back (here,
+// HarmonyConnection's next reconnect attempt, which then just fails to
+// connect the same opaque way any other malformed value would) - a
+// rare, self-inflicted-only case not worth tangling the generic replay
+// loop over.
 using SettingValidateFn = std::function<bool(const std::string& module, const std::string& key, const std::string& value)>;
 
 // Registers GET/POST /api/settings, POST /api/settings/erase,
