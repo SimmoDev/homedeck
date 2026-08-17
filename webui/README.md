@@ -8,16 +8,16 @@ see [docs/architecture/networking.md](../docs/architecture/networking.md#initial
 Svelte 5 + TypeScript + Vite (see
 [ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)),
 plain client-side - no SvelteKit, no routing/SSR need exists for a
-single-page admin UI. `src/App.svelte` drives the real first-login/
+single-page admin UI. `src/App.svelte` drives the first-login/
 session flow - password setup, login, and an authenticated view - off
 `GET /api/auth/status`, per ADR-0007's design.
 `src/lib/PasswordForm.svelte` is shared by both setup and login (same
 field, same submit mechanics; setup adds a confirm-password field, a
-real safeguard since there's no password-recovery flow yet), with its
+safeguard since there's no password-recovery flow yet), with its
 validation/error-mapping logic pulled out into
 `src/lib/passwordValidation.ts` so it's unit-testable without a
 component-testing stack (see `npm run test` below).
-Once authenticated, `App.svelte` composes three real screens:
+Once authenticated, `App.svelte` composes three screens:
 `src/lib/Settings.svelte` (device name, weather location search/save,
 Harmony hub configuration, backup download/restore - each its own
 self-contained sub-component: `DeviceNameSettings.svelte`,
