@@ -5,7 +5,13 @@
 Accepted. Delivers the durable fix
 [ADR-0023](ADR-0023-settings-backup-api.md#decision) deliberately
 deferred, and extends the partition table
-[ADR-0017](ADR-0017-partition-table.md) established.
+[ADR-0017](ADR-0017-partition-table.md) established. The Context
+section's expectation that M3 (Harmony) introduces the project's first
+module credential is corrected by
+[ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's local protocol
+has no credential of any kind. This ADR's decision stands regardless — it
+protects any future module credential generically (see Consequences), not
+specifically Harmony's.
 
 ## Context
 
