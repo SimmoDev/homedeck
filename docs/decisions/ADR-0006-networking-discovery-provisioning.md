@@ -118,7 +118,7 @@ for that sequencing decision.
 
 **The mechanism behind this decision was superseded by
 [ADR-0026](ADR-0026-wifi-provisioning-mechanism.md):** `wifi_provisioning`
-turned out to have no usable transport on this project's Wi-Fi stack, so
+has no usable transport on this project's Wi-Fi stack, so
 the device runs a minimal, HomeDeck-owned SoftAP + HTTP server instead.
 The SoftAP + captive-portal *architecture* decided above is unchanged.
 

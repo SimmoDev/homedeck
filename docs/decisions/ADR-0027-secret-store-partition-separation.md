@@ -5,7 +5,11 @@
 Accepted. Delivers the durable fix
 [ADR-0023](ADR-0023-settings-backup-api.md#decision) deliberately
 deferred, and extends the partition table
-[ADR-0017](ADR-0017-partition-table.md) established. The Context
+[ADR-0017](ADR-0017-partition-table.md) established. Also supersedes
+[ADR-0010](ADR-0010-secret-storage.md#decision-secret-storage-interface)'s
+firmware-backing claim that `SecretStore` shares `SettingsStore`'s
+physical NVS storage — this ADR gives it a dedicated `secrets` partition
+instead. The Context
 section's expectation that M3 (Harmony) introduces the project's first
 module credential is corrected by
 [ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's local protocol

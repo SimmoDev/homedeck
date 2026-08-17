@@ -151,7 +151,7 @@ today, module credential storage from M3 on) don't.
 The admin password hash (`AdminAuthService`, see
 [web-ui.md](../architecture/web-ui.md#status)) is PBKDF2-SHA256 hashed
 before it reaches Storage, but stored in the plain, unencrypted NVS tier.
-This is deliberate, not outstanding: [ADR-0018](ADR-0018-staged-security-hardening.md)
-places NVS encryption in a Standard security tier, activated once a real
-module credential exists to justify the one-time, irreversible eFuse
-burn the HMAC scheme requires — not in the current (Development) tier.
+This is deliberate, not outstanding — see
+[ADR-0018](ADR-0018-staged-security-hardening.md) for the staged tier
+this ADR's own Status section already points to for exactly this timing
+question.

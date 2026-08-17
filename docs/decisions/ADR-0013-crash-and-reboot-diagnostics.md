@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted — the partition-table detail this ADR's Consequences flagged as
+still-pending is finalized in
+[ADR-0017](ADR-0017-partition-table.md).
 
 ## Context
 
@@ -64,8 +66,7 @@ indefinitely after a crash is a worse experience than one that recovers.
   design without repeating this reasoning.
 - The core dump partition is a real partition-table entry, planned
   alongside the OTA A/B scheme — not a detail that can be added
-  invisibly later. Both are now implemented; see
-  [ADR-0017](ADR-0017-partition-table.md) for the final table.
+  invisibly later.
 - Web UI diagnostics exposes a core dump download and last-reboot-reason
   display; it does not attempt to decode or symbolicate crashes in the
   browser.

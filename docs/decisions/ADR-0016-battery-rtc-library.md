@@ -2,7 +2,11 @@
 
 ## Status
 
-Accepted
+Accepted — resolves the battery/RTC gap [ADR-0014](ADR-0014-hardware-support-library.md)'s
+own Consequences left open (that ADR covers display/touch only), and
+amends [ADR-0002](ADR-0002-technology-stack.md#decision-firmware-core-fixed)'s
+"Hardware support library" line for battery/RTC specifically, the same
+way ADR-0014 already does for display/touch.
 
 ## Context
 

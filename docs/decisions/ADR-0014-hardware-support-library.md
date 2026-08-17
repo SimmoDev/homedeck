@@ -2,7 +2,15 @@
 
 ## Status
 
-Accepted
+Accepted — this ADR's Consequences left the battery/RTC and IMU/audio
+gap open; battery/RTC is separately resolved by
+[ADR-0016](ADR-0016-battery-rtc-library.md), which uses a third library
+(`espp`), not this BSP. Audio is resolved directly via `esp_codec_dev`
+(see [hardware.md](../architecture/hardware.md#audio)), independent of
+either library. IMU remains unbrought-up. This ADR's display-driver
+swap is also named in [ADR-0011](ADR-0011-lvgl-thread-safety.md)'s own
+Status section — it doesn't change ADR-0011's thread-safety reasoning,
+which is independent of which display driver is in use.
 
 ## Context
 
@@ -95,11 +103,7 @@ reference to build from).
   relevant bullet.
 - **Not resolved by this decision:** ADR-0002's hardware-support-library
   line also named IMU, RTC, battery, speaker, and mic — this ADR only
-  covers display and touch. **Battery and RTC are now resolved too, by
-  [ADR-0016](ADR-0016-battery-rtc-library.md)** — not by
-  `espressif/m5stack_tab5` (its capability table explicitly doesn't cover
-  either), but by a third, separate library (`espp`), following this same
-  evidence-first approach. `espressif/m5stack_tab5` does appear to bundle
+  covers display and touch. `espressif/m5stack_tab5` does appear to bundle
   IMU and audio support (`bsp_sensors.c`, `bsp_audio.c` exist in the
   component and were part of the M1 build), which may mean the same
   reasoning extends to those peripherals too, but that's unconfirmed, not
