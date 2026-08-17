@@ -20,8 +20,8 @@ All four target the K145 reference unit.
 
 ## Commit hooks
 
-Two git hook stages, both warn-only (never block a commit) - four
-recurring defect classes from past exit reviews:
+Two git hook stages, both warn-only (never block a commit), checking
+for the following defect classes:
 
 - `githooks/pre-commit` runs against staged doc/code files: doc
   narration/banned wording/stale ADR cross-references
@@ -35,10 +35,11 @@ recurring defect classes from past exit reviews:
   written - the same narration patterns check-docs.sh checks in files
   (`githooks/lib-narration-patterns.sh`, shared by both), since a commit
   message can narrate a review/testing process just as easily as a doc
-  can. This doesn't ban process detail from commit messages - CLAUDE.md's
-  own Documentation section says git history is exactly where "how and
-  why" belongs - only the same verification-log *phrasing* (pass/round
-  tallies, "found N issues, fixed M") the doc checks already flag.
+  can. This doesn't ban process detail from commit messages -
+  [CLAUDE.md](../CLAUDE.md)'s own Documentation section says git history
+  is exactly where "how and why" belongs - only the same verification-log
+  *phrasing* (pass/round tallies, "found N issues, fixed M") the doc
+  checks already flag.
 
 Activate both once per clone:
 
