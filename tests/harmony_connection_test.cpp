@@ -184,6 +184,15 @@ TEST(IsValidHubHostTest, RejectsAFullUrlWithBothASchemeAndAPath) {
     EXPECT_FALSE(homedeck::IsValidHubHost("http://192.168.1.50/setup"));
 }
 
+TEST(IsValidHubHostTest, RejectsNonAsciiBytesIncludingUnicodeWhitespace) {
+    // U+00A0 (NBSP), UTF-8-encoded as 0xC2 0xA0 - matched by the
+    // frontend's `/\s/` regex (webui/src/lib/harmonyValidation.ts) but
+    // invisible to a byte-wise std::isspace() scan alone; rejecting every
+    // non-ASCII byte closes that gap without enumerating Unicode
+    // whitespace codepoints one by one.
+    EXPECT_FALSE(homedeck::IsValidHubHost("192.168.1.50\xC2\xA0"));
+}
+
 TEST_F(HarmonyConnectionTest, NotConfiguredStaysDisconnectedAndNeverCallsOut) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

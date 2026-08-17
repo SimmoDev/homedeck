@@ -131,7 +131,13 @@ bool IsValidHubHost(const std::string& value) {
         return false;
     }
     for (unsigned char c : value) {
-        if (std::isspace(c)) {
+        // Rejects ASCII whitespace directly, and every non-ASCII byte
+        // outright - a hostname/IP has no legitimate use for one, and it
+        // sidesteps having to enumerate every multi-byte UTF-8 whitespace
+        // codepoint (e.g. U+00A0 NBSP) the frontend's `/\s/` regex
+        // already rejects that a byte-wise std::isspace() alone can't
+        // see.
+        if (std::isspace(c) || c >= 0x80) {
             return false;
         }
     }

@@ -17,5 +17,8 @@ export function hubHostError(value: string): string | undefined {
   if (value.includes("/")) {
     return "Hub address can't contain a path";
   }
+  if (/[^\x00-\x7F]/.test(value)) {
+    return "Hub address must be plain ASCII (no accented or non-Latin characters)";
+  }
   return undefined;
 }

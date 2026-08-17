@@ -27,4 +27,13 @@ describe("hubHostError", () => {
       "Enter a hostname or IP address, not a full URL (remove the http:// prefix)",
     );
   });
+
+  it("rejects non-ASCII characters, matching the server-side IsValidHubHost() check", () => {
+    // An accented character - not whitespace, not a path separator, so
+    // it falls through to this check specifically (unlike U+00A0 NBSP,
+    // which the whitespace check above already catches via \s).
+    expect(hubHostError("héllo.local")).toBe(
+      "Hub address must be plain ASCII (no accented or non-Latin characters)",
+    );
+  });
 });
