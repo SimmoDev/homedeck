@@ -2,6 +2,8 @@
 
 #include "third_party/nlohmann/json.hpp"
 
+#include <cctype>
+
 namespace homedeck {
 
 namespace {
@@ -123,6 +125,21 @@ std::vector<HarmonyDevice> ParseDevices(const nlohmann::json& array) {
 }
 
 }  // namespace
+
+bool IsValidHubHost(const std::string& value) {
+    if (value.find("://") != std::string::npos) {
+        return false;
+    }
+    for (unsigned char c : value) {
+        if (std::isspace(c)) {
+            return false;
+        }
+    }
+    if (value.find('/') != std::string::npos) {
+        return false;
+    }
+    return true;
+}
 
 HarmonyConnection::HarmonyConnection(HttpClient& http_client, WebSocketClientFactory make_websocket_client,
                                       Storage& storage, EventBus& event_bus,

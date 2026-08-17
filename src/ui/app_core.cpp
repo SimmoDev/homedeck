@@ -85,6 +85,12 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
             if (on_device_name_committed_) {
                 on_device_name_committed_(value);
             }
+        },
+        [](const std::string& module, const std::string& key, const std::string& value) {
+            if (module == HarmonyConnection::kModuleId && key == HarmonyConnection::kHubHostKey) {
+                return IsValidHubHost(value);
+            }
+            return true;
         });
     RegisterWeatherRoutes(deps.http_server, http_client_, weather_provider_, admin_auth_);
     RegisterHarmonyRoutes(deps.http_server, harmony_connection_, admin_auth_);

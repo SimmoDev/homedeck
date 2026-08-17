@@ -52,14 +52,16 @@ nlohmann::json AllSettingsJson(Storage& storage) {
 
 void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthService& auth,
                              DeviceNameValidateFn on_device_name_validate,
-                             DeviceNameCommittedFn on_device_name_committed) {
+                             DeviceNameCommittedFn on_device_name_committed,
+                             SettingValidateFn on_setting_validate) {
     server.RegisterHandler(HttpMethod::kGet, "/api/settings", auth.RequireAuth([&storage](const HttpRequest&) {
                                 return HttpResponse{200, "application/json", AllSettingsJson(storage).dump(), {}};
                             }));
 
     server.RegisterHandler(
         HttpMethod::kPost, "/api/settings",
-        auth.RequireAuth([&storage, on_device_name_validate, on_device_name_committed](const HttpRequest& request) {
+        auth.RequireAuth([&storage, on_device_name_validate, on_device_name_committed,
+                           on_setting_validate](const HttpRequest& request) {
             auto parsed_opt = TryParseJsonObject(request.body);
             if (!parsed_opt.has_value()) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
@@ -93,6 +95,9 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             }
             if (AdminAuthService::IsReservedSettingsKey(module, key)) {
                 return HttpResponse{403, "application/json", R"({"error":"reserved_key"})", {}};
+            }
+            if (on_setting_validate && !on_setting_validate(module, key, value)) {
+                return HttpResponse{400, "application/json", R"({"error":"invalid_value"})", {}};
             }
             bool is_device_name = module == AdminAuthService::kModuleId && key == kDeviceNameKey;
             if (is_device_name && on_device_name_validate && !on_device_name_validate(value)) {

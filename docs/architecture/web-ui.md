@@ -291,7 +291,12 @@ above), shows live connection status via `GET /api/harmony/status` with
 a manual Refresh button (no polling, same reasoning as the WebSockets
 item below), and triggers `POST /api/harmony/reconnect` on save. Both
 routes (`src/core/harmony_routes.h`/`.cpp`) are admin-only via
-`RequireAuth()`, same as every other route on this page. See
+`RequireAuth()`, same as every other route on this page. `hub_host` is
+validated both client- and server-side - see
+[harmony.md](harmony.md#connection) for the mechanism, a generic
+`SettingValidateFn` on `RegisterSettingsRoutes()`
+(`src/core/settings_routes.h`) any module can plug a key of its own
+into, alongside the existing `DeviceNameValidateFn` above. See
 [modules.md](modules.md#status) for Harmony's module-contract detail
 this settings page is one part of.
 

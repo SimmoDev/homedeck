@@ -155,6 +155,35 @@ constexpr std::chrono::milliseconds kFastBackoff = std::chrono::milliseconds(30)
 
 }  // namespace
 
+// Mirrors webui/src/lib/harmonyValidation.test.ts's coverage of
+// hubHostError() - the two must reject the same values, see
+// IsValidHubHost()'s own comment.
+TEST(IsValidHubHostTest, AcceptsAPlainHostnameOrIpAddress) {
+    EXPECT_TRUE(homedeck::IsValidHubHost("192.168.1.50"));
+    EXPECT_TRUE(homedeck::IsValidHubHost("harmony-hub.local"));
+}
+
+TEST(IsValidHubHostTest, AcceptsEmptyNotThisFunctionsConcern) {
+    EXPECT_TRUE(homedeck::IsValidHubHost(""));
+}
+
+TEST(IsValidHubHostTest, RejectsAValueWithASchemePrefix) {
+    EXPECT_FALSE(homedeck::IsValidHubHost("http://192.168.1.50"));
+}
+
+TEST(IsValidHubHostTest, RejectsAValueContainingWhitespace) {
+    EXPECT_FALSE(homedeck::IsValidHubHost("192.168.1.50 "));
+    EXPECT_FALSE(homedeck::IsValidHubHost("192.168 1.50"));
+}
+
+TEST(IsValidHubHostTest, RejectsAValueContainingAPath) {
+    EXPECT_FALSE(homedeck::IsValidHubHost("192.168.1.50/setup"));
+}
+
+TEST(IsValidHubHostTest, RejectsAFullUrlWithBothASchemeAndAPath) {
+    EXPECT_FALSE(homedeck::IsValidHubHost("http://192.168.1.50/setup"));
+}
+
 TEST_F(HarmonyConnectionTest, NotConfiguredStaysDisconnectedAndNeverCallsOut) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

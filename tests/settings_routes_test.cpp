@@ -300,6 +300,43 @@ TEST_F(SettingsRoutesTest, DeviceNameValidateCallbackCanReject) {
     EXPECT_EQ(get.body.find("reject-me"), std::string::npos);
 }
 
+TEST_F(SettingsRoutesTest, SettingValidateCallbackCanRejectAModulesOwnKey) {
+    homedeck::SettingValidateFn on_setting_validate = [](const std::string& module, const std::string& key,
+                                                           const std::string& value) -> bool {
+        return !(module == "harmony" && key == "hub_host" && value == "http://reject-me");
+    };
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, nullptr, nullptr, on_setting_validate);
+    ASSERT_TRUE(server.Start(18221));
+    std::string cookie = Login(18221);
+
+    auto accepted =
+        HttpRequestRaw(18221, "POST", "/api/settings",
+                        R"({"module":"harmony","key":"hub_host","value":"10.0.0.5","schemaVersion":1})", cookie);
+    EXPECT_EQ(accepted.status_code, 200);
+
+    auto rejected = HttpRequestRaw(
+        18221, "POST", "/api/settings",
+        R"({"module":"harmony","key":"hub_host","value":"http://reject-me","schemaVersion":1})", cookie);
+    EXPECT_EQ(rejected.status_code, 400);
+    EXPECT_NE(rejected.body.find("invalid_value"), std::string::npos);
+
+    // A different module/key untouched by the callback's own condition
+    // must still pass through unaffected.
+    auto unrelated = HttpRequestRaw(18221, "POST", "/api/settings",
+                                     R"({"module":"weather","key":"latitude","value":"51.5","schemaVersion":1})",
+                                     cookie);
+    EXPECT_EQ(unrelated.status_code, 200);
+
+    // The rejected value must not have been persisted - the accepted
+    // one from before should still be the current value.
+    auto get = HttpRequestRaw(18221, "GET", "/api/settings", "", cookie);
+    EXPECT_NE(get.body.find(R"("value":"10.0.0.5")"), std::string::npos);
+    EXPECT_EQ(get.body.find("reject-me"), std::string::npos);
+}
+
 TEST_F(SettingsRoutesTest, DeviceNameCommittedCallbackDoesNotFireWhenTheStorageWriteFails) {
     FailingSettingsStore failing_settings_store;
     homedeck::HostCacheStore cache_store(root_dir_ / "device_name_write_fail_case");

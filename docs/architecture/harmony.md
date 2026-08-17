@@ -16,10 +16,12 @@ background `Task` running a connect/retry loop. The hub address is a
 single manually-entered setting (module `harmony`, key `hub_host`),
 stored and read through the generic settings API
 (`src/core/settings_routes.h`) rather than a Harmony-specific endpoint —
-`hub_host` is validated client-side before saving (rejecting a scheme
-prefix, embedded whitespace, or a path, all of which would otherwise
-produce the same opaque connection failure as an unreachable address;
-see `webui/src/lib/harmonyValidation.ts`).
+`hub_host` is validated both client-side (`webui/src/lib/harmonyValidation.ts`)
+and server-side (`IsValidHubHost()`, `src/core/harmony_connection.h`,
+wired into `RegisterSettingsRoutes()`'s generic `SettingValidateFn` from
+`src/ui/app_core.cpp`), rejecting a scheme prefix, embedded whitespace,
+or a path — all of which would otherwise produce the same opaque
+connection failure as an unreachable address.
 
 There is no discovery protocol and no authentication step in this
 protocol — see [ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md)

@@ -29,6 +29,21 @@ using DeviceNameValidateFn = std::function<bool(const std::string& value)>;
 // reboot needed; simulator: omitted, nothing to apply).
 using DeviceNameCommittedFn = std::function<void(const std::string& value)>;
 
+// Called for every (module, key, value) written via POST /api/settings,
+// before persisting - unlike DeviceNameValidateFn above (Core's own
+// key, so Core validating it directly is fine), this lets any *module's*
+// own key get format-validated without Core needing built-in knowledge
+// of that module's semantics: the caller wiring this up (ui/app_core.cpp)
+// is the one place that's allowed to know both Core's generic settings
+// API and a specific module's own validation rule (e.g. Harmony's
+// hub_host, IsValidHubHost() in core/harmony_connection.h). module/key
+// are already validated as safe store-key segments by the time this is
+// called. Returning false makes the route respond 400 rather than
+// persisting a value that was rejected. Not consulted by
+// POST /api/backup/restore's replay - same accepted simplification as
+// DeviceNameValidateFn, see docs/decisions/ADR-0023-settings-backup-api.md.
+using SettingValidateFn = std::function<bool(const std::string& module, const std::string& key, const std::string& value)>;
+
 // Registers GET/POST /api/settings, POST /api/settings/erase,
 // GET /api/backup, and POST /api/backup/restore - see
 // docs/architecture/web-ui.md and
@@ -39,6 +54,7 @@ using DeviceNameCommittedFn = std::function<void(const std::string& value)>;
 // server.Start(), per HttpServer's own contract.
 void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthService& auth,
                              DeviceNameValidateFn on_device_name_validate = nullptr,
-                             DeviceNameCommittedFn on_device_name_committed = nullptr);
+                             DeviceNameCommittedFn on_device_name_committed = nullptr,
+                             SettingValidateFn on_setting_validate = nullptr);
 
 }  // namespace homedeck
