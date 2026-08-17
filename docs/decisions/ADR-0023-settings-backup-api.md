@@ -6,7 +6,11 @@ Accepted — the durable fix this ADR's Decision section named and
 deferred (giving `SecretStore` its own NVS partition) is delivered by
 [ADR-0027](ADR-0027-secret-store-partition-separation.md); the reserved-
 key guard described below stays in place as a second-layer safeguard,
-not because it's still the only protection.
+not because it's still the only protection. That Decision section's
+"M3's first real module credential" framing is corrected by
+[ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's local protocol
+has no credential of any kind — the durable fix landed anyway (per
+ADR-0027 above), just not triggered by M3 as originally expected.
 
 ## Context
 

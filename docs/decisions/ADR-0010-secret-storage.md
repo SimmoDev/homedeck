@@ -11,7 +11,12 @@ firmware, the Decision section's claim that `SecretStore` shares
 [ADR-0027](ADR-0027-secret-store-partition-separation.md), which gives it
 a dedicated `secrets` partition instead — the seam this ADR decided to
 create is what made that later change a backing-implementation swap
-rather than an interface change.
+rather than an interface change. The Context section's and the "secret
+storage interface" Decision section's expectation that a module
+credential "follows from"/"arrives" with M3 is corrected by
+[ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's local protocol
+has no credential at all, so M3 didn't introduce one — the interface and
+scheme decisions below don't depend on which milestone eventually does.
 
 ## Context
 

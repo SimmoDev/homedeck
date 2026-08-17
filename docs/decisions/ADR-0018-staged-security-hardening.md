@@ -2,7 +2,13 @@
 
 ## Status
 
-Accepted
+Accepted — the Context and Development-tier Decision sections' "arrive
+with M3 onward"/"as early as M3 (Harmony hub credentials)" framing is
+corrected by [ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's
+local protocol has no credential of any kind, so M3 didn't trigger the
+Standard tier. The trigger condition itself (a real module credential
+existing) stands unchanged, and now first becomes possible at M6 (Home
+Assistant) or whichever module first needs one.
 
 ## Context
 
