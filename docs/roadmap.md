@@ -68,7 +68,7 @@ management state model" item instead.
       to P4 sleep state — see
       [hardware.md](architecture/hardware.md#wireless)). Whether
       ESP-Hosted/SDIO can actually keep the C6 usefully associated while
-      the P4 itself is asleep turned out to be moot: the P4 never enters
+      the P4 itself is asleep is moot: the P4 never enters
       deep sleep in this project's design at all — see
       [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md).
 - [x] Display and touch bring-up — the display renders and touch input
@@ -108,11 +108,10 @@ management state model" item instead.
 - [x] Persistent home affordance included in the base screen layout from
       the first non-dashboard screen onward (see
       [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance)).
-      A minimal real Navigation manager (`src/ui/navigation.h` -
+      A minimal Navigation manager (`src/ui/navigation.h` -
       `Register`/`GoTo`/`GoHome`) and a reusable `LV_SYMBOL_HOME`
-      affordance (`src/ui/home_affordance.h`), proven at the time against
-      a deliberately throwaway second screen — replaced once a genuine
-      one existed, M2's Wi-Fi setup screen below (see
+      affordance (`src/ui/home_affordance.h`), exercised across
+      `DashboardScreen` and M2's `WifiSetupScreen` below (see
       [ui.md](architecture/ui.md#status)).
 - [x] Clock/date display — `Clock` (`src/core/`) publishes a
       `ClockTickEvent` once a second via the `EventBus`, plus once
@@ -221,7 +220,7 @@ simulator.
       (`src/core/ota_gate.h`) per
       [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-ota-batterypower-gate),
       admin-only via `RequireAuth()`, with app-rollback
-      (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) confirmed reverting to
+      (`CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`) that reverts to
       the previous slot after a bad image. Image signing remains a
       known, deliberately deferred gap (see
       [security.md](architecture/security.md#ota-image-integrity)).
@@ -269,7 +268,7 @@ simulator.
       outputs — `NotificationBanner`, `NotificationSound`, and
       `NotificationWidget` (all `src/ui/`) — all work together on
       both the simulator and hardware. The alert-priority/deferred
-      urgency distinction this service carries no longer gates any
+      urgency distinction this service carries does not gate any
       wake-cycle behavior (see
       [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)) - it
       remains available for a future presentation difference, not a gap
@@ -320,7 +319,7 @@ simulator.
       `Active`/`Idle`/`Sleeping`/`Updating`/`Error`, including the
       sleep-veto mechanism (unit-tested; `RequestSleepVeto` itself still
       has no module caller — Harmony (M3), the first plausible candidate,
-      turned out not to need one, see
+      doesn't need one, see
       [power-management.md](architecture/power-management.md#status)),
       including wake-to-full-brightness
       from `Sleeping` on touch. `Sleeping` isn't real ESP32 deep sleep -
@@ -342,15 +341,14 @@ simulator.
       volume control are implemented through one shared
       `QuickSettingsPanel` (`src/ui/quick_settings_panel.h`/`.cpp`),
       applying live on every slider drag and persisting to `Storage` on
-      release, confirmed surviving a real power cycle. Sliders show a
+      release, surviving a power cycle. Sliders show a
       plain text label for both controls, not an icon (see the M7
       polish item for why).
 - [x] Simulator physical-keyboard input (dev tooling, not product scope) —
       `lv_sdl_keyboard_create()` plus a default `lv_group` for focus/Tab
       routing (`UiTask`, `src/platform/host/ui_task.cpp`), so typing into a text
       field (e.g. `WifiSetupScreen`) works directly from a physical
-      keyboard instead of only by clicking the on-screen one. Confirmed
-      manually in the simulator — see
+      keyboard instead of only by clicking the on-screen one — see
       [simulator.md](architecture/simulator.md#status).
 
 **Exit criteria:** the device can be provisioned onto Wi-Fi via SoftAP,
