@@ -52,9 +52,10 @@ upfront.
   re-serializing.
 
 **Rotation: size-based, single backup.** The current log blob is capped
-at 64KB (a placeholder against the storage partition's real 8MB+
-budget, tuned like other numeric thresholds in this project once real
-usage exists to tune against); crossing the cap moves the current blob
+at 64KB (a placeholder against the `storage` partition's 7.625MB budget
+— see [ADR-0017](ADR-0017-partition-table.md) — tuned like other numeric
+thresholds in this project once real usage exists to tune against);
+crossing the cap moves the current blob
 to a single rotated slot and starts fresh. **Time-based (daily-file)
 rotation was considered and rejected**: it would need date-stamped
 filenames, and the RTC's own already-documented gap — uncalibrated
