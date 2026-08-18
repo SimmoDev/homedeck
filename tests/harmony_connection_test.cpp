@@ -218,9 +218,9 @@ TEST(IsValidHubHostTest, RejectsNonAsciiBytesIncludingUnicodeWhitespace) {
 }
 
 TEST(IsValidHubHostTest, RejectsNonWhitespaceControlCharacters) {
-    // \x01 - not whitespace, not the high bit, so it needed its own
-    // check (M3 exit review pass 6): matching webui/src/lib/
-    // harmonyValidation.ts's identical control-character check.
+    // \x01 - not whitespace, not the high bit, so it needs its own check,
+    // matching webui/src/lib/harmonyValidation.ts's identical
+    // control-character check.
     EXPECT_FALSE(homedeck::IsValidHubHost(std::string("192.168.1.50") + '\x01'));
 }
 
@@ -228,8 +228,7 @@ TEST(IsValidHubHostTest, RejectsUrlStructuralCharacters) {
     // #/?/@ all pass every other check (no scheme, no whitespace, no
     // path, plain ASCII) but change what HandshakeUrl()/WebSocketUrl()'s
     // raw concatenation actually connects to instead of just failing to
-    // connect (M3 exit review pass 7) - see IsValidHubHost()'s own
-    // comment.
+    // connect - see IsValidHubHost()'s own comment.
     EXPECT_FALSE(homedeck::IsValidHubHost("realhost#fragment"));
     EXPECT_FALSE(homedeck::IsValidHubHost("realhost?query=1"));
     EXPECT_FALSE(homedeck::IsValidHubHost("user@realhost"));
@@ -335,8 +334,7 @@ TEST_F(HarmonyConnectionTest, ConfiguredHandshakeAndConfigFetchSucceedPublishesC
 // empty id - an empty id is otherwise a real, tappable button whose
 // StartActivity("")/command send the hub has no defined behavior for.
 // This protocol has no authentication (see ADR-0029), so a malformed
-// field from a spoofed hub isn't purely hypothetical (M3 exit review pass
-// 6, finding #2).
+// field from a spoofed hub isn't purely hypothetical.
 TEST_F(HarmonyConnectionTest, EntriesWithAWrongTypedIdAreDroppedNotKeptEmpty) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
@@ -371,13 +369,12 @@ TEST_F(HarmonyConnectionTest, EntriesWithAWrongTypedIdAreDroppedNotKeptEmpty) {
     connection.Stop();
 }
 
-// Regression test for the un-configure-doesn't-clear-cached-config bug
-// (M3 exit review pass 6): saving hub_host back to empty - the Web UI's
-// "clear the configured hub" flow, HarmonySettings.svelte - must actually
-// clear devices/activities/current_activity_id/has_config, not just move
-// state to kDisconnected while leaving ActivitiesScreen/DevicesScreen (both
-// keyed on has_config alone, not state) still rendering the previous hub's
-// stale, tappable list forever.
+// Saving hub_host back to empty - the Web UI's "clear the configured hub"
+// flow, HarmonySettings.svelte - must actually clear
+// devices/activities/current_activity_id/has_config, not just move state
+// to kDisconnected while leaving ActivitiesScreen/DevicesScreen (both
+// keyed on has_config alone, not state) still rendering the previous
+// hub's stale, tappable list forever.
 TEST_F(HarmonyConnectionTest, UnconfiguringAfterConnectingClearsTheCachedConfig) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
@@ -532,7 +529,7 @@ TEST_F(HarmonyConnectionTest, HandshakeWithMalformedJsonBodyEntersErrorState) {
 // outright malformed JSON, not handed to nlohmann::json::parse() and left
 // to recurse arbitrarily deep - this protocol has no authentication
 // (ADR-0029), so a rogue device on the LAN could otherwise send this to
-// drive a stack overflow (M3 exit review pass 7).
+// drive a stack overflow.
 TEST_F(HarmonyConnectionTest, HandshakeWithExcessivelyNestedJsonBodyEntersErrorState) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
@@ -697,8 +694,7 @@ TEST_F(HarmonyConnectionTest, MalformedCurrentActivityResponseDropsTheConnection
 
 // A present-but-wrong-typed "result" (here, an object instead of a
 // string/number) must be treated the same as a missing one - not
-// silently coerced to "" and accepted as a real activity-id change (M3
-// exit review pass 6, finding #3).
+// silently coerced to "" and accepted as an activity-id change.
 TEST_F(HarmonyConnectionTest, WrongTypedCurrentActivityResultDropsTheConnection) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

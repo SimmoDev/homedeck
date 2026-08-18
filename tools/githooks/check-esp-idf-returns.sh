@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Warns about esp_*/mdns_*/httpd_* calls whose return value is neither
-# checked, assigned, nor wrapped in ESP_ERROR_CHECK - the bug class that has
-# repeatedly survived manual exit review in firmware/main and
-# src/platform/firmware (no host-test coverage catches it there). Non-
-# blocking - see pre-commit.
+# checked, assigned, nor wrapped in ESP_ERROR_CHECK - a bug class with no
+# host-test coverage in firmware/main and src/platform/firmware, since
+# both are 100% ESP-IDF-coupled and unreachable from tests/. Non-blocking
+# - see pre-commit.
 set -uo pipefail
 
 status=0

@@ -23,14 +23,13 @@ narration_patterns=(
     # character class would miss them. "reference hub" alongside
     # "reference unit" - a module's own external device (e.g. Harmony's
     # reference hub) gets the same treatment as the project's physical
-    # reference unit; both are "confirmed against a specific real device
-    # during development" narration (M3 exit review pass 7).
+    # reference unit; both are "confirmed against a specific device
+    # during development" narration.
     'confirmed .{0,80}(hardware|reference unit|reference hub)'
     # "verified live against the reference hub", "verified against the
     # project's own reference hub" - same reasoning as the "confirmed"
     # pattern above, for "verified" specifically pairing with a reference
-    # device rather than the narrower literal phrases below (M3 exit
-    # review pass 7).
+    # device rather than the narrower literal phrases below.
     'verified .{0,80}(reference unit|reference hub)'
     'confirmed end.to.end'
     'confirmed manually'
@@ -61,10 +60,10 @@ narration_patterns=(
     # only ever pairs "confirmed" with a noun/adjective, not a bare -ing
     # verb describing an activity performed.
     'confirmed (reverting|surviving|persisting)'
-    # Additional verification-log verb forms found by manual read (M3
-    # exit review pass 6) that the patterns above don't cover - a
-    # reminder that this list is built from known-bad instances, not a
-    # closed set; expect to keep adding to it.
+    # Additional verification-log verb forms found by manual read that
+    # the patterns above don't cover - a reminder that this list is built
+    # from known-bad instances, not a closed set; expect to keep adding
+    # to it.
     'verified against the reference'
     'verified in a browser'
     'field.verified'
@@ -72,4 +71,12 @@ narration_patterns=(
     'confirmed working'
     'screenshot.verified'
     'proven against'
+    # A comment/doc citing its own originating review pass ("M3 exit
+    # review pass 6", "found during exit review", "a milestone-exit
+    # review caught it") instead of stating the timeless fact/invariant
+    # on its own - process narration about how the surrounding claim was
+    # discovered, not the claim itself. Git history already carries which
+    # pass introduced a change.
+    'exit review'
+    'review pass [0-9]'
 )

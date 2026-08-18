@@ -12,7 +12,7 @@ staged_files=$(git diff --cached --name-only --diff-filter=ACM)
 # The extension alternation misses sdkconfig.defaults/sdkconfig.defaults.*
 # entirely (no recognized extension after the last dot) - the second
 # alternative catches those by basename instead, since this project's own
-# narration convention applies to their comments too (M3 exit review pass 7).
+# narration convention applies to their comments too.
 doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yaml)$|(^|/)sdkconfig[^/]*$' || true)
 esp_files=$(echo "$staged_files" | grep -E '^(firmware/main|src/platform/firmware)/.*\.cpp$' || true)
 cpp_files=$(echo "$staged_files" | grep -E '\.cpp$' || true)

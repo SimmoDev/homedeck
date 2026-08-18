@@ -4,10 +4,10 @@ namespace homedeck {
 
 // The reconnect-attempt bookkeeping half of wifi_setup.cpp's
 // WIFI_EVENT_STA_DISCONNECTED handler, pulled out on its own so this one
-// piece of real decision logic is host-testable - wifi_setup.cpp itself
-// is 100% ESP-IDF-coupled (esp_wifi/esp_http_server/FreeRTOS) and
-// unreachable from tests/, which is what let a real concurrency bug ship
-// there undetected before a milestone-exit review caught it.
+// piece of decision logic is host-testable - wifi_setup.cpp itself is
+// 100% ESP-IDF-coupled (esp_wifi/esp_http_server/FreeRTOS) and
+// unreachable from tests/, where a concurrency bug in this logic would
+// otherwise have no test coverage to catch it.
 class WifiReconnectPolicy {
 public:
     enum class Decision { kRetry, kGiveUp };

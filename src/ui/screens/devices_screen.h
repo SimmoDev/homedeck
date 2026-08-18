@@ -72,10 +72,8 @@ private:
     // to whichever of the three below matches its own observed shape
     // (see each one's own comment) - a plain row-wrap grid otherwise.
     // Matching by name is a protocol-level vocabulary Harmony's own hub
-    // uses consistently across every device that has these groups
-    // (confirmed against all 8 devices on the reference hub, not just
-    // one), not the kind of per-device-model hardcoding CLAUDE.md warns
-    // against.
+    // uses consistently across every device that has these groups, not
+    // the kind of per-device-model hardcoding CLAUDE.md warns against.
     void RenderControlGroup(const HarmonyControlGroup& group);
     void RenderGenericGrid(lv_obj_t* parent, const std::vector<HarmonyCommand>& commands);
     // NumericBasic: Number0-Number9 plus optional Clear/Dot, in raw hub
@@ -123,9 +121,9 @@ private:
     // fires immediately on touch-down, before LVGL can know whether the
     // touch will become a scroll, so a scroll starting on a button would
     // send a press with no way to take it back. long_press_active_buttons_
-    // (set only from LONG_PRESSED, which - confirmed against LVGL's own
-    // indev.c - it never sends once a scroll starts) exists to avoid
-    // that: if a button is marked, this is a genuine long press, so a
+    // (set only from LONG_PRESSED, which per LVGL's own indev.c never
+    // sends once a scroll starts) exists to avoid that: if a button is
+    // marked, this is a genuine long press, so a
     // release always gets sent here regardless of what the touch did
     // afterward (dragging while still holding must not leave the device
     // thinking the button is stuck down). If it isn't marked,

@@ -45,8 +45,7 @@ describe("hubHostError", () => {
 
   it("rejects #, ?, and @, matching the server-side IsValidHubHost() check", () => {
     // All three pass every other check but change what a URL parser
-    // treats as the actual host/port instead of just failing to connect
-    // (M3 exit review pass 7).
+    // treats as the actual host/port instead of just failing to connect.
     expect(hubHostError("realhost#fragment")).toBe("Hub address can't contain #, ?, or @");
     expect(hubHostError("realhost?query=1")).toBe("Hub address can't contain #, ?, or @");
     expect(hubHostError("user@realhost")).toBe("Hub address can't contain #, ?, or @");
@@ -61,7 +60,7 @@ describe("hubHostError", () => {
     // Matches the backend's IsValidHubHost("") test - empty isn't this
     // function's concern, since HarmonySettings.svelte's own save flow
     // treats it as "disconnect the configured hub," not a malformed
-    // address (M3 exit review pass 7).
+    // address.
     expect(hubHostError("")).toBeUndefined();
   });
 });
