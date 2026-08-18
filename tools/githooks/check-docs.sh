@@ -76,7 +76,13 @@ for f in "$@"; do
             continue
         fi
         quoted_text=$(echo "$quoted" | tr -d '"')
-        if ! grep -qF "$quoted_text" "$target"; then
+        # A quoted phrase in the target ADR can itself be hyphen-wrapped
+        # across a markdown line break (e.g. "halt-and-wait-for-\ndebugger")
+        # - join those breaks before falling back to a plain miss, the same
+        # way the narration check above tolerates its own source file's
+        # line wraps.
+        target_flattened=$(sed -z 's/-\n[ \t]*/-/g; s/\n/ /g' "$target" | tr -s '[:space:]' ' ')
+        if ! grep -qF "$quoted_text" "$target" && ! echo "$target_flattened" | grep -qF "$quoted_text"; then
             echo "[crossref] $f: cites $adr_num $quoted - text not found in $(basename "$target")"
             status=1
         fi
