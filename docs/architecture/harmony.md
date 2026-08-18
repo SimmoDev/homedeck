@@ -19,9 +19,12 @@ stored and read through the generic settings API
 `hub_host` is validated both client-side (`webui/src/lib/harmonyValidation.ts`)
 and server-side (`IsValidHubHost()`, `src/core/harmony_connection.h`,
 wired into `RegisterSettingsRoutes()`'s generic `SettingValidateFn` from
-`src/ui/app_core.cpp`), rejecting a scheme prefix, embedded whitespace,
-or a path — all of which would otherwise produce the same opaque
-connection failure as an unreachable address.
+`src/ui/app_core.cpp`). A scheme prefix, embedded whitespace, or a path
+would otherwise produce the same opaque connection failure as an
+unreachable address; `#`, `?`, and `@` are rejected for a different,
+more serious reason — each one changes what the underlying URL parser
+treats as the actual host/port, silently connecting to a different
+destination rather than just failing to connect at all.
 
 There is no discovery protocol and no authentication step in this
 protocol — see [ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md)
