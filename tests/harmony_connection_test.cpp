@@ -59,6 +59,15 @@ struct WsScript {
     std::vector<std::string> connect_urls;
     std::vector<std::string> sent_texts;
     std::deque<std::string> responses;
+    // Separate from `responses` above - visible only to a 0ms ReceiveText()
+    // call (DrainStaleMessages()'s non-blocking poll), modeling a message
+    // that arrived before the drain runs. `responses` models this test's
+    // own expected reply to whatever request follows the drain, and must
+    // stay untouched by it regardless of when the test pushed it relative
+    // to the connection loop actually running - a real backend's 0ms
+    // receive only ever sees what's already buffered, never something a
+    // later, bounded-timeout receive is the one meant to wait for.
+    std::deque<std::string> stale_responses;
     int close_count = 0;
 };
 
@@ -78,8 +87,17 @@ public:
         return script_->send_should_succeed;
     }
 
-    std::optional<std::string> ReceiveText(int /*timeout_ms*/) override {
+    std::optional<std::string> ReceiveText(int timeout_ms) override {
         std::lock_guard<std::mutex> lock(script_->mutex);
+        if (timeout_ms == 0) {
+            // See WsScript::stale_responses's own comment.
+            if (script_->stale_responses.empty()) {
+                return std::nullopt;
+            }
+            std::string response = std::move(script_->stale_responses.front());
+            script_->stale_responses.pop_front();
+            return response;
+        }
         if (script_->responses.empty()) {
             return std::nullopt;
         }
@@ -135,6 +153,12 @@ std::string CurrentActivityResponseBody(const std::string& activity_id) {
 void PushResponse(const std::shared_ptr<WsScript>& script, std::string response) {
     std::lock_guard<std::mutex> lock(script->mutex);
     script->responses.push_back(std::move(response));
+}
+
+// See WsScript::stale_responses's own comment.
+void PushStaleResponse(const std::shared_ptr<WsScript>& script, std::string response) {
+    std::lock_guard<std::mutex> lock(script->mutex);
+    script->stale_responses.push_back(std::move(response));
 }
 
 class HarmonyConnectionTest : public ::testing::Test {
@@ -760,6 +784,46 @@ TEST_F(HarmonyConnectionTest, PeriodicLivenessProbePicksUpAHubSideActivityChange
     // Simulates the hub switching activity on its own (e.g. from its
     // physical remote) - not something StartActivity() triggered here,
     // only the next periodic probe should pick it up.
+    PushResponse(script, CurrentActivityResponseBody("123"));
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "123"; }));
+
+    connection.Stop();
+}
+
+// A stray already-buffered message (e.g. a reply to an earlier
+// SendHoldAction() call, which has no matching receive of its own - see
+// DrainStaleMessages()'s own comment) must not get wrongly parsed as the
+// liveness probe's own getCurrentActivity reply - DrainStaleMessages()
+// must discard it first, leaving the real response for the real receive.
+TEST_F(HarmonyConnectionTest, StaleBufferedMessageIsDrainedBeforeTheLivenessProbesOwnReceive) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff, /*liveness_interval=*/std::chrono::milliseconds(30));
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "-1"; }));
+
+    // A stray reply to some earlier holdAction, sitting in the transport's
+    // own receive buffer - not this probe's own response, which is pushed
+    // separately below (the real backends never confuse the two, since
+    // each one's own 0ms poll only sees what's already buffered - see
+    // WsScript::stale_responses's own comment).
+    PushStaleResponse(script, R"({"data":{"result":"stray-not-a-real-activity-id"}})");
     PushResponse(script, CurrentActivityResponseBody("123"));
 
     ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "123"; }));

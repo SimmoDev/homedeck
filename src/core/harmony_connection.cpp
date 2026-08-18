@@ -468,10 +468,18 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
     return true;
 }
 
+void HarmonyConnection::DrainStaleMessages() {
+    if (!ws_client_) return;
+    for (size_t i = 0; i < kMaxPendingCommands; ++i) {
+        if (!ws_client_->ReceiveText(0).has_value()) break;
+    }
+}
+
 bool HarmonyConnection::FetchCurrentActivity(std::stop_token stop) {
     if (!ws_client_) {
         return false;
     }
+    DrainStaleMessages();
     nlohmann::json request = {
         {"hubId", hub_id_},
         {"timeout", 30},

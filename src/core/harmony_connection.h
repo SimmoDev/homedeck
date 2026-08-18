@@ -259,6 +259,23 @@ private:
     // works around that rather than needing it to. `stop` - see
     // ConnectAndFetchConfig()'s own comment.
     bool FetchCurrentActivity(std::stop_token stop);
+    // Discards any already-buffered WS message on ws_client_ - called
+    // right before FetchCurrentActivity() sends its own request. Every
+    // SendHoldAction() call has no matching receive of its own (it can't
+    // - a hold/release pair's "reply, if any" would otherwise need its
+    // own dedicated request/response slot this class's simple
+    // synchronous transport doesn't have - see this class's own header
+    // comment on current-activity freshness); ADR-0029 leaves it an open
+    // question whether the hub actually sends one. If it does, that
+    // reply would otherwise sit unconsumed until the next ReceiveText()
+    // call and get wrongly parsed as whatever that call actually
+    // expects. Bounded by kMaxPendingCommands so a hub that keeps
+    // sending unsolicited messages can't loop this forever - same cap
+    // FirmwareWebSocketClient::message_queue_ itself uses. A 0ms
+    // ReceiveText() is a non-blocking poll on both backends (see each
+    // one's own implementation), not a wait, so this never adds latency
+    // to a caller that has nothing to drain.
+    void DrainStaleMessages();
     // Drains every PendingCommand StartActivity()/PressDeviceCommand()/
     // HoldDeviceCommand()/ReleaseDeviceCommand() queued, building and
     // sending each one's actual payload here (not in those methods
