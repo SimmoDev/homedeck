@@ -51,8 +51,8 @@ for why this ruled out a separate web-based mock UI.
     Idle dims the SDL2 window, Sleeping blacks it out, and two debug
     controls ("Test: trigger idle"/"Test: trigger sleeping",
     `simulator/main.cpp`) force each inactivity level directly so both
-    are reachable on demand rather than waiting out the real timeouts -
-    screenshot-verified for all three states (dim, black, restored).
+    are reachable on demand rather than waiting out the real timeouts,
+    across all three states (dim, black, restored).
   - *Crash/reboot diagnostics:* `esp_reset_reason()` and ESP-IDF's core
     dump partition (see
     [diagnostics.md](diagnostics.md#crash-and-reboot-diagnostics)) don't

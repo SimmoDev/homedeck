@@ -113,11 +113,15 @@ requirement's hashing half) and the `RequireAuth()` gate (satisfying
 endpoints that take a request body (`setup`/`login`) validate input
 today — a minimum password length and well-formed JSON are both
 checked, satisfying "validate API input" for those two. The rest of the
-API surface (diagnostics, OTA, settings, weather, Wi-Fi reset, Harmony)
-now exists too, and each route validates its own request body
-independently at its own handler — the mechanism decision this
-requirement calls out (centralized vs. per-endpoint) landed as
-per-endpoint by default, not a deliberate centralized design.
+API surface (diagnostics, OTA, settings, weather, Wi-Fi reset) now
+exists too, and each route that takes a body validates it independently
+at its own handler — the mechanism decision this requirement calls out
+(centralized vs. per-endpoint) landed as per-endpoint by default, not a
+deliberate centralized design. Harmony's own routes
+(`GET /api/harmony/status`, `POST /api/harmony/reconnect`) take no body;
+its data (`hub_host`) is validated where it's actually written, the
+generic settings API's `SettingValidateFn` (see
+[harmony.md](harmony.md#status)).
 
 **NVS encryption is deliberately deferred, not open** — see
 [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for the

@@ -263,9 +263,8 @@ Once the simulator target exists (M1):
   independently of the build. Rebuild after any change under
   `webui/src/`.
 - **Firmware build:** `idf.py build` against the `firmware/` ESP-IDF
-  project — see [ESP-IDF setup](#esp-idf-setup) above for the verified
-  Docker-based command, including `flash`/`monitor` against real Tab5
-  hardware, confirmed working.
+  project — see [ESP-IDF setup](#esp-idf-setup) above for the
+  Docker-based command, including `flash`/`monitor` against a Tab5.
 - **Simulator build:**
   ```sh
   cd simulator && cmake -B build -G Ninja && cmake --build build

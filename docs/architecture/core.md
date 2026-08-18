@@ -105,8 +105,8 @@ also now kept accurate via SNTP once Wi-Fi connects, not just ticking a
 value nobody ever corrected — see
 [ADR-0028](../decisions/ADR-0028-time-synchronization.md). **Navigation**
 also has a minimal
-implementation — a route registry (`Register`/`GoTo`/`GoHome`), proven
-against a deliberately throwaway second screen — though it lives in
+implementation — a route registry (`Register`/`GoTo`/`GoHome`),
+exercised across a deliberately throwaway second screen — though it lives in
 `src/ui/`, not `src/core/`, since its `lv_scr_load()` call is a UI-layer
 implementation detail (see [src/README.md](../../src/README.md) for the
 same reasoning applied to `EventBus` staying LVGL-free).

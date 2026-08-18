@@ -79,10 +79,10 @@ if a fact drifts.
 
 ### Wi-Fi bring-up
 
-A real Wi-Fi connection over the C6, via ESP-Hosted, is confirmed working
-end to end on hardware — a real IP address from a real access point, not
-just the SDIO link coming up. Required configuration beyond the SDIO
-pins and power enable above:
+**Confirmed:** a Wi-Fi connection over the C6, via ESP-Hosted, reaches a
+real access point end to end - a real IP address, not just the SDIO
+link coming up. Required configuration beyond the SDIO pins and power
+enable above:
 
 - `CONFIG_ESP_HOSTED_MEMPOOL_PREFER_SPIRAM=y` — ESP-Hosted's SDIO
   transport needs a ~48KB contiguous block of internal DMA-capable RAM
@@ -177,8 +177,8 @@ headroom instead, 4MB each for `ota_0`/`ota_1`.
 - **Confirmed:** the project's reference unit uses the **ST7123**
   integrated display+touch driver (I2C address 0x55) — read directly off
   the physical unit's sticker, no probing needed for this fact. The
-  runtime detection itself is built and confirmed working too, just not
-  via the hand-written design above — see [Display driver
+  runtime detection itself works too, just not via the hand-written
+  design above — see [Display driver
   strategy](#display-driver-strategy) below: `espressif/m5stack_tab5`
   provides its own built-in probing between the two known hardware
   revisions, which is what actually covers detection across units in the
@@ -247,11 +247,10 @@ no swap_xy applied at panel-init time. See
 [ADR-0015](../decisions/ADR-0015-display-orientation.md) for why a
 software rotation to landscape was rejected instead.
 
-**Touch confirmed working end to end, not just controller init.**
-Tapping the panel reports coordinates within the confirmed `720x1280`
-bounds and reacts correctly on-screen; a discrete touch-down maps to
-exactly one input event, not a stream repeating for the duration of a
-press.
+**Confirmed:** touch works end to end, not just controller init.
+Tapping the panel reports coordinates within the `720x1280` bounds and
+reacts correctly on-screen; a discrete touch-down maps to exactly one
+input event, not a stream repeating for the duration of a press.
 
 ## On-device dashboard
 

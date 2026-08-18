@@ -32,7 +32,7 @@ full project vision.
   Application processor is an ESP32-P4, which has no radio; Wi-Fi/BT run
   through an onboard ESP32-C6-MINI-1U wireless co-processor — see
   [docs/architecture/hardware.md](docs/architecture/hardware.md) for the full
-  confirmed hardware reference. Capacitive touchscreen, display, IMU, RTC,
+  hardware reference. Capacitive touchscreen, display, IMU, RTC,
   battery monitoring, speaker, microphones, USB-C, and microSD are all
   expected to be used by the firmware.
 
