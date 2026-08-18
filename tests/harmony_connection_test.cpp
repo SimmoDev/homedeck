@@ -518,7 +518,7 @@ TEST_F(HarmonyConnectionTest, HandshakeWithMalformedJsonBodyEntersErrorState) {
 }
 
 // A well-formed but excessively-nested JSON body (deeper than
-// ExceedsMaxJsonNestingDepth() allows) must be rejected the same way as
+// ExceedsJsonNestingDepth() allows) must be rejected the same way as
 // outright malformed JSON, not handed to nlohmann::json::parse() and left
 // to recurse arbitrarily deep - this protocol has no authentication
 // (ADR-0029), so a rogue device on the LAN could otherwise send this to

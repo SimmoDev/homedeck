@@ -115,15 +115,19 @@ HomeDeck implementation gap.
 
 `HarmonyConnection` (`src/core/harmony_connection.h`/`.cpp`) treats every
 hub response as coming from a source the LAN doesn't otherwise vouch for:
-bounded JSON nesting depth (`kMaxJsonNestingDepth`, `ParseBoundedJson()`)
-guards against a stack-overflow attempt via deeply-nested JSON; bounded
+bounded JSON nesting depth (`kMaxJsonNestingDepth`, `ParseBoundedJson()`
+in `harmony_connection.cpp`, sharing the depth-bounded parse utility in
+`src/core/json_request.h` that every Web UI JSON route also uses) guards
+against a stack-overflow attempt via deeply-nested JSON; bounded
 WebSocket message size (`kMaxWebSocketMessageBytes`,
-`src/platform/websocket_client.h`) and bounded receive-queue depth
-(`kMaxQueuedMessages`, both WebSocket backends) guard against unbounded
-memory growth from an oversized or flooding response; and every parsed
-field is type-checked before use (`ParseDevices()`/`ParseIdLabelArray()`
-drop a malformed id/label entry rather than surfacing a broken button).
-This satisfies "validate API input" for this module's own inbound
+`src/platform/websocket_client.h`, both backends) and a bounded
+receive-queue depth (`kMaxQueuedMessages`, the firmware backend only —
+the host/simulator backend's synchronous pull model has no queue to
+bound) guard against unbounded memory growth from an oversized or
+flooding response; and every parsed field is type-checked before use
+(`ParseDevices()`/`ParseIdLabelArray()` drop a malformed id/label entry
+rather than surfacing a broken button). This satisfies "validate API
+input" for this module's own inbound
 surface, the same way the Web UI's own endpoints satisfy it for theirs
 (see the Status section below).
 
@@ -135,17 +139,22 @@ password hashing (satisfying the "avoid insecure secret storage"
 requirement's hashing half) and the `RequireAuth()` gate (satisfying
 "do not expose unauthenticated management controls by default" and
 "protect configuration changes" for whatever it wraps). Its two
-endpoints that take a request body (`setup`/`login`) validate input
-today — a minimum password length and well-formed JSON are both
-checked, satisfying "validate API input" for those two. The rest of the
-API surface (diagnostics, OTA, settings, weather, Wi-Fi reset) now
-exists too, and each route that takes a body validates it independently
-at its own handler — the mechanism decision this requirement calls out
-(centralized vs. per-endpoint) landed as per-endpoint by default, not a
-deliberate centralized design. Harmony's own routes
-(`GET /api/harmony/status`, `POST /api/harmony/reconnect`) take no body;
-its data (`hub_host`) is validated where it's actually written, the
-generic settings API's `SettingValidateFn` (see
+endpoints that take a request body (`setup`/`login`), and every other
+JSON-body route across the API surface (diagnostics, OTA, settings,
+weather, Wi-Fi reset), parse through the shared
+`TryParseJsonObject()`/`ExceedsJsonNestingDepth()` (`src/core/json_request.h`)
+— well-formed JSON and a bounded nesting depth are both checked before
+any handler looks at a field, since every one of these routes is
+reachable pre-authentication or from any device on the LAN and a deeply
+nested body would otherwise recurse past a firmware task's own bounded
+stack. Beyond that shared parse step, each route validates its own
+fields independently at its own handler — the mechanism decision this
+requirement calls out (centralized vs. per-endpoint) landed as
+per-endpoint by default, not a deliberate centralized design. Harmony's
+own routes (`GET /api/harmony/status`, `POST /api/harmony/reconnect`)
+take no body; its data (`hub_host`) is validated where it's actually
+written, the generic settings API's `SettingValidateFn` — both the
+direct write and the backup-restore replay path (see
 [harmony.md](harmony.md#status)).
 
 **NVS encryption is deliberately deferred, not open** — see
