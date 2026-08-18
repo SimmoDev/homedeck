@@ -136,7 +136,7 @@ do and why, worth reading at least once.
    below). `idf.py build` fails at CMake configure time with a clear
    message if `webui/dist/` doesn't exist yet.
 3. From the repository root:
-   ```
+   ```sh
    docker run --rm -v "$(pwd):/project" -w /project/firmware \
      espressif/idf:v5.4.3 idf.py set-target esp32p4 build
    docker run --rm -v "$(pwd):/project" \
@@ -180,7 +180,7 @@ do and why, worth reading at least once.
    instead of fetching it. Everything else is fetched into the latter,
    which is gitignored and safe to delete for a clean re-fetch.
 4. **Flashing and monitoring**, against a Tab5 K145 reference unit:
-   ```
+   ```sh
    docker run --rm -it -v "$(pwd):/project" -w /project/firmware \
      --device=/dev/ttyACM0 \
      espressif/idf:v5.4.3 idf.py -p /dev/ttyACM0 flash monitor
@@ -249,7 +249,7 @@ Once the simulator target exists (M1):
 ## Build/test workflow
 
 - **Web UI bundle (build this first):**
-  ```
+  ```sh
   cd webui && npm ci && npm run build
   ```
   Produces `webui/dist/` (`index.html`/`app.js`/`app.css`, fixed
@@ -267,13 +267,13 @@ Once the simulator target exists (M1):
   Docker-based command, including `flash`/`monitor` against real Tab5
   hardware, confirmed working.
 - **Simulator build:**
-  ```
+  ```sh
   cd simulator && cmake -B build -G Ninja && cmake --build build
   ```
   A separate build system from firmware, not `idf.py` — see
   [Simulator workflow](#simulator-workflow) above.
 - **Automated tests:**
-  ```
+  ```sh
   cd tests && cmake -B build -G Ninja && cmake --build build
   ctest --test-dir build --output-on-failure
   ```

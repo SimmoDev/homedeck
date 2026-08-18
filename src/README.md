@@ -11,7 +11,7 @@ specifically — see
 why firmware's actual hardware support library differs from [CLAUDE.md](../CLAUDE.md)'s
 originally-named one.)
 
-```
+```text
 src/
 ├── platform/    Task, Queue<T>, Timer - the Core Concurrency Abstraction
 │                (see ADR-0002); host/ holds the shared std::thread-backed

@@ -50,7 +50,7 @@ and what's still open, and the architectural decisions index.
 
 HomeDeck is organized into four layers:
 
-```
+```text
 UI
   ↓
 HomeDeck Core
@@ -79,7 +79,7 @@ decisions are recorded as ADRs in
 
 ## Repository structure
 
-```
+```text
 HomeDeck/
 ├── docs/            architecture, ADRs, roadmap
 ├── src/             portable Core/UI source, shared by firmware/ and simulator/

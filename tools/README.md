@@ -43,7 +43,7 @@ for the following defect classes:
 
 Activate both once per clone:
 
-```
+```sh
 git config core.hooksPath tools/githooks
 ```
 
