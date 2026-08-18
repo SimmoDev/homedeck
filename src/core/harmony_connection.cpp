@@ -26,6 +26,14 @@ constexpr int kConfigFetchTimeoutMs = 10000;
 constexpr int kLivenessProbeTimeoutMs = 10000;
 constexpr std::chrono::seconds kUnconfiguredRecheckInterval{5};
 
+// Both build their URL by raw concatenation, not a URL builder - a
+// `hub_host` containing `#`/`?`/`@` would otherwise change what the
+// underlying URL parser (curl/esp_http_client) treats as the actual
+// host/port (a fragment truncates the authority, `@` introduces
+// userinfo, an extra `?` starts a second query string), silently
+// redirecting the connection rather than just failing to reach it - see
+// IsValidHubHost()'s own comment, which rejects all three for exactly
+// this reason.
 std::string HandshakeUrl(const std::string& hub_host) { return "http://" + hub_host + ":8088/"; }
 
 std::string WebSocketUrl(const std::string& hub_host, const std::string& hub_id) {
@@ -151,6 +159,11 @@ bool IsValidHubHost(const std::string& value) {
         }
     }
     if (value.find('/') != std::string::npos) {
+        return false;
+    }
+    // See HandshakeUrl()/WebSocketUrl()'s own comment on why these three
+    // specifically, not just any non-hostname character.
+    if (value.find_first_of("#?@") != std::string::npos) {
         return false;
     }
     return true;

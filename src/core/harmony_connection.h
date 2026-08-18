@@ -32,19 +32,22 @@ enum class HarmonyConnectionState {
     kError,  // most recent attempt failed; a retry is scheduled
 };
 
-// Rejects a scheme prefix, embedded whitespace, or a path - all three
-// would otherwise still build a URL (HandshakeUrl()/WebSocketUrl() below
-// just concatenate this value in), but one that fails to connect the
-// same opaque way an unreachable address does, with no way to tell the
-// two apart. Mirrors webui/src/lib/harmonyValidation.ts's hubHostError()
-// exactly, so both surfaces reject the same values - this is the
-// server-side half, invoked from POST /api/settings via
-// core/settings_routes.h's generic SettingValidateFn (wired in
-// ui/app_core.cpp), since that generic settings API - not a
-// Harmony-specific endpoint - is what actually persists this value (see
-// kHubHostKey below). Empty is accepted - it isn't this function's
-// concern, since ConnectionLoop() already treats it as "not yet
-// configured," not a malformed address.
+// Rejects a scheme prefix, embedded whitespace, a path, or a `#`/`?`/`@`
+// character - every one of these would otherwise still build a URL
+// (HandshakeUrl()/WebSocketUrl() below just concatenate this value in),
+// but `#`/`?`/`@` specifically build a URL that connects somewhere other
+// than the configured address (a fragment/query/userinfo component
+// silently changing what the URL parser treats as the actual host/port),
+// not just one that fails to connect the same opaque way an unreachable
+// address does - see WebSocketUrl()'s own comment. Mirrors
+// webui/src/lib/harmonyValidation.ts's hubHostError() exactly, so both
+// surfaces reject the same values - this is the server-side half,
+// invoked from POST /api/settings via core/settings_routes.h's generic
+// SettingValidateFn (wired in ui/app_core.cpp), since that generic
+// settings API - not a Harmony-specific endpoint - is what actually
+// persists this value (see kHubHostKey below). Empty is accepted - it
+// isn't this function's concern, since ConnectionLoop() already treats
+// it as "not yet configured," not a malformed address.
 bool IsValidHubHost(const std::string& value);
 
 // One entry from a device's controlGroup[].function[] - a single sendable

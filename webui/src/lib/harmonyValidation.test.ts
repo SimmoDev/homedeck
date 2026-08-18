@@ -40,6 +40,23 @@ describe("hubHostError", () => {
   it("rejects non-whitespace control characters, matching the server-side check", () => {
     // U+0001 - not whitespace, not a path separator, so it falls through
     // to this check specifically.
-    expect(hubHostError("192.168.1.50\u0001")).toBe("Hub address can't contain control characters");
+    expect(hubHostError("192.168.1.50")).toBe("Hub address can't contain control characters");
+  });
+
+  it("rejects #, ?, and @, matching the server-side IsValidHubHost() check", () => {
+    // All three pass every other check but change what a URL parser
+    // treats as the actual host/port instead of just failing to connect
+    // (M3 exit review pass 7).
+    expect(hubHostError("realhost#fragment")).toBe("Hub address can't contain #, ?, or @");
+    expect(hubHostError("realhost?query=1")).toBe("Hub address can't contain #, ?, or @");
+    expect(hubHostError("user@realhost")).toBe("Hub address can't contain #, ?, or @");
+  });
+
+  it("accepts an empty value - saving an empty hub address un-configures Harmony", () => {
+    // Matches the backend's IsValidHubHost("") test - empty isn't this
+    // function's concern, since HarmonySettings.svelte's own save flow
+    // treats it as "disconnect the configured hub," not a malformed
+    // address (M3 exit review pass 7).
+    expect(hubHostError("")).toBeUndefined();
   });
 });

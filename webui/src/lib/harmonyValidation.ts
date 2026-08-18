@@ -24,6 +24,13 @@ export function hubHostError(value: string): string | undefined {
   if (value.includes("/")) {
     return "Hub address can't contain a path";
   }
+  // #/?/@ all change what a URL parser treats as the actual host/port
+  // (a fragment truncates the authority, @ introduces userinfo, an extra
+  // ? starts a second query string) rather than just failing to connect
+  // - matching the server-side IsValidHubHost() check.
+  if (/[#?@]/.test(value)) {
+    return "Hub address can't contain #, ?, or @";
+  }
   if (/[^\x00-\x7F]/.test(value)) {
     return "Hub address must be plain ASCII (no accented or non-Latin characters)";
   }

@@ -200,6 +200,17 @@ TEST(IsValidHubHostTest, RejectsNonWhitespaceControlCharacters) {
     EXPECT_FALSE(homedeck::IsValidHubHost(std::string("192.168.1.50") + '\x01'));
 }
 
+TEST(IsValidHubHostTest, RejectsUrlStructuralCharacters) {
+    // #/?/@ all pass every other check (no scheme, no whitespace, no
+    // path, plain ASCII) but change what HandshakeUrl()/WebSocketUrl()'s
+    // raw concatenation actually connects to instead of just failing to
+    // connect (M3 exit review pass 7) - see IsValidHubHost()'s own
+    // comment.
+    EXPECT_FALSE(homedeck::IsValidHubHost("realhost#fragment"));
+    EXPECT_FALSE(homedeck::IsValidHubHost("realhost?query=1"));
+    EXPECT_FALSE(homedeck::IsValidHubHost("user@realhost"));
+}
+
 TEST_F(HarmonyConnectionTest, NotConfiguredStaysDisconnectedAndNeverCallsOut) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
