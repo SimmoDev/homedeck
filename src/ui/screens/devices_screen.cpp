@@ -1,9 +1,8 @@
 #include "ui/screens/devices_screen.h"
 
-#include "ui/home_affordance.h"
 #include "ui/remote_button.h"
+#include "ui/screens/harmony_screen_chrome.h"
 #include "ui/text_format.h"
-#include "ui/theme.h"
 
 namespace homedeck {
 
@@ -89,31 +88,11 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     : harmony_connection_(harmony_connection),
       root_(lv_obj_create(nullptr)),
       status_bar_(root_, event_bus, battery_reader, network_status) {
-    lv_obj_set_style_text_font(root_, kBodyFont, 0);
-
-    lv_obj_t* container = lv_obj_create(root_);
-    lv_obj_remove_style_all(container);
-    lv_obj_set_size(container, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_align(container, LV_ALIGN_TOP_MID, 0, StatusBar::kHeight + 16);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(container, 8, 0);
-    lv_obj_set_style_pad_all(container, 16, 0);
-
-    lv_obj_t* title = lv_label_create(container);
-    lv_label_set_text(title, "Devices");
-
-    hint_label_ = lv_label_create(container);
-    lv_label_set_text(hint_label_, "Not connected to a Harmony Hub yet.");
-    lv_label_set_long_mode(hint_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(hint_label_, LV_PCT(90));
-    lv_obj_set_style_text_align(hint_label_, LV_TEXT_ALIGN_CENTER, 0);
-
-    list_container_ = lv_obj_create(container);
-    lv_obj_remove_style_all(list_container_);
-    lv_obj_set_size(list_container_, LV_PCT(90), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(list_container_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(list_container_, 12, 0);
+    HarmonyScreenChrome chrome = CreateHarmonyScreenChrome(root_, "Devices", navigation);
+    lv_obj_t* container = chrome.container;
+    hint_label_ = chrome.hint_label;
+    list_container_ = chrome.list_container;
+    lv_obj_t* home_button = chrome.home_button;
 
     detail_container_ = lv_obj_create(container);
     lv_obj_remove_style_all(detail_container_);
@@ -141,8 +120,6 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     lv_obj_set_size(commands_container_, LV_PCT(100), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(commands_container_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(commands_container_, 12, 0);
-
-    lv_obj_t* home_button = CreateHomeAffordance(root_, navigation);
 
     config_sub_ = event_bus.SubscribeUi<HarmonyConfigUpdatedEvent>(
         [this](const HarmonyConfigUpdatedEvent&) { RebuildDeviceList(); });

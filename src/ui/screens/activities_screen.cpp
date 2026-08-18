@@ -1,8 +1,7 @@
 #include "ui/screens/activities_screen.h"
 
-#include "ui/home_affordance.h"
 #include "ui/remote_button.h"
-#include "ui/theme.h"
+#include "ui/screens/harmony_screen_chrome.h"
 
 namespace homedeck {
 
@@ -24,42 +23,18 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
       navigation_(navigation),
       root_(lv_obj_create(nullptr)),
       status_bar_(root_, event_bus, battery_reader, network_status) {
-    lv_obj_set_style_text_font(root_, kBodyFont, 0);
+    HarmonyScreenChrome chrome = CreateHarmonyScreenChrome(root_, "Activities", navigation);
+    hint_label_ = chrome.hint_label;
+    list_container_ = chrome.list_container;
+    lv_obj_t* home_button = chrome.home_button;
 
-    lv_obj_t* container = lv_obj_create(root_);
-    lv_obj_remove_style_all(container);
-    lv_obj_set_size(container, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_align(container, LV_ALIGN_TOP_MID, 0, StatusBar::kHeight + 16);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(container, 8, 0);
-    lv_obj_set_style_pad_all(container, 16, 0);
-
-    lv_obj_t* title = lv_label_create(container);
-    lv_label_set_text(title, "Activities");
-
-    status_label_ = lv_label_create(container);
+    // Between the title and hint_label - see CreateHarmonyScreenChrome()'s
+    // own comment on why a caller with content to insert there repositions
+    // it after the fact rather than the chrome function taking an
+    // insertion hook.
+    status_label_ = lv_label_create(chrome.container);
     lv_label_set_text(status_label_, "");  // LVGL defaults a new label's text to "Text" otherwise.
-
-    hint_label_ = lv_label_create(container);
-    lv_label_set_text(hint_label_, "Not connected to a Harmony Hub yet.");
-    lv_label_set_long_mode(hint_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(hint_label_, LV_PCT(90));
-    lv_obj_set_style_text_align(hint_label_, LV_TEXT_ALIGN_CENTER, 0);
-
-    list_container_ = lv_obj_create(container);
-    lv_obj_remove_style_all(list_container_);
-    lv_obj_set_size(list_container_, LV_PCT(90), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(list_container_, LV_FLEX_FLOW_COLUMN);
-    // Deliberate spacing between genuinely large buttons, not a tight list -
-    // see each button's own pad_ver comment below for why "large" is the
-    // deliberate target here, not a compact default. root_ (the screen
-    // itself) is left scrollable, same as DashboardGrid's own "content
-    // can exceed the visible screen" handling, so a longer activity list
-    // still works.
-    lv_obj_set_style_pad_row(list_container_, 12, 0);
-
-    lv_obj_t* home_button = CreateHomeAffordance(root_, navigation);
+    lv_obj_move_to_index(status_label_, 1);
 
     // A secondary, lighter-weight affordance than the home button/activity
     // buttons - Devices is the advanced/raw-command surface (see
