@@ -106,6 +106,16 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         if (meta->flags & CURLWS_CLOSE) {
             return std::nullopt;
         }
+        if (meta->flags & (CURLWS_PING | CURLWS_PONG)) {
+            // libcurl auto-PONGs a received PING itself (default behavior,
+            // CURLWS_NOAUTOPONG not set below) but still delivers the frame
+            // here - not a reply to anything HostWebSocketClient's own
+            // caller sent, so it must not be treated as accumulated message
+            // content the way FirmwareWebSocketClient's own opcode filter
+            // avoids the same mistake for esp_websocket_client's PING/PONG
+            // events (see its own comment).
+            continue;
+        }
         // See kMaxWebSocketMessageBytes's own comment for why. Checked
         // before appending, not after - accumulated must never actually
         // exceed the bound even transiently.

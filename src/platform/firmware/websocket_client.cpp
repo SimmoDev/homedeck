@@ -2,6 +2,7 @@
 
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_transport_ws.h"
 #include "esp_websocket_client.h"
 #include "freertos/FreeRTOS.h"
 
@@ -12,6 +13,24 @@ namespace {
 constexpr char kTag[] = "websocket_client";
 constexpr int kConnectTimeoutMs = 10000;
 constexpr int kSendTimeoutMs = 10000;
+
+// esp_websocket_client dispatches every received WebSocket frame through
+// WEBSOCKET_EVENT_DATA unconditionally (esp_websocket_client_recv() calls
+// esp_websocket_client_dispatch_event(..., WEBSOCKET_EVENT_DATA, ...)
+// before its own opcode-specific handling - auto-PONGing a PING, clearing
+// wait_for_pong_resp on a PONG, entering WEBSOCKET_STATE_CLOSING on a
+// CLOSE - runs). Connect() below leaves ping_interval_sec at the
+// library's own 10s default, so a PING/PONG keepalive round-trip happens
+// on this schedule for as long as the connection stays open. Left
+// unfiltered, a PONG's empty-payload WEBSOCKET_EVENT_DATA would be queued
+// in message_queue_ as if it were a real application message, corrupting
+// the strict one-request/one-reply pairing HarmonyConnection's transport
+// model depends on (see its own header comment).
+bool IsApplicationDataOpcode(uint8_t op_code) {
+    uint8_t opcode = op_code & static_cast<uint8_t>(~WS_TRANSPORT_OPCODES_FIN);
+    return opcode == WS_TRANSPORT_OPCODES_CONT || opcode == WS_TRANSPORT_OPCODES_TEXT ||
+           opcode == WS_TRANSPORT_OPCODES_BINARY;
+}
 
 // Bounds how many complete messages can accumulate in message_queue_
 // before the oldest is dropped - without a cap, any unsolicited message
@@ -197,6 +216,13 @@ void FirmwareWebSocketClient::HandleData(const void* event_data) {
     // whose 8-device config fetch (and the many-command-buttons LVGL bug
     // it surfaced) went through this exact path.
     const auto* data = static_cast<const esp_websocket_event_data_t*>(event_data);
+    if (!IsApplicationDataOpcode(data->op_code)) {
+        // PING/PONG/CLOSE - not a reply to anything HarmonyConnection
+        // sent. The library already auto-PONGs a received PING and
+        // reports a close via WEBSOCKET_EVENT_CLOSED/_DISCONNECTED
+        // separately (see OnWebSocketEvent()); nothing to do here.
+        return;
+    }
     bool message_complete = false;
     bool oversized = false;
     {
