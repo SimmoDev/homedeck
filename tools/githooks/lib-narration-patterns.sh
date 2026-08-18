@@ -51,4 +51,15 @@ narration_patterns=(
     # only ever pairs "confirmed" with a noun/adjective, not a bare -ing
     # verb describing an activity performed.
     'confirmed (reverting|surviving|persisting)'
+    # Additional verification-log verb forms found by manual read (M3
+    # exit review pass 6) that the patterns above don't cover - a
+    # reminder that this list is built from known-bad instances, not a
+    # closed set; expect to keep adding to it.
+    'verified against the reference'
+    'verified in a browser'
+    'field.verified'
+    'was proven'
+    'confirmed working'
+    'screenshot.verified'
+    'proven against'
 )
