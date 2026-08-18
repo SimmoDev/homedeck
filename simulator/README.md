@@ -45,7 +45,9 @@ hardware. See [docs/roadmap.md](../docs/roadmap.md) for what's currently
 wired in, [docs/architecture/simulator.md](../docs/architecture/simulator.md)
 for the design, and
 [ADR-0002](../docs/decisions/ADR-0002-technology-stack.md#1-simulator-rendering-backend)
-for the backend decision. `WifiSetupScreen`
-(`../src/ui/screens/wifi_setup_screen.h`) is the second screen proving
-Navigation and the persistent home affordance
-(`../src/ui/home_affordance.h`) work across more than one screen.
+for the backend decision. `main.cpp` builds `AppCore`
+(`../src/ui/app_core.cpp`), which registers Dashboard plus
+`WifiSetupScreen`, `ActivitiesScreen`, and `DevicesScreen`
+(`../src/ui/screens/`) on `Navigation` — the persistent home affordance
+(`../src/ui/home_affordance.h`) is shared across all three
+non-dashboard screens.

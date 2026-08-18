@@ -13,10 +13,8 @@ services reused directly from [../src/](../src/). See
 open, and [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup) for the
 build/flash procedure.
 
-Navigation and a second screen (`WifiSetupScreen`) are wired in here the
-same as on the simulator — `homedeck.cpp` routes to it via
-`GetNavigation().GoTo("wifi-setup")`/`GoHome()` during Wi-Fi setup. The
-persistent home affordance isn't visible on hardware yet, not because
-it's unimplemented but because `WifiSetupScreen` is the sole screen that
-exists so far and is a deliberate exception to it — see
-[ui.md](../docs/architecture/ui.md#navigation-model) for why.
+`main/homedeck.cpp` builds `AppCore` (`../src/ui/app_core.cpp`), which
+registers Dashboard plus `WifiSetupScreen`, `ActivitiesScreen`, and
+`DevicesScreen` on `Navigation` the same as on the simulator — see
+[ui.md](../docs/architecture/ui.md#navigation-model) for the persistent
+home affordance every non-dashboard screen among them shares.
