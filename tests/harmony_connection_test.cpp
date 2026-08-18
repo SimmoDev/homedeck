@@ -235,6 +235,16 @@ TEST(IsValidHubHostTest, RejectsUrlStructuralCharacters) {
     EXPECT_FALSE(homedeck::IsValidHubHost("user@realhost"));
 }
 
+TEST(IsValidHubHostTest, RejectsABareUnbracketedIpv6Literal) {
+    // "::1"/"fe80::1" pass every other check (no scheme, no whitespace,
+    // no path, no #?@, plain ASCII) but RFC 3986 requires an IPv6
+    // literal to be bracketed in a URL authority - unbracketed, it's
+    // ambiguous to the URL parser HandshakeUrl()/WebSocketUrl()'s raw
+    // concatenation ultimately feeds.
+    EXPECT_FALSE(homedeck::IsValidHubHost("::1"));
+    EXPECT_FALSE(homedeck::IsValidHubHost("fe80::1"));
+}
+
 TEST_F(HarmonyConnectionTest, NotConfiguredStaysDisconnectedAndNeverCallsOut) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

@@ -197,6 +197,15 @@ bool IsValidHubHost(const std::string& value) {
     if (value.find_first_of("#?@") != std::string::npos) {
         return false;
     }
+    // A bare (unbracketed) IPv6 literal, e.g. "::1" or "fe80::1", would
+    // otherwise pass every check above and reach HandshakeUrl()/
+    // WebSocketUrl()'s own raw concatenation - RFC 3986 requires an IPv6
+    // literal to be bracketed in a URL authority, and this project has no
+    // stated need for IPv6 hub addresses, so ':' is rejected outright
+    // rather than adding bracket-aware parsing for a case nothing needs.
+    if (value.find(':') != std::string::npos) {
+        return false;
+    }
     return true;
 }
 

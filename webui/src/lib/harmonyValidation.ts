@@ -34,5 +34,10 @@ export function hubHostError(value: string): string | undefined {
   if (/[^\x00-\x7F]/.test(value)) {
     return "Hub address must be plain ASCII (no accented or non-Latin characters)";
   }
+  // A bare (unbracketed) IPv6 literal like "::1" would otherwise pass
+  // every check above - matching the server-side IsValidHubHost() check.
+  if (value.includes(":")) {
+    return "Hub address can't contain a colon";
+  }
   return undefined;
 }

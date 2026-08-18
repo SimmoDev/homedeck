@@ -52,6 +52,11 @@ describe("hubHostError", () => {
     expect(hubHostError("user@realhost")).toBe("Hub address can't contain #, ?, or @");
   });
 
+  it("rejects a bare unbracketed IPv6 literal, matching the server-side IsValidHubHost() check", () => {
+    expect(hubHostError("::1")).toBe("Hub address can't contain a colon");
+    expect(hubHostError("fe80::1")).toBe("Hub address can't contain a colon");
+  });
+
   it("accepts an empty value - saving an empty hub address un-configures Harmony", () => {
     // Matches the backend's IsValidHubHost("") test - empty isn't this
     // function's concern, since HarmonySettings.svelte's own save flow
