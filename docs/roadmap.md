@@ -689,6 +689,24 @@ day-to-day usage with HomeDeck.
       an optional layered-on shortcut added once the tap-based version
       exists and its real usage is understood. Needs the panel itself
       built first
+- [ ] Paged Harmony device remote, once the Gesture navigation item above
+      exists: replace `DevicesScreen`'s current long vertical scroll
+      through a device's commands (`RenderGenericGrid()`,
+      `src/ui/screens/devices_screen.cpp` - a device with enough
+      commands already needs on-screen scrolling per the M3 Devices
+      item) with a screen's worth of buttons per page, swiping
+      left/right to move to the next/previous page, matching the
+      official Harmony app's own remote layout - friendlier than a long
+      scroll for a device with many controls. Needs Gesture navigation
+      first for more than sequencing: that item's own left/right
+      edge-swipe-back is exactly the "future module screen's own gesture
+      use" conflict risk [ADR-0004](decisions/ADR-0004-ui-philosophy.md#decision-return-home-affordance)
+      already flagged when it left edge gestures as optional rather than
+      guaranteed, so this item needs the two disambiguated (e.g. an
+      edge-only back-swipe vs. a full-width page-swipe) rather than
+      designed in isolation. `NumericBasic`/`NavigationBasic`'s own fixed
+      keypad/D-pad layouts (see the M3 Remote control item) already fit
+      one screen and aren't in scope for paging
 - [ ] Icon pair for the brightness/volume quick-settings panel's sliders
       (`src/ui/quick_settings_panel.cpp`), replacing the current
       text-label-above-slider styling for both - LVGL's bundled symbol
