@@ -5,11 +5,10 @@
 # project actually requires against the confirmed reference hardware (see
 # docs/architecture/hardware.md).
 
-# Real flash size confirmed via first boot on the Tab5 K145 reference
-# unit - the ESP-IDF default (2MB) leaves 14MB of real flash unaddressed,
-# which matters once OTA/partition planning (ADR-0012) needs the real
-# budget. CONFIG_ESPTOOLPY_FLASHSIZE is a computed value from this choice,
-# not directly settable.
+# The Tab5 K145's actual flash size is 16MB - the ESP-IDF default (2MB)
+# leaves 14MB unaddressed, which matters once OTA/partition planning
+# (ADR-0012) needs the full budget. CONFIG_ESPTOOLPY_FLASHSIZE is a
+# computed value from this choice, not directly settable.
 CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
 
 # 32MB PSRAM confirmed on the reference hardware (see hardware.md's
@@ -161,7 +160,7 @@ CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=8192
 # OTA app-rollback (docs/architecture/web-ui.md#ota) - the bootloader
 # boots a freshly-updated image in a "pending verify" state; if
 # esp_ota_mark_app_valid_cancel_rollback() (firmware/main/homedeck.cpp,
-# called once real boot success is confirmed) is never reached, the
+# called once boot success is confirmed) is never reached, the
 # device is meant to revert to the previous OTA slot on the next boot.
 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 
@@ -195,10 +194,10 @@ CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
 # The espressif/lvgl managed component defaults CONFIG_LV_BUILD_EXAMPLES to
 # y, compiling LVGL's entire examples/demos tree (rlottie, freetype, gltf,
 # tiny_ttf, and hundreds more source files) into every firmware build.
-# Nothing in this project calls into any lv_example_*/lv_demo_* function -
-# confirmed via a repo-wide grep across src/, firmware/main/, and
-# simulator/ - so this is pure wasted build time with no product benefit,
-# and unnecessary compiled surface for no reason.
+# Nothing in this project calls into any lv_example_*/lv_demo_* function
+# (no matches for lv_example_/lv_demo_ anywhere in src/, firmware/main/,
+# or simulator/), so this is pure wasted build time with no product
+# benefit, and unnecessary compiled surface for no reason.
 CONFIG_LV_BUILD_EXAMPLES=n
 
 # ESP-IDF's own default (10) is too small once the Wi-Fi recovery access
@@ -223,10 +222,10 @@ CONFIG_LWIP_MAX_SOCKETS=20
 # (LV_USE_ASSERT_MALLOC's failure handler is `while(1)` with LV_USE_LOG
 # off by default, so exhaustion hangs the UI task with no error output),
 # and raising that size is its own problem - it's a static internal-RAM
-# allocation competing with everything else needing internal RAM,
-# confirmed via a real flash/boot cycle on the Tab5 where a 256kB pool
-# collided with bsp_display_start()'s own DMA-capable framebuffer
-# allocation and aborted before app_main ever ran. LV_USE_CLIB_MALLOC
+# allocation competing with everything else needing internal RAM: a
+# 256kB pool collides with bsp_display_start()'s own DMA-capable
+# framebuffer allocation and aborts before app_main ever runs.
+# LV_USE_CLIB_MALLOC
 # routes LVGL's allocations through ESP-IDF's normal malloc instead,
 # which spans into the 31MB of otherwise-idle PSRAM automatically once
 # PSRAM is enabled (CONFIG_SPIRAM above) - no fixed ceiling, and no more
