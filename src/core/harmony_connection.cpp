@@ -143,13 +143,14 @@ bool IsValidHubHost(const std::string& value) {
         return false;
     }
     for (unsigned char c : value) {
-        // Rejects ASCII whitespace directly, and every non-ASCII byte
-        // outright - a hostname/IP has no legitimate use for one, and it
-        // sidesteps having to enumerate every multi-byte UTF-8 whitespace
-        // codepoint (e.g. U+00A0 NBSP) the frontend's `/\s/` regex
-        // already rejects that a byte-wise std::isspace() alone can't
-        // see.
-        if (std::isspace(c) || c >= 0x80) {
+        // Rejects ASCII whitespace, every other C0 control character and
+        // DEL, and every non-ASCII byte outright - a hostname/IP has no
+        // legitimate use for any of them, and it sidesteps having to
+        // enumerate every multi-byte UTF-8 whitespace codepoint (e.g.
+        // U+00A0 NBSP) the frontend's `/\s/` regex already rejects that a
+        // byte-wise std::isspace() alone can't see. Mirrors
+        // webui/src/lib/harmonyValidation.ts's control-character check.
+        if (std::isspace(c) || c >= 0x80 || c < 0x20 || c == 0x7F) {
             return false;
         }
     }

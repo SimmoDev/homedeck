@@ -14,6 +14,13 @@ export function hubHostError(value: string): string | undefined {
   if (/\s/.test(value)) {
     return "Hub address can't contain whitespace";
   }
+  // Non-whitespace control characters (e.g. U+0001) build the same kind
+  // of malformed URL the whitespace/path checks exist to catch, just via
+  // paste/scripted entry rather than typing - \s above already covers
+  // tab/newline/carriage-return.
+  if (/[\x00-\x1f\x7f]/.test(value)) {
+    return "Hub address can't contain control characters";
+  }
   if (value.includes("/")) {
     return "Hub address can't contain a path";
   }

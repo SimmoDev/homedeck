@@ -193,6 +193,13 @@ TEST(IsValidHubHostTest, RejectsNonAsciiBytesIncludingUnicodeWhitespace) {
     EXPECT_FALSE(homedeck::IsValidHubHost("192.168.1.50\xC2\xA0"));
 }
 
+TEST(IsValidHubHostTest, RejectsNonWhitespaceControlCharacters) {
+    // \x01 - not whitespace, not the high bit, so it needed its own
+    // check (M3 exit review pass 6): matching webui/src/lib/
+    // harmonyValidation.ts's identical control-character check.
+    EXPECT_FALSE(homedeck::IsValidHubHost(std::string("192.168.1.50") + '\x01'));
+}
+
 TEST_F(HarmonyConnectionTest, NotConfiguredStaysDisconnectedAndNeverCallsOut) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

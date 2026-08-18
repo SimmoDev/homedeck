@@ -36,4 +36,10 @@ describe("hubHostError", () => {
       "Hub address must be plain ASCII (no accented or non-Latin characters)",
     );
   });
+
+  it("rejects non-whitespace control characters, matching the server-side check", () => {
+    // U+0001 - not whitespace, not a path separator, so it falls through
+    // to this check specifically.
+    expect(hubHostError("192.168.1.50\u0001")).toBe("Hub address can't contain control characters");
+  });
 });
