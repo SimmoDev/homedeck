@@ -124,8 +124,10 @@ the existing clock tick and publishes `WifiConnectivityChangedEvent` only
 on an actual connected/disconnected transition — the status bar's Wi-Fi
 icon is the first consumer, and the network-status dashboard widget
 (`NetworkStatusWidget`, see [dashboard.md](dashboard.md#status)) is the
-second. The Web UI's Wi-Fi management page named above is still open, a
-now-unblocked follow-up, not built yet.
+second. A Web UI Wi-Fi management page (viewing/changing stored
+credentials post-provisioning, see [web-ui.md](web-ui.md#status) and the
+M7 item in [roadmap.md](../roadmap.md)) is a now-unblocked follow-up, not
+built yet.
 
 Outbound HTTP(S) is also implemented — a portable `HttpClient` interface
 (`src/platform/http_client.h`, `Get()`/`Post()`) backed by
