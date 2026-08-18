@@ -8,20 +8,18 @@ namespace homedeck {
 
 namespace {
 
-// setup.account?getProvisionInfo - the local handshake, verified live
-// against the reference hub during this feature's own design pass (see
-// ADR-0029): POST straight to the hub's HTTP port, no authentication,
-// returns the activeRemoteId this module needs for the WebSocket
-// connection below. `id` is an arbitrary request-correlation number the
-// hub echoes back - unused here, since a single in-flight request at a
-// time never needs to match a reply to it.
+// setup.account?getProvisionInfo - the local handshake (see ADR-0029 for
+// the protocol facts): POST straight to the hub's HTTP port, no
+// authentication, returns the activeRemoteId this module needs for the
+// WebSocket connection below. `id` is an arbitrary request-correlation
+// number the hub echoes back - unused here, since a single in-flight
+// request at a time never needs to match a reply to it.
 constexpr char kProvisionInfoRequestBody[] = R"({"id":1,"cmd":"setup.account?getProvisionInfo","timeout":90000})";
 
 // The hub's HTTP handshake endpoint rejects the request with a 400
-// unless this exact Origin is present - confirmed against the reference
-// hub during this feature's own design and verification passes (see
-// ADR-0029). Not an actual browser origin, just what the hub's own
-// (presumably myharmony.com-web-app-derived) validation checks for.
+// unless this exact Origin is present (see ADR-0029). Not an actual
+// browser origin, just what the hub's own (presumably
+// myharmony.com-web-app-derived) validation checks for.
 constexpr char kHandshakeOrigin[] = "http://sl.dhg.myharmony.com";
 
 constexpr int kConfigFetchTimeoutMs = 10000;
@@ -44,8 +42,7 @@ std::string NumberOrStringToString(const nlohmann::json& value) {
     return "";
 }
 
-// data.activity[] entries carry "id"/"label" fields - confirmed against
-// the reference hub's actual config payload (see ADR-0029's
+// data.activity[] entries carry "id"/"label" fields (see ADR-0029's
 // Consequences). Entries missing either field are skipped rather than
 // surfaced with a blank label. Devices need more than this (see
 // ParseDevices() below), so this stays activity-only despite the name
@@ -73,8 +70,7 @@ std::vector<Entry> ParseIdLabelArray(const nlohmann::json& array) {
 }
 
 // data.device[].controlGroup[].function[] entries carry "name"/"label"/
-// "action" - confirmed against the reference hub's actual config payload
-// (see ADR-0029's Consequences). `action` is already a ready-to-send
+// "action" (see ADR-0029's Consequences). `action` is already a ready-to-send
 // JSON string (e.g. `{"command":"VolumeUp","type":"IRCommand","deviceId":"..."}`)
 // - passed through as-is, not reconstructed from `name`/deviceId, since
 // the hub's own copy is authoritative and this project has no reason to
