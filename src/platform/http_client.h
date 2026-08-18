@@ -6,6 +6,17 @@
 
 namespace homedeck {
 
+// Mirrors platform/http_server.h's kMaxHttpRequestBodyBytes for the
+// inbound-request side - this is the outbound-response side. Every real
+// response this project's callers see (Harmony's hub config, Open-Meteo's
+// weather JSON) is at most a few hundred KB; 1 MiB is a generous multiple
+// of that, not a tight fit. Both HostHttpClient and FirmwareHttpClient
+// enforce this while accumulating a response body, since Harmony's own
+// transport has no authentication (ADR-0029) - a rogue LAN device could
+// otherwise return an arbitrarily large body within the existing
+// timeout, growing the response string without bound.
+constexpr size_t kMaxHttpResponseBodyBytes = 1024 * 1024;
+
 // Named HttpClientResponse, not HttpResponse - platform/http_server.h
 // already defines homedeck::HttpResponse for the server side (a
 // different shape: status/content-type/body/extra-headers), and both

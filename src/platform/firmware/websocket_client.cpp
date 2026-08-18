@@ -13,6 +13,16 @@ constexpr char kTag[] = "websocket_client";
 constexpr int kConnectTimeoutMs = 10000;
 constexpr int kSendTimeoutMs = 10000;
 
+// Bounds how many complete messages can accumulate in message_queue_
+// before the oldest is dropped - without a cap, any unsolicited message
+// the hub sends outside the normal send-one/receive-one pattern (see
+// core/harmony_connection.h's own comment on this transport's shape)
+// would grow the queue without bound on a device that stays up for
+// weeks, since nothing currently drains a message nobody asked for.
+// Matches HarmonyConnection::kMaxPendingCommands's own cap/drop-oldest
+// shape.
+constexpr size_t kMaxQueuedMessages = 20;
+
 // The ESP-IDF event-loop callback esp_websocket_register_events() wants -
 // a free function matching esp_event_handler_t exactly, not a static
 // class member, so websocket_client.h never needs esp_event_base_t in
@@ -171,14 +181,38 @@ void FirmwareWebSocketClient::HandleData(const void* event_data) {
     // it surfaced) went through this exact path.
     const auto* data = static_cast<const esp_websocket_event_data_t*>(event_data);
     bool message_complete = false;
+    bool oversized = false;
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);
-        in_progress_message_.append(static_cast<const char*>(data->data_ptr), data->data_len);
-        if (data->payload_offset + data->data_len >= data->payload_len) {
-            message_queue_.push_back(std::move(in_progress_message_));
+        // See kMaxWebSocketMessageBytes's own comment (platform/
+        // websocket_client.h) for why - this transport has no
+        // authentication (ADR-0029). Checked before appending, not
+        // after, so in_progress_message_ never actually exceeds the
+        // bound even transiently.
+        if (in_progress_message_.size() + static_cast<size_t>(data->data_len) > kMaxWebSocketMessageBytes) {
             in_progress_message_.clear();
-            message_complete = true;
+            oversized = true;
+        } else {
+            in_progress_message_.append(static_cast<const char*>(data->data_ptr), data->data_len);
+            if (data->payload_offset + data->data_len >= data->payload_len) {
+                message_queue_.push_back(std::move(in_progress_message_));
+                in_progress_message_.clear();
+                // See kMaxQueuedMessages's own comment.
+                while (message_queue_.size() > kMaxQueuedMessages) {
+                    message_queue_.pop_front();
+                }
+                message_complete = true;
+            }
         }
+    }
+    if (oversized) {
+        // Same treatment as a transport-level close - ReceiveText()'s
+        // caller (ConnectAndFetchConfig()/FetchCurrentActivity()) already
+        // handles "connection dropped mid-receive" as a failed attempt,
+        // which is the correct outcome here: an oversized message can't
+        // be a well-formed hub response.
+        HandleClosed();
+        return;
     }
     if (message_complete) {
         queue_cv_.notify_one();

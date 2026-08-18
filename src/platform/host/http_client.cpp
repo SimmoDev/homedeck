@@ -24,6 +24,13 @@ void EnsureGlobalInit() {
 
 size_t WriteToString(char* data, size_t size, size_t count, void* user_data) {
     auto* body = static_cast<std::string*>(user_data);
+    // Returning less than size*count tells curl the write failed, which
+    // aborts the transfer with CURLE_WRITE_ERROR - PerformCommon() then
+    // reports success=false, the same as any other transport failure.
+    // See kMaxHttpResponseBodyBytes's own comment for why.
+    if (body->size() + size * count > kMaxHttpResponseBodyBytes) {
+        return 0;
+    }
     body->append(data, size * count);
     return size * count;
 }

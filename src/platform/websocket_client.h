@@ -5,6 +5,16 @@
 
 namespace homedeck {
 
+// Every real message either backend delivers to ReceiveText() (Harmony's
+// hub config/current-activity responses, the only consumer as of M3) is
+// at most a few hundred KB; 1 MiB is a generous multiple of that, not a
+// tight fit. Both HostWebSocketClient and FirmwareWebSocketClient enforce
+// this while accumulating a message across possibly-fragmented frames,
+// since this transport has no authentication (ADR-0029) - a rogue LAN
+// device could otherwise send an arbitrarily large frame/message within
+// the existing timeout, growing the accumulated string without bound.
+constexpr size_t kMaxWebSocketMessageBytes = 1024 * 1024;
+
 // Outbound WebSocket client - see docs/architecture/networking.md and
 // ADR-0029. Text-frame (JSON) only - the only thing the Harmony module
 // (core/harmony_connection.h, its first consumer) needs. Deliberately a

@@ -27,6 +27,15 @@ constexpr int kTimeoutMs = 10000;
 esp_err_t OnHttpEvent(esp_http_client_event_t* event) {
     if (event->event_id == HTTP_EVENT_ON_DATA) {
         auto* body = static_cast<std::string*>(event->user_data);
+        // A non-ESP_OK return here aborts the transfer (esp_http_client_
+        // perform() then returns that error, the same as any other
+        // transport failure) - see kMaxHttpResponseBodyBytes's own
+        // comment. The size check (not just the abort) also keeps this
+        // event's own append bounded regardless of exactly when the
+        // library notices the abort.
+        if (body->size() + static_cast<size_t>(event->data_len) > kMaxHttpResponseBodyBytes) {
+            return ESP_FAIL;
+        }
         body->append(static_cast<char*>(event->data), event->data_len);
     }
     return ESP_OK;

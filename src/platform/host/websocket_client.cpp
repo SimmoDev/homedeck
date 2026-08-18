@@ -106,6 +106,12 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         if (meta->flags & CURLWS_CLOSE) {
             return std::nullopt;
         }
+        // See kMaxWebSocketMessageBytes's own comment for why. Checked
+        // before appending, not after - accumulated must never actually
+        // exceed the bound even transiently.
+        if (accumulated.size() + received > kMaxWebSocketMessageBytes) {
+            return std::nullopt;
+        }
         accumulated.append(buffer, received);
         if (meta->bytesleft == 0) {
             // bytesleft tracks the current WS frame, not a WS-level
