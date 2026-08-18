@@ -183,7 +183,7 @@
     {:else if status}
       <p>
         Status: <strong>{stateLabel(status.state)}</strong>
-        {#if status.state === "connected" && status.hasConfig}
+        {#if status.hasConfig}
           &mdash; {status.devices.length} device{status.devices.length === 1 ? "" : "s"}, {status.activities.length}
           activit{status.activities.length === 1 ? "y" : "ies"}
         {/if}
