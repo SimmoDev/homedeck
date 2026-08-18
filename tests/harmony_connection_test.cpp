@@ -578,6 +578,41 @@ TEST_F(HarmonyConnectionTest, HandshakeMissingActiveRemoteIdEntersErrorState) {
     connection.Stop();
 }
 
+// activeRemoteId comes from the hub's own (per ADR-0029, unauthenticated)
+// handshake response and becomes the trailing hubId value in
+// WebSocketUrl()'s raw concatenation - a value containing '&' could
+// otherwise inject an extra query parameter into the WebSocket connect
+// URL. Must be treated as a malformed handshake, the same as a missing
+// field, not silently used as-is.
+TEST_F(HarmonyConnectionTest, HandshakeWithNonAlphanumericActiveRemoteIdEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{
+        true, 200, R"({"id":1,"msg":"OK","data":{"activeRemoteId":"17389408&evil=1"}})"});
+
+    auto script = std::make_shared<WsScript>();
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_TRUE(script->connect_urls.empty());
+    }
+
+    connection.Stop();
+}
+
 // The handshake succeeds, but the WebSocket config-fetch response isn't
 // valid JSON - ConnectAndFetchConfig()'s second parse guard must reject
 // it the same way as the handshake's own, leaving ws_client_ closed

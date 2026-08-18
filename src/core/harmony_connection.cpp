@@ -155,6 +155,24 @@ std::vector<HarmonyDevice> ParseDevices(const nlohmann::json& array) {
 
 }  // namespace
 
+// activeRemoteId (see ConnectAndFetchConfig() below) becomes the trailing
+// hubId value in WebSocketUrl()'s raw string concatenation, sourced from
+// the hub's own handshake response - a protocol with no authentication
+// at all (ADR-0029), unlike hub_host, which is admin-entered. Every
+// activeRemoteId this project has observed is a bare decimal number;
+// restricting to ASCII alphanumerics (rather than digits only) leaves
+// room for a hub that returns e.g. a hex/UUID-shaped id without
+// reopening the character classes - '&', '#', whitespace - that would
+// let a malicious or spoofed response change what the connect URL's
+// query string actually contains.
+bool IsValidHubId(const std::string& value) {
+    if (value.empty()) return false;
+    for (unsigned char c : value) {
+        if (!std::isalnum(c)) return false;
+    }
+    return true;
+}
+
 bool IsValidHubHost(const std::string& value) {
     if (value.find("://") != std::string::npos) {
         return false;
@@ -377,7 +395,8 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
         return false;
     }
     hub_id_ = NumberOrStringToString(*remote_id_it);
-    if (hub_id_.empty()) {
+    if (!IsValidHubId(hub_id_)) {
+        hub_id_.clear();
         return false;
     }
 
