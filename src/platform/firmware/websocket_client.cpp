@@ -83,13 +83,21 @@ bool FirmwareWebSocketClient::Connect(const std::string& url) {
     // silent timeout later.
     if (esp_websocket_register_events(client_, WEBSOCKET_EVENT_ANY, &OnWebSocketEvent, this) != ESP_OK) {
         ESP_LOGW(kTag, "esp_websocket_register_events() failed for %s", url.c_str());
-        esp_websocket_client_destroy(client_);
+        // Nothing left to retry against either way - client_ is abandoned
+        // regardless of whether destroy() itself succeeds - but logging a
+        // failure here leaves a trace if the underlying handle ever
+        // actually leaks, instead of silently dropping it.
+        if (esp_websocket_client_destroy(client_) != ESP_OK) {
+            ESP_LOGW(kTag, "esp_websocket_client_destroy() failed after a failed register_events()");
+        }
         client_ = nullptr;
         return false;
     }
 
     if (esp_websocket_client_start(client_) != ESP_OK) {
-        esp_websocket_client_destroy(client_);
+        if (esp_websocket_client_destroy(client_) != ESP_OK) {
+            ESP_LOGW(kTag, "esp_websocket_client_destroy() failed after a failed start()");
+        }
         client_ = nullptr;
         return false;
     }
@@ -134,8 +142,17 @@ std::optional<std::string> FirmwareWebSocketClient::ReceiveText(int timeout_ms) 
 
 void FirmwareWebSocketClient::Close() {
     if (client_ != nullptr) {
-        esp_websocket_client_stop(client_);
-        esp_websocket_client_destroy(client_);
+        // Failures here are logged, not otherwise acted upon - client_ is
+        // abandoned either way (the object being torn down or reconnected
+        // has nothing left to retry against) - but a log line leaves a
+        // trace if the underlying handle is ever actually leaked, instead
+        // of silently dropping it.
+        if (esp_websocket_client_stop(client_) != ESP_OK) {
+            ESP_LOGW(kTag, "esp_websocket_client_stop() failed");
+        }
+        if (esp_websocket_client_destroy(client_) != ESP_OK) {
+            ESP_LOGW(kTag, "esp_websocket_client_destroy() failed - the underlying handle may be leaked");
+        }
         client_ = nullptr;
     }
     {
