@@ -135,6 +135,12 @@
     <p class="hint">Loading...</p>
   {:else}
     <div class="row">
+      <!-- maxlength is well under the server's generic
+           kMaxSettingValueLength (4096, settings_routes.cpp) -
+           saveHubHost()'s "value_too_long" branch below is
+           defense-in-depth against a bypassed maxlength (devtools, a
+           scripted POST), not something this input can trigger on its
+           own. -->
       <input
         id="harmony-hub-host"
         type="text"
