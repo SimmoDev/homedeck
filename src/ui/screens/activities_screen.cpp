@@ -137,6 +137,17 @@ void ActivitiesScreen::Rebuild() {
         button_activity_ids_[button] = activity.id;
     }
 
+    // A pending tap/resend or its failure message referring to an
+    // activity the fresh config no longer has (a mid-session hub
+    // reconfigure - rare, but possible) would otherwise sit un-clearable
+    // forever: neither HarmonyCurrentActivityChangedEvent (id.empty()'s
+    // own check would try to match an id that can't ever come back) nor
+    // dropped_sub_ specifically target this case.
+    if (!starting_activity_id_.empty() && activity_buttons_.find(starting_activity_id_) == activity_buttons_.end()) {
+        starting_activity_id_.clear();
+        command_failed_ = false;
+    }
+
     RestyleButtons();
 }
 
