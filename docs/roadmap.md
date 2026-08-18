@@ -607,6 +607,22 @@ day-to-day usage with HomeDeck.
 - [ ] Richer weather detail (hourly/daily forecast) reachable by tapping
       the weather tile, once `Widget` gains a tap handler (see the
       Widget framework item's own note in M2)
+- [ ] Web Management UI multi-page navigation - today `App.svelte`
+      renders `Settings`/`Ota`/`Diagnostics` (each already grouping
+      several sub-components, e.g. `Settings.svelte`'s
+      `DeviceNameSettings`/`WeatherSettings`/`HarmonySettings`/
+      `BackupSettings`) all stacked on one scrolling page with no
+      navigation between them. Split into separate pages per logical
+      area (settings, OTA, diagnostics, and whatever this and the other
+      M7 Web Management UI items below add), with a way to move between
+      them. Revisit
+      [ADR-0002](decisions/ADR-0002-technology-stack.md#4-web-management-ui-frontend-approach)'s
+      own "no routing/SSR need exists for a single-page admin UI"
+      reasoning for rejecting SvelteKit when scoping this - that
+      conclusion doesn't have to reverse (client-side view-switching
+      without SvelteKit's routing/SSR may still be enough), but the
+      premise it rests on no longer holds once this item lands, so it's
+      worth an explicit look rather than going stale silently
 - [ ] Web Management UI dark theme - no `prefers-color-scheme` support
       anywhere in `webui/src`; `index.html` and every component's own
       scoped `<style>` block hardcode light-theme literal colors with
