@@ -157,10 +157,16 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     // whether kError was actually caused by a command send or something
     // else (e.g. a liveness probe) - both mean the same thing to a user
     // looking at this screen: the connection can't currently be trusted.
+    // Every other state clears it, not just kConnected - e.g. kDisconnected
+    // (the user un-configured hub_host while this screen was open) is
+    // reached directly from kError with no intervening kConnected, and
+    // "retrying..." would otherwise be left showing for a connection
+    // that has stopped trying on purpose. Same bug class as
+    // ActivitiesScreen's own state_sub_ (see its comment).
     state_sub_ = event_bus.SubscribeUi<HarmonyConnectionStateChangedEvent>([this](const HarmonyConnectionStateChangedEvent& event) {
         if (event.state == HarmonyConnectionState::kError) {
             lv_label_set_text(status_label_, "Connection lost - retrying...");
-        } else if (event.state == HarmonyConnectionState::kConnected) {
+        } else {
             lv_label_set_text(status_label_, "");
         }
     });
