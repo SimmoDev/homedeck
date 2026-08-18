@@ -53,6 +53,7 @@ idf_component_register(
         "../../src/ui/screens/wifi_setup_screen.cpp"
         "../../src/ui/screens/activities_screen.cpp"
         "../../src/ui/screens/devices_screen.cpp"
+        "../../src/ui/screens/harmony_screen_chrome.cpp"
         "../../src/ui/harmony_widget.cpp"
         "../../src/ui/remote_button.cpp"
         "../../src/ui/time_format.cpp"
