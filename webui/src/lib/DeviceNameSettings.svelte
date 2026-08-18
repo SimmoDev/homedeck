@@ -74,7 +74,10 @@
         bind:value={deviceName}
         disabled={saving}
         maxlength="63"
-        oninput={() => (saved = false)}
+        oninput={() => {
+          saved = false;
+          saveError = undefined;
+        }}
       />
       <button onclick={saveDeviceName} disabled={saving || deviceName.length === 0}>
         {saving ? "Saving..." : "Save"}

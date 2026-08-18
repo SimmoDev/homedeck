@@ -156,7 +156,10 @@
         maxlength="255"
         bind:value={hubHost}
         disabled={saving}
-        oninput={() => (saved = false)}
+        oninput={() => {
+          saved = false;
+          saveError = undefined;
+        }}
       />
       <button onclick={saveHubHost} disabled={saving}>
         {saving ? "Saving..." : "Save"}
