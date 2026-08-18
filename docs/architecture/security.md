@@ -102,6 +102,31 @@ design to avoid becoming a bypass. This deserves a deliberate decision
 before any release with a broader trust boundary than "single-user home
 LAN, gated by admin auth" — not a default either way.
 
+## Harmony hub link (unauthenticated by protocol design)
+
+The Harmony module's connection to the hub isn't gated by
+`AdminAuthService` the way HomeDeck's own API is — the Harmony Hub's local
+protocol has no authentication step at all (see
+[ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md)). Any device
+on the same LAN can complete the same handshake HomeDeck does, issue
+commands to the hub directly, or respond to HomeDeck's own requests as if
+it were the hub. This is a fact about the hub's own protocol design, not a
+HomeDeck implementation gap.
+
+`HarmonyConnection` (`src/core/harmony_connection.h`/`.cpp`) treats every
+hub response as coming from a source the LAN doesn't otherwise vouch for:
+bounded JSON nesting depth (`kMaxJsonNestingDepth`, `ParseBoundedJson()`)
+guards against a stack-overflow attempt via deeply-nested JSON; bounded
+WebSocket message size (`kMaxWebSocketMessageBytes`,
+`src/platform/websocket_client.h`) and bounded receive-queue depth
+(`kMaxQueuedMessages`, both WebSocket backends) guard against unbounded
+memory growth from an oversized or flooding response; and every parsed
+field is type-checked before use (`ParseDevices()`/`ParseIdLabelArray()`
+drop a malformed id/label entry rather than surfacing a broken button).
+This satisfies "validate API input" for this module's own inbound
+surface, the same way the Web UI's own endpoints satisfy it for theirs
+(see the Status section below).
+
 ## Status
 
 **Admin auth is implemented** — see [web-ui.md](web-ui.md#status) for
