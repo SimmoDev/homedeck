@@ -447,6 +447,39 @@ TEST_F(HarmonyConnectionTest, HandshakeWithMalformedJsonBodyEntersErrorState) {
     connection.Stop();
 }
 
+// A well-formed but excessively-nested JSON body (deeper than
+// ExceedsMaxJsonNestingDepth() allows) must be rejected the same way as
+// outright malformed JSON, not handed to nlohmann::json::parse() and left
+// to recurse arbitrarily deep - this protocol has no authentication
+// (ADR-0029), so a rogue device on the LAN could otherwise send this to
+// drive a stack overflow (M3 exit review pass 7).
+TEST_F(HarmonyConnectionTest, HandshakeWithExcessivelyNestedJsonBodyEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    std::string nested_body;
+    for (int i = 0; i < 40; ++i) nested_body += "[";
+    for (int i = 0; i < 40; ++i) nested_body += "]";
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, nested_body});
+
+    auto script = std::make_shared<WsScript>();
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+
+    connection.Stop();
+}
+
 // A well-formed JSON object missing the field this class actually needs
 // (activeRemoteId) - the hub returning a shape this project doesn't
 // recognize must not be treated as success.

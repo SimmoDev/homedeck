@@ -26,6 +26,56 @@ constexpr int kConfigFetchTimeoutMs = 10000;
 constexpr int kLivenessProbeTimeoutMs = 10000;
 constexpr std::chrono::seconds kUnconfiguredRecheckInterval{5};
 
+// Real Harmony config payloads nest at most a handful of levels deep
+// (data -> device[] -> device -> controlGroup[] -> group -> function[] ->
+// function, ~7) - 32 is a generous multiple of that, not a tight fit.
+constexpr int kMaxJsonNestingDepth = 32;
+
+// nlohmann::json::parse() recurses one C++ stack frame per object/array
+// nesting level with no built-in depth bound (this vendored 3.11.3 has
+// none) - this protocol has no authentication (ADR-0029), so a rogue
+// device on the LAN could otherwise send deeply-nested JSON to drive a
+// stack overflow, especially on firmware's own bounded FreeRTOS task
+// stack. A plain bracket-counting pre-scan, skipping string-literal
+// content (including escaped characters, so a brace inside a string
+// value doesn't count) - simpler and more self-contained than
+// reimplementing nlohmann's own SAX interface just to add a depth cap.
+bool ExceedsMaxJsonNestingDepth(const std::string& text) {
+    int depth = 0;
+    bool in_string = false;
+    for (size_t i = 0; i < text.size(); ++i) {
+        char c = text[i];
+        if (in_string) {
+            if (c == '\\') {
+                ++i;  // skip whatever the escaped character is, including a quote
+            } else if (c == '"') {
+                in_string = false;
+            }
+            continue;
+        }
+        if (c == '"') {
+            in_string = true;
+        } else if (c == '{' || c == '[') {
+            if (++depth > kMaxJsonNestingDepth) return true;
+        } else if (c == '}' || c == ']') {
+            --depth;
+        }
+    }
+    return false;
+}
+
+// Parses `text` as JSON, discarded (same convention as a parse error) if
+// it exceeds kMaxJsonNestingDepth - every hub-response parse in this file
+// goes through this rather than nlohmann::json::parse() directly, since
+// every one of them ingests data from this protocol's unauthenticated
+// transport (see ExceedsMaxJsonNestingDepth()'s own comment).
+nlohmann::json ParseBoundedJson(const std::string& text) {
+    if (ExceedsMaxJsonNestingDepth(text)) {
+        return nlohmann::json(nlohmann::json::value_t::discarded);
+    }
+    return nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
+}
+
 // Both build their URL by raw concatenation, not a URL builder - a
 // `hub_host` containing `#`/`?`/`@` would otherwise change what the
 // underlying URL parser (curl/esp_http_client) treats as the actual
@@ -335,7 +385,7 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
     // chain into the *next* blocking call once it's already known to be
     // pointless.
     if (stop.stop_requested()) return false;
-    nlohmann::json parsed = nlohmann::json::parse(handshake.body, nullptr, /*allow_exceptions=*/false);
+    nlohmann::json parsed = ParseBoundedJson(handshake.body);
     if (parsed.is_discarded() || !parsed.is_object()) {
         return false;
     }
@@ -387,7 +437,7 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
         return false;
     }
 
-    nlohmann::json response = nlohmann::json::parse(*response_text, nullptr, /*allow_exceptions=*/false);
+    nlohmann::json response = ParseBoundedJson(*response_text);
     if (response.is_discarded() || !response.is_object()) {
         ws_client_->Close();
         ws_client_.reset();
@@ -438,7 +488,7 @@ bool HarmonyConnection::FetchCurrentActivity(std::stop_token stop) {
     if (!response_text.has_value()) {
         return false;
     }
-    nlohmann::json response = nlohmann::json::parse(*response_text, nullptr, /*allow_exceptions=*/false);
+    nlohmann::json response = ParseBoundedJson(*response_text);
     if (response.is_discarded() || !response.is_object()) {
         return false;
     }
