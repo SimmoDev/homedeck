@@ -41,8 +41,7 @@ CONFIG_SPIRAM_SPEED_200M=y
 # (docs/en/api-guides/external-ram.rst's XiP-from-PSRAM section) -
 # trading increased steady-state PSRAM bus load (all code fetches now
 # compete with DSI scanout, not just during flash writes) for removing
-# the disable window entirely. Confirmed on hardware: the glitch is
-# gone.
+# the disable window entirely, eliminating the glitch.
 CONFIG_SPIRAM_XIP_FROM_PSRAM=y
 
 # EventBus (src/core/event_bus.h) uses typeid()/std::type_index for its
