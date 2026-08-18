@@ -95,17 +95,25 @@
     }
     hubHost = trimmed;
     saved = true;
-    // Fire-and-forget, same shape as WeatherSettings.svelte's post-save
-    // refresh trigger - wakes HarmonyConnection's own connect loop
-    // immediately rather than leaving it to notice the new address on
-    // its own retry schedule. postJson() (not a bare fetch()) so a
-    // lapsed session still routes through notifyIfSessionExpired() like
-    // every other request in this app.
-    void postJson("/api/harmony/reconnect");
-    // Best-effort - the connect attempt this just triggered happens
-    // asynchronously over the network, so this snapshot will often still
-    // read "connecting"; the Refresh button below covers the rest, since
-    // no live-push mechanism exists yet for the Web UI (see
+    // Clears the old hub's numbers immediately rather than leaving them
+    // on screen until the status GET below resolves - status.state===
+    // "connected" is the only branch that renders device/activity
+    // counts (see the template below), so this alone is enough to hide
+    // them without needing a synthetic placeholder state.
+    status = undefined;
+    // Awaited, not fire-and-forget, so the status GET below can't reach
+    // the backend before this has - wakes HarmonyConnection's own
+    // connect loop immediately rather than leaving it to notice the new
+    // address on its own retry schedule. postJson() (not a bare fetch())
+    // so a lapsed session still routes through notifyIfSessionExpired()
+    // like every other request in this app. Still only a best-effort
+    // ordering, not a guarantee the connect loop has acted on the
+    // trigger by the time the status GET below actually runs - it's a
+    // background Task on its own thread (src/core/harmony_connection.h),
+    // not something this request waits on synchronously.
+    await postJson("/api/harmony/reconnect");
+    // The Refresh button below covers whatever this snapshot doesn't
+    // catch, since no live-push mechanism exists yet for the Web UI (see
     // docs/decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server).
     loadStatus();
   }
