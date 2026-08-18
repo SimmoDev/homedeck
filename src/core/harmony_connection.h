@@ -116,11 +116,13 @@ struct HarmonyCurrentActivityChangedEvent {
     std::string activity_id;
 };
 
-// Published when SendPendingCommands() drops a queued command for being
-// older than max_pending_command_age_ - a connection outage outlasted
+// Published when SendPendingCommands() drops a queued command, either for
+// being older than max_pending_command_age_ (a connection outage outlasted
 // the queue's own staleness bound, so the command never reached the hub
-// and never will. Marker only, same shape as HarmonyConfigUpdatedEvent -
-// a UI showing an optimistic "in progress" status for a specific queued
+// and never will) or because a send partway through the batch failed (the
+// connection dropped mid-send, taking every remaining queued command in
+// that batch with it). Marker only, same shape as HarmonyConfigUpdatedEvent
+// - a UI showing an optimistic "in progress" status for a specific queued
 // action (ActivitiesScreen's "Starting <name>...") is the only plausible
 // subscriber, and it already tracks which action that was locally.
 // Deliberately not published for EnqueueCommand()'s own cap-based

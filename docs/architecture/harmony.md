@@ -123,13 +123,15 @@ join `HarmonyConnectionStateChangedEvent` on the `EventBus`.
 retry/backoff loop doesn't publish one notification per attempt.
 
 A fourth event, `HarmonyCommandDroppedEvent`, is published when
-`SendPendingCommands()` drops a queued command for being older than
-`max_pending_command_age_` — a connection outage outlasted the pending-
-command queue's own staleness bound, so the command never reached the
-hub and never will. `ActivitiesScreen`'s own `dropped_sub_` is the only
-subscriber, reporting "Couldn't start `<name>` - hub unreachable" for the
-one case none of the other three events cover: a tap that ages out
-before a connection ever comes back to send it.
+`SendPendingCommands()` drops a queued command, either for being older
+than `max_pending_command_age_` (a connection outage outlasted the
+pending-command queue's own staleness bound, so the command never
+reached the hub and never will) or because a send partway through the
+batch failed, taking every remaining queued command in that batch with
+it. `ActivitiesScreen`'s own `dropped_sub_` is the only subscriber,
+reporting "Couldn't start `<name>` - hub unreachable" for the cases none
+of the other three events cover: a tap that ages out before a connection
+ever comes back to send it, or one lost to a mid-batch send failure.
 
 ## Web UI
 

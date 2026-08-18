@@ -1291,3 +1291,45 @@ TEST_F(HarmonyConnectionTest, StaleQueuedCommandsAreDroppedOnReconnect) {
 
     connection.Stop();
 }
+
+// A send failing partway through a batch (the WebSocket connection
+// itself dropped) must publish the same HarmonyCommandDroppedEvent the
+// age-based staleness path does - otherwise a long-press-repeat sequence
+// whose connection dies mid-batch loses its command silently, with no
+// signal telling ActivitiesScreen/DevicesScreen it never went through.
+TEST_F(HarmonyConnectionTest, MidBatchSendFailurePublishesADroppedEvent) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    std::atomic<int> dropped_events{0};
+    auto dropped_sub =
+        bus.Subscribe<homedeck::HarmonyCommandDroppedEvent>([&](const homedeck::HarmonyCommandDroppedEvent&) { dropped_events++; });
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->send_should_succeed = false;
+    }
+    connection.PressDeviceCommand(R"({"command":"doomed"})");
+
+    ASSERT_TRUE(WaitFor([&] { return dropped_events.load() > 0; }));
+    EXPECT_EQ(dropped_events.load(), 1) << "exactly one drop event for the one entry in this failed batch";
+
+    connection.Stop();
+}

@@ -558,8 +558,15 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
         // Stop at the first failed send rather than chasing it with more -
         // a dropped connection won't suddenly start succeeding mid-batch,
         // and every remaining entry in this batch would otherwise also
-        // block on the same dead transport for no benefit.
+        // block on the same dead transport for no benefit. This entry and
+        // every one still left in `commands` are dropped the same way a
+        // stale entry is (see dropped_stale_command's own event below) -
+        // without this, a long-press-repeat sequence whose connection
+        // dies mid-batch loses its eventual ReleaseDeviceCommand silently,
+        // with nothing telling DevicesScreen the command it just sent
+        // never completed.
         if (!sent) {
+            event_bus_.Publish(HarmonyCommandDroppedEvent{});
             return false;
         }
     }
