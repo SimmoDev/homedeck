@@ -39,7 +39,7 @@
 </script>
 
 <div class="crash-diagnostics">
-  <h2>Diagnostics</h2>
+  <h2>Status</h2>
   {#if error}
     <p class="error">Error: {error}</p>
   {:else if !status}
