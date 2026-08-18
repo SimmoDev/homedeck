@@ -4,11 +4,13 @@
 
 Accepted (contract shape) — exact interfaces to be finalized during M3
 implementation, not defined here. The Known External Risk section below's
-XMPP protocol framing is superseded by
+XMPP protocol framing, and its "discovering and authenticating against an
+already-configured hub" characterization, are both superseded by
 [ADR-0029](ADR-0029-harmony-local-protocol.md), which confirms the
-reference hub instead speaks a local WebSocket/JSON API on port 8088;
-that section's project-context conclusion (scoped to local control of an
-already-paired hub) stands unchanged.
+reference hub instead speaks a local WebSocket/JSON API on port 8088 with
+no authentication step of any kind — a local connection, not a discovery-
+and-authentication flow. That section's project-context conclusion
+(scoped to local control of an already-paired hub) stands unchanged.
 
 ## Context
 
