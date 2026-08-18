@@ -278,6 +278,47 @@ TEST_F(HarmonyConnectionTest, ConfiguredHandshakeAndConfigFetchSucceedPublishesC
     connection.Stop();
 }
 
+// A device/activity entry with a present-but-wrong-typed id (here, null -
+// neither a string nor a number) must be dropped rather than kept with an
+// empty id - an empty id is otherwise a real, tappable button whose
+// StartActivity("")/command send the hub has no defined behavior for.
+// This protocol has no authentication (see ADR-0029), so a malformed
+// field from a spoofed hub isn't purely hypothetical (M3 exit review pass
+// 6, finding #2).
+TEST_F(HarmonyConnectionTest, EntriesWithAWrongTypedIdAreDroppedNotKeptEmpty) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script,
+                 R"({"data":{)"
+                 R"("device":[{"id":null,"label":"Bad"},{"id":"1","label":"TV"}],)"
+                 R"("activity":[{"id":[1,2],"label":"Bad"},{"id":"123","label":"Watch TV"}])"
+                 R"(}})");
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    homedeck::HarmonyConnectionSnapshot snapshot = connection.Snapshot();
+    ASSERT_EQ(snapshot.devices.size(), 1u);
+    EXPECT_EQ(snapshot.devices[0].id, "1");
+    ASSERT_EQ(snapshot.activities.size(), 1u);
+    EXPECT_EQ(snapshot.activities[0].id, "123");
+
+    connection.Stop();
+}
+
 // Regression test for the un-configure-doesn't-clear-cached-config bug
 // (M3 exit review pass 6): saving hub_host back to empty - the Web UI's
 // "clear the configured hub" flow, HarmonySettings.svelte - must actually
@@ -484,6 +525,45 @@ TEST_F(HarmonyConnectionTest, MalformedCurrentActivityResponseDropsTheConnection
     // must notice and re-enter its retry cycle rather than staying
     // kConnected on a connection that can't be trusted.
     ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+
+    connection.Stop();
+}
+
+// A present-but-wrong-typed "result" (here, an object instead of a
+// string/number) must be treated the same as a missing one - not
+// silently coerced to "" and accepted as a real activity-id change (M3
+// exit review pass 6, finding #3).
+TEST_F(HarmonyConnectionTest, WrongTypedCurrentActivityResultDropsTheConnection) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+    // Consumed by the first periodic liveness probe - "result" is present
+    // but an object, not a string/number.
+    PushResponse(script, R"({"data":{"result":{}}})");
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff, /*liveness_interval=*/std::chrono::milliseconds(30));
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kConnected);
+    EXPECT_EQ(connection.Snapshot().current_activity_id, "-1");
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    // The last-known-good value must survive the failed probe, not get
+    // silently overwritten with "".
+    EXPECT_EQ(connection.Snapshot().current_activity_id, "-1");
 
     connection.Stop();
 }

@@ -59,7 +59,15 @@ std::vector<Entry> ParseIdLabelArray(const nlohmann::json& array) {
         auto id_it = item.find("id");
         auto label_it = item.find("label");
         if (id_it == item.end() || label_it == item.end() || !label_it->is_string()) continue;
-        result.push_back(Entry{NumberOrStringToString(*id_it), label_it->get<std::string>()});
+        // NumberOrStringToString() returns "" for a present-but-wrong-typed
+        // id (null/bool/array/object) - skip rather than surface a
+        // tappable entry whose id can never match anything (and whose
+        // StartActivity("")/command send the hub has no defined behavior
+        // for). This protocol has no authentication (see ADR-0029), so a
+        // malformed field isn't purely hypothetical corruption.
+        std::string id = NumberOrStringToString(*id_it);
+        if (id.empty()) continue;
+        result.push_back(Entry{std::move(id), label_it->get<std::string>()});
     }
     return result;
 }
@@ -115,8 +123,12 @@ std::vector<HarmonyDevice> ParseDevices(const nlohmann::json& array) {
         auto id_it = item.find("id");
         auto label_it = item.find("label");
         if (id_it == item.end() || label_it == item.end() || !label_it->is_string()) continue;
+        // See ParseIdLabelArray()'s identical check for why a
+        // present-but-wrong-typed id is skipped rather than kept empty.
+        std::string id = NumberOrStringToString(*id_it);
+        if (id.empty()) continue;
         HarmonyDevice device;
-        device.id = NumberOrStringToString(*id_it);
+        device.id = std::move(id);
         device.label = label_it->get<std::string>();
         device.control_groups = ParseControlGroups(item.value("controlGroup", nlohmann::json::array()));
         devices.push_back(std::move(device));
@@ -408,7 +420,13 @@ bool HarmonyConnection::FetchCurrentActivity() {
         return false;
     }
     auto result_it = data_it->find("result");
-    if (result_it == data_it->end()) {
+    // A wrong-typed result (object/array/bool/null) isn't a valid activity
+    // id either way - NumberOrStringToString() would silently coerce it to
+    // "", which this class's own current_activity_id.empty() convention
+    // reserves for "never successfully fetched," not "the hub sent
+    // something unparseable." Treated as a failed probe, same as a
+    // missing field.
+    if (result_it == data_it->end() || !(result_it->is_string() || result_it->is_number_integer())) {
         return false;
     }
     std::string activity_id = NumberOrStringToString(*result_it);
