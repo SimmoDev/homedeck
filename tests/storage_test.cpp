@@ -264,6 +264,22 @@ TEST_F(StorageTest, SecretAndCacheAlsoRejectPathTraversalSegments) {
     EXPECT_FALSE(storage.WriteCache("harmony", "../../etc/passwd", 1, "escape-attempt"));
 }
 
+// A module/key parsed from a JSON request body can contain a NUL-code-
+// point escape sequence, producing a std::string with an embedded NUL
+// byte that a C-string API (NVS's nvs_open()/nvs_set_* on firmware) would
+// truncate at - without this check, two segments that look distinct as
+// std::string could collide once truncated to the same C string.
+TEST_F(StorageTest, SetSettingRejectsAnEmbeddedNulByte) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    std::string module_with_nul = std::string("harmony") + '\0' + "evil";
+    EXPECT_FALSE(storage.SetSetting(module_with_nul, "hub_host", 1, "escape-attempt"));
+    EXPECT_FALSE(storage.SetSetting("harmony", std::string("hub_host") + '\0' + "evil", 1, "escape-attempt"));
+}
+
 // A ns/key over 15 characters (NVS_KEY_NAME_MAX_SIZE - 1) would silently
 // fail on firmware's NVS-backed stores but succeed on these host-backed
 // ones without this - IsValidStoreSegment (platform/store_key_validation.h)

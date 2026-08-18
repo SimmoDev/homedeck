@@ -24,12 +24,19 @@ inline constexpr size_t kMaxStoreSegmentLength = 15;
 // limit. Empty, "." and ".." are rejected outright, and so is any embedded
 // '/' or '\', since std::filesystem's path-append operator treats an
 // embedded separator as introducing further path components rather than a
-// literal character.
+// literal character. A segment can arrive here from parsed JSON (e.g.
+// settings_routes.cpp's module/key fields), where a Unicode NUL escape in
+// the request body produces a std::string with an embedded NUL byte that
+// the C string it's eventually passed as (nvs_open()/nvs_set_*'s
+// namespace/key arguments on firmware) would silently truncate at - two
+// segments that look distinct as std::string could then collide once
+// truncated to the same C string, so this is rejected here too, not just
+// the path separators above.
 inline bool IsValidStoreSegment(const std::string& segment) {
     if (segment.empty() || segment == "." || segment == ".." || segment.size() > kMaxStoreSegmentLength) {
         return false;
     }
-    return segment.find_first_of("/\\") == std::string::npos;
+    return segment.find_first_of("/\\") == std::string::npos && segment.find(static_cast<char>(0)) == std::string::npos;
 }
 
 }  // namespace homedeck
