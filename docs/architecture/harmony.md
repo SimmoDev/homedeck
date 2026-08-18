@@ -19,7 +19,11 @@ stored and read through the generic settings API
 `hub_host` is validated both client-side (`webui/src/lib/harmonyValidation.ts`)
 and server-side (`IsValidHubHost()`, `src/core/harmony_connection.h`,
 wired into `RegisterSettingsRoutes()`'s generic `SettingValidateFn` from
-`src/ui/app_core.cpp`). A scheme prefix, embedded whitespace, or a path
+`src/ui/app_core.cpp`) — `SettingValidateFn` runs on both the direct
+`POST /api/settings` write and `POST /api/backup/restore`'s replay, so a
+malformed `hub_host` restored from a backup file is rejected the same
+way, reported back in that response's `rejected` array rather than
+silently persisted. A scheme prefix, embedded whitespace, or a path
 would otherwise produce the same opaque connection failure as an
 unreachable address; `#`, `?`, and `@` are rejected for a different,
 more serious reason — each one changes what the underlying URL parser

@@ -151,7 +151,8 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                             }));
 
     server.RegisterHandler(
-        HttpMethod::kPost, "/api/backup/restore", auth.RequireAuth([&storage](const HttpRequest& request) {
+        HttpMethod::kPost, "/api/backup/restore",
+        auth.RequireAuth([&storage, on_setting_validate](const HttpRequest& request) {
             auto parsed_opt = TryParseJsonObject(request.body);
             if (!parsed_opt.has_value()) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
@@ -193,9 +194,20 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                     continue;
                 }
                 std::string value = value_it->get<std::string>();
-                bool ok = !InvalidKey(module, key) && value.size() <= kMaxSettingValueLength &&
-                          storage.SetSetting(module, key, schema_it->get<int>(), value);
-                if (ok) {
+                if (InvalidKey(module, key) || value.size() > kMaxSettingValueLength) {
+                    failed.push_back({{"module", module}, {"key", key}});
+                    continue;
+                }
+                // Same format check the direct POST /api/settings write
+                // path applies (e.g. IsValidHubHost() for Harmony's
+                // hub_host) - a restored value that fails it is a policy
+                // rejection, not a generic storage fault, the same
+                // distinction the reserved-key case above already makes.
+                if (on_setting_validate && !on_setting_validate(module, key, value)) {
+                    rejected.push_back({{"module", module}, {"key", key}});
+                    continue;
+                }
+                if (storage.SetSetting(module, key, schema_it->get<int>(), value)) {
                     ++applied;
                 } else {
                     failed.push_back({{"module", module}, {"key", key}});

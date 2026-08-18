@@ -39,16 +39,16 @@ using DeviceNameCommittedFn = std::function<void(const std::string& value)>;
 // hub_host, IsValidHubHost() in core/harmony_connection.h). module/key
 // are already validated as safe store-key segments by the time this is
 // called. Returning false makes the route respond 400 rather than
-// persisting a value that was rejected. Not consulted by
-// POST /api/backup/restore's replay, for the same generic-replay-loop
-// reason DeviceNameValidateFn above isn't (see its own comment, and
-// docs/decisions/ADR-0023-settings-backup-api.md, which covers that
-// case specifically): restoring a backup containing a malformed value
-// persists it, and it only surfaces once something reads it back (here,
-// HarmonyConnection's next reconnect attempt, which then just fails to
-// connect the same opaque way any other malformed value would) - a
-// rare, self-inflicted-only case not worth tangling the generic replay
-// loop over.
+// persisting a value that was rejected. Also consulted by
+// POST /api/backup/restore's replay (a rejection there is reported back
+// the same way a reserved-key entry is, not silently persisted) - unlike
+// DeviceNameValidateFn above, this callback is pure with no live side
+// effect to defer, so calling it from the restore loop doesn't reopen
+// the concern docs/decisions/ADR-0023-settings-backup-api.md raises for
+// that case. A format-invalid hub_host restored unchecked would
+// otherwise bypass IsValidHubHost()'s own #/?/@ rejection entirely,
+// changing what host/port a later connect attempt actually reaches
+// rather than just failing to connect.
 using SettingValidateFn = std::function<bool(const std::string& module, const std::string& key, const std::string& value)>;
 
 // Registers GET/POST /api/settings, POST /api/settings/erase,

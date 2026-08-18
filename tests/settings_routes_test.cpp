@@ -337,6 +337,38 @@ TEST_F(SettingsRoutesTest, SettingValidateCallbackCanRejectAModulesOwnKey) {
     EXPECT_EQ(get.body.find("reject-me"), std::string::npos);
 }
 
+// POST /api/backup/restore's replay loop must apply the same
+// on_setting_validate check the direct write path does - a backup file
+// isn't necessarily trustworthy (it can be shared, downloaded, or hand-
+// edited), and skipping this check would let a value like a
+// URL-structural hub_host bypass IsValidHubHost() entirely.
+TEST_F(SettingsRoutesTest, RestoreRejectsAnEntryFailingOnSettingValidate) {
+    homedeck::SettingValidateFn on_setting_validate = [](const std::string& module, const std::string& key,
+                                                           const std::string& value) -> bool {
+        return !(module == "harmony" && key == "hub_host" && value == "realhost#fragment");
+    };
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, nullptr, nullptr, on_setting_validate);
+    ASSERT_TRUE(server.Start(18222));
+    std::string cookie = Login(18222);
+
+    auto restore = HttpRequestRaw(
+        18222, "POST", "/api/backup/restore",
+        R"({"settings":[{"module":"harmony","key":"hub_host","value":"realhost#fragment","schemaVersion":1},)"
+        R"({"module":"weather","key":"latitude","value":"51.5","schemaVersion":1}]})",
+        cookie);
+    EXPECT_EQ(restore.status_code, 200);
+    EXPECT_NE(restore.body.find(R"("applied":1)"), std::string::npos);
+    EXPECT_NE(restore.body.find(R"("rejected":[{"key":"hub_host","module":"harmony"}])"), std::string::npos);
+
+    // The rejected value must not have been persisted at all.
+    auto get = HttpRequestRaw(18222, "GET", "/api/settings", "", cookie);
+    EXPECT_EQ(get.body.find("hub_host"), std::string::npos);
+    EXPECT_NE(get.body.find(R"("value":"51.5")"), std::string::npos);
+}
+
 TEST_F(SettingsRoutesTest, DeviceNameCommittedCallbackDoesNotFireWhenTheStorageWriteFails) {
     FailingSettingsStore failing_settings_store;
     homedeck::HostCacheStore cache_store(root_dir_ / "device_name_write_fail_case");
