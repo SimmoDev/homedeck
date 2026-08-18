@@ -31,10 +31,10 @@ steps:
 1. **Handshake** (plain HTTP, not yet the WebSocket): `POST
    http://<hub-ip>:8088/`, `Content-Type: application/json`, body
    `{"id":<n>,"cmd":"setup.account?getProvisionInfo","timeout":90000}`.
-   **Requires an `Origin: http://sl.dhg.myharmony.com` header** - confirmed
-   live against the reference hub: omitting it gets a `400` rejection,
-   including it succeeds. Not an actual browser origin; just what the
-   hub's own validation checks for. The response carries `activeRemoteId`
+   **Requires an `Origin: http://sl.dhg.myharmony.com` header** - omitting
+   it gets a `400` rejection, including it succeeds. Not an actual browser
+   origin; just what the hub's own validation checks for. The response
+   carries `activeRemoteId`
    (becomes the WebSocket `hubId` below) alongside the owner's Logitech
    account email/username - HomeDeck extracts only `activeRemoteId` and
    never logs or persists the rest.
@@ -44,8 +44,8 @@ steps:
    `{"hubId":..., "timeout":<seconds>, "hbus":{"cmd":<string>, "id":<string>, "params":{...}}}`.
    Config (device/activity list) fetch uses
    `cmd: "vnd.logitech.harmony/vnd.logitech.harmony.engine?config"` -
-   confirmed live, returning the reference hub's own device and activity
-   list (`src/core/harmony_connection.h`/`.cpp`).
+   returns the hub's own device and activity list
+   (`src/core/harmony_connection.h`/`.cpp`).
 
 **No authentication of any kind exists in this local path.** The
 handshake above needs a specific header, not a credential - anyone on the
@@ -95,7 +95,5 @@ its own manual URL entry.
 - The WebSocket message shapes for activities/devices beyond the
   device/activity `id`/`label` fields HarmonyConnection parses (`type`,
   `controlGroup`, per-device command lists, etc.) were community-
-  documented but not independently field-verified at the time this ADR
-  was written - since field-verified against the reference hub's own
-  8-device config, see [roadmap.md](../roadmap.md)'s M3 Devices/Remote
-  control items.
+  documented but not independently verified at the time this ADR was
+  written.

@@ -18,7 +18,7 @@ ADR-0027 above), just not triggered by M3 as originally expected.
 configuration, and Backups as in-scope Web UI responsibilities, but none
 of it was built yet - only auth, diagnostics, and OTA existed.
 `Storage::SetSetting/GetSetting/EraseSetting` (`core/storage.h`) already
-existed and was proven on real hardware (`crash_diagnostics.cpp` uses it
+existed and works on hardware (`crash_diagnostics.cpp` uses it
 for `reset_reason`/`has_core_dump`); this closes the gap by exposing it
 over HTTP, adding the one capability it was missing (enumerating
 everything, for a backup export), and giving it a first real,
