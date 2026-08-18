@@ -543,6 +543,7 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
     }
 
     bool started_activity = false;
+    bool dropped_stale_command = false;
     auto now = std::chrono::steady_clock::now();
     for (const PendingCommand& command : commands) {
         // See ConnectAndFetchConfig()'s own comment on why this is
@@ -551,7 +552,8 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
         // rest of it rather than sending commands nobody can act on.
         if (stop.stop_requested()) return false;
         if (now - command.enqueued_at > max_pending_command_age_) {
-            continue;  // stale - see max_pending_command_age_'s own comment
+            dropped_stale_command = true;  // see max_pending_command_age_'s own comment
+            continue;
         }
         bool sent;
         if (command.activity_id) {
@@ -589,6 +591,11 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
         // next liveness-probe cycle catches up regardless - see this
         // class's own header comment on the freshness trade-off.
         FetchCurrentActivity(stop);
+    }
+    // One event per batch, not one per dropped entry - see
+    // HarmonyCommandDroppedEvent's own comment.
+    if (dropped_stale_command) {
+        event_bus_.Publish(HarmonyCommandDroppedEvent{});
     }
     return true;
 }

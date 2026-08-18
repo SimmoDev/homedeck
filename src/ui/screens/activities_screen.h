@@ -33,6 +33,17 @@ namespace homedeck {
 // HarmonyConnection's own connection loop treats a failed send the same
 // as a dropped connection and reconnects, making a state change a
 // reliable enough signal that the pending tap is no longer trustworthy.
+//
+// A tap made while already disconnected/reconnecting is still queued
+// (HarmonyConnection::StartActivity() harmlessly waits for a connection
+// to send it over - see that class's own comment), and the state-change
+// path above only fires on a *transition*, not on staying disconnected -
+// so a queued tap that ages out past max_pending_command_age_ before a
+// connection ever comes back produces neither a state change nor an
+// activity change to clear "Starting <name>..." with. This screen's own
+// dropped_sub_ (HarmonyCommandDroppedEvent) exists specifically for that
+// case: an explicit "couldn't start" message, not a silently-cleared one
+// that leaves the user with no idea the tap never took effect.
 class ActivitiesScreen {
 public:
     ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
@@ -83,10 +94,18 @@ private:
     // Local optimistic "tapped, not yet confirmed" state - see this
     // class's own header comment above.
     std::string starting_activity_id_;
+    // True after dropped_sub_ reports the pending tap above was dropped
+    // unsent - kept separate from starting_activity_id_ (which this
+    // clears immediately, unlike the still-pending case) so
+    // RestyleButtons()'s blank-status guard can tell "nothing pending"
+    // apart from "the last tap just failed and its message should stay
+    // up until something newer supersedes it."
+    bool command_failed_ = false;
 
     EventBus::ScopedSubscription config_sub_;
     EventBus::ScopedSubscription activity_sub_;
     EventBus::ScopedSubscription state_sub_;
+    EventBus::ScopedSubscription dropped_sub_;
 };
 
 }  // namespace homedeck

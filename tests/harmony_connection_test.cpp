@@ -1212,6 +1212,15 @@ TEST_F(HarmonyConnectionTest, StaleQueuedCommandsAreDroppedOnReconnect) {
         kFastBackoff, std::chrono::seconds(30), kFastMaxAge);
     connection.Start();
 
+    // ActivitiesScreen's dropped_sub_ (src/ui/screens/activities_screen.h)
+    // is the real subscriber - this just verifies the event this class
+    // itself is responsible for actually fires, not that screen's own UI
+    // reaction to it (LVGL-dependent code isn't built in this test
+    // harness - see tests/README.md).
+    std::atomic<int> dropped_events{0};
+    auto dropped_sub =
+        bus.Subscribe<homedeck::HarmonyCommandDroppedEvent>([&](const homedeck::HarmonyCommandDroppedEvent&) { dropped_events++; });
+
     connection.PressDeviceCommand(R"({"command":"stale"})");
     std::this_thread::sleep_for(kFastMaxAge * 3);  // let it go stale
 
@@ -1232,6 +1241,7 @@ TEST_F(HarmonyConnectionTest, StaleQueuedCommandsAreDroppedOnReconnect) {
             EXPECT_EQ(sent.find("stale"), std::string::npos) << "stale command should have been dropped, not sent";
         }
     }
+    EXPECT_EQ(dropped_events.load(), 1) << "exactly one drop event for the one stale entry in this batch";
 
     connection.Stop();
 }

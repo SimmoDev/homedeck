@@ -63,20 +63,40 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
             // else (a second Harmony client) changed it instead - either
             // way, there's nothing left to keep waiting for.
             starting_activity_id_.clear();
+            command_failed_ = false;
             RestyleButtons();
         });
     // A pending "Starting <name>..." tap only clears via an activity-ID
     // change (above) - a send that never reached the hub produces no
     // change to detect, so this class's own header comment on why a
     // connection-state change is treated as an equally valid correction
-    // signal.
+    // signal. Once reconnected, also clears a stale command_failed_
+    // message left over from dropped_sub_ below - it's served its
+    // purpose once the connection is healthy again, and nothing else
+    // would otherwise supersede it until the user taps something new.
     state_sub_ = event_bus.SubscribeUi<HarmonyConnectionStateChangedEvent>(
         [this](const HarmonyConnectionStateChangedEvent& event) {
             if (event.state != HarmonyConnectionState::kConnected && !starting_activity_id_.empty()) {
                 starting_activity_id_.clear();
                 RestyleButtons();
+            } else if (event.state == HarmonyConnectionState::kConnected && command_failed_) {
+                command_failed_ = false;
+                RestyleButtons();
             }
         });
+    // A queued tap that ages out (HarmonyConnection::max_pending_command_age_)
+    // before a connection ever comes back to send it over produces
+    // neither of the two events above - see this class's own header
+    // comment. Reports it explicitly rather than leaving "Starting
+    // <name>..." to clear on its own with no indication the tap failed.
+    dropped_sub_ = event_bus.SubscribeUi<HarmonyCommandDroppedEvent>([this](const HarmonyCommandDroppedEvent&) {
+        if (starting_activity_id_.empty()) return;  // nothing pending right now - not this screen's own drop
+        auto it = activity_buttons_.find(starting_activity_id_);
+        const char* label = it != activity_buttons_.end() ? lv_label_get_text(lv_obj_get_child(it->second, 0)) : "activity";
+        lv_label_set_text_fmt(status_label_, "Couldn't start %s - hub unreachable", label);
+        starting_activity_id_.clear();
+        command_failed_ = true;
+    });
 
     Rebuild();
 
@@ -122,11 +142,14 @@ void ActivitiesScreen::Rebuild() {
 
 void ActivitiesScreen::RestyleButtons() {
     std::string current_id = harmony_connection_.Snapshot().current_activity_id;
-    // Only blank while nothing is pending - called right after
-    // OnActivityButtonClicked() sets this to "Starting <name>...", and
-    // blanking unconditionally here would erase that in the same
-    // synchronous call before it's ever rendered.
-    if (starting_activity_id_.empty()) {
+    // Only blank while nothing is pending and no failure message is
+    // showing - called right after OnActivityButtonClicked() sets
+    // starting_activity_id_ to show "Starting <name>...", and blanking
+    // unconditionally here would erase that in the same synchronous call
+    // before it's ever rendered. command_failed_ (dropped_sub_'s own
+    // message) is cleared separately, once something actually supersedes
+    // it - see its own comment.
+    if (starting_activity_id_.empty() && !command_failed_) {
         lv_label_set_text(status_label_, "");
     }
 
@@ -169,6 +192,7 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
 
     self->harmony_connection_.StartActivity(activity_id);
     self->starting_activity_id_ = activity_id;
+    self->command_failed_ = false;
 
     lv_obj_t* label = lv_obj_get_child(button, 0);
     lv_label_set_text_fmt(self->status_label_, "Starting %s...", lv_label_get_text(label));
