@@ -386,9 +386,9 @@ this until it's done — see
       ADR-0029's Consequences. `GET /api/harmony/status` and
       `POST /api/harmony/reconnect`
       (`src/core/harmony_routes.h`/`.cpp`) expose it to the Web UI.
-      Verified against the reference hub: a device/activity list
-      (household AV equipment and activities) is fetched and stays
-      connected across the liveness-probe interval. First-time cloud
+      A device/activity list (household AV equipment and activities) is
+      fetched and the connection stays live across the liveness-probe
+      interval. First-time cloud
       pairing remains out of scope, unconfirmed either way. Devices/
       activities screens, remote control, and a Web UI settings *page*
       (the field exists via the generic settings API; a dedicated Harmony
@@ -414,11 +414,9 @@ this until it's done — see
       grid (ADR-0004), so this is `Widget`'s new `OnTap()` handler
       (`src/ui/widget.h`, wired in `DashboardGrid::AddWidget()`), not a
       new navigation concept — see the M2 Widget framework item above.
-      Verified against the reference hub end-to-end, repeatedly and in
-      both directions: its activities listed, current activity
-      highlighted correctly, and a Touch UI tap switches the hub's own
-      running activity, not just local state - the dashboard/Activities
-      screen both update once it does.
+      Its activity list, current-activity highlight, and a Touch UI tap
+      all reflect the hub's own running activity in both directions -
+      the dashboard/Activities screen both update once it changes.
 - [x] Devices (enumerate, capabilities, commands, inputs, power state where
       available). Built in the same pass as Remote control below: a live
       probe against the reference hub found a device's capabilities and
@@ -432,7 +430,9 @@ this until it's done — see
       empty on every device on the reference hub — IR is one-way, nothing
       to poll — so it isn't built; a gap if a future hub reports it, not
       an oversight. `HarmonyConnection` gained
-      `HarmonyDevice::control_groups` and `SendDeviceCommand()`
+      `HarmonyDevice::control_groups` and command-sending (see the
+      Remote control item below for its current
+      `Press/Hold/ReleaseDeviceCommand()` shape)
       (`src/core/harmony_connection.h`/`.cpp`), generalizing the single
       pending-activity slot into a `PendingCommand` queue so
       activity-start and device-command sends share one UI-thread-safe
@@ -444,9 +444,9 @@ this until it's done — see
       navigation item below). Reached from a "Devices" button on
       `ActivitiesScreen`. Shares `CreateRemoteButton()`
       (`src/ui/remote_button.h`/`.cpp`) with `ActivitiesScreen` for
-      consistent large touch targets. Verified against the reference
-      hub's 8-device list, including a device with enough commands to
-      need on-screen scrolling. Both targets use `LV_USE_CLIB_MALLOC`
+      consistent large touch targets. Its rendered list covers the
+      reference hub's 8-device list, including a device with enough
+      commands to need on-screen scrolling. Both targets use `LV_USE_CLIB_MALLOC`
       (`simulator/lv_conf.h`, `firmware/sdkconfig.defaults`), routing
       LVGL's own allocations through the platform's normal heap rather
       than a fixed-size reserved block with a ceiling a screen with many
@@ -504,10 +504,10 @@ this until it's done — see
       command button, where `CLICKED` (and, more importantly,
       `LV_EVENT_PRESSED`, which fires before LVGL can know a touch will
       become a scroll at all) would risk sending a command from an
-      accidental drag. Verified against the reference hub: a quick tap
-      sends press+release, holding sends one press then repeated holds
-      then one release on lift, and a drag that starts on a command
-      button sends nothing while still scrolling normally.
+      accidental drag. A quick tap sends press+release, holding sends
+      one press then repeated holds then one release on lift, and a
+      drag that starts on a command button sends nothing while still
+      scrolling normally.
 - [x] Status/events integrated with Core's event bus and notifications.
       `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
       `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
@@ -533,10 +533,10 @@ this until it's done — see
       `GET /api/harmony/status` with a manual Refresh button (no
       polling - no live-push mechanism exists for the Web UI yet, same
       reasoning as the M7 WebSockets item below), and triggers
-      `POST /api/harmony/reconnect` on save. Verified in a browser
-      against the reference hub - address pre-fills, status correctly
-      reads connected with the actual device/activity counts, and
-      editing/saving/restoring the address round-trips correctly.
+      `POST /api/harmony/reconnect` on save. The address pre-fills,
+      status correctly reads connected with the actual device/activity
+      counts, and editing/saving/restoring the address round-trips
+      correctly.
 
 **Exit criteria:** a user can fully replace their physical Harmony remote's
 day-to-day usage with HomeDeck.
