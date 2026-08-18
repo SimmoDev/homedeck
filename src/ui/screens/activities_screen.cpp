@@ -179,23 +179,32 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
         return;
     }
     const std::string& activity_id = it->second;
-    if (activity_id == self->harmony_connection_.Snapshot().current_activity_id) {
-        // Already the running activity - nothing to start, and showing
-        // "Starting <name>..." here would never clear: a same-activity
-        // StartActivity() send produces no activity-ID change, so
-        // FetchCurrentActivity() never publishes
-        // HarmonyCurrentActivityChangedEvent to clear it (that event
-        // only fires on an actual ID change - see this screen's own
-        // subscription above).
-        return;
-    }
+    bool is_current = activity_id == self->harmony_connection_.Snapshot().current_activity_id;
 
     self->harmony_connection_.StartActivity(activity_id);
     self->starting_activity_id_ = activity_id;
     self->command_failed_ = false;
 
     lv_obj_t* label = lv_obj_get_child(button, 0);
-    lv_label_set_text_fmt(self->status_label_, "Starting %s...", lv_label_get_text(label));
+    const char* activity_label = lv_label_get_text(label);
+    if (is_current) {
+        // Re-tapping the running activity resends its own start command -
+        // useful to resync AV gear that's drifted out of sync with the
+        // hub's own idea of what's on, the same re-trigger the official
+        // Harmony app/remote support. Unlike a fresh start, no
+        // HarmonyCurrentActivityChangedEvent will ever follow (the id
+        // doesn't change), so this message has no natural point to clear
+        // itself and stays up until the next unrelated event (a
+        // different tap, an actual activity change, a connection drop)
+        // supersedes it - dropped_sub_/state_sub_ (this class's own
+        // subscriptions above) still correctly report a failed resend
+        // the same way they would a fresh one. An acceptable trade-off
+        // against the alternative this replaced: a silent no-op with no
+        // way to resend at all.
+        lv_label_set_text_fmt(self->status_label_, "Resent to %s.", activity_label);
+    } else {
+        lv_label_set_text_fmt(self->status_label_, "Starting %s...", activity_label);
+    }
 
     self->RestyleButtons();
 }

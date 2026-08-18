@@ -44,6 +44,14 @@ namespace homedeck {
 // dropped_sub_ (HarmonyCommandDroppedEvent) exists specifically for that
 // case: an explicit "couldn't start" message, not a silently-cleared one
 // that leaves the user with no idea the tap never took effect.
+//
+// Tapping the already-running activity resends its own start command
+// rather than being a no-op - useful to resync AV gear that's drifted
+// out of sync with the hub's own idea of what's on, matching the
+// official Harmony app/remote's own re-trigger support. See
+// OnActivityButtonClicked()'s own comment for the one wrinkle this
+// creates (no activity-ID change ever follows a same-activity resend, so
+// its confirmation message has no natural point to clear itself).
 class ActivitiesScreen {
 public:
     ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
