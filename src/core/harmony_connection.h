@@ -239,8 +239,13 @@ private:
     // and state_.devices/activities/has_config are already updated.
     // Also calls FetchCurrentActivity() once, best-effort - its own
     // failure doesn't fail the connect, since the next liveness probe
-    // will retry it.
-    bool ConnectAndFetchConfig(const std::string& hub_host);
+    // will retry it. `stop` is checked between each blocking network
+    // call (not mid-call - none of HttpClient/WebSocketClient support
+    // cancelling an in-flight call) so a Stop() requested while this is
+    // running doesn't needlessly chain through the rest of an
+    // already-pointless sequence; each individual call still has its own
+    // bounded timeout regardless.
+    bool ConnectAndFetchConfig(const std::string& hub_host, std::stop_token stop);
     // Sends getCurrentActivity over the already-open ws_client_, parses
     // `data.result`, and updates state_.current_activity_id + publishes
     // HarmonyCurrentActivityChangedEvent if it changed. Doubles as the
@@ -248,8 +253,9 @@ private:
     // failure, including a silently-dropped connection) - see
     // ADR-0029's Consequences on why ReceiveText() can't distinguish a
     // clean close from a timeout, and why this probe-based approach
-    // works around that rather than needing it to.
-    bool FetchCurrentActivity();
+    // works around that rather than needing it to. `stop` - see
+    // ConnectAndFetchConfig()'s own comment.
+    bool FetchCurrentActivity(std::stop_token stop);
     // Drains every PendingCommand StartActivity()/PressDeviceCommand()/
     // HoldDeviceCommand()/ReleaseDeviceCommand() queued, building and
     // sending each one's actual payload here (not in those methods
@@ -266,8 +272,9 @@ private:
     // failed liveness probe rather than silently discarding it, since a
     // silent send failure would otherwise strand the remaining queued
     // commands with no feedback and no retry until the next
-    // liveness_interval_.
-    bool SendPendingCommands();
+    // liveness_interval_. `stop` - see ConnectAndFetchConfig()'s own
+    // comment; checked between each queued command's own send.
+    bool SendPendingCommands(std::stop_token stop);
     // Enqueues a device command with the given status - the shared body
     // of PressDeviceCommand()/HoldDeviceCommand()/ReleaseDeviceCommand(),
     // which differ only in which status they pass.
