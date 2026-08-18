@@ -407,6 +407,52 @@ TEST_F(HarmonyConnectionTest, UnconfiguringAfterConnectingClearsTheCachedConfig)
     connection.Stop();
 }
 
+// Distinct from UnconfiguringAfterConnectingClearsTheCachedConfig above -
+// this is hub_host changing to a *different* non-empty address, not
+// clearing it. The new connect attempt is made to fail here specifically
+// so has_config going false can only be explained by the address change
+// itself, not by a coincidentally-successful reconnect racing the
+// assertion - a bare failed reconnect to the *same* host must NOT clear
+// has_config (see HarmonyConnectionSnapshot::has_config's own comment),
+// so this is the one case that tells the two apart.
+TEST_F(HarmonyConnectionTest, ChangingHubHostToADifferentAddressClearsTheCachedConfig) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_FALSE(connection.Snapshot().devices.empty());
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->connect_should_succeed = false;
+    }
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "192.168.1.99"));
+    connection.TriggerReconnect();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    homedeck::HarmonyConnectionSnapshot snapshot = connection.Snapshot();
+    EXPECT_FALSE(snapshot.has_config) << "the old hub's config must not linger once pointed at a different address";
+    EXPECT_TRUE(snapshot.devices.empty());
+    EXPECT_TRUE(snapshot.activities.empty());
+
+    connection.Stop();
+}
+
 TEST_F(HarmonyConnectionTest, HandshakeFailureEntersErrorStateThenRecoversOnceItSucceeds) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

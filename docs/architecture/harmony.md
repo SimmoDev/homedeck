@@ -127,10 +127,13 @@ configured," so the reconnect trigger disconnects any active connection
 the same way a first-time save connects one. Unlike a transient
 disconnect/error (which keeps showing the last-known devices/activities —
 see `HarmonyConnectionSnapshot::has_config`'s own comment), un-configuring
-also clears them (`HarmonyConnection::ClearConfigIfPresent()`) and
-publishes `HarmonyConfigUpdatedEvent`, so `ActivitiesScreen`/
-`DevicesScreen` drop the previous hub's now-meaningless list instead of
-continuing to render it as if still live.
+or pointing `hub_host` at a *different* address both clear them
+(`HarmonyConnection::ClearConfigIfPresent()`, compared against the
+previously-attempted address on every `ConnectionLoop()` pass) and
+publish `HarmonyConfigUpdatedEvent`, so `ActivitiesScreen`/
+`DevicesScreen`/the Web UI's own status panel drop the previous hub's
+now-meaningless list instead of continuing to render it as if still
+live.
 
 ## Status
 

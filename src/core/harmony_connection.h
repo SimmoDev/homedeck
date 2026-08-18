@@ -355,6 +355,13 @@ private:
     // Task's own doc gives.
     std::unique_ptr<WebSocketClient> ws_client_;
     std::string hub_id_;  // activeRemoteId from the most recent handshake
+    // The hub_host value ConnectionLoop() last attempted (or connected
+    // to) - compared on every outer-loop pass to tell "reconnecting to
+    // the same hub" apart from "the user pointed this at a different
+    // hub," see ConnectionLoop()'s own comment. Empty at construction,
+    // matching state_.has_config's own default-false (nothing to clear
+    // on the very first connect attempt either way).
+    std::string last_hub_host_;
 
     mutable std::mutex mutex_;
     HarmonyConnectionSnapshot state_;

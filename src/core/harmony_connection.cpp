@@ -343,6 +343,22 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
             continue;
         }
 
+        // A hub_host value change (not just clearing it, already handled
+        // by the unconfigured branch above) means any currently-shown
+        // devices/activities belong to a *different* hub, not the one
+        // about to be (re)connected to - the "keep showing last-known
+        // state through a transient drop" policy
+        // (HarmonyConnectionSnapshot::has_config's own comment) only
+        // makes sense for reconnecting to the *same* hub. Compared
+        // before SetState(kConnecting) below so a Web UI status poll
+        // racing this transition sees has_config already false rather
+        // than a stale "connected" snapshot for the old hub - see
+        // HarmonySettings.svelte's own post-save comment.
+        if (hub_host_setting->value != last_hub_host_) {
+            ClearConfigIfPresent();
+        }
+        last_hub_host_ = hub_host_setting->value;
+
         SetState(HarmonyConnectionState::kConnecting);
         if (!ConnectAndFetchConfig(hub_host_setting->value, stop)) {
             SetState(HarmonyConnectionState::kError);
