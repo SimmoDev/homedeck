@@ -2,10 +2,10 @@
 
 namespace homedeck {
 
-lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, int32_t width, int32_t height) {
+lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, int32_t width) {
     lv_obj_t* button = lv_button_create(parent);
     lv_obj_set_width(button, width);
-    lv_obj_set_height(button, height);
+    lv_obj_set_height(button, kRemoteButtonHeight);
     lv_obj_set_style_pad_ver(button, 28, 0);
 
     lv_obj_t* label = lv_label_create(button);

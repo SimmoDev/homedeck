@@ -6,6 +6,18 @@
 
 namespace homedeck {
 
+// Every remote-control button is this tall, list buttons (activities,
+// devices) and command-grid buttons alike - one consistent height across
+// every screen this app renders, rather than list buttons auto-fitting
+// their own single-line label while grid buttons use a fixed height.
+// 110 = kBodyFont's 27px line height * 2 (room for a two-line label) +
+// the 28px top/bottom padding CreateRemoteButton already applies * 2 -
+// sized for the command grid's own mixed one-line/two-line labels (e.g.
+// "Volume Up" vs "Volume Down" in the same row), which list buttons'
+// shorter, more predictable labels don't strictly need but share anyway
+// for a consistent look and feel.
+constexpr int32_t kRemoteButtonHeight = 110;
+
 // A large, labeled button - the common shape every Harmony remote-control
 // button builds on (ActivitiesScreen's activities, DevicesScreen's
 // devices and their commands - see docs/roadmap.md's M3
@@ -20,18 +32,8 @@ namespace homedeck {
 // `width` defaults to full-width (one button per row - activity/device
 // lists, where labels are long and unpredictable); DevicesScreen's own
 // command grid passes a narrower width instead (see its own comment on
-// why 3 per row).
-//
-// `height` defaults to LV_SIZE_CONTENT (auto-fit, today's behavior) -
-// right for activity/device lists, which rarely wrap. DevicesScreen's
-// command grid passes an explicit fixed height instead: at that width,
-// whether a label wraps to one or two lines depends on the label's own
-// length, and auto-fit height would make same-row buttons different
-// heights depending on which command happened to be longer (e.g.
-// "Volume Down" wrapping while "Volume Up" doesn't) - a fixed height
-// tall enough for two lines keeps every button in the grid the same
-// size regardless.
-lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, int32_t width = LV_PCT(100),
-                              int32_t height = LV_SIZE_CONTENT);
+// why 3 per row). Height is always kRemoteButtonHeight - not a
+// parameter, since every caller wants the same value.
+lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, int32_t width = LV_PCT(100));
 
 }  // namespace homedeck

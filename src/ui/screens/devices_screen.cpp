@@ -9,16 +9,11 @@ namespace homedeck {
 
 namespace {
 
-// Every command grid button is this size, including RenderDPad()'s
-// spacers - LV_SIZE_CONTENT (each button auto-fitting its own label)
-// looked fine when every button happened to need the same number of
-// text lines, but a device with mixed one-line/two-line labels in the
-// same row (e.g. "Volume Up" vs "Volume Down") made otherwise-identical
-// buttons different heights. 110 = kBodyFont's 27px line height * 2
-// (room for a two-line label) + the 28px top/bottom padding
-// CreateRemoteButton already applies * 2.
+// Command grid buttons are 3 per row - see RenderGenericGrid()'s own
+// comment. Height comes from remote_button.h's shared kRemoteButtonHeight
+// (RenderDPad()'s spacers match it too, so an empty D-pad corner is the
+// same size as a real button).
 constexpr int32_t kGridButtonWidth = LV_PCT(31);
-constexpr int32_t kGridButtonHeight = 110;
 constexpr int32_t kGridGap = 12;
 
 // A plain command-name lookup, not a per-device-model special case -
@@ -77,7 +72,7 @@ lv_obj_t* CreateDPadRow(lv_obj_t* parent) {
 void AddDPadSpacer(lv_obj_t* row) {
     lv_obj_t* spacer = lv_obj_create(row);
     lv_obj_remove_style_all(spacer);
-    lv_obj_set_size(spacer, kGridButtonWidth, kGridButtonHeight);
+    lv_obj_set_size(spacer, kGridButtonWidth, kRemoteButtonHeight);
 }
 
 const HarmonyCommand* FindCommand(const std::vector<HarmonyCommand>& commands, const char* name) {
@@ -275,7 +270,7 @@ void DevicesScreen::RenderGenericGrid(lv_obj_t* parent, const std::vector<Harmon
     for (const HarmonyCommand& command : commands) {
         const char* icon = IconForCommandName(command.name);
         std::string label = icon != nullptr ? std::string(icon) : SplitCamelCase(command.label);
-        lv_obj_t* button = CreateRemoteButton(grid, label, kGridButtonWidth, kGridButtonHeight);
+        lv_obj_t* button = CreateRemoteButton(grid, label, kGridButtonWidth);
         WireCommandButton(button, command.action);
     }
 }
@@ -302,7 +297,7 @@ void DevicesScreen::RenderNumericKeypad(lv_obj_t* parent, const std::vector<Harm
         if (command == nullptr) {
             continue;
         }
-        lv_obj_t* button = CreateRemoteButton(grid, command->label, kGridButtonWidth, kGridButtonHeight);
+        lv_obj_t* button = CreateRemoteButton(grid, command->label, kGridButtonWidth);
         WireCommandButton(button, command->action);
         placed.insert(wanted_name);
     }
@@ -325,7 +320,9 @@ void DevicesScreen::RenderDPad(lv_obj_t* parent, const std::vector<HarmonyComman
 
     lv_obj_t* middle_row = CreateDPadRow(rows);
     AddDPadCell(middle_row, FindCommand(commands, "DirectionLeft"), LV_SYMBOL_LEFT);
-    AddDPadCell(middle_row, FindCommand(commands, "Select"), LV_SYMBOL_OK);
+    // "OK" as text, not LV_SYMBOL_OK (a checkmark) - Select's own meaning
+    // ("confirm/enter") reads more clearly as the word than the icon.
+    AddDPadCell(middle_row, FindCommand(commands, "Select"), "OK");
     AddDPadCell(middle_row, FindCommand(commands, "DirectionRight"), LV_SYMBOL_RIGHT);
 
     lv_obj_t* bottom_row = CreateDPadRow(rows);
@@ -336,12 +333,12 @@ void DevicesScreen::RenderDPad(lv_obj_t* parent, const std::vector<HarmonyComman
     RenderUnmatchedCommands(parent, commands, {"DirectionUp", "DirectionDown", "DirectionLeft", "DirectionRight", "Select"});
 }
 
-void DevicesScreen::AddDPadCell(lv_obj_t* row, const HarmonyCommand* command, const char* icon) {
+void DevicesScreen::AddDPadCell(lv_obj_t* row, const HarmonyCommand* command, const char* label) {
     if (command == nullptr) {
         AddDPadSpacer(row);
         return;
     }
-    lv_obj_t* button = CreateRemoteButton(row, icon, kGridButtonWidth, kGridButtonHeight);
+    lv_obj_t* button = CreateRemoteButton(row, label, kGridButtonWidth);
     WireCommandButton(button, command->action);
 }
 

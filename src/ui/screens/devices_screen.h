@@ -92,7 +92,7 @@ private:
     // command, if present, or an empty placeholder occupying the same
     // space (so the cross stays a cross even when e.g. Select is
     // missing) - shared by RenderDPad()'s three rows.
-    void AddDPadCell(lv_obj_t* row, const HarmonyCommand* command, const char* icon);
+    void AddDPadCell(lv_obj_t* row, const HarmonyCommand* command, const char* label);
     // Commands from a NumericBasic/NavigationBasic group that don't
     // match any of that layout's known positions - not observed on any
     // of the reference hub's 8 devices, but rendering them via the

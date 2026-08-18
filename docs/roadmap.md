@@ -486,13 +486,16 @@ this until it's done — see
       of 8 devices) get `LV_SYMBOL_PLUS`/`MINUS` icons too, matching the
       D-pad's icon-based directions; `Mute`/`PrevChannel` have no obvious
       icon and stay as text. `CreateRemoteButton()`
-      (`src/ui/remote_button.h`/`.cpp`) gained optional `width`/`height`
-      parameters (existing callers unaffected, still default full-width/
-      auto-height) and now explicitly wraps and vertically centers its
-      label - neither was needed while every button auto-fit its own
-      one-line content; both matter now that DevicesScreen's grid gives
-      every button the same fixed width and height
-      regardless of its own label's line count. Long-press actions -
+      (`src/ui/remote_button.h`/`.cpp`) gained an optional `width`
+      parameter (existing callers unaffected, still default full-width)
+      and now explicitly wraps and vertically centers its label - neither
+      was needed while every button auto-fit its own one-line content;
+      both matter now that DevicesScreen's grid gives every button the
+      same fixed width regardless of its own label's line count. Height
+      is fixed (`kRemoteButtonHeight`, not a parameter) across every
+      remote-control button - activity/device list buttons included, for
+      one consistent look rather than list buttons auto-fitting their own
+      shorter labels. Long-press actions -
       sustained repeat while a command button stays held - are built:
       `HarmonyConnection::SendDeviceCommand()` (a single press+release
       pair per call) is now three separate calls
