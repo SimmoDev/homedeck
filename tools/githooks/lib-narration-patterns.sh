@@ -20,8 +20,18 @@ narration_patterns=(
     # strict alnum character class) deliberately tolerates apostrophes,
     # extra adjectives, and other punctuation between the verb and its
     # object so phrasing variants aren't missed the way a narrower
-    # character class would miss them.
-    'confirmed .{0,80}(hardware|reference unit)'
+    # character class would miss them. "reference hub" alongside
+    # "reference unit" - a module's own external device (e.g. Harmony's
+    # reference hub) gets the same treatment as the project's physical
+    # reference unit; both are "confirmed against a specific real device
+    # during development" narration (M3 exit review pass 7).
+    'confirmed .{0,80}(hardware|reference unit|reference hub)'
+    # "verified live against the reference hub", "verified against the
+    # project's own reference hub" - same reasoning as the "confirmed"
+    # pattern above, for "verified" specifically pairing with a reference
+    # device rather than the narrower literal phrases below (M3 exit
+    # review pass 7).
+    'verified .{0,80}(reference unit|reference hub)'
     'confirmed end.to.end'
     'confirmed manually'
     'confirmed via'
