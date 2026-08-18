@@ -242,7 +242,7 @@ successfully (10-point multitouch).
 (portrait), not the `1280x720` spec-sheet figure — and this is genuinely
 the panel's native scan direction, not just a default init flag: the BSP
 hardcodes it as `BSP_LCD_H_RES`/`BSP_LCD_V_RES` in
-`managed_components/espressif__m5stack_tab5/include/bsp/display.h`, with
+`firmware/components/m5stack_tab5/include/bsp/display.h`, with
 no swap_xy applied at panel-init time. See
 [ADR-0015](../decisions/ADR-0015-display-orientation.md) for why a
 software rotation to landscape was rejected instead.
