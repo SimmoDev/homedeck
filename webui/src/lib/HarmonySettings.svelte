@@ -171,25 +171,28 @@
     {:else if saved}
       <p class="hint">Saved.</p>
     {/if}
-
-    <div class="row status-row">
-      {#if statusError}
-        <p class="error">Status error: {statusError}</p>
-      {:else if status}
-        <p>
-          Status: <strong>{stateLabel(status.state)}</strong>
-          {#if status.state === "connected" && status.hasConfig}
-            &mdash; {status.devices.length} device{status.devices.length === 1 ? "" : "s"}, {status.activities
-              .length}
-            activit{status.activities.length === 1 ? "y" : "ies"}
-          {/if}
-        </p>
-      {/if}
-      <button onclick={loadStatus} disabled={statusLoading}>
-        {statusLoading ? "Refreshing..." : "Refresh"}
-      </button>
-    </div>
   {/if}
+
+  <!-- Outside the error/loaded gate above on purpose - loadHubHost() and
+       loadStatus() run independently (see their own calls below), so a
+       transient loadHubHost() failure must not hide a status fetch that
+       succeeded on its own; nothing here depends on hubHost/loaded. -->
+  <div class="row status-row">
+    {#if statusError}
+      <p class="error">Status error: {statusError}</p>
+    {:else if status}
+      <p>
+        Status: <strong>{stateLabel(status.state)}</strong>
+        {#if status.state === "connected" && status.hasConfig}
+          &mdash; {status.devices.length} device{status.devices.length === 1 ? "" : "s"}, {status.activities.length}
+          activit{status.activities.length === 1 ? "y" : "ies"}
+        {/if}
+      </p>
+    {/if}
+    <button onclick={loadStatus} disabled={statusLoading}>
+      {statusLoading ? "Refreshing..." : "Refresh"}
+    </button>
+  </div>
 </div>
 
 <style>
