@@ -627,6 +627,23 @@ day-to-day usage with HomeDeck.
       those actually live, plus Core's own `Storage` state) - scope (a
       dedicated action vs. part of a broader reset, what exactly gets
       cleared) isn't decided yet
+- [ ] Harmony Activities/Devices custom ordering, configurable from the
+      Web Management UI, mimicking the official Harmony app's own
+      reorder feature. Per
+      [harmony.md](architecture/harmony.md#activities), that mimicry has
+      to be a HomeDeck-local ordering, not a hub-synced one - neither the
+      hub's config response nor `aioharmony` (the community client
+      library [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md)
+      cites) expose a sequence field beyond array position, and
+      Logitech's own documentation confirms the official app's and the
+      physical remote's own reordering don't sync to each other either,
+      so there is no hub-side canonical order to read or write in the
+      first place. Scope: a stored ordering (module `harmony`, alongside
+      `hub_host` in `Storage`'s existing per-module settings namespace),
+      a drag-to-reorder affordance for both lists in the Web Management
+      UI, and `ActivitiesScreen`/`DevicesScreen`
+      (`src/ui/screens/`) rendering by that stored order when one
+      exists, falling back to the hub's own array order otherwise
 - [ ] Extended log archival to microSD, once a card is present - the
       internal flash filesystem's logs (M2) are bounded/rotating;
       [ADR-0012](decisions/ADR-0012-storage-tiers.md) decides this is
