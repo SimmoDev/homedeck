@@ -1,5 +1,6 @@
 <script lang="ts">
   import { findSetting, loadJson, postJson, type SettingEntry } from "./api";
+  import { deviceNameError } from "./deviceNameValidation";
 
   // Device name (see docs/architecture/web-ui.md#scope and
   // docs/decisions/ADR-0023-settings-backup-api.md) - the mDNS hostname
@@ -28,6 +29,12 @@
   }
 
   async function saveDeviceName() {
+    const validationError = deviceNameError(deviceName);
+    if (validationError) {
+      saveError = validationError;
+      saved = false;
+      return;
+    }
     saving = true;
     saveError = undefined;
     saved = false;
@@ -66,6 +73,7 @@
         type="text"
         bind:value={deviceName}
         disabled={saving}
+        maxlength="63"
         oninput={() => (saved = false)}
       />
       <button onclick={saveDeviceName} disabled={saving || deviceName.length === 0}>
