@@ -56,6 +56,13 @@ the current activity, not an app-launcher grid, per
 [ADR-0004](../decisions/ADR-0004-ui-philosophy.md)'s dashboard
 philosophy.
 
+Tapping the activity that's already running resends its own start
+command instead of treating the tap as a no-op — useful to resync AV
+gear that's drifted out of sync with the hub's own idea of what's on,
+matching the official Harmony app/remote's own re-trigger support.
+`ActivitiesScreen` shows "Resent to `<name>`." for this case, distinct
+from "Starting `<name>`..." for a fresh activity switch.
+
 Activities render in the order the hub's config response lists them
 (`ParseIdLabelArray()`, `src/core/harmony_connection.cpp`) — neither this
 project's own live-hub probe (see ADR-0029) nor `aioharmony` (the
