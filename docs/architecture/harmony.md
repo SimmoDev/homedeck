@@ -43,7 +43,7 @@ Connection failures use the shared `RetryBackoff` utility
 `HarmonyConnection` fetches the hub's activity list on connect and
 tracks `current_activity_id`, refreshed on connect, right after
 `StartActivity()` sends its command, and on the periodic liveness-probe
-cycle otherwise (`kLivenessInterval`, 30s by default) — freshness is
+cycle otherwise (`liveness_interval`, 30s by default) — freshness is
 best-effort, not push-driven, since this class's WebSocket transport is
 a simple synchronous request/response loop; see that class's own header
 comment for why. `ActivitiesScreen` (`src/ui/screens/activities_screen.h`/

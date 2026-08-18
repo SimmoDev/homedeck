@@ -473,7 +473,9 @@ this until it's done — see
       1-2-3/4-5-6/7-8-9/Clear-0-Dot keypad, in that position order, not
       raw hub order (which returns 0 first); `NavigationBasic`
       (`RenderDPad()`) as a cross with empty corners, using
-      `LV_SYMBOL_UP`/`DOWN`/`LEFT`/`RIGHT`/`OK` icons rather than text.
+      `LV_SYMBOL_UP`/`DOWN`/`LEFT`/`RIGHT` icons and "OK" as text - Select's
+      own meaning ("confirm/enter") reads more clearly as the word than
+      LVGL's checkmark glyph would.
       Matching by `HarmonyControlGroup::name` is a protocol-level
       vocabulary the hub uses the same way across every device that has
       these groups, not per-device-model hardcoding. Every group heading
@@ -484,8 +486,12 @@ this until it's done — see
       grid button's 31% width were wrapping mid-word with nothing else
       to fix it. `VolumeUp`/`VolumeDown`/`ChannelUp`/`ChannelDown` (5-6
       of 8 devices) get `LV_SYMBOL_PLUS`/`MINUS` icons too, matching the
-      D-pad's icon-based directions; `Mute`/`PrevChannel` have no obvious
-      icon and stay as text. `CreateRemoteButton()`
+      D-pad's icon-based directions, as do `PrevChannel`
+      (`LV_SYMBOL_LOOP`) and `Mute` (`LV_SYMBOL_MUTE`).
+      `FastForward`/`Rewind` (no seek icon exists) and
+      `PowerOff`/`PowerOn`/`PowerToggle` (LVGL has exactly one power icon
+      for three different actions) are the commands that genuinely have
+      no fitting icon and stay as text. `CreateRemoteButton()`
       (`src/ui/remote_button.h`/`.cpp`) gained an optional `width`
       parameter (existing callers unaffected, still default full-width)
       and now explicitly wraps and vertically centers its label - neither
