@@ -24,13 +24,18 @@ Two git hook stages, both warn-only (never block a commit), checking
 for the following defect classes:
 
 - `githooks/pre-commit` runs against staged doc/code files: doc
-  narration/banned wording/stale ADR cross-references
-  (`githooks/check-docs.sh`), unchecked ESP-IDF/mDNS/httpd return
+  narration/banned wording/stale ADR cross-references, broken relative
+  Markdown links and anchors, and a staged `tests/*_test.cpp` file
+  missing from `tests/README.md`'s own test inventory
+  (`githooks/check-docs.sh`); unchecked ESP-IDF/mDNS/httpd return
   values in `firmware/main/` and `src/platform/firmware/`
-  (`githooks/check-esp-idf-returns.sh`), and a `curl_easy_perform()`
+  (`githooks/check-esp-idf-returns.sh`); a `curl_easy_perform()`
   call with no `CURLOPT_TIMEOUT`/`CURLOPT_CONNECTTIMEOUT` set anywhere
   in the same file, in any staged `.cpp` file
-  (`githooks/check-curl-timeouts.sh`).
+  (`githooks/check-curl-timeouts.sh`); and, against every staged file
+  regardless of extension, private-key blocks, cloud-provider/API-token
+  credential shapes, and a staged `.env` file
+  (`githooks/check-secrets.sh`).
 - `githooks/commit-msg` runs against the commit message itself, once
   written - the same narration patterns check-docs.sh checks in files
   (`githooks/lib-narration-patterns.sh`, shared by both), since a commit

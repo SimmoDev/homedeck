@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Runs the doc-narration, ESP-IDF-return, and curl-timeout checks against
-# staged files. All three checks warn only - they never block a commit.
-# Activate with:
+# Runs the doc-narration, ESP-IDF-return, curl-timeout, and secret-scan
+# checks against staged files. All four checks warn only - they never
+# block a commit. Activate with:
 #   git config core.hooksPath tools/githooks
 set -uo pipefail
 
@@ -27,6 +27,14 @@ fi
 if [ -n "$cpp_files" ]; then
     # shellcheck disable=SC2086
     "$repo_root/tools/githooks/check-curl-timeouts.sh" $cpp_files || found_issue=1
+fi
+
+if [ -n "$staged_files" ]; then
+    # Every staged file, not extension-filtered like the checks above -
+    # a leaked credential isn't confined to source files (a .env, a
+    # pasted config dump, a script).
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-secrets.sh" $staged_files || found_issue=1
 fi
 
 if [ "$found_issue" -ne 0 ]; then
