@@ -39,6 +39,14 @@
   let wifiResetError: string | undefined = $state(undefined);
 
   async function resetWifi() {
+    // Guards against a double-fired click event reaching this function
+    // twice before Svelte's own reactive re-render removes the confirm
+    // button that's about to become invalid the moment `wifiResetState`
+    // changes below - a `disabled` binding on the button itself can't
+    // express this, since the button only renders in the "confirming"
+    // state and unmounts on the same state change that would need to
+    // disable it.
+    if (wifiResetState === "resetting") return;
     wifiResetState = "resetting";
     wifiResetError = undefined;
     const result = await postJson<{ apSsid: string }>("/api/wifi/reset");
