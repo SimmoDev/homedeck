@@ -120,6 +120,7 @@
   <h3>Weather</h3>
   {#if error}
     <p class="error">Error: {error}</p>
+    <button onclick={loadWeatherLocation}>Retry</button>
   {:else if !loaded}
     <p class="hint">Loading...</p>
   {:else}

@@ -85,6 +85,7 @@
     </p>
   {:else if error}
     <p class="error">Error: {error}</p>
+    <button onclick={loadStatus}>Retry</button>
   {:else if !status}
     <p class="hint">Loading...</p>
   {:else if !status.passwordSet}

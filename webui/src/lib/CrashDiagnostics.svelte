@@ -42,6 +42,7 @@
   <h2>Status</h2>
   {#if error}
     <p class="error">Error: {error}</p>
+    <button onclick={load}>Retry</button>
   {:else if !status}
     <p class="hint">Loading...</p>
   {:else}

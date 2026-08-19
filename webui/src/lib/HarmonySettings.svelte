@@ -139,6 +139,7 @@
   <h3>Harmony Hub</h3>
   {#if error}
     <p class="error">Error: {error}</p>
+    <button onclick={loadHubHost}>Retry</button>
   {:else if !loaded}
     <p class="hint">Loading...</p>
   {:else}

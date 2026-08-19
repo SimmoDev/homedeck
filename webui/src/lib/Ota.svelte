@@ -120,6 +120,7 @@
   <h2>Firmware update</h2>
   {#if error}
     <p class="error">Error: {error}</p>
+    <button onclick={loadStatus}>Retry</button>
   {:else if !status}
     <p class="hint">Loading...</p>
   {:else}

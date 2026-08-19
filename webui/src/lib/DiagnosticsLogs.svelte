@@ -55,6 +55,7 @@
   <h2>Logs</h2>
   {#if logsError}
     <p class="error">Error: {logsError}</p>
+    <button onclick={loadLogs}>Retry</button>
   {:else if !logs}
     <p class="hint">Loading...</p>
   {:else if logs.length === 0}

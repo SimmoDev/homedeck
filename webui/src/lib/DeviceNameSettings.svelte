@@ -64,6 +64,7 @@
   <h3>Device name</h3>
   {#if error}
     <p class="error">Error: {error}</p>
+    <button onclick={loadDeviceName}>Retry</button>
   {:else if !loaded}
     <p class="hint">Loading...</p>
   {:else}
