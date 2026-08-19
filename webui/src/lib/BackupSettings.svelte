@@ -50,6 +50,10 @@
         return;
       }
       const data = result.data;
+      if (data === undefined) {
+        restoreError = "The server accepted the restore but sent back an unreadable response.";
+        return;
+      }
       restoreResult = `Restored ${data.applied} setting${data.applied === 1 ? "" : "s"}${
         data.failed.length > 0 ? `, ${data.failed.length} failed` : ""
       }${data.rejected.length > 0 ? `, ${data.rejected.length} rejected as protected` : ""}.`;

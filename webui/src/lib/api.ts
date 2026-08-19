@@ -106,10 +106,17 @@ export async function loadJson<T>(url: string): Promise<LoadResult<T>> {
 // "the device probably already rebooted" case rather than a real
 // error) - hence the discriminated result instead of a single error
 // string.
-export type PostJsonResult<T> =
-  | { ok: true; data: T }
+type JsonErrorResult =
   | { ok: false; kind: "http"; status: number; body: ApiErrorBody }
   | { ok: false; kind: "network"; message: string };
+
+// data is T | undefined, not just T - postJson()'s own parse below
+// swallows a malformed/empty successful body into `undefined` rather
+// than treating it as a network error (needed for endpoints like
+// /api/ota/reboot that return no body), so every caller reading `.data`
+// must handle that case explicitly rather than assuming a 2xx response
+// always means a parsed value.
+export type PostJsonResult<T> = { ok: true; data: T | undefined } | JsonErrorResult;
 
 // body is sent as-is if already a string (e.g. BackupSettings.svelte's
 // restore(), which already has the raw JSON file contents), JSON-
@@ -137,9 +144,14 @@ export async function postJson<T = unknown>(url: string, body?: unknown): Promis
 // to its own message (e.g. WeatherSettings.svelte's geocode search,
 // where "upstream_failed" and "query_too_long" need different copy) -
 // loadJson()'s single error string doesn't carry the parsed body, only a
-// generic "Request failed: N" fallback. Shares postJson()'s discriminated
-// PostJsonResult shape rather than inventing a second one for GET.
-export async function getJson<T>(url: string): Promise<PostJsonResult<T>> {
+// generic "Request failed: N" fallback. Shares postJson()'s error variants
+// (JsonErrorResult) but not its optional-data success case: unlike
+// postJson(), a malformed/empty body here throws inside this function's
+// own try and resolves as a network-kind error instead, so `data` is
+// always actually present when `ok` is true.
+export type GetJsonResult<T> = { ok: true; data: T } | JsonErrorResult;
+
+export async function getJson<T>(url: string): Promise<GetJsonResult<T>> {
   try {
     const response = await fetch(url);
     if (!response.ok) {

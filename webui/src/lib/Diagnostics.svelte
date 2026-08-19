@@ -12,7 +12,7 @@
   // see its own onWifiReset comment for why that hands off to App.svelte
   // instead of rendering a "done" state locally.
   interface Props {
-    onWifiReset: (apSsid: string) => void;
+    onWifiReset: (apSsid: string | undefined) => void;
   }
   let { onWifiReset }: Props = $props();
 </script>

@@ -3,9 +3,13 @@
 
   // onWifiReset fires once /api/wifi/reset succeeds - see its own call
   // site in resetWifi() below for why this hands off to App.svelte
-  // instead of rendering a "done" state locally.
+  // instead of rendering a "done" state locally. apSsid is undefined
+  // when the response body didn't fully arrive before the device's own
+  // reboot severed the connection carrying it (see resetWifi()'s own
+  // comment) - the reset was still scheduled either way, so this is
+  // still success, just without the SSID to show.
   interface Props {
-    onWifiReset: (apSsid: string) => void;
+    onWifiReset: (apSsid: string | undefined) => void;
   }
   let { onWifiReset }: Props = $props();
 
@@ -58,7 +62,7 @@
               : `Reset failed: ${result.status}`;
       return;
     }
-    onWifiReset(result.data.apSsid);
+    onWifiReset(result.data?.apSsid);
   }
 </script>
 

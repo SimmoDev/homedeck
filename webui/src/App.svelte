@@ -29,6 +29,15 @@
   // of this view - a page reload is the correct next step, once the
   // device is actually reachable again at whatever address it gets from
   // reprovisioning.
+  //
+  // wifiResetSsid is separate from wifiResetTriggered (rather than one
+  // `string | undefined`) because "reset happened, SSID unknown" and
+  // "no reset happened yet" are both otherwise indistinguishable -
+  // WifiReset.svelte's own onWifiReset can pass undefined for the SSID
+  // when the device's response body didn't fully arrive before its
+  // reboot severed the connection carrying it, which is still a
+  // successful reset, not a missing one.
+  let wifiResetTriggered = $state(false);
   let wifiResetSsid: string | undefined = $state(undefined);
 
   async function loadStatus() {
@@ -60,14 +69,19 @@
   loadStatus();
 </script>
 
-<div class="card" class:card-wide={status?.authenticated && !wifiResetSsid}>
+<div class="card" class:card-wide={status?.authenticated && !wifiResetTriggered}>
   <h1>HomeDeck</h1>
 
-  {#if wifiResetSsid}
+  {#if wifiResetTriggered}
     <p class="hint">
       Wi-Fi credentials cleared. The device is rebooting into setup mode - connect to its
-      <strong>{wifiResetSsid}</strong> Wi-Fi network from a computer or phone, or use the on-device touch screen, to
-      reconfigure Wi-Fi. This page will not be reachable again until then.
+      {#if wifiResetSsid}
+        <strong>{wifiResetSsid}</strong> Wi-Fi network
+      {:else}
+        Wi-Fi setup network
+      {/if}
+      from a computer or phone, or use the on-device touch screen, to reconfigure Wi-Fi. This page will not be
+      reachable again until then.
     </p>
   {:else if error}
     <p class="error">Error: {error}</p>
@@ -84,7 +98,12 @@
     <button class="secondary" onclick={logout}>Log out</button>
     <Settings />
     <Ota />
-    <Diagnostics onWifiReset={(apSsid) => (wifiResetSsid = apSsid)} />
+    <Diagnostics
+      onWifiReset={(apSsid) => {
+        wifiResetTriggered = true;
+        wifiResetSsid = apSsid;
+      }}
+    />
   {/if}
 </div>
 
