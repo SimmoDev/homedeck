@@ -83,7 +83,7 @@
       ["latitude", String(result.latitude)],
       ["longitude", String(result.longitude)],
       ["display_name", label],
-    ]) {
+    ] as const) {
       const postResult = await postJson("/api/settings", {
         module: kWeatherModuleId,
         key,
