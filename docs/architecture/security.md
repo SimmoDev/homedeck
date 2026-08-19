@@ -23,9 +23,20 @@ API input](#requirement-validate-api-input) below for the related but
 distinct question of validating *what* an authenticated request contains.
 
 Login attempts are rate-limited: `AdminAuthService` locks out further
-login attempts for a cooldown period once a small number of consecutive
-failures land, closing the "guess the password unboundedly" gap a bare
-password check alone would leave open. State-changing endpoints rely on
+login attempts for a 60-second cooldown once five consecutive failures
+land, closing the "guess the password unboundedly" gap a bare password
+check alone would leave open. **Accepted risk:** the lockout is global,
+not per-client — `HttpRequest` carries no client address (see
+[web-ui.md](web-ui.md#security)) — so any device on the LAN can lock
+out the legitimate admin's own login for repeated 60-second windows,
+indefinitely. This is a deliberate tradeoff, not an oversight: the
+device has exactly one admin account, per-client tracking has no
+natural key to key off without adding one, and the realistic exposure
+is the same "single-user home LAN" trust boundary this document's OTA
+image integrity section already accepts elsewhere — a LAN-local
+nuisance DoS, not a way to bypass authentication itself.
+
+State-changing endpoints rely on
 the session cookie's `SameSite=Strict` attribute as their CSRF
 mitigation — a deliberate choice, not an oversight — rather than a
 separate per-request CSRF token, since it blocks the cookie from being
