@@ -1,5 +1,6 @@
 #include "core/weather_routes.h"
 
+#include "core/json_request.h"
 #include "core/url_codec.h"
 #include "third_party/nlohmann/json.hpp"
 
@@ -62,14 +63,14 @@ void RegisterWeatherRoutes(HttpServer& server, HttpClient& http_client, OpenMete
                 return HttpResponse{502, "application/json", R"({"error":"upstream_failed"})", {}};
             }
 
-            nlohmann::json parsed = nlohmann::json::parse(response.body, nullptr, /*allow_exceptions=*/false);
-            if (parsed.is_discarded() || !parsed.is_object()) {
+            std::optional<nlohmann::json> parsed = TryParseJsonObject(response.body);
+            if (!parsed.has_value()) {
                 return HttpResponse{502, "application/json", R"({"error":"upstream_invalid_response"})", {}};
             }
 
             nlohmann::json results = nlohmann::json::array();
-            auto upstream_results = parsed.find("results");
-            if (upstream_results != parsed.end() && upstream_results->is_array()) {
+            auto upstream_results = parsed->find("results");
+            if (upstream_results != parsed->end() && upstream_results->is_array()) {
                 for (const auto& entry : *upstream_results) {
                     // "name" must both be present and string-typed, same
                     // as latitude/longitude below must be present and

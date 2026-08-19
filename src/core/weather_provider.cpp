@@ -1,5 +1,6 @@
 #include "core/weather_provider.h"
 
+#include "core/json_request.h"
 #include "third_party/nlohmann/json.hpp"
 
 #include <chrono>
@@ -97,9 +98,9 @@ void OpenMeteoWeatherProvider::PollOnce() {
     std::string name = display_name.has_value() ? display_name->value : "";
 
     if (response.success && response.status_code == 200) {
-        nlohmann::json parsed = nlohmann::json::parse(response.body, nullptr, /*allow_exceptions=*/false);
-        auto current = parsed.is_object() ? parsed.find("current") : parsed.end();
-        if (!parsed.is_discarded() && current != parsed.end() && current->is_object() &&
+        std::optional<nlohmann::json> parsed = TryParseJsonObject(response.body);
+        auto current = parsed.has_value() ? parsed->find("current") : nlohmann::json::iterator{};
+        if (parsed.has_value() && current != parsed->end() && current->is_object() &&
             current->contains("temperature_2m") && current->contains("weather_code")) {
             double temperature_c = current->at("temperature_2m").get<double>();
             int weather_code = current->at("weather_code").get<int>();
@@ -132,13 +133,12 @@ void OpenMeteoWeatherProvider::PollOnce() {
     // non-live so the UI can distinguish it from a fresh reading.
     auto cached = storage_.ReadCache(kModuleId, kCacheKey);
     if (cached.has_value()) {
-        nlohmann::json parsed = nlohmann::json::parse(cached->value, nullptr, /*allow_exceptions=*/false);
-        if (!parsed.is_discarded() && parsed.is_object() && parsed.contains("temperature_c") &&
-            parsed.contains("weather_code")) {
+        std::optional<nlohmann::json> parsed = TryParseJsonObject(cached->value);
+        if (parsed.has_value() && parsed->contains("temperature_c") && parsed->contains("weather_code")) {
             {
                 std::lock_guard<std::mutex> lock(mutex_);
-                state_ = WeatherState{true, true, false, parsed.at("temperature_c").get<double>(),
-                                       parsed.at("weather_code").get<int>(), name};
+                state_ = WeatherState{true, true, false, parsed->at("temperature_c").get<double>(),
+                                       parsed->at("weather_code").get<int>(), name};
             }
             event_bus_.Publish(WeatherUpdatedEvent{});
             return;

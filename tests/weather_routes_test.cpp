@@ -301,6 +301,23 @@ TEST_F(WeatherRoutesTest, GeocodeReturns502OnMalformedUpstreamJson) {
     EXPECT_NE(result.body.find("upstream_invalid_response"), std::string::npos);
 }
 
+TEST_F(WeatherRoutesTest, GeocodeReturns502OnExcessivelyNestedUpstreamJson) {
+    std::string nested_body;
+    for (int i = 0; i < 40; ++i) nested_body += "[";
+    for (int i = 0; i < 40; ++i) nested_body += "]";
+    geocode_http_client_.SetResponse(homedeck::HttpClientResponse{true, 200, nested_body});
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
+    ASSERT_TRUE(server.Start(18320));
+    std::string cookie = Login(18320);
+
+    auto result = HttpRequestRaw(18320, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    EXPECT_EQ(result.status_code, 502);
+    EXPECT_NE(result.body.find("upstream_invalid_response"), std::string::npos);
+}
+
 TEST_F(WeatherRoutesTest, GeocodeReturnsEmptyResultsWhenUpstreamOmitsResultsKey) {
     geocode_http_client_.SetResponse(homedeck::HttpClientResponse{true, 200, R"({"generationtime_ms":0.1})"});
 

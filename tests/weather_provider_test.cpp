@@ -161,6 +161,36 @@ TEST_F(WeatherProviderTest, FetchFailureWithNoPriorCacheReportsNoReading) {
     EXPECT_FALSE(state.live);
 }
 
+TEST_F(WeatherProviderTest, ExcessivelyNestedForecastResponseReportsNoReading) {
+    // The same stack-overflow-guard the harmony_connection_test.cpp
+    // handshake/config-fetch tests exercise, here for the forecast
+    // fetch's own parse - both must go through the same bounded parser
+    // (TryParseJsonObject()) since both parse a network-supplied body.
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    std::string nested_body;
+    for (int i = 0; i < 40; ++i) nested_body += "[";
+    for (int i = 0; i < 40; ++i) nested_body += "]";
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, nested_body});
+
+    homedeck::OpenMeteoWeatherProvider provider(http_client, storage, bus, kFastPollInterval);
+
+    ASSERT_TRUE(WaitFor([&] { return http_client.GetCount() > 0; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    homedeck::WeatherState state = provider.Snapshot();
+    EXPECT_TRUE(state.configured);
+    EXPECT_FALSE(state.has_reading);
+    EXPECT_FALSE(state.live);
+}
+
 TEST_F(WeatherProviderTest, FetchFailureFallsBackToPriorCache) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
