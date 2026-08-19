@@ -29,7 +29,12 @@
   }
 
   async function saveDeviceName() {
-    const validationError = deviceNameError(deviceName);
+    // Trimmed before validating/saving, matching HarmonySettings.svelte's
+    // saveHubHost() - a pasted name with incidental leading/trailing
+    // whitespace was otherwise rejected outright by deviceNameError()'s
+    // charset check instead of silently trimmed.
+    const trimmed = deviceName.trim();
+    const validationError = deviceNameError(trimmed);
     if (validationError) {
       saveError = validationError;
       saved = false;
@@ -41,7 +46,7 @@
     const result = await postJson("/api/settings", {
       module: kModuleId,
       key: kDeviceNameKey,
-      value: deviceName,
+      value: trimmed,
       schemaVersion: kDeviceNameSchemaVersion,
     });
     saving = false;
@@ -54,6 +59,7 @@
             : `Save failed: ${result.status}`;
       return;
     }
+    deviceName = trimmed;
     saved = true;
   }
 
