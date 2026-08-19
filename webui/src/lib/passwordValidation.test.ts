@@ -36,6 +36,22 @@ describe("validateSetupPassword", () => {
       `Password must be at least ${kMinPasswordLength} characters.`,
     );
   });
+
+  it("measures length in UTF-8 bytes, not UTF-16 code units, matching AdminAuthService::kMaxPasswordLength", () => {
+    // "é" is 1 UTF-16 code unit but 2 UTF-8 bytes - 200 of them is 200
+    // code units (under kMaxPasswordLength by .length) but 400 bytes
+    // (over it), matching what the server actually measures.
+    const long = "é".repeat(200);
+    expect(validateSetupPassword(long, long)).toBe(
+      `Password must be at most ${kMaxPasswordLength} characters.`,
+    );
+  });
+
+  it("accepts a non-ASCII password whose UTF-8 byte length is exactly at the maximum", () => {
+    // 128 "é" characters = 256 UTF-8 bytes exactly.
+    const long = "é".repeat(kMaxPasswordLength / 2);
+    expect(validateSetupPassword(long, long)).toBeUndefined();
+  });
 });
 
 describe("describeAuthError", () => {

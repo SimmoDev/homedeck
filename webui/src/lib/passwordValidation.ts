@@ -7,15 +7,28 @@
 export const kMinPasswordLength = 8; // matches AdminAuthService::kMinPasswordLength
 export const kMaxPasswordLength = 256; // matches AdminAuthService::kMaxPasswordLength
 
+// AdminAuthService::kMinPasswordLength/kMaxPasswordLength bound
+// password->size() - a std::string holding the request body's raw UTF-8
+// bytes, not a character count. password.length here is JS's own UTF-16
+// code-unit count, which under-counts every non-ASCII character (most
+// visibly astral-plane characters like emoji, counted as 2 code units
+// but 4+ UTF-8 bytes) - a password that reads as within-bounds
+// client-side could still be rejected server-side. TextEncoder gives
+// the same UTF-8 byte count the server actually checks.
+function utf8ByteLength(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
 // Client-side mirror of AdminAuthService's own checks, applied before a
 // network round trip - the server remains authoritative regardless (see
 // describeAuthError's password_too_short/password_too_long cases, still
 // reachable if this is ever out of sync).
 export function validateSetupPassword(password: string, confirmPassword: string): string | undefined {
-  if (password.length < kMinPasswordLength) {
+  const byteLength = utf8ByteLength(password);
+  if (byteLength < kMinPasswordLength) {
     return `Password must be at least ${kMinPasswordLength} characters.`;
   }
-  if (password.length > kMaxPasswordLength) {
+  if (byteLength > kMaxPasswordLength) {
     return `Password must be at most ${kMaxPasswordLength} characters.`;
   }
   if (password !== confirmPassword) {
