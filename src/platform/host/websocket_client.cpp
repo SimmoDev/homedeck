@@ -26,6 +26,14 @@ void EnsureGlobalInit() {
 // platform/host/http_client.cpp's kTimeoutSeconds.
 constexpr long kConnectTimeoutSeconds = 10;
 
+// Bounds how long SendText() below can block waiting for the socket to
+// become writable - matches FirmwareWebSocketClient's own kSendTimeoutMs.
+// CURLOPT_TIMEOUT (used for the connect handshake above) has no effect
+// here: it only governs curl_easy_perform(), and this transport's sends
+// happen directly against the raw socket CONNECT_ONLY left open, via
+// curl_ws_send(), which has no timeout option of its own.
+constexpr int kSendTimeoutMs = 10000;
+
 }  // namespace
 
 HostWebSocketClient::~HostWebSocketClient() { Close(); }
@@ -60,8 +68,28 @@ bool HostWebSocketClient::SendText(const std::string& text) {
     if (curl_ == nullptr) {
         return false;
     }
+    CURL* curl = static_cast<CURL*>(curl_);
+
+    // Bounded the same way ReceiveText() bounds its own read - without
+    // this, a hub that stops draining its receive buffer (hung process,
+    // not a clean close) would block this thread indefinitely, and with
+    // it Task::~Task()'s own "stops and joins promptly" contract, since
+    // nothing checks stop_token mid-call (see HarmonyConnection's own
+    // comment on why).
+    curl_socket_t sockfd = CURL_SOCKET_BAD;
+    if (curl_easy_getinfo(curl, CURLINFO_ACTIVESOCKET, &sockfd) != CURLE_OK || sockfd == CURL_SOCKET_BAD) {
+        return false;
+    }
+    struct pollfd pfd = {};
+    pfd.fd = sockfd;
+    pfd.events = POLLOUT;
+    int poll_result = poll(&pfd, 1, kSendTimeoutMs);
+    if (poll_result <= 0 || !(pfd.revents & POLLOUT)) {
+        return false;
+    }
+
     size_t sent = 0;
-    CURLcode result = curl_ws_send(static_cast<CURL*>(curl_), text.data(), text.size(), &sent, 0, CURLWS_TEXT);
+    CURLcode result = curl_ws_send(curl, text.data(), text.size(), &sent, 0, CURLWS_TEXT);
     return result == CURLE_OK && sent == text.size();
 }
 
