@@ -81,15 +81,24 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
     auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
 
     for (;;) {
+        // Clamped to 0 (poll()'s own "return immediately" value), not
+        // returned early on a non-positive remainder - timeout_ms=0
+        // (DrainStaleMessages()'s own non-blocking poll, see its own
+        // comment) must still reach poll() at least once. Computing
+        // `deadline` above and checking `remaining` here are two
+        // separate steady_clock reads; the wall-clock time between them
+        // is enough on its own to make remaining <= 0 even for
+        // timeout_ms=0, which used to skip poll() entirely and return
+        // std::nullopt unconditionally - a silent no-op matching
+        // FirmwareWebSocketClient's own 0ms `wait_for()` in name only,
+        // not in behavior.
         auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
-        if (remaining.count() <= 0) {
-            return std::nullopt;
-        }
+        int poll_timeout_ms = remaining.count() > 0 ? static_cast<int>(remaining.count()) : 0;
 
         struct pollfd pfd = {};
         pfd.fd = sockfd;
         pfd.events = POLLIN;
-        int poll_result = poll(&pfd, 1, static_cast<int>(remaining.count()));
+        int poll_result = poll(&pfd, 1, poll_timeout_ms);
         if (poll_result <= 0 || !(pfd.revents & POLLIN)) {
             return std::nullopt;  // timeout or error
         }
