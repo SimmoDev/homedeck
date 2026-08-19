@@ -79,7 +79,15 @@
       <p class="hint">No entries match the current filter.</p>
     {:else}
       <ul class="log-entries">
-        {#each filteredLogs as entry (entry.timestamp + entry.component + entry.message)}
+        <!-- Keyed on index, not entry content - logger.cpp's timestamp is
+             one-second resolution, so two entries from the same component
+             within the same second (a retry loop, a repeated warning) can
+             have identical timestamp+component+message, which a
+             content-based key would collide on. filteredLogs is always
+             freshly derived, never reordered in place, so index identity
+             doesn't need to survive across renders the way it would for
+             an animated/reorderable list. -->
+        {#each filteredLogs as entry, i (i)}
           <li class="log-entry log-level-{entry.level}">
             <div class="log-meta">
               <span class="log-timestamp">{formatTimestamp(entry.timestamp)}</span>
