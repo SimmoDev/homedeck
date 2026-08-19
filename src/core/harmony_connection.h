@@ -331,7 +331,16 @@ private:
     // HarmonyConnectionSnapshot::has_config's own comment); this is only
     // for the "user explicitly removed the hub" case, which has no
     // "the hub might come back on its own" reasoning to preserve.
-    void ClearConfigIfPresent();
+    //
+    // force_publish: the "hub_host changed to a different address" branch
+    // of ConnectionLoop() passes true - unlike the unconfigured branch, it
+    // needs HarmonyConfigUpdatedEvent to fire even when has_config was
+    // already false (e.g. the previous address never successfully
+    // connected either), since HarmonyNotificationBridge subscribes to
+    // this event specifically to tell "a fresh address is being tried" -
+    // worth a new failure notification - apart from "the same address is
+    // just retrying after backoff" - not. See that class's own comment.
+    void ClearConfigIfPresent(bool force_publish = false);
     // watch_commands: only the connected loop's own wait should notice a
     // pending command (ws_client_ only exists then); the unconfigured/
     // error-backoff waits leave it queued rather than waking early on

@@ -35,6 +35,31 @@ TEST(HarmonyNotificationBridge, NotifiesOnceWhenEnteringError) {
     EXPECT_EQ(notifications, 1);
 }
 
+TEST(HarmonyNotificationBridge, NotifiesAgainAfterReconfiguringToADifferentHubThatAlsoFails) {
+    homedeck::EventBus bus;
+    homedeck::HarmonyNotificationBridge bridge(bus);
+
+    int notifications = 0;
+    auto sub = bus.Subscribe<homedeck::NotificationEvent>(
+        [&notifications](const homedeck::NotificationEvent&) { notifications++; });
+
+    // Hub A fails.
+    bus.Publish(homedeck::HarmonyConnectionStateChangedEvent{homedeck::HarmonyConnectionState::kError});
+    EXPECT_EQ(notifications, 1);
+
+    // The user re-points hub_host at a different address (B), never
+    // reaching kConnected in between - HarmonyConnection publishes
+    // HarmonyConfigUpdatedEvent for this (ClearConfigIfPresent()'s
+    // force_publish), then retries via kConnecting/kError as usual.
+    bus.Publish(homedeck::HarmonyConfigUpdatedEvent{});
+    bus.Publish(homedeck::HarmonyConnectionStateChangedEvent{homedeck::HarmonyConnectionState::kConnecting});
+    bus.Publish(homedeck::HarmonyConnectionStateChangedEvent{homedeck::HarmonyConnectionState::kError});
+
+    // Hub B's own failure must notify too, not be swallowed by hub A's
+    // still-latched notification.
+    EXPECT_EQ(notifications, 2);
+}
+
 TEST(HarmonyNotificationBridge, NotifiesAgainAfterRecoveringThenFailingAgain) {
     homedeck::EventBus bus;
     homedeck::HarmonyNotificationBridge bridge(bus);

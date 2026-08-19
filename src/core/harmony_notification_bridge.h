@@ -15,6 +15,16 @@ namespace homedeck {
 // kConnecting, which are just points along the same still-failing retry
 // cycle, not a recovery.
 //
+// Also resets on HarmonyConfigUpdatedEvent - published (among other
+// things) whenever ConnectionLoop() starts trying a *different*
+// hub_host (see ClearConfigIfPresent()'s force_publish parameter), which
+// is not itself a recovery but does mean the very next kError is a fresh
+// address's own first failure, not a continuation of the previous
+// address's already-notified one; without this, editing hub_host from
+// one unreachable address to another would silently swallow the second
+// address's failure notification, since neither transition passes
+// through kConnected.
+//
 // Only needs EventBus& - HarmonyConnectionStateChangedEvent already
 // carries the new state directly, so there's nothing to read back from
 // HarmonyConnection itself (unlike LowBatteryMonitor/NetworkStatusMonitor,
@@ -27,6 +37,7 @@ public:
 private:
     bool already_notified_ = false;
     EventBus::ScopedSubscription state_subscription_;
+    EventBus::ScopedSubscription config_subscription_;
 };
 
 }  // namespace homedeck

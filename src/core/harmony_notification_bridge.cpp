@@ -16,6 +16,8 @@ HarmonyNotificationBridge::HarmonyNotificationBridge(EventBus& event_bus) {
                 already_notified_ = false;
             }
         });
+    config_subscription_ = event_bus.Subscribe<HarmonyConfigUpdatedEvent>(
+        [this](const HarmonyConfigUpdatedEvent&) { already_notified_ = false; });
 }
 
 }  // namespace homedeck

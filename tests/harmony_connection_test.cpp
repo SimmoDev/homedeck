@@ -460,6 +460,47 @@ TEST_F(HarmonyConnectionTest, ChangingHubHostToADifferentAddressClearsTheCachedC
     connection.Stop();
 }
 
+TEST_F(HarmonyConnectionTest, ChangingHubHostAfterANeverSuccessfulAttemptStillPublishesConfigUpdated) {
+    // Neither address here ever reaches has_config=true - unlike
+    // ChangingHubHostToADifferentAddressClearsTheCachedConfig above, this
+    // covers ClearConfigIfPresent()'s force_publish path specifically:
+    // HarmonyConfigUpdatedEvent must still fire on the address change so
+    // HarmonyNotificationBridge can tell "a fresh address's own first
+    // failure" apart from "the previous address's already-notified one",
+    // even though there was no cached config to actually clear.
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{false, 0, ""});
+
+    std::atomic<int> config_events{0};
+    auto config_sub = bus.Subscribe<homedeck::HarmonyConfigUpdatedEvent>(
+        [&config_events](const homedeck::HarmonyConfigUpdatedEvent&) { config_events++; });
+
+    auto script = std::make_shared<WsScript>();
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+
+    int events_before_change = config_events.load();
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "192.168.1.99"));
+    connection.TriggerReconnect();
+
+    ASSERT_TRUE(WaitFor([&] { return config_events.load() > events_before_change; }));
+
+    connection.Stop();
+}
+
 TEST_F(HarmonyConnectionTest, HandshakeFailureEntersErrorStateThenRecoversOnceItSucceeds) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

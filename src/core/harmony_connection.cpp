@@ -300,7 +300,7 @@ void HarmonyConnection::SetState(HarmonyConnectionState state) {
     event_bus_.Publish(HarmonyConnectionStateChangedEvent{state});
 }
 
-void HarmonyConnection::ClearConfigIfPresent() {
+void HarmonyConnection::ClearConfigIfPresent(bool force_publish) {
     bool had_config;
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -312,7 +312,7 @@ void HarmonyConnection::ClearConfigIfPresent() {
             state_.current_activity_id.clear();
         }
     }
-    if (had_config) {
+    if (had_config || force_publish) {
         event_bus_.Publish(HarmonyConfigUpdatedEvent{});
     }
 }
@@ -345,7 +345,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         // than a stale "connected" snapshot for the old hub - see
         // HarmonySettings.svelte's own post-save comment.
         if (hub_host_setting->value != last_hub_host_) {
-            ClearConfigIfPresent();
+            ClearConfigIfPresent(/*force_publish=*/true);
         }
         last_hub_host_ = hub_host_setting->value;
 
