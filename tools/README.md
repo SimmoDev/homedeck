@@ -26,7 +26,7 @@ for the following defect classes:
 - `githooks/pre-commit` runs against staged doc/code files: doc
   narration/banned wording/stale ADR cross-references, broken relative
   Markdown links and anchors, and a staged `tests/*_test.cpp` file
-  missing from `tests/README.md`'s own test inventory
+  missing from [tests/README.md](../tests/README.md)'s own test inventory
   (`githooks/check-docs.sh`); unchecked ESP-IDF/mDNS/httpd return
   values in `firmware/main/` and `src/platform/firmware/`
   (`githooks/check-esp-idf-returns.sh`); a `curl_easy_perform()`
