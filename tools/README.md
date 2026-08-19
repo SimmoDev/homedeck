@@ -32,7 +32,14 @@ for the following defect classes:
   (`githooks/check-esp-idf-returns.sh`); a `curl_easy_perform()`
   call with no `CURLOPT_TIMEOUT`/`CURLOPT_CONNECTTIMEOUT` set anywhere
   in the same file, in any staged `.cpp` file
-  (`githooks/check-curl-timeouts.sh`); and, against every staged file
+  (`githooks/check-curl-timeouts.sh`); the same rule for
+  `esp_http_client_perform()` (no `config.timeout_ms` set anywhere in
+  the file), scoped to the same `firmware/main/`/`src/platform/firmware/`
+  files as the ESP-IDF-return check above - `esp_websocket_client_start()`
+  is deliberately not covered by this one, since its own config struct's
+  `network_timeout_ms` already defaults to a bounded 10s, unlike
+  libcurl's own multi-minute default
+  (`githooks/check-esp-http-timeouts.sh`); and, against every staged file
   regardless of extension, private-key blocks, cloud-provider/API-token
   credential shapes, and a staged `.env` file
   (`githooks/check-secrets.sh`).

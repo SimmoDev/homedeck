@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Runs the doc-narration, ESP-IDF-return, curl-timeout, and secret-scan
-# checks against staged files. All four checks warn only - they never
-# block a commit. Activate with:
+# Runs the doc-narration, ESP-IDF-return, curl-timeout, esp-http-timeout,
+# and secret-scan checks against staged files. All five checks warn only
+# - they never block a commit. Activate with:
 #   git config core.hooksPath tools/githooks
 set -uo pipefail
 
@@ -27,6 +27,8 @@ fi
 if [ -n "$esp_files" ]; then
     # shellcheck disable=SC2086
     "$repo_root/tools/githooks/check-esp-idf-returns.sh" $esp_files || found_issue=1
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-esp-http-timeouts.sh" $esp_files || found_issue=1
 fi
 
 if [ -n "$cpp_files" ]; then
