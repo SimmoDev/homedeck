@@ -41,7 +41,7 @@
 <div class="crash-diagnostics">
   <h2>Status</h2>
   {#if error}
-    <p class="error">Error: {error}</p>
+    <p class="error" aria-live="polite">Error: {error}</p>
     <button onclick={load}>Retry</button>
   {:else if !status}
     <p class="hint">Loading...</p>
@@ -66,7 +66,7 @@
         </button>
       </p>
       {#if coreDumpError}
-        <p class="error">{coreDumpError}</p>
+        <p class="error" aria-live="polite">{coreDumpError}</p>
       {/if}
     {:else}
       <p class="hint">No core dump present.</p>

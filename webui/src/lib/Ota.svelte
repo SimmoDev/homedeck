@@ -119,7 +119,7 @@
 <div class="ota">
   <h2>Firmware update</h2>
   {#if error}
-    <p class="error">Error: {error}</p>
+    <p class="error" aria-live="polite">Error: {error}</p>
     <button onclick={loadStatus}>Retry</button>
   {:else if !status}
     <p class="hint">Loading...</p>
@@ -142,7 +142,7 @@
         {rebooting ? "Rebooting..." : "Reboot now"}
       </button>
       {#if rebootError}
-        <p class="error">{rebootError}</p>
+        <p class="error" aria-live="polite">{rebootError}</p>
       {/if}
     {:else}
       <input
@@ -161,7 +161,7 @@
       {#if uploadState === "uploading"}
         <p class="hint">Uploading... {uploadProgress}%</p>
       {:else if uploadState === "error"}
-        <p class="error">{uploadError}</p>
+        <p class="error" aria-live="polite">{uploadError}</p>
       {/if}
     {/if}
   {/if}

@@ -72,7 +72,7 @@
     {downloading ? "Downloading..." : "Download backup"}
   </button>
   {#if downloadError}
-    <p class="error">{downloadError}</p>
+    <p class="error" aria-live="polite">{downloadError}</p>
   {/if}
 
   <div class="row">
@@ -88,7 +88,7 @@
     </button>
   </div>
   {#if restoreError}
-    <p class="error">{restoreError}</p>
+    <p class="error" aria-live="polite">{restoreError}</p>
   {:else if restoreResult}
     <p class="hint">{restoreResult}</p>
   {/if}

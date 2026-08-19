@@ -54,7 +54,7 @@
 <div class="diagnostics-logs">
   <h2>Logs</h2>
   {#if logsError}
-    <p class="error">Error: {logsError}</p>
+    <p class="error" aria-live="polite">Error: {logsError}</p>
     <button onclick={loadLogs}>Retry</button>
   {:else if !logs}
     <p class="hint">Loading...</p>

@@ -119,7 +119,7 @@
 <div class="section">
   <h3>Weather</h3>
   {#if error}
-    <p class="error">Error: {error}</p>
+    <p class="error" aria-live="polite">Error: {error}</p>
     <button onclick={loadWeatherLocation}>Retry</button>
   {:else if !loaded}
     <p class="hint">Loading...</p>
@@ -145,10 +145,10 @@
       </button>
     </div>
     {#if searchError}
-      <p class="error">{searchError}</p>
+      <p class="error" aria-live="polite">{searchError}</p>
     {/if}
     {#if saveError}
-      <p class="error">{saveError}</p>
+      <p class="error" aria-live="polite">{saveError}</p>
     {/if}
     {#if results.length > 0}
       <ul class="weather-results">

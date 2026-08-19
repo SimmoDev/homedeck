@@ -91,7 +91,7 @@
       {wifiResetState === "resetting" ? "Resetting..." : "Reset Wi-Fi credentials"}
     </button>
     {#if wifiResetState === "error"}
-      <p class="error">{wifiResetError}</p>
+      <p class="error" aria-live="polite">{wifiResetError}</p>
     {/if}
   {/if}
 </div>

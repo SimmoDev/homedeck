@@ -84,7 +84,7 @@
       reachable again until then.
     </p>
   {:else if error}
-    <p class="error">Error: {error}</p>
+    <p class="error" aria-live="polite">Error: {error}</p>
     <button onclick={loadStatus}>Retry</button>
   {:else if !status}
     <p class="hint">Loading...</p>

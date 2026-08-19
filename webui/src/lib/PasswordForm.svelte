@@ -63,7 +63,7 @@
     </label>
   {/if}
   {#if error}
-    <p class="error">{error}</p>
+    <p class="error" aria-live="polite">{error}</p>
   {/if}
   <button type="submit" disabled={submitting}>
     {#if submitting}

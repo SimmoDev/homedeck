@@ -63,7 +63,7 @@
 <div class="section">
   <h3>Device name</h3>
   {#if error}
-    <p class="error">Error: {error}</p>
+    <p class="error" aria-live="polite">Error: {error}</p>
     <button onclick={loadDeviceName}>Retry</button>
   {:else if !loaded}
     <p class="hint">Loading...</p>
@@ -87,7 +87,7 @@
     </div>
     <p class="hint">Used as the device's address on your network ({deviceName || "homedeck"}.local).</p>
     {#if saveError}
-      <p class="error">{saveError}</p>
+      <p class="error" aria-live="polite">{saveError}</p>
     {:else if saved}
       <p class="hint">Saved.</p>
     {/if}
