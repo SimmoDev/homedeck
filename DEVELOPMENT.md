@@ -257,8 +257,10 @@ Once the simulator target exists (M1):
   [ADR-0025](docs/decisions/ADR-0025-webui-static-asset-storage.md)),
   which both the firmware and simulator builds below embed/read.
   `npm run check` runs `svelte-check` for type errors and `npm run test`
-  runs Vitest unit tests (currently just `passwordValidation.ts`'s pure
-  logic - not a full component-testing stack, see
+  runs Vitest unit tests (currently `passwordValidation.ts`'s,
+  `harmonyValidation.ts`'s, and `deviceNameValidation.ts`'s pure
+  validation logic, plus `api.ts`'s fetch/JSON helpers - not a full
+  component-testing stack, see
   [web-ui.md](docs/architecture/web-ui.md#status) for why), both
   independently of the build. Rebuild after any change under
   `webui/src/`.
