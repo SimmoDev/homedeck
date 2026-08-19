@@ -76,7 +76,13 @@
   {/if}
 
   <div class="row">
-    <input type="file" accept=".json" onchange={onRestoreFileChange} disabled={restoring} />
+    <input
+      type="file"
+      accept=".json"
+      aria-label="Backup file to restore"
+      onchange={onRestoreFileChange}
+      disabled={restoring}
+    />
     <button onclick={restore} disabled={!restoreFile || restoring}>
       {restoring ? "Restoring..." : "Restore"}
     </button>

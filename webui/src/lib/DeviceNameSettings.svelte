@@ -72,6 +72,7 @@
       <input
         id="device-name"
         type="text"
+        aria-label="Device name"
         bind:value={deviceName}
         disabled={saving}
         maxlength="63"

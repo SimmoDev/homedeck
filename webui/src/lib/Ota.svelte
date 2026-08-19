@@ -145,7 +145,13 @@
         <p class="error">{rebootError}</p>
       {/if}
     {:else}
-      <input type="file" accept=".bin" onchange={onFileChange} disabled={uploadState === "uploading"} />
+      <input
+        type="file"
+        accept=".bin"
+        aria-label="Firmware image to upload"
+        onchange={onFileChange}
+        disabled={uploadState === "uploading"}
+      />
       <button
         onclick={upload}
         disabled={!status.gateOpen || !selectedFile || uploadState === "uploading"}

@@ -153,6 +153,7 @@
       <input
         id="harmony-hub-host"
         type="text"
+        aria-label="Harmony Hub address"
         placeholder="Hub IP address or hostname"
         maxlength="255"
         bind:value={hubHost}

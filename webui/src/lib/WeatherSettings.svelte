@@ -132,6 +132,7 @@
     <div class="row">
       <input
         type="text"
+        aria-label="Search for a weather location"
         placeholder="Search for a city..."
         bind:value={query}
         disabled={searching || saving}
