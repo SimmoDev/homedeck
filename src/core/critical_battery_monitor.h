@@ -1,7 +1,7 @@
 #pragma once
 
-#include "core/clock.h"
 #include "core/event_bus.h"
+#include "core/latched_threshold_monitor.h"
 #include "platform/battery_reader.h"
 
 namespace homedeck {
@@ -14,12 +14,15 @@ struct CriticalBatteryStateChangedEvent {
     bool critical;
 };
 
-// Structural twin of LowBatteryMonitor, but for the "about to die, force
-// a safe shutdown" fault ADR-0005's Error-state-scope decision names -
-// see docs/architecture/power-management.md#status. Also gated on
-// external power, unlike LowBatteryMonitor: a critically-low battery
-// actively on external power isn't at brownout risk, the same reasoning
-// EvaluateOtaGate (core/ota_gate.h) already applies.
+// Built on the same LatchedThresholdMonitor as LowBatteryMonitor, but
+// for the "about to die, force a safe shutdown" fault ADR-0005's
+// Error-state-scope decision names - see
+// docs/architecture/power-management.md#status. Also gated on external
+// power, unlike LowBatteryMonitor: a critically-low battery actively on
+// external power isn't at brownout risk, the same reasoning
+// EvaluateOtaGate (core/ota_gate.h) already applies. Publishes both
+// edges of CriticalBatteryStateChangedEvent (see its own comment),
+// unlike LowBatteryMonitor's one-directional NotificationEvent.
 class CriticalBatteryMonitor {
 public:
     static constexpr int kCriticalThresholdPercent = 5;
@@ -27,10 +30,7 @@ public:
     CriticalBatteryMonitor(EventBus& event_bus, BatteryReader& battery_reader);
 
 private:
-    EventBus& event_bus_;
-    BatteryReader& battery_reader_;
-    bool already_critical_ = false;
-    EventBus::ScopedSubscription clock_subscription_;
+    LatchedThresholdMonitor monitor_;
 };
 
 }  // namespace homedeck

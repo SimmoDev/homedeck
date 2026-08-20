@@ -33,6 +33,7 @@ idf_component_register(
         "../../src/core/clock.cpp"
         "../../src/core/storage.cpp"
         "../../src/core/url_codec.cpp"
+        "../../src/core/latched_threshold_monitor.cpp"
         "../../src/core/low_battery_monitor.cpp"
         "../../src/core/critical_battery_monitor.cpp"
         "../../src/core/network_status_monitor.cpp"
