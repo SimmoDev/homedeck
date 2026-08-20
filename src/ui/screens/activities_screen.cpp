@@ -134,11 +134,23 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
 }
 
 ActivitiesScreen::~ActivitiesScreen() {
-    // Must go first, same reasoning as NotificationBanner's own
-    // dismiss_timer_/banner_ ordering - its callback reads `this` via
-    // user_data, so deleting root_ (and therefore status_label_) first
-    // would leave a still-armed timer able to fire against a
+    // Explicitly unsubscribed first, ahead of member destruction order
+    // (config_sub_/activity_sub_/state_sub_/dropped_sub_ are declared
+    // last in the header, so they'd otherwise auto-destruct *after* this
+    // body runs) - each callback below reads `this`'s own members, so an
+    // event dispatched while this destructor is still tearing down
+    // starting_timeout_timer_/root_ must not be able to run against a
     // partially-destroyed screen.
+    config_sub_.Reset();
+    activity_sub_.Reset();
+    state_sub_.Reset();
+    dropped_sub_.Reset();
+
+    // Must go first among what remains, same reasoning as
+    // NotificationBanner's own dismiss_timer_/banner_ ordering - its
+    // callback reads `this` via user_data, so deleting root_ (and
+    // therefore status_label_) first would leave a still-armed timer
+    // able to fire against a partially-destroyed screen.
     lv_timer_del(starting_timeout_timer_);
     lv_obj_del(root_);
 }
