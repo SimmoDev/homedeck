@@ -15,7 +15,9 @@ Covers the Core Concurrency Abstraction (`task_test.cpp`,
 `Clock` (`clock_test.cpp`, including the immediate-tick-at-construction
 behavior), `Storage` (`storage_test.cpp`), `HostHttpServer`
 (`http_server_test.cpp`, a real request/response round trip over a raw
-socket), `LowBatteryMonitor` (`low_battery_monitor_test.cpp`), and
+socket), `LatchedThresholdMonitor` (`latched_threshold_monitor_test.cpp` -
+the shared latch state machine `LowBatteryMonitor`/`CriticalBatteryMonitor`
+are both built on), `LowBatteryMonitor` (`low_battery_monitor_test.cpp`), and
 `AdminAuthService` (`admin_auth_service_test.cpp`,
 `admin_auth_routes_test.cpp`) for real — a queue actually blocking and
 delivering in FIFO order, a timer actually firing on schedule and
@@ -57,9 +59,12 @@ libcurl-backed transport, which that double stands in for - a real
 client/server WebSocket round trip over a raw socket against a
 hand-rolled RFC 6455 server, the same "test for real, not mocked"
 approach `http_server_test.cpp`/`http_client_test.cpp` already use for
-HTTP, covering a single frame reassembled across multiple reads, the
-message-size cap, and the zero-timeout non-blocking `ReceiveText(0)`
-case.
+HTTP, covering a single frame reassembled across multiple reads,
+multi-frame continuation reassembly, ping/pong keepalive interleaved
+with a fragmented message, a close frame echoed back, reserved/
+unexpected opcode rejection, `Sec-WebSocket-Accept` handshake
+validation, the message-size cap, and the zero-timeout non-blocking
+`ReceiveText(0)` case.
 `harmony_notification_bridge_test.cpp` covers `HarmonyNotificationBridge`'s
 notify-once-per-outage latch, and `harmony_routes_test.cpp` covers its two
 Web UI routes. Further module tests arrive alongside the modules they
