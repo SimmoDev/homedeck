@@ -209,16 +209,14 @@ TEST(HostWebSocketClient, ConnectSendAndReceiveARealTextFrameRoundTrip) {
 }
 
 TEST(HostWebSocketClient, ReceiveTextReassemblesOneFrameDeliveredAcrossMultipleReads) {
-    // A single WS frame whose payload is larger than ReceiveText()'s own
-    // internal read buffer (8192 bytes) arrives via more than one
-    // curl_ws_recv() call - curl reports this via a nonzero `bytesleft`
-    // until the frame's last chunk, which ReceiveText()'s loop must keep
+    // A single WS frame whose payload is larger than ReadExact()'s own
+    // per-call read size arrives via more than one poll()/curl_easy_recv()
+    // round trip - ReceiveText()'s ReadExact() calls must keep
     // accumulating rather than returning early on the first chunk. This
     // is distinct from RFC 6455 multi-frame continuation (FIN=0 then a
-    // continuation frame), which this class's own header comment
-    // documents as a real, deliberate limitation it doesn't yet handle -
-    // not exercised here since every payload this project has observed
-    // (ADR-0029) arrives as one frame.
+    // continuation frame, covered by
+    // ReceiveTextReassemblesARealMultiFrameContinuationMessage below) -
+    // one large single frame, not several small ones.
     int listen_fd = ListenOnLoopback(18301);
     std::string payload = "{\"activities\":[" + std::string(20000, 'a') + "]}";
 
@@ -239,6 +237,101 @@ TEST(HostWebSocketClient, ReceiveTextReassemblesOneFrameDeliveredAcrossMultipleR
 
     ASSERT_TRUE(response.has_value());
     EXPECT_EQ(*response, payload);
+}
+
+TEST(HostWebSocketClient, ReceiveTextReassemblesARealMultiFrameContinuationMessage) {
+    // RFC 6455 multi-frame continuation: FIN=0 on the first frame (TEXT
+    // opcode), then one or more FIN=0 CONTINUATION frames, then a final
+    // FIN=1 CONTINUATION frame - every payload this project has observed
+    // against the reference hub arrives as a single frame (ADR-0029), but
+    // ReceiveText()'s own loop handles this shape too; nothing before
+    // this test actually exercised it against the real backend.
+    int listen_fd = ListenOnLoopback(18308);
+
+    std::jthread server_thread([listen_fd] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        PerformServerHandshake(conn_fd);
+
+        std::vector<unsigned char> first = BuildServerFrameHeader(/*fin=*/false, /*opcode=*/0x1, 5);
+        send(conn_fd, first.data(), first.size(), MSG_NOSIGNAL);
+        send(conn_fd, "hello", 5, MSG_NOSIGNAL);
+
+        std::vector<unsigned char> middle = BuildServerFrameHeader(/*fin=*/false, /*opcode=*/0x0, 1);
+        send(conn_fd, middle.data(), middle.size(), MSG_NOSIGNAL);
+        send(conn_fd, " ", 1, MSG_NOSIGNAL);
+
+        std::vector<unsigned char> last = BuildServerFrameHeader(/*fin=*/true, /*opcode=*/0x0, 5);
+        send(conn_fd, last.data(), last.size(), MSG_NOSIGNAL);
+        send(conn_fd, "world", 5, MSG_NOSIGNAL);
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18308/"));
+    std::optional<std::string> response = client.ReceiveText(2000);
+
+    server_thread.join();
+    close(listen_fd);
+
+    ASSERT_TRUE(response.has_value());
+    EXPECT_EQ(*response, "hello world");
+}
+
+TEST(HostWebSocketClient, ReceiveTextRepliesToAPingAndKeepsWaitingForTheRealMessage) {
+    // RFC 6455's PING/PONG keep-alive: a PING frame gets an in-kind PONG
+    // reply (echoing its payload) and must not be surfaced to this call's
+    // own caller as message content - the caller is waiting for the
+    // getCurrentActivity/config response the hub actually sent, not a
+    // transport-level keep-alive.
+    int listen_fd = ListenOnLoopback(18309);
+    std::string received_pong_payload;
+
+    std::jthread server_thread([listen_fd, &received_pong_payload] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        PerformServerHandshake(conn_fd);
+
+        std::string ping_payload = "keepalive";
+        std::vector<unsigned char> ping_header = BuildServerFrameHeader(/*fin=*/true, /*opcode=*/0x9, ping_payload.size());
+        send(conn_fd, ping_header.data(), ping_header.size(), MSG_NOSIGNAL);
+        send(conn_fd, ping_payload.data(), ping_payload.size(), MSG_NOSIGNAL);
+
+        unsigned char reply_header[2];
+        if (read(conn_fd, reply_header, 2) == 2 && (reply_header[0] & 0x0F) == 0xA) {
+            bool masked = (reply_header[1] & 0x80) != 0;
+            uint64_t len = reply_header[1] & 0x7F;
+            unsigned char mask[4] = {};
+            if (masked) read(conn_fd, mask, 4);
+            std::string payload(len, '\0');
+            size_t got = 0;
+            while (got < len) {
+                ssize_t n = read(conn_fd, &payload[got], len - got);
+                if (n <= 0) break;
+                got += static_cast<size_t>(n);
+            }
+            if (masked) {
+                for (size_t i = 0; i < payload.size(); ++i) {
+                    payload[i] = static_cast<char>(static_cast<unsigned char>(payload[i]) ^ mask[i % 4]);
+                }
+            }
+            received_pong_payload = payload;
+        }
+
+        SendServerTextFrame(conn_fd, R"({"hello":"world"})");
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18309/"));
+    std::optional<std::string> response = client.ReceiveText(2000);
+
+    server_thread.join();
+    close(listen_fd);
+
+    EXPECT_EQ(received_pong_payload, "keepalive");
+    ASSERT_TRUE(response.has_value());
+    EXPECT_EQ(*response, R"({"hello":"world"})");
 }
 
 TEST(HostWebSocketClient, ReceiveTextRejectsAMessageOverTheSizeCap) {
