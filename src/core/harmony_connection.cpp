@@ -27,6 +27,20 @@ constexpr int kConfigFetchTimeoutMs = 10000;
 constexpr int kLivenessProbeTimeoutMs = 10000;
 constexpr std::chrono::seconds kUnconfiguredRecheckInterval{5};
 
+// Bounds DrainStaleMessages()'s own 0ms-poll loop - a distinct concern
+// from HarmonyConnection::kMaxPendingCommands (the pending-command queue
+// depth cap), which happens to share this value but isn't the thing this
+// bound actually depends on. What this bound should track is
+// FirmwareWebSocketClient::kMaxQueuedMessages (platform/firmware/
+// websocket_client.cpp) - the most messages that backend's own receive
+// queue can hold before it starts dropping the oldest itself, so this
+// loop empties a full queue in one drain rather than leaving stale
+// entries behind for the next one. Kept in sync by comment on both
+// sides, not a shared symbol - the two live in different targets
+// (homedeck_core vs. homedeck_platform_host) with no dependency edge
+// between them for a constant this minor to justify introducing one.
+constexpr size_t kMaxDrainIterations = 20;
+
 // Parses `text` as JSON, discarded (same convention as a parse error) if
 // it exceeds kMaxJsonNestingDepth (core/json_request.h) - every hub-response
 // parse in this file goes through this rather than nlohmann::json::parse()
@@ -484,7 +498,7 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
 
 void HarmonyConnection::DrainStaleMessages() {
     if (!ws_client_) return;
-    for (size_t i = 0; i < kMaxPendingCommands; ++i) {
+    for (size_t i = 0; i < kMaxDrainIterations; ++i) {
         if (!ws_client_->ReceiveText(0).has_value()) break;
     }
 }

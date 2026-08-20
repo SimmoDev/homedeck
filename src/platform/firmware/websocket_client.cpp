@@ -38,8 +38,9 @@ bool IsApplicationDataOpcode(uint8_t op_code) {
 // core/harmony_connection.h's own comment on this transport's shape)
 // would grow the queue without bound on a device that stays up for
 // weeks, since nothing currently drains a message nobody asked for.
-// Matches HarmonyConnection::kMaxPendingCommands's own cap/drop-oldest
-// shape.
+// core/harmony_connection.cpp's own DrainStaleMessages() loop
+// (kMaxDrainIterations) is sized to match this value, so a full queue
+// empties in one drain - keep the two in sync if this changes.
 constexpr size_t kMaxQueuedMessages = 20;
 
 // The ESP-IDF event-loop callback esp_websocket_register_events() wants -
