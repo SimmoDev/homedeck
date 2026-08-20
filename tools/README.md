@@ -20,15 +20,18 @@ All four target the K145 reference unit.
 
 ## Commit hooks
 
-Two git hook stages, both warn-only (never block a commit), checking
-for the following defect classes:
+Two git hook stages. Only the secret scan blocks a commit; every other
+check is warn-only - see `githooks/pre-commit`'s own header comment for
+why that split exists. Checking for the following defect classes:
 
 - `githooks/pre-commit` runs against staged doc/code files: doc
   narration/banned wording/stale ADR cross-references, broken relative
   Markdown links and anchors, and a staged `tests/*_test.cpp` file
   missing from [tests/README.md](../tests/README.md)'s own test inventory
-  (`githooks/check-docs.sh`); unchecked ESP-IDF/mDNS/httpd return
-  values in `firmware/main/` and `src/platform/firmware/`
+  (`githooks/check-docs.sh`); [hardware.md](../docs/architecture/hardware.md)'s
+  documented electrical/physical-facts-only scope, when that file is
+  staged (`githooks/check-hardware-md-scope.sh`); unchecked ESP-IDF/mDNS/httpd
+  return values in `firmware/main/` and `src/platform/firmware/`
   (`githooks/check-esp-idf-returns.sh`); a `curl_easy_perform()`
   call with no `CURLOPT_TIMEOUT`/`CURLOPT_CONNECTTIMEOUT` set anywhere
   in the same file, in any staged `.cpp` file
@@ -41,7 +44,8 @@ for the following defect classes:
   libcurl's own multi-minute default
   (`githooks/check-esp-http-timeouts.sh`); and, against every staged file
   regardless of extension, private-key blocks, cloud-provider/API-token
-  credential shapes, and a staged `.env` file
+  credential shapes, and a staged `.env` file - the one check that
+  actually blocks the commit
   (`githooks/check-secrets.sh`).
 - `githooks/commit-msg` runs against the commit message itself, once
   written - the same narration patterns check-docs.sh checks in files
