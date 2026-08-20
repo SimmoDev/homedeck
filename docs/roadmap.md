@@ -446,11 +446,12 @@ this until it's done — see
       (`src/ui/remote_button.h`/`.cpp`) with `ActivitiesScreen` for
       consistent large touch targets. Its rendered list covers the
       reference hub's 8-device list, including a device with enough
-      commands to need on-screen scrolling. Both targets use `LV_USE_CLIB_MALLOC`
-      (`simulator/lv_conf.h`, `firmware/sdkconfig.defaults`), routing
-      LVGL's own allocations through the platform's normal heap rather
-      than a fixed-size reserved block with a ceiling a screen with many
-      buttons can exceed; the simulator also runs LVGL's own
+      commands to need on-screen scrolling. Both targets route LVGL's own
+      allocations through the platform's normal libc malloc
+      (`simulator/lv_conf.h`'s `LV_USE_STDLIB_MALLOC LV_STDLIB_CLIB`,
+      `firmware/sdkconfig.defaults`'s `CONFIG_LV_USE_CLIB_MALLOC=y`)
+      rather than a fixed-size reserved block with a ceiling a screen
+      with many buttons can exceed; the simulator also runs LVGL's own
       warning/error log by default, since `LV_USE_ASSERT_MALLOC`'s
       default failure handler (`while(1)`) gives no error output on its
       own once `LV_USE_LOG` is off. `StatusBar`/`CreateHomeAffordance`
