@@ -40,6 +40,16 @@
   }
 
   function upload() {
+    // Same double-fired-click guard as WifiReset.svelte's resetWifi() -
+    // this button stays mounted with a `disabled` binding rather than
+    // unmounting, but a second click event dispatched before Svelte
+    // reactively applies that attribute could still reach here first.
+    // The server already rejects a genuinely concurrent upload
+    // (upload_in_progress, handled below), so this is purely to avoid
+    // the redundant request in the first place.
+    if (uploadState === "uploading") {
+      return;
+    }
     if (!selectedFile) {
       return;
     }
@@ -96,6 +106,11 @@
   }
 
   async function reboot() {
+    // Same double-fired-click guard as WifiReset.svelte's resetWifi() -
+    // consequences here are mild (a harmless second reboot request) but
+    // this keeps the pattern consistent rather than leaving this button
+    // as the odd one out.
+    if (rebooting) return;
     rebooting = true;
     rebootError = undefined;
     const result = await postJson("/api/ota/reboot");
