@@ -318,9 +318,9 @@ std::optional<SessionToken> AdminAuthService::Login(const std::string& password)
     // GenerateSalt()/GenerateSessionToken(), it never calls into
     // ctr_drbg_) - computed outside mutex_ so a concurrent Login()/
     // ValidateSession() call from another HTTP worker thread isn't
-    // serialized behind it. Holding mutex_ across this used to mean an
+    // serialized behind it. Holding mutex_ across this would let an
     // unauthenticated caller sending a handful of concurrent login
-    // attempts before the lockout below engaged could stall every other
+    // attempts before the lockout below engages stall every other
     // mutex_-guarded operation - including session validation for every
     // other authenticated endpoint - for the full ~2s each.
     bool authenticated = false;
