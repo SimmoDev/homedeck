@@ -72,7 +72,7 @@ meaningless monotonic tick count.
 
 **No runtime-configurable minimum log level** for this pass — callers
 decide what's worth persisting by what they call `Log()` with, rather
-than adding a settings-backed filter with no real consumer yet.
+than adding a settings-backed filter with no consumer yet.
 
 ## Consequences
 
@@ -81,7 +81,7 @@ than adding a settings-backed filter with no real consumer yet.
   design without repeating this reasoning.
 - `Logger` (`src/core/logger.h`/`.cpp`) is entirely target-agnostic
   Core code — no firmware-only mechanism, unlike crash/reboot
-  diagnostics, so the simulator uses the real implementation rather
+  diagnostics, so the simulator uses the implementation rather
   than mock data.
 - Log entries and `ESP_LOGI`/`ESP_LOGE` console output remain distinct
   and unrelated - this ADR doesn't migrate existing console logging

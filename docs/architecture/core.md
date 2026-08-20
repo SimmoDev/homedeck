@@ -84,7 +84,7 @@ grows. This is acceptable while only 4 modules are actually scoped through
 M6 (see [roadmap.md](../roadmap.md)); [CLAUDE.md](../../CLAUDE.md)'s longer future-modules
 list is aspirational, not committed. Revisit once module count starts
 actually growing past what's scoped today, rather than guessing at a
-budget now without real modules to measure against.
+budget now without modules to measure against.
 
 ## Boundary with modules
 

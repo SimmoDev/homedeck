@@ -14,7 +14,7 @@ ADR-0025/ADR-0027 are the reference for those two refinements.
 
 M1 unblocked flash exhaustion with ESP-IDF's built-in single-app-large
 table (`CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE`, 1500K) as an explicitly
-pragmatic, temporary measure — not the real OTA A/B scheme, which
+pragmatic, temporary measure — not the OTA A/B scheme, which
 [docs/roadmap.md](../roadmap.md)'s OTA item and
 [ADR-0013](ADR-0013-crash-and-reboot-diagnostics.md) already flagged as
 explicit M2 scope. With M2's Wi-Fi/ESP-Hosted stack now linked in
@@ -23,7 +23,7 @@ explicit M2 scope. With M2's Wi-Fi/ESP-Hosted stack now linked in
 [hardware.md](../architecture/hardware.md#wi-fi-bring-up).
 
 Every M2 roadmap item still ahead needs partition-table space the current
-table doesn't reserve: OTA's real A/B scheme itself; a dedicated core
+table doesn't reserve: OTA's A/B scheme itself; a dedicated core
 dump partition, which ADR-0013 already says must be "planned alongside
 the OTA A/B scheme... not added later"; an `nvs_keys` partition for NVS
 encryption ([ADR-0010](ADR-0010-secret-storage.md)); and a FAT +

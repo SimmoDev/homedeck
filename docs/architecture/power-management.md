@@ -12,7 +12,7 @@ OTA gate, idle/sleep timeouts) is a provisional starting point, not a
 measured one — no power budget exists estimating real current draw
 (display+backlight, ESP32-P4, ESP32-C6 co-processor) against the
 confirmed 2000mAh/14.8Wh battery. These numbers remain placeholders
-until a real power budget is measured and used to tune them — tracked
+until a power budget is measured and used to tune them — tracked
 against the M7 Battery optimisation item (see
 [roadmap.md](../roadmap.md)), not resolved by M1/M2.
 
@@ -85,7 +85,7 @@ for this state — the device is never disconnected in the first place.
 (`src/core/notification.h`) does not gate any wake-cycle behavior (see
 [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md#decision));
 it remains available as a presentation-layer distinction (e.g. a
-different sound) whenever a real consumer needs one.
+different sound) whenever a consumer needs one.
 
 ## Hardware capabilities involved
 

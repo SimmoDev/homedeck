@@ -70,7 +70,7 @@ vs. deferred) and requires alert-priority modules to expose a lightweight
 full background-task wake is heavier than this check needs to be. The exact
 shape of that hook is deferred to when the Uptime Kuma module (M5) is built,
 consistent with [ADR-0003](ADR-0003-module-architecture.md)'s stance against
-designing module APIs ahead of a real consumer, but the *existence* of the
+designing module APIs ahead of a consumer, but the *existence* of the
 urgency distinction is decided now since it affects the Core notification
 service's contract from M2 onward.
 

@@ -58,7 +58,7 @@ project's current secret surface doesn't yet justify hardening against.
 The Standard tier activates NVS encryption via the HMAC-peripheral key
 scheme ADR-0010 already chose (not ESP-IDF's default flash-encryption-
 based scheme, which was considered and rejected for reintroducing
-re-flashing development cost) once a real module credential exists to
+re-flashing development cost) once a module credential exists to
 justify its one-time, irreversible eFuse provisioning step. See
 [ADR-0010](../decisions/ADR-0010-secret-storage.md) for the scheme choice
 and [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for
@@ -73,9 +73,9 @@ project's NVS partition (see
 bodies, WebSocket messages, query parameters) must be validated before use
 — this is a hard requirement, not optional. The specific validation
 mechanism (centralized schema validation at Core's HTTP server layer vs.
-per-endpoint validation) is deferred until M2, when the first real API
+per-endpoint validation) is deferred until M2, when the first API
 endpoints are built, consistent with the project's established stance
-against designing mechanisms ahead of a real consumer (see
+against designing mechanisms ahead of a consumer (see
 [ADR-0003](../decisions/ADR-0003-module-architecture.md)). Deferring the
 mechanism is not the same as deferring the requirement — no endpoint ships
 without input validation, regardless of which mechanism M2 lands on.
@@ -91,7 +91,7 @@ dependency (e.g. the camera-QR provisioning path in
 
 ## OTA image integrity
 
-**Known gap, deliberately deferred, not silently absent.** The real A/B
+**Known gap, deliberately deferred, not silently absent.** The A/B
 partition scheme is in place — `ota_0`/`ota_1` app partitions plus
 bootloader app-rollback (see
 [ADR-0017](../decisions/ADR-0017-partition-table.md)) — and protects

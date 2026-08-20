@@ -120,7 +120,7 @@ Harmony has no discovery protocol at all), but the crash rate hasn't been
 re-evaluated against it - still an open, accepted gap, not a resolved
 one.
 
-The real provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
+The provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
 minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
 see [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md)
 for why. SoftAP setup, credential submission, connection, and SoftAP
@@ -145,8 +145,8 @@ Two standing facts about this flow:
 
 Flash headroom with `esp_wifi_remote`, `esp_hosted`, `esp_http_server`,
 and their dependencies (`wpa_supplicant`, `mbedtls`, etc.) linked in is
-tight on a single-app partition table — the real OTA A/B table (see
-[ADR-0017](../decisions/ADR-0017-partition-table.md)) provides real
+tight on a single-app partition table — the OTA A/B table (see
+[ADR-0017](../decisions/ADR-0017-partition-table.md)) provides
 headroom instead, 4MB each for `ota_0`/`ota_1`.
 
 ## Display and touch
@@ -315,7 +315,7 @@ same physical pins.
   the simple linear approximation this project uses today
   (see [On-device dashboard](#on-device-dashboard) below) reads ~90%,
   not 100%, on a pack that had been on USB power long enough to be
-  fully charged. A real state-of-charge estimate is still M2
+  fully charged. A state-of-charge estimate is still M2
   power-management scope, not fixed here.
 - **Wake sources - no confirmed GPIO path for touch/IMU/RTC:** traced
   directly against M5Stack's official schematic

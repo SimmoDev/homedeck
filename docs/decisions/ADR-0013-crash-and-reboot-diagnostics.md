@@ -64,7 +64,7 @@ indefinitely after a crash is a worse experience than one that recovers.
 
 - [diagnostics.md](../architecture/diagnostics.md) states the resulting
   design without repeating this reasoning.
-- The core dump partition is a real partition-table entry, planned
+- The core dump partition is a partition-table entry, planned
   alongside the OTA A/B scheme — not a detail that can be added
   invisibly later.
 - Web UI diagnostics exposes a core dump download and last-reboot-reason

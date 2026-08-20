@@ -60,7 +60,7 @@ result's UTC fields via `gmtime_r` with the identical "no TZ math" treatment,
 so writing and reading stay consistent with each other; the net effect is
 that the clock is now *correct in UTC* rather than *meaningless*, a strict
 improvement, but still not corrected to the user's actual local timezone.
-Adding real timezone support (a Web UI setting, offset/DST math) is a
+Adding timezone support (a Web UI setting, offset/DST math) is a
 separate, genuinely new feature, not a natural extension of fixing RTC
 calibration - noted in [roadmap.md](../roadmap.md)'s M2 RTC item as a
 future item not yet placed against a specific milestone, not solved

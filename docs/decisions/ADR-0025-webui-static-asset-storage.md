@@ -60,7 +60,7 @@ not Vite's default many-chunk, content-hashed naming.
 `ServeStaticFiles` (`src/platform/static_assets.h`/`.cpp`) is the
 portable serving mechanism both targets use — firmware supplies
 `EMBED_FILES`-linked flash data copied once at startup, the simulator
-reads `webui/dist/` off disk once at startup (a real dev-convenience
+reads `webui/dist/` off disk once at startup (a dev-convenience
 divergence, consistent with the backend-implementation divergence
 [ADR-0002](ADR-0002-technology-stack.md#3-embedded-webwebsocket-server)'s
 embedded web/WebSocket server decision already accepts).

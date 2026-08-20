@@ -7,7 +7,7 @@ deferred (giving `SecretStore` its own NVS partition) is delivered by
 [ADR-0027](ADR-0027-secret-store-partition-separation.md); the reserved-
 key guard described below stays in place as a second-layer safeguard,
 not because it's still the only protection. That Decision section's
-"M3's first real module credential" framing is corrected by
+"M3's first module credential" framing is corrected by
 [ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's local protocol
 has no credential of any kind — the durable fix landed anyway (per
 ADR-0027 above), just not triggered by M3 as originally expected.
@@ -21,7 +21,7 @@ of it was built yet - only auth, diagnostics, and OTA existed.
 existed and works on hardware (`crash_diagnostics.cpp` uses it
 for `reset_reason`/`has_core_dump`); this closes the gap by exposing it
 over HTTP, adding the one capability it was missing (enumerating
-everything, for a backup export), and giving it a first real,
+everything, for a backup export), and giving it a first,
 user-facing consumer - a device name setting, replacing the previously
 hardcoded `"homedeck"` mDNS hostname.
 
@@ -84,7 +84,7 @@ work: a partition-table change plus a `FirmwareSecretStore` rewrite to
 existing NVS, the same accepted cost [ADR-0017](ADR-0017-partition-table.md)
 already documents from the last repartition). This naturally belongs
 with [ADR-0018](ADR-0018-staged-security-hardening.md)'s staged security
-hardening or M3's first real module credential, whichever comes first.
+hardening or M3's first module credential, whichever comes first.
 
 **`SettingsStore` gains `ListAll()`** (`std::vector<SettingsEntry>`,
 namespace+key+raw value) - `HostSettingsStore` via a two-level

@@ -25,11 +25,11 @@ current design without carrying the full rationale inline.
 **Decided: a fixed grid.** It's simpler to implement well for M1/M2,
 constrains modules to a predictable widget footprint (easier to keep the
 "polished, consumer-quality" bar [CLAUDE.md](../../CLAUDE.md) sets), and doesn't foreclose
-moving to a more flexible layout later once there's a real widget catalog
+moving to a more flexible layout later once there's a widget catalog
 to design against. The freeform option was rejected for now because it's
 harder to keep visually coherent across widgets built independently by
 unrelated modules, and more design work up front than justified before a
-real widget catalog exists. Exact grid dimensions and cell-span rules are
+widget catalog exists. Exact grid dimensions and cell-span rules are
 implementation details for M2, not part of this decision.
 
 `DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`) is that grid, built on
@@ -138,7 +138,7 @@ The persistent home affordance is a separate, independent piece of chrome
 and is **not** being folded into the status bar by this decision. Whether
 they should eventually be unified — or whether a broader app-switcher dock
 should absorb the home affordance instead, as discussed alongside this
-decision — is an open question deferred until there's a real module
+decision — is an open question deferred until there's a module
 catalog to design a dock against (see the M2 widget framework item in
 [roadmap.md](../roadmap.md#m2--platform-services-complete)). This ADR only settles
 where date/time and battery live.

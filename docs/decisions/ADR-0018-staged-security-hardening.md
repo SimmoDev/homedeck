@@ -6,7 +6,7 @@ Accepted — the Context and Development-tier Decision sections' "arrive
 with M3 onward"/"as early as M3 (Harmony hub credentials)" framing is
 corrected by [ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's
 local protocol has no credential of any kind, so M3 didn't trigger the
-Standard tier. The trigger condition itself (a real module credential
+Standard tier. The trigger condition itself (a module credential
 existing) stands unchanged, and now first becomes possible at M6 (Home
 Assistant) or whichever module first needs one.
 
@@ -59,7 +59,7 @@ orthogonal to NVS encryption and already in place (see
 [ADR-0010](ADR-0010-secret-storage.md)). Maximum flashing/debugging
 convenience, zero irreversible state on any development unit.
 
-**This is the current tier**, covering M2 onward until a real module
+**This is the current tier**, covering M2 onward until a module
 credential first exists to protect — as early as M3 (Harmony hub
 credentials), no later than M6 (Home Assistant's long-lived token, the
 last milestone scoped through M6 that's guaranteed to need one).
@@ -69,7 +69,7 @@ last milestone scoped through M6 that's guaranteed to need one).
 HMAC-peripheral NVS encryption, per ADR-0010's scheme choice — still no
 Secure Boot or flash encryption, preserving the re-flashing workflow that
 motivated rejecting the flash-encryption-based scheme in the first place.
-Activated once a real module credential (not just the admin password
+Activated once a module credential (not just the admin password
 hash) is actually being stored, at which point flash-extraction of a
 stolen device becomes a threat worth this tier's one-time hardware cost.
 

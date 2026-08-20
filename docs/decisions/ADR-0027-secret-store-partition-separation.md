@@ -28,7 +28,7 @@ secret out of `GET /api/settings`/`GET /api/backup` was `Storage`'s own
 reserved-key guard - a single hardcoded `(module_id, key)` pair for the
 admin password hash, requiring a developer to remember to add a new
 entry for every future secret. M3 (Harmony) introduces the project's
-first real module credential (hub IP/password) through `SecretStore`,
+first module credential (hub IP/password) through `SecretStore`,
 which is exactly the trigger [ADR-0018](ADR-0018-staged-security-hardening.md)
 already names for revisiting this gap.
 

@@ -170,7 +170,7 @@ simulator.
       `mdns` component, called directly from `firmware/main/homedeck.cpp`).
       The mDNS *browsing* wrapper for modules to discover Home
       Assistant/Kodi is out of scope here — tracked against M4/M6
-      instead, once one of those modules is a real consumer.
+      instead, once one of those modules is a consumer.
 - [x] RTC time synchronization — the RX8130CE RTC (see
       [hardware.md](architecture/hardware.md#rtc)) had never been set,
       a real gap this item closes now that Wi-Fi exists to fix it over.
@@ -278,7 +278,7 @@ simulator.
       independent of `lv_async_call`'s own ordering - see
       [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md)'s Consequences
       for detail. Distinct sounds per severity (deferred until a second
-      severity has a real publisher) and an unread-count badge (as an
+      severity has a publisher) and an unread-count badge (as an
       alternative to `NotificationWidget`'s last-notification-tile
       design) are separate M7 items below.
 - [x] Widget framework (general dashboard widget interface), including
@@ -354,7 +354,7 @@ simulator.
 **Exit criteria:** the device can be provisioned onto Wi-Fi via SoftAP,
 administered over the Web UI (after setting an admin password on first
 login) once on the LAN, kept updated over OTA, and the dashboard/widget
-framework is ready for a real module to plug into.
+framework is ready for a module to plug into.
 
 ## M3 — Harmony (current)
 
@@ -605,7 +605,7 @@ day-to-day usage with HomeDeck.
       HMAC-peripheral scheme, including its one-time eFuse provisioning
       step — see [ADR-0018](decisions/ADR-0018-staged-security-hardening.md).
       Timing within M7 is a placeholder, not fixed: the actual trigger is
-      a real module credential existing to protect (see ADR-0018), which
+      a module credential existing to protect (see ADR-0018), which
       may land earlier once M3+ modules are built
 - [ ] Weather condition icons for `WeatherWidget` (`src/ui/weather_widget.cpp`),
       replacing the current text-only WMO condition mapping - custom
@@ -686,7 +686,7 @@ day-to-day usage with HomeDeck.
       gesture use, e.g. a media carousel or a scrollable list near the
       edge) but left open as a later power-user addition once modules
       exist and their real gesture needs are known. The back-swipe half
-      needs a real prerequisite first: `Navigation`
+      needs a prerequisite first: `Navigation`
       (`src/ui/navigation.h`) has no history/back-stack today, only
       `GoTo(route)`/`GoHome()`
 - [ ] Swipe-down status-bar gesture (Android-style) to open the

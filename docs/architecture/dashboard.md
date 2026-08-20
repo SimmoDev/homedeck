@@ -105,7 +105,7 @@ M7 — Polish) rather than an M1/M2 requirement. The widget interface should
 be designed so this is *possible* later (e.g. widgets shouldn't assume a
 fixed position or a fixed set of siblings), but building a full
 drag-to-reorder customization UI is out of scope until the dashboard has
-enough real widgets to make customization meaningful.
+enough widgets to make customization meaningful.
 
 ## Status
 
@@ -139,7 +139,7 @@ battery is actually charging; and a USB icon with no percentage when no
 battery is installed, since the percentage reading isn't meaningful in
 that state. `ReadPercent()`'s own approximation accuracy is unchanged
 by this — see [hardware.md](hardware.md#power) for its known margin; a
-real state-of-charge estimate is still Power Management scope, not the
+state-of-charge estimate is still Power Management scope, not the
 status bar's.
 
 The status bar's Wi-Fi connectivity icon works the same way:
@@ -164,7 +164,7 @@ override to occupy more), and an `OnTap()` handler (no-op default;
 uniformly) - deferred until a widget genuinely needed tap-for-detail
 (`HarmonyWidget` below, M3), not designed speculatively against an
 earlier widget alone. No live/cached/offline freshness reporting yet,
-left out as ADR-0008 says it should be until a real widget exists to
+left out as ADR-0008 says it should be until a widget exists to
 design against. `DashboardGrid` (`src/ui/dashboard_grid.h`/`.cpp`)
 hosts widgets on a fixed, first-fit-packed grid — see its own header
 comment for the column count, row-growth, and placement-algorithm
@@ -207,7 +207,7 @@ polish item), plus the configured location's display name. Renders one
 of three states: not configured ("Set a location in Settings"), a live
 reading, or a cached/stale reading marked as such - the first widget to
 exercise this doc's own [Data freshness](#data-freshness) requirement,
-per ADR-0008's note that it was left undesigned until a real widget
+per ADR-0008's note that it was left undesigned until a widget
 existed to design against. Polls Open-Meteo every 30 minutes on a
 dedicated background `Task` (`src/platform/task.h`), not `Timer` -
 FreeRTOS's software timers share one timer-service task sized for

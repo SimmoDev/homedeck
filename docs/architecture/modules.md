@@ -61,7 +61,7 @@ boundary between modules the way there would be on a desktop OS. A memory-
 safety bug in one module (e.g. a buffer overflow while parsing a malformed
 response from its own external service) is not architecturally contained
 from corrupting Core or another module's memory — the architecture cannot
-promise that, and building real sandboxing (were it even feasible on this
+promise that, and building sandboxing (were it even feasible on this
 hardware) would be a disproportionate undertaking for this project's
 scope. The practical consequence: each module is responsible for
 defensively parsing and bounds-checking data from its own external

@@ -68,7 +68,7 @@ that would otherwise want identical logic. Harmony's discovery logic stays
 entirely inside the Harmony module either way.
 
 This decision covers mDNS *browsing*, which remains unbuilt — it has no
-real consumer until Kodi (M4) or Home Assistant (M6) exists. Self-
+consumer until Kodi (M4) or Home Assistant (M6) exists. Self-
 advertisement is a separate, smaller capability that does exist: firmware
 self-advertises as `homedeck.local` via the same `espressif/mdns`
 component, so the device is reachable by name instead of only via a

@@ -45,7 +45,7 @@ exception to "every screen except the dashboard" above: going home before
 Wi-Fi is configured would strand the user on a screen with no network and
 no way back to this one short of a reboot, since nothing else ever
 navigates here automatically. No other screen is expected to need this
-exception — a real navigable path away from the dashboard should still
+exception — a navigable path away from the dashboard should still
 get the home affordance.
 
 A separate, independent piece of persistent chrome exists alongside the
@@ -150,15 +150,15 @@ explicitly doesn't yet:
   [hardware.md](hardware.md#audio)) via `AudioOutput`
   (`src/platform/audio_output.h`), the portable audio-out hardware
   interface already named in
-  [overview.md](overview.md#hardware-abstraction) — real, via
+  [overview.md](overview.md#hardware-abstraction) — implemented, via
   `NotificationSound` (`src/core/notification_sound.h`/`.cpp`), which
   plays the same short tone for every `NotificationEvent` regardless of
-  severity today, even though `kAlertPriority` already has a real
+  severity today, even though `kAlertPriority` already has a
   publisher (`CriticalBatteryMonitor` — see
   [power-management.md](power-management.md#status)). Differentiating
   the sound per severity is a deliberately deferred M7 sound-design
   follow-up, not something blocked on a second severity existing.
-- **Dashboard indicators** — real, via `NotificationWidget`
+- **Dashboard indicators** — implemented, via `NotificationWidget`
   (`src/ui/notification_widget.h`/`.cpp`), surfaced through the existing
   widget system (see [dashboard.md](dashboard.md#widget-system)), not a
   separate mechanism. A last-notification tile (always echoes the most
