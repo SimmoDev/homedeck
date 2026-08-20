@@ -124,7 +124,12 @@ join `HarmonyConnectionStateChangedEvent` on the `EventBus`.
 `.cpp`) subscribes to connection-state changes directly and publishes a
 `NotificationEvent` once on entering `kError` — latched the same way
 `LowBatteryMonitor`'s own notification is, so a sustained outage's
-retry/backoff loop doesn't publish one notification per attempt.
+retry/backoff loop doesn't publish one notification per attempt. The
+latch also resets on `HarmonyConfigUpdatedEvent` (a `hub_host`
+reconfiguration), not only on recovering to `kConnected` — otherwise
+editing the address from one unreachable host to another would silently
+swallow the second address's own failure notification, since neither
+transition passes through `kConnected`.
 
 A fourth event, `HarmonyCommandDroppedEvent`, is published when
 `SendPendingCommands()` drops a queued command, either for being older
