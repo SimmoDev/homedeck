@@ -267,6 +267,35 @@ TEST(HostWebSocketClient, ReceiveTextRejectsAMessageOverTheSizeCap) {
     EXPECT_FALSE(response.has_value());
 }
 
+TEST(HostWebSocketClient, ReceiveTextRejectsABinaryFrame) {
+    // RFC 6455 requires failing the connection on a reserved/unexpected
+    // opcode (0x2 binary here) rather than silently treating it as
+    // message content - this transport has no authentication at all
+    // (ADR-0029), so a hostile/misbehaving LAN peer sending one is a
+    // real possibility.
+    int listen_fd = ListenOnLoopback(18306);
+
+    std::jthread server_thread([listen_fd] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        PerformServerHandshake(conn_fd);
+        std::string payload = "not text";
+        std::vector<unsigned char> header = BuildServerFrameHeader(/*fin=*/true, /*opcode=*/0x2, payload.size());
+        send(conn_fd, header.data(), header.size(), MSG_NOSIGNAL);
+        send(conn_fd, payload.data(), payload.size(), MSG_NOSIGNAL);
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18306/"));
+    std::optional<std::string> response = client.ReceiveText(2000);
+
+    server_thread.join();
+    close(listen_fd);
+
+    EXPECT_FALSE(response.has_value());
+}
+
 TEST(HostWebSocketClient, ConnectFailsOnAWrongSecWebSocketAcceptHeader) {
     // Regression test for Connect() previously accepting any "101" status
     // line with no check that Sec-WebSocket-Accept actually matches the

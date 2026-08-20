@@ -453,6 +453,18 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
 
         bool fin = (header[0] & 0x80) != 0;
         uint8_t opcode = header[0] & 0x0F;
+        // RFC 6455 requires failing the connection on receipt of a
+        // reserved (0x3-0x7, 0xB-0xF) or otherwise-unexpected (0x2,
+        // binary) opcode - bail before reading anything else about this
+        // frame (its length may itself be adversarial) rather than
+        // falling through to the TEXT/CONTINUATION accumulation path
+        // below, which would otherwise silently treat it as message
+        // content. This transport has no authentication at all
+        // (ADR-0029), so a hostile/misbehaving LAN peer sending one is a
+        // real possibility, not just a spec technicality.
+        if (opcode != 0x0 && opcode != 0x1 && opcode != 0x8 && opcode != 0x9 && opcode != 0xA) {
+            return std::nullopt;
+        }
         // Real WS servers never mask frames sent to a client (RFC 6455),
         // but this transport has no authentication at all (ADR-0029) - a
         // malformed or hostile peer setting the mask bit anyway is still
