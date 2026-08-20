@@ -130,10 +130,16 @@
       <p class="hint">No location set - the dashboard's weather widget won't show a reading until one is chosen.</p>
     {/if}
     <div class="row">
+      <!-- maxlength matches the server's own kMaxGeocodeQueryLength
+           (weather_routes.cpp) - without it, a pasted long query only
+           fails after the round trip to the "query_too_long" error this
+           screen already maps below, unlike HarmonySettings/
+           DeviceNameSettings' own inputs, which fail fast locally. -->
       <input
         type="text"
         aria-label="Search for a weather location"
         placeholder="Search for a city..."
+        maxlength="100"
         bind:value={query}
         disabled={searching || saving}
         onkeydown={(event) => {
