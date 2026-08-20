@@ -317,6 +317,16 @@ nobody happens to touch again. Deliberately non-blocking
 surfaces plenty of pre-existing, legitimate usage not worth gating a
 build on.
 
+A fifth, [`secrets.yml`](.github/workflows/secrets.yml), runs
+`tools/githooks/check-secrets.sh` against every tracked file (push and
+PR), the same full-tree reasoning as `docs.yml`. Unlike `docs.yml`,
+this one is blocking — the same reasoning the pre-commit hook already
+uses to block locally on this one check alone (narrow/high-precision
+patterns, and a missed leak is high-severity and hard to reverse). CI
+is the only enforcement point that applies unconditionally: local hook
+activation (`git config core.hooksPath tools/githooks`) is a per-clone
+opt-in, and `--no-verify`/GUI clients bypass it entirely.
+
 ## Status
 
 See [docs/roadmap.md](docs/roadmap.md) for what's built and what's still

@@ -8,7 +8,9 @@
 # deliberately uses fake credentials (e.g. "correct horse battery" in
 # harmony_routes_test.cpp) that would otherwise be a permanent false-
 # positive source; the specific formats below don't have that ambiguity.
-# Non-blocking - see pre-commit.
+# Blocking - see pre-commit (the only one of that hook's checks that
+# is) and .github/workflows/secrets.yml (CI's backstop for clones that
+# skip local hook setup or use --no-verify).
 set -uo pipefail
 
 status=0
