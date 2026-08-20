@@ -43,6 +43,7 @@ add_executable(homedeck_tests
   http_client_test.cpp
   websocket_client_test.cpp
   static_assets_test.cpp
+  latched_threshold_monitor_test.cpp
   low_battery_monitor_test.cpp
   critical_battery_monitor_test.cpp
   network_status_monitor_test.cpp
