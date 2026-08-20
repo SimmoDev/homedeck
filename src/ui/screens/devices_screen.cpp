@@ -341,7 +341,17 @@ void DevicesScreen::RenderUnmatchedCommands(lv_obj_t* parent, const std::vector<
 
 void DevicesScreen::ShowDeviceList() {
     lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
+    // Only show list_container_ if the hub is still configured - a
+    // mid-detail-view reconfigure (hub_host cleared via the Web UI while
+    // this screen was open) already left it emptied and hidden, with
+    // hint_label_ shown instead (see RebuildDeviceList()'s own
+    // has_config-false branch, deliberately left untouched while
+    // detail_container_ was showing). Unconditionally clearing this flag
+    // would show that now-empty list alongside hint_label_ instead of
+    // respecting what RebuildDeviceList() already decided.
+    if (harmony_connection_.Snapshot().has_config) {
+        lv_obj_clear_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 void DevicesScreen::OnDeviceButtonClicked(lv_event_t* e) {
