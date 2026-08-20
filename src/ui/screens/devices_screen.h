@@ -54,11 +54,14 @@ public:
 
 private:
     // Full teardown/rebuild of the device list - called at construction
-    // and on HarmonyConfigUpdatedEvent. Doesn't touch whichever device's
-    // command view might currently be showing (see ShowDeviceDetail()) -
-    // a mid-session reconfigure is rare enough that staying put with the
-    // already-loaded command list is an acceptable simplification over
-    // forcing back to the list.
+    // and on HarmonyConfigUpdatedEvent. While configured, doesn't touch
+    // whichever device's command view might currently be showing (see
+    // ShowDeviceDetail()) - a mid-session reconfigure is rare enough that
+    // staying put with the already-loaded command list is an acceptable
+    // simplification over forcing back to the list. If the hub becomes
+    // unconfigured instead, forces back to the hint view regardless -
+    // otherwise hint_label_ and a stale detail_container_ would both be
+    // visible at once.
     void RebuildDeviceList();
     // Switches to the command view for one device, (re)building its
     // command buttons from the current Snapshot() - safe to call again

@@ -166,6 +166,10 @@ void DevicesScreen::RebuildDeviceList() {
 
     if (!snapshot.has_config) {
         lv_obj_add_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
+        // Also hide detail_container_ (a command view might currently be
+        // showing) - otherwise hint_label_ and a now-orphaned screen of
+        // command buttons would both be visible at once.
+        lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
         lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
         return;
     }
@@ -341,14 +345,11 @@ void DevicesScreen::RenderUnmatchedCommands(lv_obj_t* parent, const std::vector<
 
 void DevicesScreen::ShowDeviceList() {
     lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
-    // Only show list_container_ if the hub is still configured - a
-    // mid-detail-view reconfigure (hub_host cleared via the Web UI while
-    // this screen was open) already left it emptied and hidden, with
-    // hint_label_ shown instead (see RebuildDeviceList()'s own
-    // has_config-false branch, deliberately left untouched while
-    // detail_container_ was showing). Unconditionally clearing this flag
-    // would show that now-empty list alongside hint_label_ instead of
-    // respecting what RebuildDeviceList() already decided.
+    // Only show list_container_ if the hub is still configured -
+    // RebuildDeviceList() already hides detail_container_ (and thus this
+    // screen's own Back button) the moment the hub becomes unconfigured,
+    // so this guard only matters for an already-in-flight tap event
+    // racing that transition.
     if (harmony_connection_.Snapshot().has_config) {
         lv_obj_clear_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
     }
