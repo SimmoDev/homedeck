@@ -4,6 +4,9 @@
 
 #include <poll.h>
 
+#include <algorithm>
+#include <array>
+#include <cctype>
 #include <chrono>
 #include <cstdint>
 #include <random>
@@ -117,6 +120,120 @@ std::string GenerateWebSocketKey() {
     unsigned char bytes[16];
     FillRandomBytes(bytes, sizeof(bytes));
     return Base64Encode(bytes, sizeof(bytes));
+}
+
+// Self-contained SHA-1 (RFC 3174) - only consumer is ComputeAcceptKey()
+// below, the RFC 6455 handshake's Sec-WebSocket-Accept verification step.
+// Hand-rolled rather than pulling in mbedtls (already vendored for
+// AdminAuthService's password hashing, src/core/admin_auth_service.cpp)
+// for the same reason Base64Encode() above is hand-rolled instead of
+// using mbedtls's own base64 codec: mbedcrypto is only linked into the
+// homedeck_core target, not homedeck_platform_host (this file's own
+// target - see src/CMakeLists.txt), and this is a small, stable,
+// well-specified primitive, not something worth restructuring that
+// dependency graph for. Not a security-sensitive use (this project's
+// own hub protocol has no authentication at all, ADR-0029) - only
+// confirms the handshake response actually came from something that
+// understood the request as a WebSocket upgrade, not a general SHA-1
+// consumer.
+std::array<unsigned char, 20> Sha1(const std::string& input) {
+    uint32_t h0 = 0x67452301, h1 = 0xEFCDAB89, h2 = 0x98BADCFE, h3 = 0x10325476, h4 = 0xC3D2E1F0;
+
+    std::vector<unsigned char> msg(input.begin(), input.end());
+    const uint64_t bit_length = static_cast<uint64_t>(msg.size()) * 8;
+    msg.push_back(0x80);
+    while (msg.size() % 64 != 56) msg.push_back(0);
+    for (int i = 7; i >= 0; --i) msg.push_back(static_cast<unsigned char>((bit_length >> (8 * i)) & 0xFF));
+
+    auto left_rotate = [](uint32_t value, int bits) { return (value << bits) | (value >> (32 - bits)); };
+
+    for (size_t chunk = 0; chunk < msg.size(); chunk += 64) {
+        uint32_t w[80];
+        for (int i = 0; i < 16; ++i) {
+            w[i] = (static_cast<uint32_t>(msg[chunk + i * 4]) << 24) | (static_cast<uint32_t>(msg[chunk + i * 4 + 1]) << 16) |
+                   (static_cast<uint32_t>(msg[chunk + i * 4 + 2]) << 8) | static_cast<uint32_t>(msg[chunk + i * 4 + 3]);
+        }
+        for (int i = 16; i < 80; ++i) {
+            w[i] = left_rotate(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
+        }
+
+        uint32_t a = h0, b = h1, c = h2, d = h3, e = h4;
+        for (int i = 0; i < 80; ++i) {
+            uint32_t f, k;
+            if (i < 20) {
+                f = (b & c) | ((~b) & d);
+                k = 0x5A827999;
+            } else if (i < 40) {
+                f = b ^ c ^ d;
+                k = 0x6ED9EBA1;
+            } else if (i < 60) {
+                f = (b & c) | (b & d) | (c & d);
+                k = 0x8F1BBCDC;
+            } else {
+                f = b ^ c ^ d;
+                k = 0xCA62C1D6;
+            }
+            uint32_t temp = left_rotate(a, 5) + f + e + k + w[i];
+            e = d;
+            d = c;
+            c = left_rotate(b, 30);
+            b = a;
+            a = temp;
+        }
+        h0 += a;
+        h1 += b;
+        h2 += c;
+        h3 += d;
+        h4 += e;
+    }
+
+    std::array<unsigned char, 20> digest;
+    uint32_t words[5] = {h0, h1, h2, h3, h4};
+    for (int i = 0; i < 5; ++i) {
+        digest[i * 4] = static_cast<unsigned char>((words[i] >> 24) & 0xFF);
+        digest[i * 4 + 1] = static_cast<unsigned char>((words[i] >> 16) & 0xFF);
+        digest[i * 4 + 2] = static_cast<unsigned char>((words[i] >> 8) & 0xFF);
+        digest[i * 4 + 3] = static_cast<unsigned char>(words[i] & 0xFF);
+    }
+    return digest;
+}
+
+// RFC 6455 section 1.3's handshake verification: base64(SHA1(key +
+// this fixed GUID)) - confirms the response came from something that
+// actually understood the request as a WebSocket upgrade, not just
+// something that happened to answer "101" (a misconfigured device, a
+// captive-portal-style proxy, a different service that took over the
+// hub's IP after a DHCP lease change).
+std::string ComputeAcceptKey(const std::string& client_key) {
+    static constexpr char kWebSocketGuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    std::array<unsigned char, 20> digest = Sha1(client_key + kWebSocketGuid);
+    return Base64Encode(digest.data(), digest.size());
+}
+
+// Case-insensitive header lookup on the raw \r\n-delimited handshake
+// response headers (status line included, harmlessly - it never matches
+// a colon-prefixed header name). Not a general-purpose HTTP header
+// parser - matches ParseWsUrl()'s own "just enough for this project's
+// own request/response shapes" precedent.
+std::optional<std::string> FindHeaderValue(const std::string& headers, const std::string& name) {
+    size_t pos = 0;
+    while (pos < headers.size()) {
+        size_t line_end = headers.find("\r\n", pos);
+        if (line_end == std::string::npos) break;
+        std::string line = headers.substr(pos, line_end - pos);
+        pos = line_end + 2;
+
+        size_t colon = line.find(':');
+        if (colon == std::string::npos || colon != name.size()) continue;
+        bool matches = std::equal(name.begin(), name.end(), line.begin(),
+                                   [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
+        if (!matches) continue;
+
+        size_t value_start = colon + 1;
+        while (value_start < line.size() && line[value_start] == ' ') ++value_start;
+        return line.substr(value_start);
+    }
+    return std::nullopt;
 }
 
 int RemainingMs(std::chrono::steady_clock::time_point deadline) {
@@ -236,6 +353,7 @@ bool HostWebSocketClient::Connect(const std::string& url) {
     }
 
     ParsedUrl parsed = ParseWsUrl(url);
+    std::string key = GenerateWebSocketKey();
     std::string request = "GET " + parsed.request_target +
                            " HTTP/1.1\r\n"
                            "Host: " +
@@ -245,7 +363,7 @@ bool HostWebSocketClient::Connect(const std::string& url) {
                            "Upgrade: websocket\r\n"
                            "Sec-WebSocket-Version: 13\r\n"
                            "Sec-WebSocket-Key: " +
-                           GenerateWebSocketKey() + "\r\n\r\n";
+                           key + "\r\n\r\n";
 
     auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kConnectTimeoutMs);
     if (!WriteExact(curl, sockfd, reinterpret_cast<const unsigned char*>(request.data()), request.size(), deadline)) {
@@ -270,6 +388,16 @@ bool HostWebSocketClient::Connect(const std::string& url) {
     std::string status_line = response.substr(0, status_line_end);
     size_t first_space = status_line.find(' ');
     if (first_space == std::string::npos || status_line.compare(first_space + 1, 3, "101") != 0) {
+        curl_easy_cleanup(curl);
+        return false;
+    }
+
+    // A bare "101" isn't enough on its own - RFC 6455's own handshake
+    // verification step confirms the far end actually understood the
+    // request as a WebSocket upgrade (see ComputeAcceptKey()'s own
+    // comment), not just something that happens to answer 101.
+    std::optional<std::string> accept = FindHeaderValue(response, "Sec-WebSocket-Accept");
+    if (!accept.has_value() || *accept != ComputeAcceptKey(key)) {
         curl_easy_cleanup(curl);
         return false;
     }
