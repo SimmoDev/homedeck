@@ -50,8 +50,9 @@ steps:
 **No authentication of any kind exists in this local path.** The
 handshake above needs a specific header, not a credential - anyone on the
 LAN can complete it and open the control WebSocket. "Local authentication"
-in ADR-0003/roadmap.md's original wording is corrected by this ADR to
-"local connection" - there is a handshake, not a login.
+in [ADR-0003](ADR-0003-module-architecture.md)/[roadmap.md](../roadmap.md)'s
+original wording is corrected by this ADR to "local connection" - there is
+a handshake, not a login.
 
 **Discovery: manual hub IP/hostname entry, not a broadcast/mDNS
 mechanism.** The XMPP-era UDP broadcast discovery protocol
