@@ -5,7 +5,7 @@
   import PasswordForm from "./lib/PasswordForm.svelte";
   import Settings from "./lib/Settings.svelte";
 
-  // The real first-login-sets-password / session-login flow (see
+  // The first-login-sets-password / session-login flow (see
   // docs/architecture/web-ui.md#admin-password and ADR-0007) - status
   // drives which of the three states below is shown; nothing here has
   // client-side auth state of its own, since AdminAuthService's session

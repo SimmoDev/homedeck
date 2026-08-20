@@ -4,7 +4,7 @@
 
   // Shared by both first-login setup and ordinary login - same field,
   // same submit mechanics, differing only in endpoint/copy and setup's
-  // extra confirm-password field (a real safeguard, not decoration:
+  // extra confirm-password field (a safeguard, not decoration:
   // there's no password-recovery flow yet, so a setup typo is otherwise
   // unrecoverable without an NVS erase - see ADR-0007's accepted-risk
   // note).
