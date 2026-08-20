@@ -187,6 +187,10 @@ void ActivitiesScreen::Rebuild() {
     if (!starting_activity_id_.empty() && activity_buttons_.find(starting_activity_id_) == activity_buttons_.end()) {
         starting_activity_id_.clear();
         command_failed_ = false;
+        // Same reasoning as state_sub_'s identical clear (this class's
+        // constructor) - nothing is pending for this timer to fire a
+        // timeout against anymore.
+        lv_timer_pause(starting_timeout_timer_);
     }
 
     RestyleButtons();
