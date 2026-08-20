@@ -21,6 +21,13 @@
 
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
+    // Same double-fired-click guard as BackupSettings.svelte's restore()/
+    // WifiReset.svelte's resetWifi() - this button stays mounted with a
+    // `disabled` binding rather than unmounting, but a second submit
+    // event dispatched before Svelte reactively applies that attribute
+    // could still reach here before this function's own synchronous
+    // `submitting = true` below takes effect in the DOM.
+    if (submitting) return;
     error = undefined;
 
     if (mode === "setup") {
