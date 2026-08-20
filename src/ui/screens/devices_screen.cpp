@@ -94,6 +94,15 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     list_container_ = chrome.list_container;
     lv_obj_t* home_button = chrome.home_button;
 
+    // status_label_ sits at the top of the screen (index 1, right after
+    // the title) rather than inside detail_container_ - visible in both
+    // the device list and a device's command view, mirroring
+    // ActivitiesScreen's own standing offline indicator (see state_sub_
+    // below).
+    status_label_ = lv_label_create(container);
+    lv_label_set_text(status_label_, "");  // LVGL defaults a new label's text to "Text" otherwise.
+    lv_obj_move_to_index(status_label_, 1);
+
     detail_container_ = lv_obj_create(container);
     lv_obj_remove_style_all(detail_container_);
     lv_obj_set_size(detail_container_, LV_PCT(90), LV_SIZE_CONTENT);
@@ -112,9 +121,6 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
 
     device_title_label_ = lv_label_create(detail_container_);
 
-    status_label_ = lv_label_create(detail_container_);
-    lv_label_set_text(status_label_, "");  // LVGL defaults a new label's text to "Text" otherwise.
-
     commands_container_ = lv_obj_create(detail_container_);
     lv_obj_remove_style_all(commands_container_);
     lv_obj_set_size(commands_container_, LV_PCT(100), LV_SIZE_CONTENT);
@@ -124,23 +130,18 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     config_sub_ = event_bus.SubscribeUi<HarmonyConfigUpdatedEvent>(
         [this](const HarmonyConfigUpdatedEvent&) { RebuildDeviceList(); });
     // A command send has no result of its own to check (Press/Hold/
-    // ReleaseDeviceCommand() are all void) - this is the only signal
-    // available that one just failed, so it's shown regardless of
-    // whether kError was actually caused by a command send or something
-    // else (e.g. a liveness probe) - both mean the same thing to a user
-    // looking at this screen: the connection can't currently be trusted.
-    // Every other state clears it, not just kConnected - e.g. kDisconnected
-    // (the user un-configured hub_host while this screen was open) is
-    // reached directly from kError with no intervening kConnected, and
-    // "retrying..." would otherwise be left showing for a connection
-    // that has stopped trying on purpose. Same bug class as
-    // ActivitiesScreen's own state_sub_ (see its comment).
+    // ReleaseDeviceCommand() are all void), and a silent disconnect/
+    // reconnect cycle often never reaches kError at all - HarmonyConnection's
+    // own connection loop moves straight from kConnected to kConnecting
+    // on a dropped transport, reconnecting before kError is ever set. A
+    // kError-only check would miss that common case entirely, so this is
+    // a standing indicator for every non-kConnected state instead,
+    // matching ActivitiesScreen's own offline indicator (see its
+    // RestyleButtons() comment).
     state_sub_ = event_bus.SubscribeUi<HarmonyConnectionStateChangedEvent>([this](const HarmonyConnectionStateChangedEvent& event) {
-        if (event.state == HarmonyConnectionState::kError) {
-            lv_label_set_text(status_label_, "Connection lost - retrying...");
-        } else {
-            lv_label_set_text(status_label_, "");
-        }
+        lv_label_set_text(status_label_, event.state == HarmonyConnectionState::kConnected
+                                              ? ""
+                                              : "Offline - reconnecting...");
     });
 
     RebuildDeviceList();
