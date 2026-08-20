@@ -67,6 +67,13 @@
   }
 
   async function selectLocation(result: GeocodeResult) {
+    // Same double-fired-click guard as BackupSettings.svelte's restore()/
+    // WifiReset.svelte's resetWifi() - this button stays mounted with a
+    // `disabled` binding rather than unmounting, but a second click
+    // event dispatched before Svelte reactively applies that attribute
+    // could still reach here before this function's own synchronous
+    // `saving = true` below takes effect in the DOM.
+    if (saving) return;
     saving = true;
     saveError = undefined;
     const label = [result.name, result.admin1, result.country].filter(Boolean).join(", ");
