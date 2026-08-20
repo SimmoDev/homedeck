@@ -255,25 +255,36 @@ private:
     // device/activity config - true only if every step succeeded, in
     // which case ws_client_ is left open (owned by the calling thread)
     // and state_.devices/activities/has_config are already updated.
-    // Also calls FetchCurrentActivity() once, best-effort - its own
-    // failure doesn't fail the connect, since the next liveness probe
-    // will retry it. `stop` is checked between each blocking network
-    // call (not mid-call - none of HttpClient/WebSocketClient support
-    // cancelling an in-flight call) so a Stop() requested while this is
-    // running doesn't needlessly chain through the rest of an
+    // Also calls FetchCurrentActivity() once - a transport-level failure
+    // (the socket just opened above is already dead, e.g. the hub
+    // rebooted in the narrow window between the config response and this
+    // probe) fails the whole connect attempt, the same as every earlier
+    // step in this function; a parse-level failure doesn't, since the
+    // next liveness probe will retry it and the connection itself is
+    // still known-healthy. `stop` is checked between each blocking
+    // network call (not mid-call - none of HttpClient/WebSocketClient
+    // support cancelling an in-flight call) so a Stop() requested while
+    // this is running doesn't needlessly chain through the rest of an
     // already-pointless sequence; each individual call still has its own
     // bounded timeout regardless.
     bool ConnectAndFetchConfig(const std::string& hub_host, std::stop_token stop);
+    // FetchCurrentActivity()'s outcome, distinguishing *why* it failed -
+    // ConnectAndFetchConfig()'s own best-effort call (see its comment)
+    // needs to tell "the transport itself is dead" apart from "the hub
+    // sent something this class doesn't understand," which a plain bool
+    // can't express.
+    enum class ActivityFetchResult { kOk, kTransportFailed, kParseFailed };
     // Sends getCurrentActivity over the already-open ws_client_, parses
     // `data.result`, and updates state_.current_activity_id + publishes
     // HarmonyCurrentActivityChangedEvent if it changed. Doubles as the
-    // connected loop's liveness signal (false on any transport/parse
-    // failure, including a silently-dropped connection) - see
-    // ADR-0029's Consequences on why ReceiveText() can't distinguish a
-    // clean close from a timeout, and why this probe-based approach
-    // works around that rather than needing it to. `stop` - see
-    // ConnectAndFetchConfig()'s own comment.
-    bool FetchCurrentActivity(std::stop_token stop);
+    // connected loop's liveness signal (non-kOk on any transport/parse
+    // failure, including a silently-dropped connection - the loop itself
+    // doesn't distinguish the two, only ConnectAndFetchConfig()'s
+    // best-effort call does) - see ADR-0029's Consequences on why
+    // ReceiveText() can't distinguish a clean close from a timeout, and
+    // why this probe-based approach works around that rather than
+    // needing it to. `stop` - see ConnectAndFetchConfig()'s own comment.
+    ActivityFetchResult FetchCurrentActivity(std::stop_token stop);
     // Discards any already-buffered WS message on ws_client_ - called
     // right before FetchCurrentActivity() sends its own request. Every
     // SendHoldAction() call has no matching receive of its own (it can't

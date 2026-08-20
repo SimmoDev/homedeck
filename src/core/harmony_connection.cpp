@@ -381,7 +381,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
                 if (!SendPendingCommands(stop)) break;  // connection dropped mid-send
                 continue;  // stay connected - a command isn't a reconnect request
             }
-            if (!FetchCurrentActivity(stop)) break;  // connection silently dropped
+            if (FetchCurrentActivity(stop) != ActivityFetchResult::kOk) break;  // connection silently dropped, or unparseable
         }
 
         if (ws_client_) {
@@ -488,11 +488,22 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
         state_.activities = std::move(activities);
         state_.has_config = true;
     }
-    // Best-effort - its own failure doesn't fail the connect (has_config
-    // is already true above); the next liveness probe retries it. See
-    // this class's own header comment on the current-activity freshness
-    // trade-off.
-    FetchCurrentActivity(stop);
+    // A parse-level failure here doesn't fail the connect (has_config is
+    // already true above); the next liveness probe retries it, and the
+    // connection itself is still known-healthy - see this class's own
+    // header comment on the current-activity freshness trade-off. A
+    // transport-level failure is different: it means the socket this
+    // function just opened is already dead (e.g. the hub rebooted in the
+    // narrow window between the config response above and this probe),
+    // so reporting a successful connect anyway would leave the caller
+    // believing kConnected for up to one full liveness_interval_ before
+    // the next probe discovers it - fail the connect outright instead,
+    // same as every earlier step in this function.
+    if (FetchCurrentActivity(stop) == ActivityFetchResult::kTransportFailed) {
+        ws_client_->Close();
+        ws_client_.reset();
+        return false;
+    }
     return true;
 }
 
@@ -503,9 +514,9 @@ void HarmonyConnection::DrainStaleMessages() {
     }
 }
 
-bool HarmonyConnection::FetchCurrentActivity(std::stop_token stop) {
+HarmonyConnection::ActivityFetchResult HarmonyConnection::FetchCurrentActivity(std::stop_token stop) {
     if (!ws_client_) {
-        return false;
+        return ActivityFetchResult::kTransportFailed;
     }
     DrainStaleMessages();
     nlohmann::json request = {
@@ -517,20 +528,20 @@ bool HarmonyConnection::FetchCurrentActivity(std::stop_token stop) {
           {"params", {{"verb", "get"}}}}},
     };
     if (!ws_client_->SendText(request.dump())) {
-        return false;
+        return ActivityFetchResult::kTransportFailed;
     }
-    if (stop.stop_requested()) return false;
+    if (stop.stop_requested()) return ActivityFetchResult::kTransportFailed;
     std::optional<std::string> response_text = ws_client_->ReceiveText(kLivenessProbeTimeoutMs);
     if (!response_text.has_value()) {
-        return false;
+        return ActivityFetchResult::kTransportFailed;
     }
     nlohmann::json response = ParseBoundedJson(*response_text);
     if (response.is_discarded() || !response.is_object()) {
-        return false;
+        return ActivityFetchResult::kParseFailed;
     }
     auto data_it = response.find("data");
     if (data_it == response.end() || !data_it->is_object()) {
-        return false;
+        return ActivityFetchResult::kParseFailed;
     }
     auto result_it = data_it->find("result");
     // A wrong-typed result (object/array/bool/null) isn't a valid activity
@@ -540,7 +551,7 @@ bool HarmonyConnection::FetchCurrentActivity(std::stop_token stop) {
     // something unparseable." Treated as a failed probe, same as a
     // missing field.
     if (result_it == data_it->end() || !(result_it->is_string() || result_it->is_number_integer())) {
-        return false;
+        return ActivityFetchResult::kParseFailed;
     }
     std::string activity_id = NumberOrStringToString(*result_it);
 
@@ -557,7 +568,7 @@ bool HarmonyConnection::FetchCurrentActivity(std::stop_token stop) {
     if (changed) {
         event_bus_.Publish(HarmonyCurrentActivityChangedEvent{activity_id});
     }
-    return true;
+    return ActivityFetchResult::kOk;
 }
 
 bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {

@@ -291,6 +291,13 @@ TEST_F(HarmonyConnectionTest, ConfiguredHandshakeAndConfigFetchSucceedPublishesC
     {
         std::lock_guard<std::mutex> lock(script->mutex);
         script->responses.push_back(kConfigSuccessBody);
+        // Consumed by ConnectAndFetchConfig()'s own best-effort current-
+        // activity fetch, immediately after config succeeds - without
+        // this, that probe's ReceiveText() finds no response queued
+        // (a transport failure, not a parse one) and the whole connect
+        // attempt now fails (see ConnectAndFetchConfig()'s own comment),
+        // which isn't this test's own concern.
+        script->responses.push_back(CurrentActivityResponseBody("-1"));
     }
 
     std::atomic<int> connected_events{0};
@@ -446,6 +453,11 @@ TEST_F(HarmonyConnectionTest, ChangingHubHostToADifferentAddressClearsTheCachedC
 
     auto script = std::make_shared<WsScript>();
     PushResponse(script, kConfigSuccessBody);
+    // Consumed by ConnectAndFetchConfig()'s own best-effort current-
+    // activity fetch, immediately after config succeeds - see
+    // ConfiguredHandshakeAndConfigFetchSucceedPublishesConnectedWithDevicesAndActivities's
+    // identical comment.
+    PushResponse(script, CurrentActivityResponseBody("-1"));
 
     homedeck::HarmonyConnection connection(
         http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
@@ -527,6 +539,11 @@ TEST_F(HarmonyConnectionTest, HandshakeFailureEntersErrorStateThenRecoversOnceIt
     {
         std::lock_guard<std::mutex> lock(script->mutex);
         script->responses.push_back(kConfigSuccessBody);
+        // Consumed by ConnectAndFetchConfig()'s own best-effort current-
+        // activity fetch, immediately after config succeeds - see
+        // ConfiguredHandshakeAndConfigFetchSucceedPublishesConnectedWithDevicesAndActivities's
+        // identical comment.
+        script->responses.push_back(CurrentActivityResponseBody("-1"));
     }
 
     homedeck::HarmonyConnection connection(
@@ -848,6 +865,53 @@ TEST_F(HarmonyConnectionTest, ConnectFetchesCurrentActivityAndPublishesItsChange
     EXPECT_EQ(connection.Snapshot().current_activity_id, "123");
     ASSERT_TRUE(WaitFor([&] { return activity_events.load() > 0; }));
     EXPECT_EQ(last_activity_id, "123");
+
+    connection.Stop();
+}
+
+// See ConnectAndFetchConfig()'s own comment: a transport failure on its
+// best-effort current-activity probe (here, no response queued at all -
+// ReceiveText() returns std::nullopt) must fail the whole connect
+// attempt, not report a successful kConnected while the socket the
+// config fetch itself just opened is already known dead. has_config/
+// devices still reflect the config fetch that did succeed (the "keep
+// showing last-known state through a transient drop" policy -
+// HarmonyConnectionSnapshot::has_config's own comment), but the
+// connection itself must never be reported as kConnected.
+TEST_F(HarmonyConnectionTest, TransportFailureOnTheBestEffortActivityProbeFailsTheConnectAttempt) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    // Deliberately no CurrentActivityResponseBody queued.
+
+    std::atomic<int> connected_events{0};
+    auto state_sub = bus.Subscribe<homedeck::HarmonyConnectionStateChangedEvent>(
+        [&connected_events](const homedeck::HarmonyConnectionStateChangedEvent& event) {
+            if (event.state == homedeck::HarmonyConnectionState::kConnected) connected_events++;
+        });
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_FALSE(connection.Snapshot().devices.empty());
+    // Several retry cycles' worth of time (kFastBackoff=30ms each) - long
+    // enough that a regression reporting kConnected here would already
+    // have shown up.
+    std::this_thread::sleep_for(std::chrono::milliseconds(150));
+    EXPECT_EQ(connected_events.load(), 0);
+    EXPECT_NE(connection.Snapshot().state, homedeck::HarmonyConnectionState::kConnected);
 
     connection.Stop();
 }
