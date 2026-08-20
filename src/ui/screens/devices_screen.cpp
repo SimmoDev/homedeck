@@ -157,7 +157,18 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     lv_obj_move_foreground(home_button);
 }
 
-DevicesScreen::~DevicesScreen() { lv_obj_del(root_); }
+DevicesScreen::~DevicesScreen() {
+    // Explicitly unsubscribed first, ahead of member destruction order
+    // (config_sub_/state_sub_ are declared last in the header, so
+    // they'd otherwise auto-destruct *after* this body runs) - same
+    // reasoning as ActivitiesScreen::~ActivitiesScreen(): each
+    // callback reads `this`'s own members, so an event dispatched
+    // while this destructor is still tearing down root_ must not be
+    // able to run against a partially-destroyed screen.
+    config_sub_.Reset();
+    state_sub_.Reset();
+    lv_obj_del(root_);
+}
 
 void DevicesScreen::RebuildDeviceList() {
     HarmonyConnectionSnapshot snapshot = harmony_connection_.Snapshot();
