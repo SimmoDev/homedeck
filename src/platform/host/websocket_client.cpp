@@ -487,7 +487,17 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
             if (!ReadExact(curl, sockfd, mask, sizeof(mask), deadline)) return std::nullopt;
         }
 
-        if (opcode == 0x8) {  // CLOSE
+        if (opcode == 0x8) {  // CLOSE - echo a bare close frame back per
+                               // RFC 6455's own closing handshake,
+                               // best-effort same as the PONG reply below
+                               // (a failed write here only affects how
+                               // cleanly this side's TCP connection
+                               // closes, not correctness - Close() tears
+                               // down the handle regardless, and the
+                               // caller already treats std::nullopt as a
+                               // dead connection).
+            std::vector<unsigned char> close_frame = BuildMaskedFrame(0x8, "");
+            WriteExact(curl, sockfd, close_frame.data(), close_frame.size(), deadline);
             return std::nullopt;
         }
 

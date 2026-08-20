@@ -267,6 +267,38 @@ TEST(HostWebSocketClient, ReceiveTextRejectsAMessageOverTheSizeCap) {
     EXPECT_FALSE(response.has_value());
 }
 
+TEST(HostWebSocketClient, ReceiveTextEchoesACloseFrameBack) {
+    // RFC 6455's closing handshake: the endpoint that receives a CLOSE
+    // frame is expected to send one back before the TCP connection
+    // actually closes.
+    int listen_fd = ListenOnLoopback(18307);
+    uint8_t received_opcode = 0xFF;  // sentinel - never a valid opcode nibble on its own
+
+    std::jthread server_thread([listen_fd, &received_opcode] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        PerformServerHandshake(conn_fd);
+        std::vector<unsigned char> close_header = BuildServerFrameHeader(/*fin=*/true, /*opcode=*/0x8, 0);
+        send(conn_fd, close_header.data(), close_header.size(), MSG_NOSIGNAL);
+
+        unsigned char reply_header[2];
+        if (read(conn_fd, reply_header, 2) == 2) {
+            received_opcode = reply_header[0] & 0x0F;
+        }
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18307/"));
+    std::optional<std::string> response = client.ReceiveText(2000);
+
+    server_thread.join();
+    close(listen_fd);
+
+    EXPECT_FALSE(response.has_value());
+    EXPECT_EQ(received_opcode, 0x8);
+}
+
 TEST(HostWebSocketClient, ReceiveTextRejectsABinaryFrame) {
     // RFC 6455 requires failing the connection on a reserved/unexpected
     // opcode (0x2 binary here) rather than silently treating it as
