@@ -142,6 +142,16 @@ input" for this module's own inbound
 surface, the same way the Web UI's own endpoints satisfy it for theirs
 (see the Status section below).
 
+The outbound direction is admin-controlled, not attacker-controlled:
+`hub_host` (validated by `IsValidHubHost()`,
+`src/core/harmony_connection.cpp`) is an arbitrary LAN host:port
+HomeDeck connects to, settable only through `POST /api/settings`, which
+`AdminAuthService` gates like every other write. This is the same trust
+boundary the rest of this document already accepts for an authenticated
+admin (e.g. OTA uploads below) — not a privilege-escalation path, since
+only an already-authenticated admin can point HomeDeck's outbound
+connection anywhere.
+
 ## Status
 
 **Admin auth is implemented** — see [web-ui.md](web-ui.md#status) for
