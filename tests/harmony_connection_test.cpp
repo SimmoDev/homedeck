@@ -1331,6 +1331,18 @@ TEST_F(HarmonyConnectionTest, EnqueueingPastTheCapDropsTheOldestEntriesFirst) {
         kFastBackoff);
     connection.Start();
 
+    // Waits for the connection loop's own thread to have actually reached
+    // its unconfigured wait, rather than assuming it gets there before the
+    // 25 enqueues below run - Start() only requests the background thread
+    // start, with no guarantee about when it actually begins executing.
+    // Without this wait, a slow-to-schedule thread (seen in CI under load)
+    // could still be sitting on a stale, pre-Start() TriggerReconnect()-style
+    // wake_requested_ once it finally connects, tripping an extra,
+    // unnecessary reconnect cycle - kDisconnected is set synchronously
+    // before the connection loop's first Sleep() call, so waiting for it
+    // here closes that window.
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kDisconnected; }));
+
     constexpr int kEnqueued = 25;
     constexpr int kCap = 20;
     for (int i = 0; i < kEnqueued; ++i) {
