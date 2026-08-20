@@ -123,7 +123,7 @@ existing precedent:
   endpoints give their own 403 `reserved_key` for, not a genuine storage
   fault
 
-**Device name is the first real setting**, replacing the hardcoded
+**Device name is the first setting**, replacing the hardcoded
 `"homedeck"` mDNS hostname. `RegisterSettingsRoutes` takes two optional
 injected callbacks for `(module="core", key="device_name")` writes:
 `DeviceNameValidateFn`, called before persisting (on firmware, RFC

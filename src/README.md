@@ -78,7 +78,7 @@ src/
 │                call. NVS encryption and the microSD tier are
 │                deliberately not built yet (see ADR-0018/ADR-0012). Also
 │                notification.h/LowBatteryMonitor - the Notifications
-│                service's urgency-tagged event and its first real
+│                service's urgency-tagged event and its first
 │                publisher (see core.md#status). Also
 │                critical_battery_monitor.h - CriticalBatteryMonitor,
 │                the second publisher, transitioning PowerManager into

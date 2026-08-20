@@ -263,7 +263,7 @@ simulator.
       alert-priority/deferred urgency
       [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
       requires) published via `EventBus`, with `LowBatteryMonitor`
-      (`src/core/`) as the first real publisher (latched so a sustained
+      (`src/core/`) as the first publisher (latched so a sustained
       low-battery state notifies once, not once a second). The three
       outputs — `NotificationBanner`, `NotificationSound`, and
       `NotificationWidget` (all `src/ui/`) — all work together on
@@ -556,7 +556,7 @@ day-to-day usage with HomeDeck.
 - [ ] Kodi integration — needs the mDNS *browsing* wrapper deferred from
       M2's LAN discovery item (see
       [networking.md](architecture/networking.md#lan-discovery)); this is
-      its first real consumer
+      its first consumer
 - [ ] Media browsing
 - [ ] Playback control
 - [ ] Now Playing widget/screen
@@ -593,7 +593,7 @@ day-to-day usage with HomeDeck.
 - [ ] Full board power-off with RTC-alarm cold-boot wake, matching
       M5Stack's own official Tab5 firmware pattern
       (`sleepAndRtcWakeup()`/`powerOff()` via the PMS150G-U06 power
-      controller) - a real, standalone feature, deliberately decoupled
+      controller) - a standalone feature, deliberately decoupled
       from `Sleeping` rather than something it depends on, since it
       needs its own from-scratch hardware driver (the PMS150G's
       power-off pulse timing isn't in any official spec, only
@@ -729,7 +729,7 @@ day-to-day usage with HomeDeck.
 - [ ] Distinct notification sounds per `NotificationSeverity`
       (`src/core/notification_sound.cpp`) - currently one tone for both
       `kDeferred`/`kAlertPriority`, even though `kAlertPriority` already
-      has a real publisher (`CriticalBatteryMonitor`, see the M2
+      has a publisher (`CriticalBatteryMonitor`, see the M2
       Notifications item); deliberately deferred sound-design work, not
       blocked on a publisher existing
 - [ ] Nicer notification sound design generally - `NotificationSound`'s

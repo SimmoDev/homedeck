@@ -14,4 +14,4 @@ mbedtls) each only reach one of the two targets.
   multi-file source tree), unmodified. MIT licensed. This is the JSON
   library [ADR-0002](../../docs/decisions/ADR-0002-technology-stack.md#2-json-library)
   already decided project-wide; `AdminAuthService`'s HTTP endpoints (see
-  `core/admin_auth_service.cpp`) are its first real consumer.
+  `core/admin_auth_service.cpp`) are its first consumer.

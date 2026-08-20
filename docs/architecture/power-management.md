@@ -184,7 +184,7 @@ and `PowerManager` transitions into `kError` (and back to `kActive` on
 recovery) accordingly, through the `Ina226BatteryReader` path. The same
 crossing also publishes a `NotificationEvent` at
 `NotificationSeverity::kAlertPriority` (see
-[ui.md](ui.md#notification-presentation)) - the first real publisher of
+[ui.md](ui.md#notification-presentation)) - the first publisher of
 that severity. `kError`
 takes priority over `kUpdating` if both are true at once, per ADR-0005's
 "force a safe shutdown right now regardless of what the UI is doing" -
