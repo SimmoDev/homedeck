@@ -140,7 +140,7 @@ int Ina226BatteryReader::ReadPercent() const {
 bool Ina226BatteryReader::IsBatteryPresent() const {
     // Locks around the whole method, not just the last_voltage_volts_/
     // has_last_voltage_ update below - see the header comment for why
-    // this needs a real lock, not just defensive style.
+    // this needs a lock, not just defensive style.
     std::lock_guard<std::mutex> lock(mutex_);
 
     std::error_code ec;

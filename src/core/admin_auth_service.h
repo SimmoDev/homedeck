@@ -92,7 +92,7 @@ public:
     // Test-only: exposes sessions_.size() to prove SweepExpiredSessions()
     // actually bounds memory growth from an abandoned session (one
     // nobody ever calls ValidateSession() on again, which would
-    // otherwise lazily erase it on its own) - not part of the real API
+    // otherwise lazily erase it on its own) - not part of the API
     // surface.
     size_t ActiveSessionCountForTesting();
 

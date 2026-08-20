@@ -12,7 +12,7 @@ namespace homedeck {
 // and ADR-0008's "Dashboard layout model" decision (a fixed grid, exact
 // dimensions left as an M2 implementation detail). kColumns is a
 // genuinely arbitrary starting point, not a considered choice - there's
-// no real widget catalog yet to size against. Rows have no fixed cap
+// no widget catalog yet to size against. Rows have no fixed cap
 // (no paging concept exists), so they grow on demand as widgets are
 // added - the container stays scrollable for when that content exceeds
 // the visible screen.

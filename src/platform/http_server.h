@@ -54,7 +54,7 @@ struct HttpResponse {
 // line), so this returns the phrase alone and each caller builds its own
 // format around it, rather than the full line, so neither format is
 // privileged over the other. Only the status codes this project's handlers
-// actually return get a real case - AdminAuthService::RequireAuth() in
+// actually return get a case - AdminAuthService::RequireAuth() in
 // particular returns 401/403 on the majority of requests to any protected
 // endpoint - everything else falls back to a generic one rather than
 // growing this list speculatively.
@@ -91,7 +91,7 @@ inline const char* HttpReasonPhrase(int status_code) {
 // decision for why both, not one). No WebSocket support here - nothing
 // yet needs the live-update path ADR-0002 also names, and that path has
 // its own unresolved dispatch-safety question for civetweb; adding it
-// ahead of a real consumer would be exactly the kind of speculative
+// ahead of a consumer would be exactly the kind of speculative
 // design this project's own precedent (ADR-0003, core.md) rejects.
 class HttpServer {
 public:

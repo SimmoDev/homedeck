@@ -20,7 +20,7 @@ static_assert(sizeof(kColumnTemplate) / sizeof(kColumnTemplate[0]) == DashboardG
 // separately - it eats into the same available width the column size
 // comes from. Only accurate if the grid's actual rendered width,
 // padding, and gap match these assumptions (kGridPadding/kCellGap are
-// set explicitly below so they do); a real widget catalog may need this
+// set explicitly below so they do); a widget catalog may need this
 // revisited regardless.
 constexpr int32_t kPanelWidth = 720;
 constexpr int32_t kGridPadding = 8;

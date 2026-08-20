@@ -9,7 +9,7 @@ namespace homedeck {
 // has no RTC wake cycle to interrupt, so the distinction carries no
 // wake-cycle behavior today. It remains available for a future
 // presentation difference (see ui.md#notification-presentation) and
-// already has a real publisher: CriticalBatteryMonitor publishes
+// already has a publisher: CriticalBatteryMonitor publishes
 // kAlertPriority (see power-management.md#status); everything else is
 // kDeferred, surfaced whenever the device is next awake regardless.
 enum class NotificationSeverity {

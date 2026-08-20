@@ -12,7 +12,7 @@ namespace homedeck {
 namespace {
 
 // OpenMeteoWeatherProvider's poll Task (core/weather_provider.h) is the
-// first real Task consumer, and runs esp_http_client/TLS (mbedtls) plus
+// first Task consumer, and runs esp_http_client/TLS (mbedtls) plus
 // JSON parsing - both genuinely stack-hungry, well past a minimal
 // background task's usual footprint. Same "generous, not just past
 // current requirement" reasoning as CONFIG_ESP_MAIN_TASK_STACK_SIZE/
