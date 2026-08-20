@@ -34,6 +34,21 @@ struct WeatherState {
 
 struct WeatherUpdatedEvent {};  // marker only - handlers call Snapshot()
 
+// Empty (unset) or a value that parses fully as a number within the
+// valid range for `key` (OpenMeteoWeatherProvider::kLatitudeKey:
+// [-90, 90]; kLongitudeKey: [-180, 180]; any other key: always true,
+// since only these two keys have a format worth constraining) - the
+// same numeric-format check Snapshot()'s own "configured" gate already
+// applies, plus the range bound that gate doesn't need but a stored
+// value should never violate. Mirrors IsValidHubHost()'s role: invoked
+// from POST /api/settings via core/settings_routes.h's generic
+// SettingValidateFn (wired in ui/app_core.cpp), since the generic
+// settings API - not a dedicated weather-config endpoint - is what
+// actually persists these values. display_name carries no format
+// constraint beyond the settings API's own generic length cap - it's
+// just a label.
+bool IsValidWeatherCoordinate(const std::string& key, const std::string& value);
+
 // See docs/architecture/networking.md and ADR-0008's "Weather data
 // source" decision. No EventBus dependency here by design, same
 // reasoning as NetworkStatus (core/network_status_monitor.h) - except
@@ -56,6 +71,15 @@ public:
 // shape Storage itself already has.
 class OpenMeteoWeatherProvider : public WeatherProvider {
 public:
+    // Module/key names for the generic /api/settings API - shared
+    // between this class's own Storage reads and ui/app_core.cpp's
+    // SettingValidateFn wiring, same as HarmonyConnection::kModuleId/
+    // kHubHostKey.
+    static constexpr char kModuleId[] = "weather";
+    static constexpr char kLatitudeKey[] = "latitude";
+    static constexpr char kLongitudeKey[] = "longitude";
+    static constexpr char kDisplayNameKey[] = "display_name";
+
     // poll_interval is injectable (defaulted to a real 30 minutes) so
     // tests can use a millisecond-scale interval instead of waiting -
     // the same "real default, test-overridable" shape Clock::tick_period

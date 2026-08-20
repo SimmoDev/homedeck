@@ -262,3 +262,34 @@ TEST_F(WeatherProviderTest, TriggerPollWakesTheLoopImmediately) {
 
     ASSERT_TRUE(WaitFor([&] { return provider.Snapshot().live; }));
 }
+
+TEST(IsValidWeatherCoordinateTest, AcceptsEmptyForEitherKey) {
+    EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("latitude", ""));
+    EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("longitude", ""));
+}
+
+TEST(IsValidWeatherCoordinateTest, AcceptsAValueWithinRange) {
+    EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("latitude", "52.52"));
+    EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("latitude", "-90"));
+    EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("longitude", "13.41"));
+    EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("longitude", "-180"));
+}
+
+TEST(IsValidWeatherCoordinateTest, RejectsALatitudeOutsideNinetyDegrees) {
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("latitude", "90.1"));
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("latitude", "-91"));
+}
+
+TEST(IsValidWeatherCoordinateTest, RejectsALongitudeOutsideOneEightyDegrees) {
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("longitude", "180.1"));
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("longitude", "-181"));
+}
+
+TEST(IsValidWeatherCoordinateTest, RejectsANonNumericValue) {
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("latitude", "not-a-number"));
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("longitude", "51.5,13.4"));
+}
+
+TEST(IsValidWeatherCoordinateTest, AcceptsAnyValueForAnUnrelatedKey) {
+    EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("display_name", "anything at all"));
+}

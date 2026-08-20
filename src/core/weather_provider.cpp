@@ -6,30 +6,46 @@
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 
 namespace homedeck {
 
 namespace {
 
-constexpr char kModuleId[] = "weather";
-constexpr char kLatitudeKey[] = "latitude";
-constexpr char kLongitudeKey[] = "longitude";
-constexpr char kDisplayNameKey[] = "display_name";
 constexpr char kCacheKey[] = "last_reading";
 constexpr int kCacheSchemaVersion = 1;
 
 // A full, successful strtod parse of the whole string - not just a
 // leading numeric prefix - the same defensive-input-validation
 // reasoning CLAUDE.md asks for at a boundary (these values come from
-// the Web UI's Settings API, effectively user input).
-bool ParsesAsNumber(const std::string& text) {
-    if (text.empty()) return false;
+// the Web UI's Settings API, effectively user input). Returns the
+// parsed value so IsValidWeatherCoordinate() below can range-check it
+// too, instead of parsing the string twice.
+std::optional<double> ParseNumber(const std::string& text) {
+    if (text.empty()) return std::nullopt;
     char* end = nullptr;
-    std::strtod(text.c_str(), &end);
-    return end == text.c_str() + text.size();
+    double value = std::strtod(text.c_str(), &end);
+    if (end != text.c_str() + text.size()) return std::nullopt;
+    return value;
 }
 
+bool ParsesAsNumber(const std::string& text) { return ParseNumber(text).has_value(); }
+
 }  // namespace
+
+bool IsValidWeatherCoordinate(const std::string& key, const std::string& value) {
+    double max_abs;
+    if (key == OpenMeteoWeatherProvider::kLatitudeKey) {
+        max_abs = 90.0;
+    } else if (key == OpenMeteoWeatherProvider::kLongitudeKey) {
+        max_abs = 180.0;
+    } else {
+        return true;  // only latitude/longitude have a format worth constraining
+    }
+    if (value.empty()) return true;
+    std::optional<double> parsed = ParseNumber(value);
+    return parsed.has_value() && *parsed >= -max_abs && *parsed <= max_abs;
+}
 
 OpenMeteoWeatherProvider::OpenMeteoWeatherProvider(HttpClient& http_client, Storage& storage, EventBus& event_bus,
                                                      std::chrono::milliseconds poll_interval)

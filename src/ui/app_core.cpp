@@ -90,6 +90,9 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
             if (module == HarmonyConnection::kModuleId && key == HarmonyConnection::kHubHostKey) {
                 return IsValidHubHost(value);
             }
+            if (module == OpenMeteoWeatherProvider::kModuleId) {
+                return IsValidWeatherCoordinate(key, value);
+            }
             return true;
         });
     RegisterWeatherRoutes(deps.http_server, http_client_, weather_provider_, admin_auth_);
