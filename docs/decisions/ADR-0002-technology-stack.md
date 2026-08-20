@@ -6,8 +6,12 @@ Accepted — the hardware support library choice is superseded for
 display/touch by [ADR-0014](ADR-0014-hardware-support-library.md) and
 for battery/RTC by [ADR-0016](ADR-0016-battery-rtc-library.md); Web
 Management UI static asset storage is decided separately by
-[ADR-0025](ADR-0025-webui-static-asset-storage.md). Every other decision
-below stands as originally accepted.
+[ADR-0025](ADR-0025-webui-static-asset-storage.md). The "Embedded HTTP/
+WebSocket server" decision's civetweb dispatch-safety question below
+named M2 as when it needs verifying; M2 closed without it being
+verified, and it's now tracked as an M7 item instead — see
+[roadmap.md](../roadmap.md#m7--polish). Every other decision below
+stands as originally accepted.
 
 ## Context
 
@@ -192,8 +196,9 @@ provides `httpd_queue_work()` to marshal such a push onto the server's own
 task — the same shape of problem `lv_async_call()` solves for LVGL, just
 for a different owned resource. Whether civetweb (the simulator's server,
 per the decision above) has an equivalent requirement, and if so what it
-is, is **not yet confirmed** — this needs verifying during M2, and the
-answer may not match `esp_http_server`'s model, which would be a second,
+is, is **not yet confirmed** — see this ADR's own Status section for
+where that verification is now tracked. The answer may not match
+`esp_http_server`'s model, which would be a second,
 more specific instance of the simulator/firmware divergence already
 accepted above (not just "behavior might differ," but potentially "the
 safe dispatch mechanism itself differs per backend"). The event bus's
