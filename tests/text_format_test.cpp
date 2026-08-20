@@ -4,7 +4,9 @@
 
 // Every case below is a HarmonyControlGroup/HarmonyCommand name pulled
 // from the reference hub (see DevicesScreen's own comment) - not
-// guessed shapes.
+// guessed shapes - except SplitsAtADigitToUpperBoundary, which verifies
+// a documented rule (text_format.h's own header comment) not observed
+// on any command name from that hub.
 
 TEST(SplitCamelCaseTest, SplitsAtALowerToUpperBoundary) {
     EXPECT_EQ(homedeck::SplitCamelCase("RightBumper"), "Right Bumper");
@@ -29,6 +31,15 @@ TEST(SplitCamelCaseTest, IsANoOpOnAlreadySpacedText) {
 
 TEST(SplitCamelCaseTest, KeepsATrailingDigitAttached) {
     EXPECT_EQ(homedeck::SplitCamelCase("GameType1"), "Game Type1");
+}
+
+TEST(SplitCamelCaseTest, SplitsAtADigitToUpperBoundary) {
+    // A digit counts as the "lower" side of the lower-to-upper boundary
+    // rule too (see this function's own header comment) - the digit
+    // itself stays attached to what precedes it, same as
+    // KeepsATrailingDigitAttached above, but a space is still inserted
+    // before the uppercase letter that follows it.
+    EXPECT_EQ(homedeck::SplitCamelCase("Mode3D"), "Mode3 D");
 }
 
 TEST(SplitCamelCaseTest, HandlesASingleWordOrLetter) {
