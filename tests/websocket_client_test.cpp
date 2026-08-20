@@ -74,7 +74,7 @@ void PerformServerHandshake(int fd) {
                             "Connection: Upgrade\r\n"
                             "Sec-WebSocket-Accept: " +
                             ComputeAcceptKey(client_key) + "\r\n\r\n";
-    write(fd, response.data(), response.size());
+    send(fd, response.data(), response.size(), MSG_NOSIGNAL);
 }
 
 // Reads one client->server frame (RFC 6455 requires client frames masked)
@@ -135,8 +135,8 @@ std::vector<unsigned char> BuildServerFrameHeader(bool fin, uint8_t opcode, size
 // few hundred bytes.
 void SendServerTextFrame(int fd, const std::string& payload) {
     std::vector<unsigned char> header = BuildServerFrameHeader(/*fin=*/true, /*opcode=*/0x1, payload.size());
-    write(fd, header.data(), header.size());
-    write(fd, payload.data(), payload.size());
+    send(fd, header.data(), header.size(), MSG_NOSIGNAL);
+    send(fd, payload.data(), payload.size(), MSG_NOSIGNAL);
 }
 
 // Sends a large payload best-effort, never blocking past deadline_ms total -
@@ -146,12 +146,12 @@ void SendServerTextFrame(int fd, const std::string& payload) {
 // socket's send buffer fills.
 void SendServerLargeFrameBestEffort(int fd, const std::string& payload, int deadline_ms) {
     std::vector<unsigned char> header = BuildServerFrameHeader(/*fin=*/true, /*opcode=*/0x1, payload.size());
-    write(fd, header.data(), header.size());
+    send(fd, header.data(), header.size(), MSG_NOSIGNAL);
 
     auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(deadline_ms);
     size_t sent = 0;
     while (sent < payload.size() && std::chrono::steady_clock::now() < deadline) {
-        ssize_t n = send(fd, payload.data() + sent, payload.size() - sent, MSG_DONTWAIT);
+        ssize_t n = send(fd, payload.data() + sent, payload.size() - sent, MSG_DONTWAIT | MSG_NOSIGNAL);
         if (n > 0) {
             sent += static_cast<size_t>(n);
             continue;
@@ -186,7 +186,7 @@ TEST(HostWebSocketClient, ConnectSendAndReceiveARealTextFrameRoundTrip) {
     int listen_fd = ListenOnLoopback(18300);
     std::string received_from_client;
 
-    std::thread server_thread([listen_fd, &received_from_client] {
+    std::jthread server_thread([listen_fd, &received_from_client] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
         if (conn_fd < 0) return;
         PerformServerHandshake(conn_fd);
@@ -222,7 +222,7 @@ TEST(HostWebSocketClient, ReceiveTextReassemblesOneFrameDeliveredAcrossMultipleR
     int listen_fd = ListenOnLoopback(18301);
     std::string payload = "{\"activities\":[" + std::string(20000, 'a') + "]}";
 
-    std::thread server_thread([listen_fd, &payload] {
+    std::jthread server_thread([listen_fd, &payload] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
         if (conn_fd < 0) return;
         PerformServerHandshake(conn_fd);
@@ -244,7 +244,7 @@ TEST(HostWebSocketClient, ReceiveTextReassemblesOneFrameDeliveredAcrossMultipleR
 TEST(HostWebSocketClient, ReceiveTextRejectsAMessageOverTheSizeCap) {
     int listen_fd = ListenOnLoopback(18302);
 
-    std::thread server_thread([listen_fd] {
+    std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
         if (conn_fd < 0) return;
         PerformServerHandshake(conn_fd);
@@ -275,7 +275,7 @@ TEST(HostWebSocketClient, ReceiveTextZeroDoesNotBlockWhenNothingIsPending) {
     // full lifetime.
     int listen_fd = ListenOnLoopback(18303);
 
-    std::thread server_thread([listen_fd] {
+    std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
         if (conn_fd < 0) return;
         PerformServerHandshake(conn_fd);
