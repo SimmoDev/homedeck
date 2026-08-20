@@ -98,7 +98,7 @@
   {#if restoreError}
     <p class="error" aria-live="polite">{restoreError}</p>
   {:else if restoreResult}
-    <p class="hint">{restoreResult}</p>
+    <p class="hint" aria-live="polite">{restoreResult}</p>
   {/if}
 </div>
 

@@ -181,7 +181,7 @@
     {#if saveError}
       <p class="error" aria-live="polite">{saveError}</p>
     {:else if saved}
-      <p class="hint">Saved.</p>
+      <p class="hint" aria-live="polite">Saved.</p>
     {/if}
   {/if}
 

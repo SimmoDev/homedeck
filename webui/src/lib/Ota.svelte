@@ -152,7 +152,7 @@
     {/if}
 
     {#if uploadState === "success"}
-      <p>Upload complete. Reboot to apply the update.</p>
+      <p aria-live="polite">Upload complete. Reboot to apply the update.</p>
       <button onclick={reboot} disabled={rebooting}>
         {rebooting ? "Rebooting..." : "Reboot now"}
       </button>
