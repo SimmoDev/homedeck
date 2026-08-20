@@ -259,11 +259,10 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
 
     // The setup page's <form> has no enctype, so browsers submit it as
     // application/x-www-form-urlencoded - spaces become '+' and symbols
-    // become "%XX". ParseFormField decodes that (ESP-IDF's own
-    // httpd_query_key_value(), used here previously, does not - it's a
-    // raw byte copy, so any SSID/password containing a space or symbol
-    // was applied to esp_wifi still percent-encoded and could never
-    // associate).
+    // become "%XX". ParseFormField decodes that; ESP-IDF's own
+    // httpd_query_key_value() does not - it's a raw byte copy, so an
+    // SSID/password containing a space or symbol would reach esp_wifi
+    // still percent-encoded and could never associate.
     std::string ssid = ParseFormField(body, "ssid").value_or("");
     std::string password = ParseFormField(body, "password").value_or("");
     if (!ApplyWifiCredentials(ssid, password)) {
