@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
-# Runs the doc-narration, ESP-IDF-return, curl-timeout, esp-http-timeout,
-# and secret-scan checks against staged files. All five checks warn only
-# - they never block a commit. Activate with:
+# Runs the doc-narration, hardware.md-scope, ESP-IDF-return, curl-timeout,
+# esp-http-timeout, and secret-scan checks against staged files. Only
+# check-secrets.sh blocks the commit - its patterns are narrow/high-
+# precision (private key headers, known credential-token shapes) and a
+# missed leak is high-severity and hard to reverse once pushed. The other
+# five checks are heuristic (free-text wording/narration, or syntactic
+# checks that sometimes need human judgment) and stay warn-only, so a
+# false positive there can't force a --no-verify habit that would also
+# bypass the secret scan. Activate with:
 #   git config core.hooksPath tools/githooks
 set -uo pipefail
 
@@ -22,6 +28,8 @@ found_issue=0
 if [ -n "$doc_files" ]; then
     # shellcheck disable=SC2086
     "$repo_root/tools/githooks/check-docs.sh" $doc_files || found_issue=1
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-hardware-md-scope.sh" $doc_files || found_issue=1
 fi
 
 if [ -n "$esp_files" ]; then
@@ -36,17 +44,25 @@ if [ -n "$cpp_files" ]; then
     "$repo_root/tools/githooks/check-curl-timeouts.sh" $cpp_files || found_issue=1
 fi
 
+secrets_found=0
 if [ -n "$staged_files" ]; then
     # Every staged file, not extension-filtered like the checks above -
     # a leaked credential isn't confined to source files (a .env, a
     # pasted config dump, a script).
     # shellcheck disable=SC2086
-    "$repo_root/tools/githooks/check-secrets.sh" $staged_files || found_issue=1
+    "$repo_root/tools/githooks/check-secrets.sh" $staged_files || secrets_found=1
 fi
 
 if [ "$found_issue" -ne 0 ]; then
     echo
-    echo "pre-commit: findings above are warnings, not blockers - review before pushing."
+    echo "pre-commit: non-secret findings above are warnings, not blockers - review before pushing."
+fi
+
+if [ "$secrets_found" -ne 0 ]; then
+    echo
+    echo "pre-commit: possible secret detected above - commit blocked. Remove it or, if it's a"
+    echo "confirmed false positive, commit with --no-verify."
+    exit 1
 fi
 
 exit 0

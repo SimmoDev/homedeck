@@ -36,3 +36,7 @@ jobs:
             ':!firmware/components/m5stack_tab5/**' \
             ':!src/third_party/nlohmann/**')
           bash tools/githooks/check-docs.sh $files
+
+      - name: Run check-hardware-md-scope.sh against docs/architecture/hardware.md
+        continue-on-error: true
+        run: bash tools/githooks/check-hardware-md-scope.sh docs/architecture/hardware.md
