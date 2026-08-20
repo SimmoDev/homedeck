@@ -81,11 +81,10 @@ the underlying intent behind naming them. [CLAUDE.md](../../CLAUDE.md)'s Technol
 section fixes M5Unified/M5GFX as the *route* to reliable, non-Arduino Tab5
 hardware support; on this exact chip, that named route doesn't currently
 deliver that outcome, and a different official, non-Arduino, actively
-maintained path does. Full technical detail — the crash evidence, the
-esp-bsp development history, the exact packages and versions — is recorded
-in [hardware.md](../architecture/hardware.md#display-driver-strategy) as
-the source of truth; this ADR is the decision record, not a duplicate of
-that detail.
+maintained path does. See
+[hardware.md](../architecture/hardware.md#display-driver-strategy) for
+the confirmed physical bring-up results (rendering, board-revision
+probing, touch) this decision produced.
 
 Self-flagged "Medium Risk" by its own author at merge time, with limited
 field validation — accepted anyway, since every alternative carried equal

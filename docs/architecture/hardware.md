@@ -59,23 +59,16 @@ if a fact drifts.
   fall in the same range.
 - **Power domain confirmed.** The C6's power enable (`WLAN_PWR_EN`) is
   bit 0 of a dedicated I2C GPIO expander output (PI4IOE5V6408, I2C
-  address `0x44` — see the address map above), toggled via
-  `bsp_feature_enable(BSP_FEATURE_WIFI, true)` — not
-  `bsp_set_wifi_power_enable()`, which is a different repo's (M5Stack's
-  own `M5Tab5-UserDemo`) function name and doesn't exist in this
-  project's actual dependency (`espressif/m5stack_tab5`). Confirmed
-  necessary together with the correct SDIO pins above; not verified in
-  isolation. No automatic hardware coupling to the P4's own sleep state
-  exists in that BSP source — the C6's power rail is independently
-  switchable, not wired to collapse whenever the P4 sleeps, which makes
-  whether the C6 can stay associated through P4 deep sleep moot for
-  `Sleeping`: the P4 never enters deep sleep at all (see
-  [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)). Whether
-  it would still matter for a possible
-  future full board power-off feature depends on what `VDD_STBY` on the
-  PMS150G-U06 actually powers, which isn't confirmed — see [Wake
-  sources](#power) under Power above; that feature would need its own
-  investigation, not an inherited assumption from this paragraph.
+  address `0x44` — see the address map above). Confirmed necessary
+  together with the correct SDIO pins above; not verified in isolation.
+  The C6's power rail is independently switchable, with no hardware
+  coupling to the P4's own sleep state — see
+  [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for why
+  that doesn't matter today, since the P4 never enters deep sleep at
+  all. Whether it would matter for a possible future full board
+  power-off feature depends on what `VDD_STBY` on the PMS150G-U06
+  actually powers, which isn't confirmed — see [Wake sources](#power)
+  under Power below.
 
 ### Wi-Fi bring-up
 
@@ -104,12 +97,10 @@ RPC timeouts under heavier use remain a real, deferred risk.
 burst.** Twice out of four on-device connection attempts, the device
 panicked (`Guru Meditation Error: Instruction access fault`, Core 1) a few
 hundred milliseconds after logging a successful IP acquisition, during the
-highest-SDIO-traffic window in the boot sequence. Root-cause investigation
-has exhausted every avenue available without JTAG hardware debug tooling
-or upstream engagement with the `esp-hosted-mcu` project; the fault
-signature doesn't match any currently-open upstream issue for this exact
-ESP32-P4+C6 combination. See git history for the diagnostic detail behind
-this conclusion.
+highest-SDIO-traffic window in the boot sequence. The fault signature
+doesn't match any currently-open upstream issue for this exact
+ESP32-P4+C6 combination, and diagnosing it further needs JTAG hardware
+debug tooling this project doesn't have.
 
 Reproducing this repeatedly doesn't need a full
 `tools/factory-reset.sh` erase-and-reflash cycle per attempt - see
@@ -192,58 +183,24 @@ headroom instead, 4MB each for `ota_0`/`ota_1`.
 
 ### Display driver strategy
 
-See [ADR-0014](../decisions/ADR-0014-hardware-support-library.md) for the
-decision record (options considered, why, consequences); this section is
-the detailed technical evidence and results that decision summarizes.
-
-**M5Unified/M5GFX's Arduino-based path is avoided, not used.** M5Unified
-has a confirmed, open, unresolved crash on ESP32-P4/Tab5 specifically
-when used via ESP-IDF's Arduino-as-Component integration (the only way to
-use it outside the Arduino IDE, which [CLAUDE.md](../../CLAUDE.md) rules out) —
-[m5stack/M5Unified#231](https://github.com/m5stack/M5Unified/issues/231),
-a "Load access fault" panic on `M5.Display.width()`. The issue itself
-notes it isn't specific to this chip (references
-[#199](https://github.com/m5stack/M5Unified/issues/199), the same crash
-pattern on a different board), pointing at the Arduino-as-Component
-integration generally, not this hardware.
-
-**Decided instead: `espressif/m5stack_tab5`**, Espressif's own official
-BSP component (pure ESP-IDF, no Arduino at all), pulled via the component
-manager (`firmware/main/idf_component.yml`). As of v1.2.0~1 it does
-runtime I2C probing between the two known hardware revisions
-(ili9881c+gt911 vs. st7123+st7123) — the exact detection ADR-0009 calls
-for, effectively provided by this dependency rather than hand-written.
-Uses its LVGL-integrated API (`bsp_display_start()`) directly, matching
-this project's own LVGL commitment, rather than bypassing it with
-lower-level panel APIs. Self-flagged "Medium Risk" by its own author at
-merge time, with limited field validation.
-
-**ESP-IDF pinned to v5.4.3, not v5.4.2 or v5.5.x.** `m5stack_tab5`
-unconditionally pulls in `usb` (for camera/UVC support this project
-doesn't use for display bring-up) as a transitive dependency, which calls
-a HAL function (custom FIFO sizing) that doesn't exist in ESP-IDF v5.4.2
-— confirmed by checking IDF's own `hal` component source directly, not
-assumed. That function was backported in v5.4.3 (a minor patch release),
-which resolves the build without needing to jump to v5.5.x — which has
-its own confirmed, unrelated DSI display regression on this exact chip
-([espressif/esp-idf#18083](https://github.com/espressif/esp-idf/issues/18083):
-empty screen / horizontal stripe artifacts, working on v5.4.2 and broken
-on v5.5.x). See [DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for
-the current pinned version and setup instructions.
+Display and touch are driven by `espressif/m5stack_tab5`, Espressif's own
+official BSP component — see
+[ADR-0014](../decisions/ADR-0014-hardware-support-library.md) for the
+decision record (options considered, evidence, consequences) and
+[DEVELOPMENT.md](../../DEVELOPMENT.md#esp-idf-setup) for the pinned
+ESP-IDF version this BSP requires.
 
 **Confirmed:** a solid color fill displays correctly on the physical
 panel, with no PSRAM-DMA underrun (see [Application
 processor](#application-processor) above for the required PSRAM speed).
-`espressif/m5stack_tab5`'s runtime probing detects "board version 2 (LCD
-ST7123, Touch ST7123)", matching the physical sticker. Touch initializes
-successfully (10-point multitouch).
+The BSP's runtime probing detects "board version 2 (LCD ST7123, Touch
+ST7123)", matching the physical sticker. Touch initializes successfully
+(10-point multitouch).
 
 **Resolved: portrait, no rotation.** Reported resolution is `720x1280`
 (portrait), not the `1280x720` spec-sheet figure — and this is genuinely
-the panel's native scan direction, not just a default init flag: the BSP
-hardcodes it as `BSP_LCD_H_RES`/`BSP_LCD_V_RES` in
-`firmware/components/m5stack_tab5/include/bsp/display.h`, with
-no swap_xy applied at panel-init time. See
+the panel's native scan direction, not just a default init flag: no
+software rotation is applied at panel-init time. See
 [ADR-0015](../decisions/ADR-0015-display-orientation.md) for why a
 software rotation to landscape was rejected instead.
 
@@ -256,16 +213,13 @@ input event, not a stream repeating for the duration of a press.
 
 **Confirmed:** runs live on the Tab5, not just the simulator - a real
 ticking clock and a real (not mocked) battery percentage, both sourced
-directly from hardware via `BatteryReader`
-(`src/platform/firmware/battery_reader.h`) reading the INA226 (see
-[Power](#power) above) and `TimeSource`
-(`src/platform/firmware/time_source.h`) reading the RX8130CE RTC (see
-[RTC](#rtc) above) - a third hardware support library (`espp`), distinct
-from `espressif/m5stack_tab5`, since its capability table doesn't cover
-either peripheral (see
+directly from hardware: the INA226 (see [Power](#power) above) and the
+RX8130CE RTC (see [RTC](#rtc) above), via a third hardware support
+library (`espp`), distinct from `espressif/m5stack_tab5`, since its
+capability table doesn't cover either peripheral (see
 [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)). Both reuse
-the BSP's existing I2C bus (`bsp_i2c_get_handle()`) rather than a
-second, conflicting one on the same physical pins.
+the BSP's existing I2C bus rather than a second, conflicting one on the
+same physical pins.
 
 ## IMU
 
@@ -384,15 +338,14 @@ second, conflicting one on the same physical pins.
   evidence (noisy PDF-text extraction, not an explicit "NC" label) that
   they're unconnected on this board. **Both P4-side pins actually found
   (GPIO35, GPIO23) sit outside GPIO0-15** - confirmed against this
-  project's own generated `sdkconfig.h` for the `esp32p4` target:
-  `esp_sleep_enable_ext1_wakeup_io()`/`esp_deep_sleep_enable_gpio_wakeup()`
-  both require the wake pin to be in the RTC-IO domain
-  (`SOC_RTCIO_PIN_COUNT=16`, i.e. GPIO0-15), which neither pin is. Net
-  effect: as currently understood, none of touch, IMU, or RTC have a
-  confirmed path to a P4 GPIO capable of waking the device from deep
-  sleep via the standard ESP-IDF wake APIs. M5Stack's own official Tab5
-  firmware doesn't route around this with wiring we missed - it doesn't
-  use these APIs either, for the same three sources - see
+  project's own generated `sdkconfig.h` for the `esp32p4` target: the
+  chip's standard deep-sleep wake APIs require the wake pin to be in the
+  RTC-IO domain (`SOC_RTCIO_PIN_COUNT=16`, i.e. GPIO0-15), which neither
+  pin is. Net effect: as currently understood, none of touch, IMU, or
+  RTC have a confirmed path to a P4 GPIO capable of waking the device
+  from deep sleep via those APIs. M5Stack's own official Tab5 firmware
+  doesn't route around this with wiring we missed - it doesn't use these
+  APIs either, for the same three sources - see
   [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for what
   it does instead and what that means for this project's design.
 
