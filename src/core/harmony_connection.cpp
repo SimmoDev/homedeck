@@ -578,7 +578,18 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
         commands.swap(pending_commands_);
     }
     if (!ws_client_) {
-        return false;  // shouldn't happen - only called from the connected inner loop - but defensive regardless
+        // shouldn't happen - only called from the connected inner loop -
+        // but defensive regardless. commands was already swapped out of
+        // pending_commands_ above, so silently returning here would lose
+        // it with no signal at all, unlike every other loss path below
+        // (stale-age drop, mid-batch send failure) - published even
+        // though `commands` may be empty, since the caller (DevicesScreen/
+        // ActivitiesScreen) can't tell that apart from "something really
+        // was dropped" and either way nothing here got sent.
+        if (!commands.empty()) {
+            event_bus_.Publish(HarmonyCommandDroppedEvent{});
+        }
+        return false;
     }
 
     bool started_activity = false;
