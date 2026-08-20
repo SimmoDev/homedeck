@@ -419,6 +419,13 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
         ws_client_.reset();
         return false;
     }
+    // The hub's WS protocol can send unsolicited notifications (see this
+    // class's own header comment) - draining before the config request
+    // below, the same reasoning FetchCurrentActivity() already applies
+    // to its own send/receive, keeps a message pushed in the connect ->
+    // config-request window from being misread as the config response
+    // and failing this connect attempt spuriously.
+    DrainStaleMessages();
 
     nlohmann::json config_request = {
         {"hubId", hub_id_},

@@ -69,6 +69,14 @@ struct WsScript {
     // later, bounded-timeout receive is the one meant to wait for.
     std::deque<std::string> stale_responses;
     int close_count = 0;
+    // Ordered log of "send:<text>" / "receive0" (a 0ms/drain poll) /
+    // "receiveN" (a bounded-timeout receive) entries - unlike the
+    // separate responses/stale_responses queues above (which can't tell
+    // a test whether a drain happened *before* a particular send, only
+    // whether one happened at all), this proves ordering: that
+    // DrainStaleMessages() runs before a specific request is sent, not
+    // just that it runs somewhere.
+    std::vector<std::string> call_log;
 };
 
 class FakeWebSocketClient : public homedeck::WebSocketClient {
@@ -84,12 +92,14 @@ public:
     bool SendText(const std::string& text) override {
         std::lock_guard<std::mutex> lock(script_->mutex);
         script_->sent_texts.push_back(text);
+        script_->call_log.push_back("send:" + text);
         return script_->send_should_succeed;
     }
 
     std::optional<std::string> ReceiveText(int timeout_ms) override {
         std::lock_guard<std::mutex> lock(script_->mutex);
         if (timeout_ms == 0) {
+            script_->call_log.push_back("receive0");
             // See WsScript::stale_responses's own comment.
             if (script_->stale_responses.empty()) {
                 return std::nullopt;
@@ -98,6 +108,7 @@ public:
             script_->stale_responses.pop_front();
             return response;
         }
+        script_->call_log.push_back("receiveN");
         if (script_->responses.empty()) {
             return std::nullopt;
         }
@@ -957,6 +968,45 @@ TEST_F(HarmonyConnectionTest, StaleBufferedMessageIsDrainedBeforeTheLivenessProb
     ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "123"; }));
 
     connection.Stop();
+}
+
+TEST_F(HarmonyConnectionTest, DrainsStaleMessagesBeforeSendingTheInitialConfigRequest) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    connection.Stop();
+
+    // Proves ordering, not just that a drain happens somewhere -
+    // WsScript::stale_responses can't model a real transport's shared
+    // receive buffer (a real socket doesn't know which call is
+    // "supposed" to get which message the way two separate fake queues
+    // would), so this checks the one thing that actually matters
+    // instead: that ConnectAndFetchConfig()'s own 0ms drain poll runs
+    // before the config request itself is sent.
+    std::lock_guard<std::mutex> lock(script->mutex);
+    auto first_receive0 = std::find(script->call_log.begin(), script->call_log.end(), "receive0");
+    auto config_send = std::find_if(script->call_log.begin(), script->call_log.end(),
+                                     [](const std::string& entry) { return entry.find("engine?config") != std::string::npos; });
+    ASSERT_NE(first_receive0, script->call_log.end());
+    ASSERT_NE(config_send, script->call_log.end());
+    EXPECT_LT(first_receive0 - script->call_log.begin(), config_send - script->call_log.begin());
 }
 
 TEST_F(HarmonyConnectionTest, PressDeviceCommandSendsAPressWithTheGivenAction) {
