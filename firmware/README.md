@@ -2,7 +2,7 @@
 
 The ESP-IDF firmware project targeting the M5Stack Tab5 (ESP32-P4).
 
-`main/homedeck.cpp` boots the real dashboard on a K145 reference unit —
+`main/homedeck.cpp` boots the dashboard on a K145 reference unit —
 display and touch via
 [`espressif/m5stack_tab5`](https://components.espressif.com/components/espressif/m5stack_tab5)
 (Espressif's official BSP; not M5Unified/M5GFX, see

@@ -41,7 +41,7 @@
 #include "ui/ui_dispatch.h"
 #include "wifi_setup.h"
 
-// The real HomeDeck firmware entry point - the dashboard (see
+// The HomeDeck firmware entry point - the dashboard (see
 // docs/architecture/dashboard.md), Navigation and the Wi-Fi setup screen
 // (see docs/architecture/ui.md#status), and the Web Management UI (see
 // docs/architecture/web-ui.md), all running on-device. See
@@ -142,7 +142,7 @@ bool ScheduleWifiResetAndReboot() {
 // that latency with something meaningful rather than either an LVGL
 // default blank screen or briefly showing the dashboard before knowing
 // whether Wi-Fi setup is actually needed. Caller deletes the returned
-// object once the real initial screen has loaded.
+// object once the initial screen has loaded.
 lv_obj_t* ShowSplashScreen() {
     lv_obj_t* splash = lv_obj_create(nullptr);
     lv_obj_t* label = lv_label_create(splash);
@@ -185,7 +185,7 @@ void InitNvsPartition(esp_err_t (*init)(), esp_err_t (*erase)()) {
 // ahead of the dashboard's construction in app_main() (unlike the rest
 // of Wi-Fi bring-up, which stays deferred until after first paint) so
 // InitWifiAndCheckStoredCredentials() can answer "is setup needed"
-// before any real screen is shown - the splash shown just before this
+// before any screen is shown - the splash shown just before this
 // call is what keeps first paint fast despite that. Also initializes
 // FirmwareSecretStore's own dedicated partition (see
 // docs/decisions/ADR-0027-secret-store-partition-separation.md) - must
@@ -208,7 +208,7 @@ std::string ResolveDeviceName(homedeck::Storage& storage) {
 // Self-advertisement only - see
 // docs/architecture/networking.md#lan-discovery. Not the Core mDNS
 // *browsing* wrapper that doc also names (for modules discovering
-// Kodi/Home Assistant) - that has no real consumer until one of those
+// Kodi/Home Assistant) - that has no consumer until one of those
 // modules exists (M4/M6 respectively), so building it now would be
 // exactly the kind of speculative Core abstraction ADR-0006 itself
 // rejects. This makes the device reachable at <name>.local instead of
@@ -364,7 +364,7 @@ void InitDisplayOrHalt() {
 // std::mutex internally, so it can't be constructed in one function and
 // returned by value into another the way the splash screen's lv_obj_t*
 // pointer below can. Returns the splash object so app_main() can delete it
-// once AppCore's construction (and the real first screen it builds) has
+// once AppCore's construction (and the first screen it builds) has
 // happened - this function has no way to know when that is.
 lv_obj_t* InitEventBusAndShowSplash(homedeck::EventBus& event_bus) {
     // bsp_display_start() (already called by InitDisplayOrHalt() above)
