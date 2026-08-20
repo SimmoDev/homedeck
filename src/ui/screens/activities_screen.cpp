@@ -15,6 +15,13 @@ namespace {
 // every other, non-current button's own default theme color.
 constexpr lv_palette_t kCurrentActivityPalette = LV_PALETTE_GREEN;
 
+// Well above HarmonyConnection's own 30s-default liveness-probe cycle
+// (see this class's own header comment) - current_activity_id can
+// legitimately take nearly that long to reflect a real, working start,
+// so this must comfortably outlast that before assuming the hub silently
+// ignored the command instead.
+constexpr uint32_t kStartingTimeoutMs = 45000;
+
 }  // namespace
 
 ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
@@ -78,11 +85,15 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
         [this](const HarmonyConnectionStateChangedEvent& event) {
             if (event.state != HarmonyConnectionState::kConnected && !starting_activity_id_.empty()) {
                 starting_activity_id_.clear();
-                RestyleButtons();
+                lv_timer_pause(starting_timeout_timer_);
             } else if (event.state == HarmonyConnectionState::kConnected && command_failed_) {
                 command_failed_ = false;
-                RestyleButtons();
             }
+            // Every transition, not just the two cases above - the
+            // offline indicator RestyleButtons() shows/clears (see its
+            // own comment) depends on the current state regardless of
+            // whether anything else needed clearing.
+            RestyleButtons();
         });
     // A queued tap that ages out (HarmonyConnection::max_pending_command_age_)
     // before a connection ever comes back to send it over produces
@@ -98,6 +109,16 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
         command_failed_ = true;
     });
 
+    // Created once, reused for the life of this instance rather than a
+    // fresh timer per tap - see Show()'s own reasoning in
+    // notification_banner.cpp for why reuse (reset + resume) matters
+    // over a fresh one-shot timer per call. Starts paused: nothing
+    // pending until the first fresh-start tap.
+    starting_timeout_timer_ = lv_timer_create(OnStartingTimeout, kStartingTimeoutMs, this);
+    lv_timer_set_repeat_count(starting_timeout_timer_, 1);
+    lv_timer_set_auto_delete(starting_timeout_timer_, false);
+    lv_timer_pause(starting_timeout_timer_);
+
     Rebuild();
 
     // status_bar_ is constructed before any of this screen's own content
@@ -112,7 +133,15 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     lv_obj_move_foreground(devices_button);
 }
 
-ActivitiesScreen::~ActivitiesScreen() { lv_obj_del(root_); }
+ActivitiesScreen::~ActivitiesScreen() {
+    // Must go first, same reasoning as NotificationBanner's own
+    // dismiss_timer_/banner_ ordering - its callback reads `this` via
+    // user_data, so deleting root_ (and therefore status_label_) first
+    // would leave a still-armed timer able to fire against a
+    // partially-destroyed screen.
+    lv_timer_del(starting_timeout_timer_);
+    lv_obj_del(root_);
+}
 
 void ActivitiesScreen::Rebuild() {
     HarmonyConnectionSnapshot snapshot = harmony_connection_.Snapshot();
@@ -152,16 +181,24 @@ void ActivitiesScreen::Rebuild() {
 }
 
 void ActivitiesScreen::RestyleButtons() {
-    std::string current_id = harmony_connection_.Snapshot().current_activity_id;
-    // Only blank while nothing is pending and no failure message is
-    // showing - called right after OnActivityButtonClicked() sets
-    // starting_activity_id_ to show "Starting <name>...", and blanking
-    // unconditionally here would erase that in the same synchronous call
-    // before it's ever rendered. command_failed_ (dropped_sub_'s own
-    // message) is cleared separately, once something actually supersedes
-    // it - see its own comment.
+    HarmonyConnectionSnapshot snapshot = harmony_connection_.Snapshot();
+    std::string current_id = snapshot.current_activity_id;
+    // Only overwrite the status line while nothing is pending and no
+    // failure message is showing - called right after
+    // OnActivityButtonClicked() sets starting_activity_id_ to show
+    // "Starting <name>...", and blanking unconditionally here would
+    // erase that in the same synchronous call before it's ever
+    // rendered. command_failed_ (dropped_sub_'s own message) is cleared
+    // separately, once something actually supersedes it - see its own
+    // comment. A disconnected/reconnecting hub gets its own standing
+    // indicator here rather than staying blank - the activity list below
+    // still shows the last-known state (see Rebuild()'s own comment),
+    // and a user opening this screen while already offline otherwise has
+    // no way to tell that from a healthy connection.
     if (starting_activity_id_.empty() && !command_failed_) {
-        lv_label_set_text(status_label_, "");
+        lv_label_set_text(status_label_, snapshot.state == HarmonyConnectionState::kConnected
+                                              ? ""
+                                              : "Offline - showing last known activities");
     }
 
     for (const auto& [id, button] : activity_buttons_) {
@@ -215,9 +252,27 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
         lv_label_set_text_fmt(self->status_label_, "Resent to %s.", activity_label);
     } else {
         lv_label_set_text_fmt(self->status_label_, "Starting %s...", activity_label);
+        // Only a fresh start needs the timeout backstop - a resend's own
+        // "Resent to %s." message is documented above as intentionally
+        // persistent until something else supersedes it, not something
+        // this class waits on an activity-ID change to clear.
+        lv_timer_set_repeat_count(self->starting_timeout_timer_, 1);
+        lv_timer_reset(self->starting_timeout_timer_);
+        lv_timer_resume(self->starting_timeout_timer_);
     }
 
     self->RestyleButtons();
+}
+
+void ActivitiesScreen::OnStartingTimeout(lv_timer_t* timer) {
+    auto* self = static_cast<ActivitiesScreen*>(lv_timer_get_user_data(timer));
+    if (self->starting_activity_id_.empty()) return;  // already cleared by an event in the meantime
+    auto it = self->activity_buttons_.find(self->starting_activity_id_);
+    const char* label =
+        it != self->activity_buttons_.end() ? lv_label_get_text(lv_obj_get_child(it->second, 0)) : "activity";
+    lv_label_set_text_fmt(self->status_label_, "No response starting %s - try again", label);
+    self->starting_activity_id_.clear();
+    self->command_failed_ = true;
 }
 
 void ActivitiesScreen::OnDevicesButtonClicked(lv_event_t* e) {

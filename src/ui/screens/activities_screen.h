@@ -45,6 +45,20 @@ namespace homedeck {
 // case: an explicit "couldn't start" message, not a silently-cleared one
 // that leaves the user with no idea the tap never took effect.
 //
+// A command that reaches the hub successfully but that the hub then
+// silently ignores/rejects (plausible over one-way IR) produces none of
+// the above: no state change, no drop event, and no activity-ID change
+// either, since the hub's own idea of the current activity never moved.
+// starting_timeout_timer_ is the last-resort backstop for exactly this
+// case - see its own comment.
+//
+// Freshness is poll-driven, not push-driven: current_activity_id only
+// updates on HarmonyConnection's liveness-probe cycle (30s by default),
+// so a legitimately slow-but-working activity start can take nearly
+// that long to show up here even on success - see this screen's own
+// starting_timeout_timer_ comment for why its own timeout is set well
+// above that.
+//
 // Tapping the already-running activity resends its own start command
 // rather than being a no-op - useful to resync AV gear that's drifted
 // out of sync with the hub's own idea of what's on, matching the
@@ -80,6 +94,13 @@ private:
     void RestyleButtons();
     static void OnActivityButtonClicked(lv_event_t* e);
     static void OnDevicesButtonClicked(lv_event_t* e);
+    // Fires starting_timeout_ms after a fresh "Starting <name>..." tap if
+    // nothing else has cleared starting_activity_id_ by then - the
+    // backstop for a command the hub silently ignores (see this class's
+    // own header comment). A single reused one-shot timer, reset on each
+    // fresh tap, the same pattern NotificationBanner's dismiss_timer_
+    // uses.
+    static void OnStartingTimeout(lv_timer_t* timer);
 
     HarmonyConnection& harmony_connection_;
     Navigation& navigation_;
@@ -109,6 +130,10 @@ private:
     // apart from "the last tap just failed and its message should stay
     // up until something newer supersedes it."
     bool command_failed_ = false;
+    // Backstop for a command the hub silently ignores - see
+    // OnStartingTimeout()'s own comment. Created once, reused for the
+    // life of this instance; starts paused.
+    lv_timer_t* starting_timeout_timer_;
 
     EventBus::ScopedSubscription config_sub_;
     EventBus::ScopedSubscription activity_sub_;
