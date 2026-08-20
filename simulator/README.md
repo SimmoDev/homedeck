@@ -38,7 +38,7 @@ scaling step. LVGL is pinned via CMake `FetchContent` to release
 `v9.5.0`.
 
 Links against the portable Core/UI source in [../src/](../src/) —
-`main.cpp` is wiring: `DashboardScreen` (the real home screen — see
+`main.cpp` is wiring: `DashboardScreen` (the home screen — see
 [docs/architecture/dashboard.md](../docs/architecture/dashboard.md)) and
 Core/platform services, host-backed where firmware would use real
 hardware. See [docs/roadmap.md](../docs/roadmap.md) for what's currently

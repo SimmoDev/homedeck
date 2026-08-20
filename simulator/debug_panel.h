@@ -71,19 +71,19 @@ lv_obj_t* CreateTestButtonPanel(lv_obj_t* parent);
 // CreateTestWifiSetupNavButton below navigates here. Parent this to
 // wifi_setup_screen.Root() itself, not the test button panel - this
 // screen's controls are the only ones visible once it's loaded. Removed
-// once a real trigger exists, same as CreateTestWifiSetupNavButton below.
+// once a trigger exists, same as CreateTestWifiSetupNavButton below.
 void CreateTestBackToDashboardButton(lv_obj_t* parent, Navigation& navigation);
 
 // Temporary test-only wiring to reach the Wi-Fi setup screen - the
 // simulator has no real SoftAP "not provisioned" path to trigger it
-// naturally (see ui/screens/wifi_setup_screen.h). Removed once a real
+// naturally (see ui/screens/wifi_setup_screen.h). Removed once a
 // trigger exists.
 void CreateTestWifiSetupNavButton(lv_obj_t* parent, Navigation& navigation);
 
 // Temporary test-only wiring to exercise StatusBar's and
 // NetworkStatusWidget's disconnected rendering - HostNetworkStatus
 // defaults to connected with nothing to disconnect it. Removed once a
-// real trigger exists.
+// trigger exists.
 void CreateTestWifiDisconnectButton(lv_obj_t* parent, HostNetworkStatus& network_status);
 
 // Not temporary - there's no other way to manually exercise AudioOutput
@@ -95,9 +95,8 @@ void CreateTestPlayToneButton(lv_obj_t* parent, HostAudioOutput& audio_output);
 // end to end - HostBatteryReader is a fixed-then-adjustable mock (see
 // platform/host/battery_reader.h) that never naturally crosses the
 // low-battery threshold on its own, so there's no other way to see the
-// real notification flow run in the simulator. Removed once a real
-// widget (weather) or some other real trigger exists to exercise this
-// naturally.
+// notification flow run in the simulator. Removed once a widget
+// (weather) or some other trigger exists to exercise this naturally.
 void CreateTestLowBatteryButton(lv_obj_t* parent, HostBatteryReader& battery_reader);
 
 // Same reasoning as CreateTestLowBatteryButton above, for
@@ -108,20 +107,20 @@ void CreateTestCriticalBatteryButton(lv_obj_t* parent, HostBatteryReader& batter
 
 // Temporary test-only wiring proving GET /api/diagnostics' external-power
 // field end to end - HostBatteryReader's external-power flag never
-// changes on its own. Removed once a real Power Management screen exists
+// changes on its own. Removed once a Power Management screen exists
 // to exercise this.
 void CreateTestExternalPowerButton(lv_obj_t* parent, HostBatteryReader& battery_reader);
 
 // Temporary test-only wiring proving LowBatteryMonitor doesn't fire (and
 // GET /api/diagnostics' batteryPresent field reflects reality) when no
-// battery is installed. Removed once a real Power Management screen
+// battery is installed. Removed once a Power Management screen
 // exists to exercise this.
 void CreateTestBatteryPresentButton(lv_obj_t* parent, HostBatteryReader& battery_reader);
 
 // Temporary test-only wiring proving the Web UI's OTA page surfaces a
 // real upload failure, not just the success path - see
 // docs/architecture/simulator.md's OTA mock description. Removed once a
-// real Power Management screen (or similar) exists to exercise this.
+// Power Management screen (or similar) exists to exercise this.
 void CreateTestForceOtaFailureButton(lv_obj_t* parent, bool& force_failure);
 
 void CreateTestTriggerIdleButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source);
@@ -131,7 +130,7 @@ void CreateTestTriggerActiveButton(lv_obj_t* parent, DebugOverridableUserActivit
 // Temporary test-only wiring proving the Web UI's Logs section renders
 // real entries without needing multiple simulator restarts to accumulate
 // them - see docs/decisions/ADR-0019-structured-logging.md. Removed once
-// a real, naturally-occurring event exists to exercise this in the
+// a naturally-occurring event exists to exercise this in the
 // simulator (there's no Wi-Fi/mDNS bring-up here to log, unlike
 // firmware).
 void CreateTestLogEntryButton(lv_obj_t* parent, Logger& logger);
