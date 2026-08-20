@@ -175,7 +175,8 @@ any background-task activity today to suppress.
 
 `Error` is implemented for one of its three scoped fault types:
 `CriticalBatteryMonitor` (`src/core/critical_battery_monitor.h`/`.cpp`,
-structural twin of `LowBatteryMonitor`) publishes
+built on the same `LatchedThresholdMonitor` latch state machine as
+`LowBatteryMonitor`) publishes
 `CriticalBatteryStateChangedEvent` once the battery crosses below its
 critical threshold while not on external power (the same
 threshold-OR-external-power reasoning `EvaluateOtaGate` already uses),
