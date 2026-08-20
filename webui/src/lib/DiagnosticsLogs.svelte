@@ -62,14 +62,14 @@
     <p class="hint">No log entries yet.</p>
   {:else}
     <div class="log-filters">
-      <select bind:value={levelFilter}>
+      <select bind:value={levelFilter} aria-label="Filter by level">
         <option value="all">All levels</option>
         <option value="debug">Debug</option>
         <option value="info">Info</option>
         <option value="warning">Warning</option>
         <option value="error">Error</option>
       </select>
-      <select bind:value={componentFilter}>
+      <select bind:value={componentFilter} aria-label="Filter by component">
         <option value="all">All components</option>
         {#each components as component (component)}
           <option value={component}>{component}</option>
