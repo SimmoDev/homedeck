@@ -52,6 +52,14 @@ module test) - connect/retry/liveness-probe behavior and the
 press/hold/release device-command path - against a scriptable
 `WebSocketClient` double, the same fake-transport-double approach
 `weather_provider_test.cpp` already established for `HttpClient`.
+`websocket_client_test.cpp` covers `HostWebSocketClient`'s actual
+libcurl-backed transport, which that double stands in for - a real
+client/server WebSocket round trip over a raw socket against a
+hand-rolled RFC 6455 server, the same "test for real, not mocked"
+approach `http_server_test.cpp`/`http_client_test.cpp` already use for
+HTTP, covering a single frame reassembled across multiple reads, the
+message-size cap, and the zero-timeout non-blocking `ReceiveText(0)`
+case.
 `harmony_notification_bridge_test.cpp` covers `HarmonyNotificationBridge`'s
 notify-once-per-outage latch, and `harmony_routes_test.cpp` covers its two
 Web UI routes. Further module tests arrive alongside the modules they
