@@ -101,7 +101,7 @@ its own manual URL entry.
   hub's own protocol design, not something HomeDeck's implementation
   introduces; `HarmonyConnection` never reads or stores that field.
 - The WebSocket message shapes for activities/devices beyond the
-  device/activity `id`/`label` fields HarmonyConnection parses (`type`,
+  device/activity `id`/`label` fields `HarmonyConnection` parses (`type`,
   `controlGroup`, per-device command lists, etc.) were community-
   documented but not independently verified at the time this ADR was
   written.
