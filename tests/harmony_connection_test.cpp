@@ -1,20 +1,31 @@
 #include "core/harmony_connection.h"
 
 #include "platform/host/cache_store.h"
+#include "platform/host/http_client.h"
 #include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
+#include "platform/host/websocket_client.h"
 
 #include <gtest/gtest.h>
+
+#include <mbedtls/base64.h>
+#include <mbedtls/sha1.h>
+
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
 
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdint>
 #include <deque>
 #include <filesystem>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 namespace {
 
@@ -187,6 +198,161 @@ protected:
 };
 
 constexpr std::chrono::milliseconds kFastBackoff = std::chrono::milliseconds(30);
+
+// A minimal raw-socket stand-in for a real Harmony hub's own HTTP-
+// handshake-then-WebSocket sequence (ADR-0029), used by
+// RealBackendConnectsHandshakesAndFetchesConfigOverActualSocketsAndFraming
+// below - every other test in this file drives HarmonyConnection against
+// FakeHttpClient/FakeWebSocketClient, scriptable doubles that can't
+// reproduce real socket/timing behavior (e.g. DrainStaleMessages()'s own
+// 0ms ReceiveText() poll, which depends on what a real backend actually
+// does with a zero timeout - see HostWebSocketClient's own
+// ReceiveTextZeroDoesNotBlockWhenNothingIsPending regression test in
+// websocket_client_test.cpp, added after that exact gap let a real bug
+// through undetected). Deliberately minimal - just enough of HTTP/1.1
+// and RFC 6455 framing to complete one connect pipeline, not a general-
+// purpose test server - same scope websocket_client_test.cpp's own
+// helpers keep. Not shared with that file: each raw-socket test file in
+// this project builds its own minimal peer locally rather than a shared
+// abstraction serving two very different protocols end-to-end.
+//
+// HandshakeUrl()/WebSocketUrl() (harmony_connection.cpp) hardcode port
+// 8088 - the real hub's own port, and hub_host itself carries no port
+// (IsValidHubHost() rejects ':') - so this fake hub has no choice but to
+// listen there too.
+constexpr int kFakeHubPort = 8088;
+
+std::string ReadRawHttpRequest(int fd) {
+    std::string data;
+    char buf[4096];
+    while (data.find("\r\n\r\n") == std::string::npos) {
+        ssize_t n = read(fd, buf, sizeof(buf));
+        if (n <= 0) break;
+        data.append(buf, static_cast<size_t>(n));
+    }
+    return data;
+}
+
+std::string ExtractWsHeaderValue(const std::string& request, const std::string& header_name) {
+    size_t pos = request.find(header_name + ": ");
+    if (pos == std::string::npos) return "";
+    pos += header_name.size() + 2;
+    size_t end = request.find("\r\n", pos);
+    return request.substr(pos, end - pos);
+}
+
+std::string ComputeWsAcceptKey(const std::string& client_key) {
+    static constexpr char kGuid[] = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    std::string combined = client_key + kGuid;
+    unsigned char digest[20];
+    mbedtls_sha1(reinterpret_cast<const unsigned char*>(combined.data()), combined.size(), digest);
+    unsigned char encoded[64];
+    size_t out_len = 0;
+    mbedtls_base64_encode(encoded, sizeof(encoded), &out_len, digest, sizeof(digest));
+    return std::string(reinterpret_cast<char*>(encoded), out_len);
+}
+
+// Reads one client->server WS frame (RFC 6455 requires client frames
+// masked) and returns its unmasked payload. Single-frame messages only -
+// every request HarmonyConnection sends fits in one.
+std::string ReadWsClientTextFrame(int fd) {
+    unsigned char header[2];
+    if (read(fd, header, 2) != 2) return "";
+    bool masked = (header[1] & 0x80) != 0;
+    uint64_t len = header[1] & 0x7F;
+    if (len == 126) {
+        unsigned char ext[2];
+        if (read(fd, ext, 2) != 2) return "";
+        len = (static_cast<uint64_t>(ext[0]) << 8) | ext[1];
+    } else if (len == 127) {
+        unsigned char ext[8];
+        if (read(fd, ext, 8) != 8) return "";
+        len = 0;
+        for (int i = 0; i < 8; ++i) len = (len << 8) | ext[i];
+    }
+    unsigned char mask[4] = {};
+    if (masked && read(fd, mask, 4) != 4) return "";
+    std::string payload(len, '\0');
+    size_t got = 0;
+    while (got < len) {
+        ssize_t n = read(fd, &payload[got], len - got);
+        if (n <= 0) break;
+        got += static_cast<size_t>(n);
+    }
+    if (masked) {
+        for (size_t i = 0; i < payload.size(); ++i) {
+            payload[i] = static_cast<char>(static_cast<unsigned char>(payload[i]) ^ mask[i % 4]);
+        }
+    }
+    return payload;
+}
+
+// Sends one small, complete server->client WS text frame (never masked,
+// per RFC 6455). A plain blocking write is fine - every reply here is a
+// few hundred bytes at most.
+void SendWsServerTextFrame(int fd, const std::string& payload) {
+    std::vector<unsigned char> header;
+    header.push_back(0x81);  // FIN=1, opcode=text
+    if (payload.size() < 126) {
+        header.push_back(static_cast<unsigned char>(payload.size()));
+    } else {
+        header.push_back(126);
+        header.push_back(static_cast<unsigned char>((payload.size() >> 8) & 0xFF));
+        header.push_back(static_cast<unsigned char>(payload.size() & 0xFF));
+    }
+    send(fd, header.data(), header.size(), MSG_NOSIGNAL);
+    send(fd, payload.data(), payload.size(), MSG_NOSIGNAL);
+}
+
+int ListenOnFakeHubPort() {
+    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int reuse = 1;
+    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(kFakeHubPort);
+    bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+    listen(listen_fd, 2);
+    return listen_fd;
+}
+
+// Plays both halves of ADR-0029's protocol over real sockets: the plain-
+// HTTP handshake POST (a separate TCP connection, matching a real hub -
+// HandshakeUrl()'s http:// scheme and WebSocketUrl()'s ws:// scheme are
+// never the same connection), then the WS upgrade and the two request/
+// reply round trips ConnectAndFetchConfig() makes (config fetch, then
+// its own best-effort current-activity probe).
+void RunFakeHarmonyHub(int listen_fd) {
+    int http_fd = accept(listen_fd, nullptr, nullptr);
+    if (http_fd >= 0) {
+        ReadRawHttpRequest(http_fd);
+        std::string body = kHandshakeSuccessBody;
+        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
+                                std::to_string(body.size()) + "\r\n\r\n" + body;
+        send(http_fd, response.data(), response.size(), MSG_NOSIGNAL);
+        close(http_fd);
+    }
+
+    int ws_fd = accept(listen_fd, nullptr, nullptr);
+    if (ws_fd < 0) return;
+    std::string upgrade_request = ReadRawHttpRequest(ws_fd);
+    std::string client_key = ExtractWsHeaderValue(upgrade_request, "Sec-WebSocket-Key");
+    std::string upgrade_response = "HTTP/1.1 101 Switching Protocols\r\n"
+                                    "Upgrade: websocket\r\n"
+                                    "Connection: Upgrade\r\n"
+                                    "Sec-WebSocket-Accept: " +
+                                    ComputeWsAcceptKey(client_key) + "\r\n\r\n";
+    send(ws_fd, upgrade_response.data(), upgrade_response.size(), MSG_NOSIGNAL);
+
+    ReadWsClientTextFrame(ws_fd);  // the config fetch request
+    SendWsServerTextFrame(ws_fd, kConfigSuccessBody);
+
+    ReadWsClientTextFrame(ws_fd);  // ConnectAndFetchConfig()'s own current-activity probe
+    SendWsServerTextFrame(ws_fd, CurrentActivityResponseBody("-1"));
+
+    close(ws_fd);
+}
 
 }  // namespace
 
@@ -1540,4 +1706,48 @@ TEST_F(HarmonyConnectionTest, MidBatchSendFailurePublishesADroppedEvent) {
     EXPECT_EQ(dropped_events.load(), 1) << "exactly one drop event for the one entry in this failed batch";
 
     connection.Stop();
+}
+
+// Real client/server round trip against real HostHttpClient/
+// HostWebSocketClient backends and RunFakeHarmonyHub's own raw-socket
+// stand-in hub (this file's own top comment) - the same "test for real,
+// not mocked" precedent http_client_test.cpp/websocket_client_test.cpp
+// already set for the two backends individually, extended here to prove
+// HarmonyConnection's actual connect pipeline (HTTP handshake, WS
+// upgrade, config fetch, current-activity probe) round-trips correctly
+// over genuine sockets end to end - every other test in this file only
+// ever proves this against FakeHttpClient/FakeWebSocketClient.
+TEST_F(HarmonyConnectionTest, RealBackendConnectsHandshakesAndFetchesConfigOverActualSocketsAndFraming) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    int listen_fd = ListenOnFakeHubPort();
+    ASSERT_GE(listen_fd, 0);
+    std::jthread hub_thread([listen_fd] { RunFakeHarmonyHub(listen_fd); });
+
+    homedeck::EventBus bus;
+    homedeck::HostHttpClient http_client;
+
+    homedeck::HarmonyConnection connection(
+        http_client, [] { return std::make_unique<homedeck::HostWebSocketClient>(); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kConnected; }));
+
+    homedeck::HarmonyConnectionSnapshot snapshot = connection.Snapshot();
+    ASSERT_EQ(snapshot.devices.size(), 1u);
+    EXPECT_EQ(snapshot.devices[0].id, "1");
+    EXPECT_EQ(snapshot.devices[0].label, "TV");
+    ASSERT_EQ(snapshot.activities.size(), 2u);
+    EXPECT_EQ(snapshot.activities[1].label, "Watch TV");
+    EXPECT_EQ(snapshot.current_activity_id, "-1");
+
+    connection.Stop();
+    hub_thread.join();
+    close(listen_fd);
 }
