@@ -145,9 +145,12 @@ addition.
 A portable outbound `WebSocketClient` interface
 (`src/platform/websocket_client.h`) is also implemented — text-frame
 only, a blocking connect/send/receive shape a caller's own background
-`Task` drives directly. `HostWebSocketClient` backs it with libcurl's WS
-API on the simulator; `FirmwareWebSocketClient` bridges
-`espressif/esp_websocket_client`'s event-callback API to the same
+`Task` drives directly. `HostWebSocketClient` backs it on the simulator
+via libcurl's `CURLOPT_CONNECT_ONLY` plus a hand-rolled RFC 6455
+handshake/framing over `curl_easy_send()`/`curl_easy_recv()`, not
+libcurl's own native `curl_ws_send()`/`curl_ws_recv()` API — see
+ADR-0029's Consequences section for why. `FirmwareWebSocketClient`
+bridges `espressif/esp_websocket_client`'s event-callback API to the same
 blocking shape on firmware. `HarmonyConnection`
 (`src/core/harmony_connection.h`) is the first (and so far only)
 consumer — see ADR-0029.
