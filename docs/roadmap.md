@@ -404,9 +404,11 @@ this until it's done — see
       (`src/core/harmony_connection.h`/`.cpp`) — a UI-thread-safe call
       that wakes the connection loop's own thread to actually send the
       command, since `ws_client_` stays single-owner. Freshness is
-      best-effort, not push-driven (see that class's own header comment)
-      — up to `liveness_interval` (30s by default) stale in the worst
-      case; `ActivitiesScreen` (`src/ui/screens/activities_screen.h`/
+      best-effort, not push-driven — up to `liveness_interval` stale in
+      the worst case, see
+      [harmony.md's Activities section](architecture/harmony.md#activities)
+      for the current default and why; `ActivitiesScreen`
+      (`src/ui/screens/activities_screen.h`/
       `.cpp`) covers the common case with an optimistic local "Starting
       <name>..." status line on tap. Reached by tapping `HarmonyWidget`
       (`src/ui/harmony_widget.h`/`.cpp`, showing the current activity) on
