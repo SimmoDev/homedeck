@@ -310,13 +310,13 @@ All three were verified locally with [`act`](https://github.com/nektos/act)
 before being relied on.
 
 A fourth, [`docs.yml`](.github/workflows/docs.yml), runs
-`tools/githooks/check-docs.sh` against every tracked doc/code file (push,
-PR, and weekly) rather than just a commit's own diff, the way the
-pre-commit hook is scoped — catching narration/wording drift in files
-nobody happens to touch again. Deliberately non-blocking
-(`continue-on-error`), same as the hook itself: a full-repo run also
-surfaces plenty of pre-existing, legitimate usage not worth gating a
-build on.
+`tools/githooks/check-docs.sh` and `check-hardware-md-scope.sh` against
+every tracked doc/code file (push, PR, and weekly) rather than just a
+commit's own diff, the way the pre-commit hook is scoped — catching
+narration/wording drift and hardware.md scope creep in files nobody
+happens to touch again. Deliberately non-blocking (`continue-on-error`),
+same as the hooks themselves: a full-repo run also surfaces plenty of
+pre-existing, legitimate usage not worth gating a build on.
 
 A fifth, [`secrets.yml`](.github/workflows/secrets.yml), runs
 `tools/githooks/check-secrets.sh` against every tracked file (push and
