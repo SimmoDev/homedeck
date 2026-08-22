@@ -265,6 +265,16 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
         // the same way they would a fresh one. An acceptable trade-off
         // against the alternative this replaced: a silent no-op with no
         // way to resend at all.
+        //
+        // A still-running timer from an earlier fresh-start tap this
+        // resend just overwrote starting_activity_id_ for must not
+        // survive to fire against this resend's own activity - without
+        // pausing it here, OnStartingTimeout() would eventually show "No
+        // response starting <this resend's activity>" on the original
+        // fresh-start tap's schedule, not this resend's, since it only
+        // checks starting_activity_id_'s current value, not when it was
+        // last set.
+        lv_timer_pause(self->starting_timeout_timer_);
         lv_label_set_text_fmt(self->status_label_, "Resent to %s.", activity_label);
     } else {
         lv_label_set_text_fmt(self->status_label_, "Starting %s...", activity_label);
