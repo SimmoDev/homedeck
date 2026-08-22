@@ -98,7 +98,7 @@ supporting tooling and test suites.
 ## Related documents
 
 This list is exhaustive, not prioritized — most of it is M2+ scope. If
-you're starting M1 implementation, see [DEVELOPMENT.md's "Where to
+you're building a module, see [DEVELOPMENT.md's "Where to
 start"](../../DEVELOPMENT.md#where-to-start) for the actually-relevant
 subset and reading order instead of working through this list top to
 bottom.
