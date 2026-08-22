@@ -236,6 +236,24 @@ std::optional<std::string> FindHeaderValue(const std::string& headers, const std
     return std::nullopt;
 }
 
+// RFC 6455 4.2.2 also requires the client to check for a case-insensitive
+// "Upgrade" header field containing the value "websocket" and a
+// case-insensitive "Connection" header field containing the value
+// "Upgrade" (RFC 7230 allows Connection to be a comma-separated token
+// list, e.g. "keep-alive, Upgrade") - a substring match after
+// lowercasing both sides covers that shape without a full token-list
+// parser, matching FindHeaderValue()'s own "just enough for this
+// project's own request/response shapes" precedent.
+bool HeaderValueContainsTokenIgnoreCase(const std::string& value, const std::string& token) {
+    std::string lower_value = value;
+    std::string lower_token = token;
+    std::transform(lower_value.begin(), lower_value.end(), lower_value.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+    std::transform(lower_token.begin(), lower_token.end(), lower_token.begin(),
+                    [](unsigned char c) { return std::tolower(c); });
+    return lower_value.find(lower_token) != std::string::npos;
+}
+
 int RemainingMs(std::chrono::steady_clock::time_point deadline) {
     auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(deadline - std::chrono::steady_clock::now());
     return remaining.count() > 0 ? static_cast<int>(remaining.count()) : 0;
@@ -388,6 +406,21 @@ bool HostWebSocketClient::Connect(const std::string& url) {
     std::string status_line = response.substr(0, status_line_end);
     size_t first_space = status_line.find(' ');
     if (first_space == std::string::npos || status_line.compare(first_space + 1, 3, "101") != 0) {
+        curl_easy_cleanup(curl);
+        return false;
+    }
+
+    // RFC 6455 4.2.2's other two required response checks, alongside the
+    // Sec-WebSocket-Accept check below: Upgrade/Connection headers
+    // confirming the response itself is shaped as a WebSocket upgrade,
+    // not just a 101 from something that answers every request that way.
+    std::optional<std::string> upgrade = FindHeaderValue(response, "Upgrade");
+    if (!upgrade.has_value() || !HeaderValueContainsTokenIgnoreCase(*upgrade, "websocket")) {
+        curl_easy_cleanup(curl);
+        return false;
+    }
+    std::optional<std::string> connection = FindHeaderValue(response, "Connection");
+    if (!connection.has_value() || !HeaderValueContainsTokenIgnoreCase(*connection, "upgrade")) {
         curl_easy_cleanup(curl);
         return false;
     }
