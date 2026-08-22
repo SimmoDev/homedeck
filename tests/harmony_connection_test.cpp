@@ -1665,6 +1665,47 @@ TEST_F(HarmonyConnectionTest, EnqueueingPastTheCapDropsTheOldestEntriesFirst) {
     connection.Stop();
 }
 
+// Sleep()'s wait_for predicate checks stop_requested() before checking
+// pending_commands_, so a command still queued when Stop() runs is never
+// reached by SendPendingCommands() - this must still surface as a
+// dropped command, the same as every other loss path in this file, not
+// disappear silently just because it lost the race against shutdown.
+TEST_F(HarmonyConnectionTest, CommandStillQueuedWhenStoppedPublishesADroppedEvent) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    // hub_host deliberately not set - see EnqueueingPastTheCapDropsTheOldestEntriesFirst's
+    // own comment: the connection loop stays in its unconfigured wait,
+    // which never watches pending_commands_, so the enqueued command
+    // below is guaranteed to still be queued, untouched, when Stop() runs.
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kDisconnected; }));
+
+    std::atomic<int> dropped_events{0};
+    auto dropped_sub =
+        bus.Subscribe<homedeck::HarmonyCommandDroppedEvent>([&](const homedeck::HarmonyCommandDroppedEvent&) { dropped_events++; });
+
+    connection.PressDeviceCommand(R"({"command":"never-sent"})");
+    connection.Stop();
+
+    EXPECT_EQ(dropped_events.load(), 1);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_TRUE(script->sent_texts.empty());
+    }
+}
+
 // A command still queued from before a connectivity gap no longer
 // reflects what the user actually wants sent once too much time has
 // passed - it must be dropped, not fired stale on reconnect.

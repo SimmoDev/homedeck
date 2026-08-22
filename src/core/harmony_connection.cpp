@@ -390,6 +390,25 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         }
     }
 
+    // A command enqueued at the exact moment Stop() requests the stop
+    // token races Sleep()'s predicate: stop_requested() takes priority
+    // over kCommandPending, so the inner loop above can break without
+    // ever reaching SendPendingCommands() for a command that was already
+    // sitting in pending_commands_. Draining it here keeps every loss
+    // path publishing HarmonyCommandDroppedEvent, not just the ones
+    // SendPendingCommands() itself sees - one event for the batch,
+    // matching its own "one event per batch, not one per dropped entry"
+    // convention.
+    bool dropped_on_shutdown;
+    {
+        std::lock_guard<std::mutex> lock(wake_mutex_);
+        dropped_on_shutdown = !pending_commands_.empty();
+        pending_commands_.clear();
+    }
+    if (dropped_on_shutdown) {
+        event_bus_.Publish(HarmonyCommandDroppedEvent{});
+    }
+
     SetState(HarmonyConnectionState::kDisconnected);
 }
 
