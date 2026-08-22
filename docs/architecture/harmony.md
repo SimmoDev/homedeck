@@ -114,7 +114,11 @@ brief connectivity drop can replay, stale, all at once on reconnect).
 A send failure has no result value to check
 (`Press`/`Hold`/`ReleaseDeviceCommand()` are all `void`); the only
 in-screen signal is `DevicesScreen`'s own status label reacting to
-`HarmonyConnectionStateChangedEvent`'s `kError` state.
+`HarmonyConnectionStateChangedEvent`, showing a standing "Offline -
+reconnecting..." indicator for any non-`kConnected` state rather than
+only `kError` — a silent disconnect/reconnect cycle often never reaches
+`kError` at all, so a `kError`-only check would miss the common case,
+matching `ActivitiesScreen`'s own offline indicator.
 
 ## Status and notifications
 
