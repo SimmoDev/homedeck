@@ -27,6 +27,7 @@
   let results: GeocodeResult[] = $state([]);
   let saving = $state(false);
   let saveError: string | undefined = $state(undefined);
+  let saved = $state(false);
 
   async function loadWeatherLocation() {
     const result = await loadJson<SettingEntry[]>("/api/settings");
@@ -43,6 +44,7 @@
     if (!query.trim()) return;
     searching = true;
     searchError = undefined;
+    saved = false;
     results = [];
     const result = await getJson<{ results: GeocodeResult[] }>(
       `/api/weather/geocode?query=${encodeURIComponent(query)}`,
@@ -101,6 +103,7 @@
       return;
     }
     displayName = label;
+    saved = true;
     results = [];
     query = "";
     // Without this, the dashboard widget would silently wait out the
@@ -156,6 +159,8 @@
     {/if}
     {#if saveError}
       <p class="error" aria-live="polite">{saveError}</p>
+    {:else if saved}
+      <p class="hint" aria-live="polite">Saved.</p>
     {/if}
     {#if results.length > 0}
       <ul class="weather-results">
