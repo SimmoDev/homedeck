@@ -392,6 +392,41 @@ TEST(HostWebSocketClient, ReceiveTextEchoesACloseFrameBack) {
     EXPECT_EQ(received_opcode, 0x8);
 }
 
+TEST(HostWebSocketClient, SendTextFailsAfterReceivingACloseFrame) {
+    // Regression test: ReceiveText() observing a peer CLOSE frame used to
+    // leave curl_ untouched, so a SendText() call landing right afterward
+    // (e.g. HarmonyConnection::DrainStaleMessages()'s own 0ms poll running
+    // just before a send) could attempt - and, since the underlying TCP
+    // socket often stays briefly writable past a WS-level close, even
+    // succeed - a write on a connection the peer has already ended,
+    // instead of failing outright the way a caller already treats a dead
+    // connection.
+    int listen_fd = ListenOnLoopback(18312);
+
+    std::jthread server_thread([listen_fd] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        PerformServerHandshake(conn_fd);
+        std::vector<unsigned char> close_header = BuildServerFrameHeader(/*fin=*/true, /*opcode=*/0x8, 0);
+        send(conn_fd, close_header.data(), close_header.size(), MSG_NOSIGNAL);
+        // Keeps the TCP socket itself open a little past the WS-level
+        // close, so a regressed SendText() below would have a real chance
+        // to succeed at the TCP layer - closing immediately would fail
+        // that write for an unrelated reason (ECONNRESET) even without
+        // this fix, making the test pass for the wrong reason.
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18312/"));
+    EXPECT_FALSE(client.ReceiveText(2000).has_value());
+    EXPECT_FALSE(client.SendText(R"({"probe":"after-close"})"));
+
+    server_thread.join();
+    close(listen_fd);
+}
+
 TEST(HostWebSocketClient, ReceiveTextRejectsABinaryFrame) {
     // RFC 6455 requires failing the connection on a reserved/unexpected
     // opcode (0x2 binary here) rather than silently treating it as

@@ -50,6 +50,12 @@ public:
 
 private:
     void* curl_ = nullptr;  // CURL*, see websocket_client.cpp
+    // Set once ReceiveText() observes a peer-initiated CLOSE frame -
+    // unlike FirmwareWebSocketClient (whose own closed_ flag this
+    // mirrors), curl_ itself carries no such state, so without this a
+    // CLOSE landing during a DrainStaleMessages() poll left SendText()
+    // free to attempt a write on an already-closed connection.
+    bool closed_ = false;
 };
 
 }  // namespace homedeck

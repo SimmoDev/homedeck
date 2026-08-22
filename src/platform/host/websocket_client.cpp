@@ -340,6 +340,7 @@ HostWebSocketClient::~HostWebSocketClient() { Close(); }
 bool HostWebSocketClient::Connect(const std::string& url) {
     EnsureGlobalInit();
     Close();
+    closed_ = false;
 
     CURL* curl = curl_easy_init();
     if (curl == nullptr) {
@@ -440,7 +441,7 @@ bool HostWebSocketClient::Connect(const std::string& url) {
 }
 
 bool HostWebSocketClient::SendText(const std::string& text) {
-    if (curl_ == nullptr) {
+    if (curl_ == nullptr || closed_) {
         return false;
     }
     CURL* curl = static_cast<CURL*>(curl_);
@@ -528,7 +529,15 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
                                // closes, not correctness - Close() tears
                                // down the handle regardless, and the
                                // caller already treats std::nullopt as a
-                               // dead connection).
+                               // dead connection). closed_ is set first,
+                               // unlike the TCP-level failures below that
+                               // return std::nullopt without it - unlike
+                               // those, a CLOSE frame is unambiguous: the
+                               // peer is done, so a later SendText() must
+                               // not attempt a write curl_ itself has no
+                               // way to know is now pointless (see
+                               // SendText()'s own check).
+            closed_ = true;
             std::vector<unsigned char> close_frame = BuildMaskedFrame(0x8, "");
             WriteExact(curl, sockfd, close_frame.data(), close_frame.size(), deadline);
             return std::nullopt;
