@@ -22,9 +22,9 @@ lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, in
     lv_obj_set_width(label, LV_PCT(100));
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
     // lv_button_create() doesn't give its child a centering layout of its
-    // own (confirmed against LVGL's source - no flex/grid set on the
-    // button, default theme included), so the label sits at its default
-    // top-left position rather than centering vertically - invisible
+    // own (no flex/grid set on the button by LVGL's source, default
+    // theme included), so the label sits at its default top-left
+    // position rather than centering vertically - invisible
     // while every button's height auto-fit its own one-line label (no
     // vertical slack to reveal it), became visible once DevicesScreen's
     // grid started giving every button the same fixed height regardless
