@@ -1,5 +1,6 @@
 <script lang="ts">
   import { findSetting, getJson, loadJson, postJson, type SettingEntry } from "./api";
+  import { tripGuard } from "./guardedAction";
 
   // The dashboard's weather source (see docs/architecture/dashboard.md's
   // Weather source section and ADR-0008). Backed by the generic
@@ -67,14 +68,7 @@
   }
 
   async function selectLocation(result: GeocodeResult) {
-    // Same double-fired-click guard as BackupSettings.svelte's restore()/
-    // WifiReset.svelte's resetWifi() - this button stays mounted with a
-    // `disabled` binding rather than unmounting, but a second click
-    // event dispatched before Svelte reactively applies that attribute
-    // could still reach here before this function's own synchronous
-    // `saving = true` below takes effect in the DOM.
-    if (saving) return;
-    saving = true;
+    if (tripGuard(() => saving, () => (saving = true))) return;
     saveError = undefined;
     const label = [result.name, result.admin1, result.country].filter(Boolean).join(", ");
     // No batch/transactional settings endpoint exists (POST

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { postJson } from "./api";
   import { describeAuthError, validateSetupPassword } from "./passwordValidation";
+  import { tripGuard } from "./guardedAction";
 
   // Shared by both first-login setup and ordinary login - same field,
   // same submit mechanics, differing only in endpoint/copy and setup's
@@ -21,13 +22,6 @@
 
   async function handleSubmit(event: SubmitEvent) {
     event.preventDefault();
-    // Same double-fired-click guard as BackupSettings.svelte's restore()/
-    // WifiReset.svelte's resetWifi() - this button stays mounted with a
-    // `disabled` binding rather than unmounting, but a second submit
-    // event dispatched before Svelte reactively applies that attribute
-    // could still reach here before this function's own synchronous
-    // `submitting = true` below takes effect in the DOM.
-    if (submitting) return;
     error = undefined;
 
     if (mode === "setup") {
@@ -38,7 +32,7 @@
       }
     }
 
-    submitting = true;
+    if (tripGuard(() => submitting, () => (submitting = true))) return;
     const result = await postJson(mode === "setup" ? "/api/auth/setup" : "/api/auth/login", { password });
     submitting = false;
     // already_set means another request won first (the real race

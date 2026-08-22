@@ -1,5 +1,6 @@
 <script lang="ts">
   import { postJson } from "./api";
+  import { tripGuard } from "./guardedAction";
 
   // onWifiReset fires once /api/wifi/reset succeeds - see its own call
   // site in resetWifi() below for why this hands off to App.svelte
@@ -46,8 +47,7 @@
     // express this, since the button only renders in the "confirming"
     // state and unmounts on the same state change that would need to
     // disable it.
-    if (wifiResetState === "resetting") return;
-    wifiResetState = "resetting";
+    if (tripGuard(() => wifiResetState === "resetting", () => (wifiResetState = "resetting"))) return;
     wifiResetError = undefined;
     const result = await postJson<{ apSsid: string }>("/api/wifi/reset");
     if (!result.ok) {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { findSetting, loadJson, postJson, type SettingEntry } from "./api";
   import { hubHostError } from "./harmonyValidation";
+  import { tripGuard } from "./guardedAction";
 
   // Harmony Hub module configuration (see docs/roadmap.md's M3 section
   // and docs/decisions/ADR-0029-harmony-local-protocol.md) - just a hub
@@ -65,13 +66,6 @@
   }
 
   async function saveHubHost() {
-    // Same double-fired-click guard as BackupSettings.svelte's restore()/
-    // WifiReset.svelte's resetWifi() - this button stays mounted with a
-    // `disabled` binding rather than unmounting, but a second click
-    // event dispatched before Svelte reactively applies that attribute
-    // could still reach here before this function's own synchronous
-    // `saving = true` below takes effect in the DOM.
-    if (saving) return;
     const trimmed = hubHost.trim();
     const validationError = hubHostError(trimmed);
     if (validationError) {
@@ -79,7 +73,7 @@
       saved = false;
       return;
     }
-    saving = true;
+    if (tripGuard(() => saving, () => (saving = true))) return;
     saveError = undefined;
     saved = false;
     const result = await postJson("/api/settings", {

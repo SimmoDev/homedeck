@@ -1,6 +1,7 @@
 <script lang="ts">
   import { findSetting, loadJson, postJson, type SettingEntry } from "./api";
   import { deviceNameError } from "./deviceNameValidation";
+  import { tripGuard } from "./guardedAction";
 
   // Device name (see docs/architecture/web-ui.md#scope and
   // docs/decisions/ADR-0023-settings-backup-api.md) - the mDNS hostname
@@ -29,13 +30,6 @@
   }
 
   async function saveDeviceName() {
-    // Same double-fired-click guard as BackupSettings.svelte's restore()/
-    // WifiReset.svelte's resetWifi() - this button stays mounted with a
-    // `disabled` binding rather than unmounting, but a second click
-    // event dispatched before Svelte reactively applies that attribute
-    // could still reach here before this function's own synchronous
-    // `saving = true` below takes effect in the DOM.
-    if (saving) return;
     // Trimmed before validating/saving, matching HarmonySettings.svelte's
     // saveHubHost() - a pasted name with incidental leading/trailing
     // whitespace was otherwise rejected outright by deviceNameError()'s
@@ -47,7 +41,7 @@
       saved = false;
       return;
     }
-    saving = true;
+    if (tripGuard(() => saving, () => (saving = true))) return;
     saveError = undefined;
     saved = false;
     const result = await postJson("/api/settings", {

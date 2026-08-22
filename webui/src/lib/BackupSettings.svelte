@@ -1,5 +1,6 @@
 <script lang="ts">
   import { downloadFile, postJson } from "./api";
+  import { tripGuard } from "./guardedAction";
 
   // Settings backup/restore (see ADR-0023-settings-backup-api.md). The
   // backend API is generic (any module/key) - the download is a
@@ -20,7 +21,7 @@
   }
 
   async function downloadBackup() {
-    downloading = true;
+    if (tripGuard(() => downloading, () => (downloading = true))) return;
     downloadError = undefined;
     const result = await downloadFile("/api/backup", "homedeck-backup.json");
     downloading = false;
@@ -28,16 +29,10 @@
   }
 
   async function restore() {
-    // Same double-fired-click guard as WifiReset.svelte's resetWifi() -
-    // this button stays mounted with a `disabled` binding rather than
-    // unmounting, but a second click event dispatched before Svelte
-    // reactively applies that attribute could still reach here before
-    // this function's own synchronous `restoring = true` below takes
-    // effect in the DOM. Restore is a non-atomic bulk multi-key write
-    // (see ADR-0023), so a double-submit isn't purely cosmetic.
-    if (restoring) return;
+    // Restore is a non-atomic bulk multi-key write (see ADR-0023), so a
+    // double-submit isn't purely cosmetic.
     if (!restoreFile) return;
-    restoring = true;
+    if (tripGuard(() => restoring, () => (restoring = true))) return;
     restoreResult = undefined;
     restoreError = undefined;
     try {

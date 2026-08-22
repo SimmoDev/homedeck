@@ -1,5 +1,6 @@
 <script lang="ts">
   import { downloadFile, loadJson, type BatteryStatus } from "./api";
+  import { tripGuard } from "./guardedAction";
 
   // Crash/reboot diagnostics (see docs/architecture/diagnostics.md and
   // ADR-0013) and live battery/power state (see
@@ -28,7 +29,7 @@
   }
 
   async function downloadCoreDump() {
-    downloadingCoreDump = true;
+    if (tripGuard(() => downloadingCoreDump, () => (downloadingCoreDump = true))) return;
     coreDumpError = undefined;
     const result = await downloadFile("/api/diagnostics/coredump", "coredump.bin");
     downloadingCoreDump = false;
