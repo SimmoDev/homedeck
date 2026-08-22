@@ -30,16 +30,19 @@ keyboard/mouse and larger screen belongs here rather than on the Touch UI.
 ## Transport
 
 The Web UI is served over an embedded HTTP server and communicates with the
-device through REST APIs for request/response operations and WebSockets for
-live updates (log streaming, live status, diagnostics). Both firmware and
-the desktop simulator need to serve the same web assets and expose the same
-API/WebSocket contract, though the two run different server implementations
-(`esp_http_server` vs. civetweb) behind that shared contract — see
+device through REST APIs for request/response operations. WebSockets for
+live updates (log streaming, live status, diagnostics) are the intended
+future transport for that half — see [Status](#status) below for why
+that isn't built yet. Both firmware and the desktop simulator need to
+serve the same web assets and expose the same API contract, though the
+two run different server implementations (`esp_http_server` vs.
+civetweb) behind that shared contract — see
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server)
-for which server backs each target and the known simulator/hardware
-divergence risk that comes with it, including the dispatch-safety
-requirement for pushing live updates to a WebSocket from Core's event bus
-(not free, and not yet fully pinned down for the simulator's server).
+for which server backs each target, the known simulator/hardware
+divergence risk that comes with it, and the dispatch-safety requirement
+a future WebSocket relay pushing live updates from Core's event bus will
+need (not free, and not yet fully pinned down for the simulator's
+server).
 
 ## Diagnostics
 
