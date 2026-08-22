@@ -61,11 +61,18 @@ now.
 ## Object lifecycle
 
 Every screen and module-registered screens alike are constructed once for
-the program's lifetime today, so no LVGL object built on this codebase
-has ever actually been torn down in practice. That won't hold once a
-module screen is created and later navigated away from (e.g. a Harmony
-activity detail screen), so the ownership rule below is a requirement
-now, not a followup:
+the program's lifetime today, so no *screen-level controller* (e.g.
+`ActivitiesScreen`, `DevicesScreen`) has ever actually had its own
+destructor run in practice — nothing removes a screen once Navigation
+has shown it. That won't hold once a module screen is created and later
+navigated away from (e.g. a Harmony activity detail screen), so the
+ownership rule below is a requirement now, not a followup. In-place
+content refresh is a separate, already-exercised case: `ActivitiesScreen::Rebuild()`/
+`DevicesScreen::RebuildDeviceList()` already call `lv_obj_clean()` on
+their own list containers on every config refresh, genuinely tearing
+down and recreating the child buttons inside a still-live screen — the
+ownership rule below is about a *controller's own* destructor, not about
+whether any LVGL object anywhere has ever been deleted:
 
 - An LVGL object created as a child of another object the same class
   already owns (directly or transitively) needs no cleanup of its own —
