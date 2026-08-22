@@ -2,9 +2,12 @@
 
 ## Status
 
-Accepted (contract shape) — exact interfaces to be finalized during M3
-implementation, not defined here. The Known External Risk section below's
-XMPP protocol framing, and its "discovering and authenticating against an
+Accepted (contract shape) — exact interfaces were finalized during M3
+implementation, not defined here; see
+[modules.md's Status section](../architecture/modules.md#status) for the
+finalized `Module` contract (`src/core/module.h`) and Harmony's own
+implementation of it. The Known External Risk section below's XMPP
+protocol framing, and its "discovering and authenticating against an
 already-configured hub" characterization, are both superseded by
 [ADR-0029](ADR-0029-harmony-local-protocol.md), which confirms the
 reference hub instead speaks a local WebSocket/JSON API on port 8088 with
