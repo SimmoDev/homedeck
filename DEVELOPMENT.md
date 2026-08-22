@@ -259,7 +259,8 @@ Once the simulator target exists (M1):
   `npm run check` runs `svelte-check` for type errors and `npm run test`
   runs Vitest unit tests (currently `passwordValidation.ts`'s,
   `harmonyValidation.ts`'s, and `deviceNameValidation.ts`'s pure
-  validation logic, plus `api.ts`'s fetch/JSON helpers - not a full
+  validation logic, `guardedAction.ts`'s double-submit guard, plus
+  `api.ts`'s fetch/JSON helpers - not a full
   component-testing stack, see
   [web-ui.md](docs/architecture/web-ui.md#status) for why), both
   independently of the build. Rebuild after any change under
