@@ -476,6 +476,60 @@ TEST(HostWebSocketClient, ConnectFailsWhenSecWebSocketAcceptIsMissingEntirely) {
     EXPECT_FALSE(connected);
 }
 
+TEST(HostWebSocketClient, ConnectFailsWhenUpgradeHeaderIsMissingOrWrong) {
+    // RFC 6455 4.2.2 requires the client to check the response's Upgrade
+    // header too, not just Sec-WebSocket-Accept - a correct Accept key
+    // alone (this server computes one for real) doesn't by itself prove
+    // the response is shaped as a WebSocket upgrade.
+    int listen_fd = ListenOnLoopback(18310);
+
+    std::jthread server_thread([listen_fd] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        std::string request = ReadHttpRequest(conn_fd);
+        std::string client_key = ExtractHeaderValue(request, "Sec-WebSocket-Key");
+        std::string response = "HTTP/1.1 101 Switching Protocols\r\n"
+                                "Connection: Upgrade\r\n"
+                                "Sec-WebSocket-Accept: " +
+                                ComputeAcceptKey(client_key) + "\r\n\r\n";
+        send(conn_fd, response.data(), response.size(), MSG_NOSIGNAL);
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    bool connected = client.Connect("ws://127.0.0.1:18310/");
+
+    server_thread.join();
+    close(listen_fd);
+
+    EXPECT_FALSE(connected);
+}
+
+TEST(HostWebSocketClient, ConnectFailsWhenConnectionHeaderIsMissingOrWrong) {
+    int listen_fd = ListenOnLoopback(18311);
+
+    std::jthread server_thread([listen_fd] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        std::string request = ReadHttpRequest(conn_fd);
+        std::string client_key = ExtractHeaderValue(request, "Sec-WebSocket-Key");
+        std::string response = "HTTP/1.1 101 Switching Protocols\r\n"
+                                "Upgrade: websocket\r\n"
+                                "Sec-WebSocket-Accept: " +
+                                ComputeAcceptKey(client_key) + "\r\n\r\n";
+        send(conn_fd, response.data(), response.size(), MSG_NOSIGNAL);
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    bool connected = client.Connect("ws://127.0.0.1:18311/");
+
+    server_thread.join();
+    close(listen_fd);
+
+    EXPECT_FALSE(connected);
+}
+
 TEST(HostWebSocketClient, ReceiveTextZeroDoesNotBlockWhenNothingIsPending) {
     // Regression test for the ReceiveText(0) deadline race that made
     // HarmonyConnection::DrainStaleMessages()'s own zero-timeout poll a
