@@ -1,0 +1,41 @@
+name: Lint check
+
+# Runs the three tools/githooks/ checks that have no other CI backstop
+# (check-esp-idf-returns.sh/check-curl-timeouts.sh/check-esp-http-timeouts.sh)
+# against every tracked file, not just a commit's diff - same "the local
+# pre-commit hook only ever sees staged files, so a violation in a file
+# nobody happens to touch again stays invisible indefinitely" reasoning
+# docs.yml already uses for check-docs.sh/check-hardware-md-scope.sh.
+# Non-blocking, same as the pre-commit hook itself (see pre-commit's own
+# header comment for why these three stay warn-only): this is a periodic
+# report, not a merge gate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly rather than only on push/PR - catches drift in files that
+    # simply haven't been touched by any commit recently.
+    - cron: "0 6 * * 1"
+
+jobs:
+  lint:
+    name: Full-repo esp-idf-returns/curl-timeout/esp-http-timeout sweep
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run check-esp-idf-returns.sh and check-esp-http-timeouts.sh against firmware/main and src/platform/firmware
+        continue-on-error: true
+        run: |
+          files=$(git ls-files -- 'firmware/main/*.cpp' 'src/platform/firmware/*.cpp')
+          bash tools/githooks/check-esp-idf-returns.sh $files
+          bash tools/githooks/check-esp-http-timeouts.sh $files
+
+      - name: Run check-curl-timeouts.sh against every tracked .cpp file
+        continue-on-error: true
+        run: |
+          files=$(git ls-files -- '*.cpp')
+          bash tools/githooks/check-curl-timeouts.sh $files
