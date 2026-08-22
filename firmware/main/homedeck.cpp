@@ -126,7 +126,13 @@ bool ScheduleWifiResetAndReboot() {
     esp_timer_handle_t timer = nullptr;
     esp_timer_create_args_t args = {};
     args.callback = [](void*) {
-        esp_wifi_restore();
+        esp_err_t err = esp_wifi_restore();
+        if (err != ESP_OK) {
+            // Logged, not acted on - esp_restart() below is unconditional
+            // either way, so there's no recovery branch to take, only a
+            // diagnostic trace worth leaving before the reboot.
+            printf("ScheduleWifiResetAndReboot: esp_wifi_restore failed: %s\n", esp_err_to_name(err));
+        }
         esp_restart();
     };
     args.name = "wifi_reset_reboot";
@@ -280,7 +286,12 @@ void StartTimeSync(homedeck::Rx8130TimeSource& time_source, homedeck::Logger& lo
     g_logger_for_sntp = &logger;
     esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
     config.sync_cb = OnSntpTimeSync;
-    esp_netif_sntp_init(&config);
+    esp_err_t err = esp_netif_sntp_init(&config);
+    if (err != ESP_OK) {
+        // Time sync just never happens (OnSntpTimeSync() never fires) -
+        // worth a log trace, though nothing here can retry init itself.
+        printf("StartTimeSync: esp_netif_sntp_init failed: %s\n", esp_err_to_name(err));
+    }
 }
 
 // See docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
@@ -303,7 +314,14 @@ homedeck::OtaWriter BuildOtaWriter() {
                     return false;
                 }
                 if (esp_ota_write(handle, image.data(), image.size()) != ESP_OK) {
-                    esp_ota_end(handle);
+                    // Cleanup only - the outcome (false) doesn't change on
+                    // esp_ota_end() itself failing too, but a log trace
+                    // still helps distinguish "write failed" from "write
+                    // failed and the handle wouldn't even release."
+                    esp_err_t end_err = esp_ota_end(handle);
+                    if (end_err != ESP_OK) {
+                        printf("BuildOtaWriter: esp_ota_end (cleanup) failed: %s\n", esp_err_to_name(end_err));
+                    }
                     return false;
                 }
                 // esp_ota_set_boot_partition() only runs once esp_ota_end()

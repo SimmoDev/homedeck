@@ -38,7 +38,10 @@ bool FirmwareAudioOutput::Play(const int16_t* samples, size_t sample_count, uint
     // to the buffer, not just a cast-away-const formality.
     int write_result = esp_codec_dev_write(codec_, const_cast<int16_t*>(samples),
                                             static_cast<int>(sample_count * sizeof(int16_t)));
-    esp_codec_dev_close(codec_);
+    int close_result = esp_codec_dev_close(codec_);
+    if (close_result != ESP_CODEC_DEV_OK) {
+        ESP_LOGW(kTag, "esp_codec_dev_close failed: %d", close_result);
+    }
 
     if (write_result != ESP_CODEC_DEV_OK) {
         ESP_LOGW(kTag, "esp_codec_dev_write failed: %d", write_result);

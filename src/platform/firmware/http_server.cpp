@@ -80,7 +80,10 @@ bool FirmwareHttpServer::Start(uint16_t port) {
 
 void FirmwareHttpServer::Stop() {
     if (server_ != nullptr) {
-        httpd_stop(server_);
+        esp_err_t err = httpd_stop(server_);
+        if (err != ESP_OK) {
+            ESP_LOGW(kTag, "httpd_stop failed: %s", esp_err_to_name(err));
+        }
         server_ = nullptr;
     }
 }

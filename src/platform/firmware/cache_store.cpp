@@ -39,7 +39,10 @@ FirmwareCacheStore::FirmwareCacheStore() {
 
 FirmwareCacheStore::~FirmwareCacheStore() {
     if (mounted_) {
-        esp_vfs_fat_spiflash_unmount_rw_wl(kMountPoint, wl_handle_);
+        esp_err_t err = esp_vfs_fat_spiflash_unmount_rw_wl(kMountPoint, wl_handle_);
+        if (err != ESP_OK) {
+            ESP_LOGW(kTag, "Failed to unmount '%s' partition: %s", kPartitionLabel, esp_err_to_name(err));
+        }
     }
 }
 

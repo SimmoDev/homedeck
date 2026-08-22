@@ -72,7 +72,10 @@ HttpClientResponse FirmwareHttpClient::Get(const std::string& url) {
         ESP_LOGW(kTag, "GET %s failed: %s", url.c_str(), esp_err_to_name(err));
     }
 
-    esp_http_client_cleanup(client);
+    esp_err_t cleanup_err = esp_http_client_cleanup(client);
+    if (cleanup_err != ESP_OK) {
+        ESP_LOGW(kTag, "esp_http_client_cleanup failed: %s", esp_err_to_name(cleanup_err));
+    }
     return response;
 }
 
@@ -96,6 +99,10 @@ HttpClientResponse FirmwareHttpClient::Post(const std::string& url, const std::s
         response.status_code = 0;
         return response;
     }
+    // Set-header/set-post-field failures aren't checked individually - a
+    // malformed request they'd produce still surfaces via
+    // esp_http_client_perform()'s own overall result below, logged the
+    // same as any other transport failure.
     esp_http_client_set_header(client, "Content-Type", "application/json");
     for (const auto& [name, value] : extra_headers) {
         esp_http_client_set_header(client, name.c_str(), value.c_str());
@@ -113,7 +120,10 @@ HttpClientResponse FirmwareHttpClient::Post(const std::string& url, const std::s
         ESP_LOGW(kTag, "POST %s failed: %s", url.c_str(), esp_err_to_name(err));
     }
 
-    esp_http_client_cleanup(client);
+    esp_err_t cleanup_err = esp_http_client_cleanup(client);
+    if (cleanup_err != ESP_OK) {
+        ESP_LOGW(kTag, "esp_http_client_cleanup failed: %s", esp_err_to_name(cleanup_err));
+    }
     return response;
 }
 

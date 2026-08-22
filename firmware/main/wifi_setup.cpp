@@ -4,6 +4,7 @@
 #include "core/wifi_credentials.h"
 #include "core/wifi_reconnect_policy.h"
 
+#include <cassert>
 #include <cstdio>
 #include <cstring>
 #include <functional>
@@ -461,12 +462,21 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
     auto& state = *static_cast<WifiSetupState*>(arg);
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
-            case WIFI_EVENT_STA_START:
+            case WIFI_EVENT_STA_START: {
                 // No WifiSetupState field is touched here - esp_wifi_connect()
                 // stays outside g_state_mutex entirely, same reasoning as
                 // ApplyWifiCredentials()'s own RPC calls below.
-                esp_wifi_connect();
+                esp_err_t err = esp_wifi_connect();
+                if (err != ESP_OK) {
+                    // A failure here means WIFI_EVENT_STA_DISCONNECTED
+                    // never fires either (the connection never started),
+                    // so the retry logic below would otherwise never
+                    // engage - logged so a stuck-unconnected device isn't
+                    // silently unexplained.
+                    ESP_LOGW(kTag, "esp_wifi_connect (on STA start) failed: %s", esp_err_to_name(err));
+                }
                 break;
+            }
             case WIFI_EVENT_STA_DISCONNECTED: {
                 bool give_up = false;
                 bool offer_recovery = false;
@@ -563,7 +573,10 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
         // Both block (see this function's own comment above) - deliberately
         // outside g_state_mutex.
         if (server_to_stop != nullptr) {
-            httpd_stop(server_to_stop);
+            esp_err_t stop_err = httpd_stop(server_to_stop);
+            if (stop_err != ESP_OK) {
+                ESP_LOGW(kTag, "Failed to stop the recovery access point's httpd: %s", esp_err_to_name(stop_err));
+            }
             if (esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK) {
                 ESP_LOGW(kTag, "Failed to drop out of AP+STA mode after recovery - staying in AP+STA");
             }
@@ -602,7 +615,10 @@ bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     // Connecting immediately below supersedes any retry a previous
     // disconnect already scheduled.
     esp_timer_stop(g_reconnect_timer);
-    esp_wifi_connect();
+    esp_err_t err = esp_wifi_connect();
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "esp_wifi_connect (on credential submission) failed: %s", esp_err_to_name(err));
+    }
     return true;
 }
 
@@ -632,8 +648,13 @@ WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& ne
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &OnEvent, &g_state));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &OnEvent, &g_state));
 
-    esp_netif_create_default_wifi_sta();
-    esp_netif_create_default_wifi_ap();
+    // Every call below this point that touches WIFI_IF_STA/WIFI_IF_AP
+    // assumes both netifs exist - a null here is an unrecoverable boot-time
+    // misconfiguration (e.g. out of memory this early), not a case with a
+    // meaningful fallback, so it's fatal the same way the ESP_ERROR_CHECK()
+    // calls below already are.
+    assert(esp_netif_create_default_wifi_sta() != nullptr);
+    assert(esp_netif_create_default_wifi_ap() != nullptr);
 
     wifi_init_config_t wifi_config = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&wifi_config));
