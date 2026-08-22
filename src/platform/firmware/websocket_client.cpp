@@ -26,10 +26,14 @@ constexpr int kSendTimeoutMs = 10000;
 // in message_queue_ as if it were a real application message, corrupting
 // the strict one-request/one-reply pairing HarmonyConnection's transport
 // model depends on (see its own header comment).
+// op_code never carries the FIN bit - tcp_transport's transport_ws.c parses
+// it into a separate frame_state.fin bool and masks the opcode byte to its
+// low 4 bits (frame_state.opcode = *data_ptr & 0x0F) before
+// esp_transport_ws_get_read_opcode() ever returns it, so no masking is
+// needed here.
 bool IsApplicationDataOpcode(uint8_t op_code) {
-    uint8_t opcode = op_code & static_cast<uint8_t>(~WS_TRANSPORT_OPCODES_FIN);
-    return opcode == WS_TRANSPORT_OPCODES_CONT || opcode == WS_TRANSPORT_OPCODES_TEXT ||
-           opcode == WS_TRANSPORT_OPCODES_BINARY;
+    return op_code == WS_TRANSPORT_OPCODES_CONT || op_code == WS_TRANSPORT_OPCODES_TEXT ||
+           op_code == WS_TRANSPORT_OPCODES_BINARY;
 }
 
 // Bounds how many complete messages can accumulate in message_queue_
