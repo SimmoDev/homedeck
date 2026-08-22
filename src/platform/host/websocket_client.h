@@ -27,7 +27,7 @@ namespace homedeck {
 // ws:// scheme handler this build lacks, so curl_easy_perform() hangs
 // waiting for a body or connection close that a real WS server -
 // correctly keeping the connection open for the ensuing frame exchange -
-// never sends. Confirmed working instead: CURLOPT_CONNECT_ONLY=1 (the
+// never sends. This works instead: CURLOPT_CONNECT_ONLY=1 (the
 // original, protocol-generic form - stop right after the TCP/TLS
 // connect, before curl sends any request of its own), then the Upgrade
 // request/response and all WS framing are hand-built over
