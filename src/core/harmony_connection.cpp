@@ -618,8 +618,15 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
         // See ConnectAndFetchConfig()'s own comment on why this is
         // checked between sends rather than attempting to interrupt one
         // mid-call - a stop requested partway through a batch skips the
-        // rest of it rather than sending commands nobody can act on.
-        if (stop.stop_requested()) return false;
+        // rest of it rather than sending commands nobody can act on. This
+        // command and everything still left in `commands` never reach
+        // SendText() - same "one event per batch" convention as the
+        // stale-age/send-failure drops below, not a silent loss Stop()
+        // itself should be exempt from reporting.
+        if (stop.stop_requested()) {
+            event_bus_.Publish(HarmonyCommandDroppedEvent{});
+            return false;
+        }
         if (now - command.enqueued_at > max_pending_command_age_) {
             dropped_stale_command = true;  // see max_pending_command_age_'s own comment
             continue;

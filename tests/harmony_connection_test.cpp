@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <cstdint>
 #include <deque>
 #include <filesystem>
@@ -88,6 +89,15 @@ struct WsScript {
     // DrainStaleMessages() runs before a specific request is sent, not
     // just that it runs somewhere.
     std::vector<std::string> call_log;
+    // Lets a test pause the connection loop's own thread mid-SendText(),
+    // after recording the call but before returning - the only way to
+    // deterministically land a Stop() between two commands in the same
+    // SendPendingCommands() batch, which otherwise has no observable sync
+    // point to aim at (see StopDuringAnInFlightBatchSendPublishesADroppedEvent).
+    bool block_next_send = false;
+    bool send_blocked = false;
+    bool release_blocked_send = false;
+    std::condition_variable send_cv;
 };
 
 class FakeWebSocketClient : public homedeck::WebSocketClient {
@@ -101,9 +111,15 @@ public:
     }
 
     bool SendText(const std::string& text) override {
-        std::lock_guard<std::mutex> lock(script_->mutex);
+        std::unique_lock<std::mutex> lock(script_->mutex);
         script_->sent_texts.push_back(text);
         script_->call_log.push_back("send:" + text);
+        if (script_->block_next_send) {
+            script_->block_next_send = false;
+            script_->send_blocked = true;
+            script_->send_cv.notify_all();
+            script_->send_cv.wait(lock, [this] { return script_->release_blocked_send; });
+        }
         return script_->send_should_succeed;
     }
 
@@ -1804,6 +1820,89 @@ TEST_F(HarmonyConnectionTest, MidBatchSendFailurePublishesADroppedEvent) {
     EXPECT_EQ(dropped_events.load(), 1) << "exactly one drop event for the one entry in this failed batch";
 
     connection.Stop();
+}
+
+// SendPendingCommands()'s own stop.stop_requested() check (harmony_connection.cpp)
+// used to return false without publishing HarmonyCommandDroppedEvent, silently
+// dropping every command still left in that batch - unlike the stale-age and
+// send-failure drops right next to it. Uses WsScript::block_next_send to pin the
+// connection loop's own thread inside the first command's SendText() call, so a
+// Stop() issued from a second thread is guaranteed to have set the stop token
+// before the loop moves on to check the second queued command.
+TEST_F(HarmonyConnectionTest, StopDuringAnInFlightBatchSendPublishesADroppedEvent) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    std::atomic<int> dropped_events{0};
+    auto dropped_sub =
+        bus.Subscribe<homedeck::HarmonyCommandDroppedEvent>([&](const homedeck::HarmonyCommandDroppedEvent&) { dropped_events++; });
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->block_next_send = true;
+    }
+    connection.PressDeviceCommand(R"({"idx":"first"})");
+    connection.PressDeviceCommand(R"({"idx":"second"})");
+
+    // Waits for the first command's SendText() to actually be blocked
+    // mid-call, not just enqueued - only then is it safe to stop the
+    // connection loop's own thread without racing whether it even started
+    // sending yet.
+    {
+        std::unique_lock<std::mutex> lock(script->mutex);
+        ASSERT_TRUE(script->send_cv.wait_for(lock, std::chrono::seconds(3), [&] { return script->send_blocked; }));
+    }
+
+    // Stop() blocks (via Task's own destructor) until the connection loop's
+    // thread actually returns, which can't happen until the blocked
+    // SendText() above is released - so it has to run on its own thread.
+    // request_stop() itself is a single fast atomic-flag set with no I/O in
+    // between it and Stop() being called, so by the time this thread is
+    // confirmed running, the stop token has had every practical
+    // opportunity to already be set before the release below lets the
+    // first command's SendText() return and the loop re-checks it for the
+    // second command.
+    std::atomic<bool> stopper_running{false};
+    std::thread stopper([&] {
+        stopper_running = true;
+        connection.Stop();
+    });
+    ASSERT_TRUE(WaitFor([&] { return stopper_running.load(); }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->release_blocked_send = true;
+    }
+    script->send_cv.notify_all();
+    stopper.join();
+
+    EXPECT_EQ(dropped_events.load(), 1) << "one drop event for the batch, not one per dropped entry";
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        // config fetch + current-activity fetch + the first command - the
+        // second command must never reach SendText() at all.
+        EXPECT_EQ(script->sent_texts.size(), 3u);
+        for (const std::string& sent : script->sent_texts) {
+            EXPECT_EQ(sent.find(R"("idx":"second")"), std::string::npos) << "the second command should never have been sent";
+        }
+    }
 }
 
 // Real client/server round trip against real HostHttpClient/
