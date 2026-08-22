@@ -354,6 +354,63 @@ void RunFakeHarmonyHub(int listen_fd) {
     close(ws_fd);
 }
 
+// Extends RunFakeHarmonyHub()'s own sequence with the one real-socket
+// scenario it doesn't cover: a stray, unsolicited frame (a reply to some
+// earlier request with no matching receive of its own - see
+// DrainStaleMessages()'s own comment) sent with no reader waiting on the
+// other end, then a real getCurrentActivity reply for the liveness
+// probe that follows. Exercises the exact gap
+// [[feedback-fake-doubles-hide-backend-timing-bugs]] names:
+// FakeWebSocketClient's own ReceiveText(0) always modeled "0ms = check
+// what's already buffered" correctly by construction, which proved
+// nothing about whether the real backend's 0ms receive actually behaves
+// that way against a real kernel socket buffer (it didn't, once - see
+// HostWebSocketClient's own ReceiveTextZeroDoesNotBlockWhenNothingIsPending
+// regression test in websocket_client_test.cpp). If DrainStaleMessages()
+// failed to drain this stray frame against the real backend, the next
+// liveness probe's own bounded-timeout receive would read it instead of
+// the real reply below.
+void RunFakeHarmonyHubWithStaleFrame(int listen_fd) {
+    int http_fd = accept(listen_fd, nullptr, nullptr);
+    if (http_fd >= 0) {
+        ReadRawHttpRequest(http_fd);
+        std::string body = kHandshakeSuccessBody;
+        std::string response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: " +
+                                std::to_string(body.size()) + "\r\n\r\n" + body;
+        send(http_fd, response.data(), response.size(), MSG_NOSIGNAL);
+        close(http_fd);
+    }
+
+    int ws_fd = accept(listen_fd, nullptr, nullptr);
+    if (ws_fd < 0) return;
+    std::string upgrade_request = ReadRawHttpRequest(ws_fd);
+    std::string client_key = ExtractWsHeaderValue(upgrade_request, "Sec-WebSocket-Key");
+    std::string upgrade_response = "HTTP/1.1 101 Switching Protocols\r\n"
+                                    "Upgrade: websocket\r\n"
+                                    "Connection: Upgrade\r\n"
+                                    "Sec-WebSocket-Accept: " +
+                                    ComputeWsAcceptKey(client_key) + "\r\n\r\n";
+    send(ws_fd, upgrade_response.data(), upgrade_response.size(), MSG_NOSIGNAL);
+
+    ReadWsClientTextFrame(ws_fd);  // the config fetch request
+    SendWsServerTextFrame(ws_fd, kConfigSuccessBody);
+
+    ReadWsClientTextFrame(ws_fd);  // ConnectAndFetchConfig()'s own current-activity probe
+    SendWsServerTextFrame(ws_fd, CurrentActivityResponseBody("-1"));
+
+    // Sent immediately, well before the client's own next liveness-probe
+    // cycle (the test below uses a short liveness_interval) - real
+    // enough slack over loopback for this to already be sitting in the
+    // client's own socket receive buffer by the time DrainStaleMessages()
+    // polls for it.
+    SendWsServerTextFrame(ws_fd, R"({"data":{"result":"stray-not-a-real-activity-id"}})");
+
+    ReadWsClientTextFrame(ws_fd);  // the next liveness probe's own getCurrentActivity request
+    SendWsServerTextFrame(ws_fd, CurrentActivityResponseBody("123"));
+
+    close(ws_fd);
+}
+
 }  // namespace
 
 // Mirrors webui/src/lib/harmonyValidation.test.ts's coverage of
@@ -1746,6 +1803,47 @@ TEST_F(HarmonyConnectionTest, RealBackendConnectsHandshakesAndFetchesConfigOverA
     ASSERT_EQ(snapshot.activities.size(), 2u);
     EXPECT_EQ(snapshot.activities[1].label, "Watch TV");
     EXPECT_EQ(snapshot.current_activity_id, "-1");
+
+    connection.Stop();
+    hub_thread.join();
+    close(listen_fd);
+}
+
+// See RunFakeHarmonyHubWithStaleFrame()'s own comment - this is the
+// timing-sensitive real-socket scenario the test above doesn't cover,
+// since its own fake hub only ever sends exactly the reply each request
+// expects, in order.
+TEST_F(HarmonyConnectionTest, RealBackendDrainsAStaleFrameBeforeTheNextLivenessProbesOwnReceive) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    int listen_fd = ListenOnFakeHubPort();
+    ASSERT_GE(listen_fd, 0);
+    std::jthread hub_thread([listen_fd] { RunFakeHarmonyHubWithStaleFrame(listen_fd); });
+
+    homedeck::EventBus bus;
+    homedeck::HostHttpClient http_client;
+
+    // A fast liveness interval (unlike the 30s production default) so
+    // the periodic-probe cycle that reads past the stray frame runs
+    // well within this test's own bounded waits - same injectable-for-
+    // tests shape the fake-backend tests already use.
+    homedeck::HarmonyConnection connection(
+        http_client, [] { return std::make_unique<homedeck::HostWebSocketClient>(); }, storage, bus, kFastBackoff,
+        kFastBackoff, /*liveness_interval=*/std::chrono::milliseconds(50));
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "-1"; }));
+
+    // If DrainStaleMessages() failed to actually drain the stray frame
+    // against the real socket backend, the next liveness probe's own
+    // ReceiveText() would read the stray frame instead of the real
+    // reply below, and current_activity_id would never reach "123".
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "123"; }));
+    EXPECT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kConnected);
 
     connection.Stop();
     hub_thread.join();

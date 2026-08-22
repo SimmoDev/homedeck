@@ -54,14 +54,18 @@ module test) - connect/retry/liveness-probe behavior and the
 press/hold/release device-command path - against a scriptable
 `WebSocketClient` double, the same fake-transport-double approach
 `weather_provider_test.cpp` already established for `HttpClient`, plus
-one real-backend test (`RealBackendConnectsHandshakesAndFetchesConfig
-OverActualSocketsAndFraming`) that drives the full connect pipeline
-against real `HostHttpClient`/`HostWebSocketClient` instances and a
-raw-socket stand-in hub instead - the fake-only coverage above can't
-reproduce real socket/timing behavior, the same reasoning
+two real-backend tests against real `HostHttpClient`/`HostWebSocketClient`
+instances and a raw-socket stand-in hub instead - the fake-only coverage
+above can't reproduce real socket/timing behavior, the same reasoning
 `websocket_client_test.cpp`'s own top comment gives for testing
 `HostWebSocketClient` against a real server rather than only in
-isolation.
+isolation. `RealBackendConnectsHandshakesAndFetchesConfig
+OverActualSocketsAndFraming` drives the full connect pipeline end to
+end; `RealBackendDrainsAStaleFrameBeforeTheNextLivenessProbesOwnReceive`
+covers the one timing-sensitive path the first test's own clean
+request/reply sequence doesn't reach - `DrainStaleMessages()` actually
+draining a frame that's already sitting in a real socket's receive
+buffer, not just a fake double's own queue.
 `websocket_client_test.cpp` covers `HostWebSocketClient`'s actual
 libcurl-backed transport, which that double stands in for - a real
 client/server WebSocket round trip over a raw socket against a
