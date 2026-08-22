@@ -334,9 +334,9 @@ same physical pins.
   the RX8130's `nIRQ` pin each appear with no net name reaching
   anywhere else in the document** - every genuinely-wired net in this
   schematic (e.g. `BOOT_GPIO35`, `TP_INT_GPIO23`) shows up at both its
-  source and destination; these don't, which is real but not certain
-  evidence (noisy PDF-text extraction, not an explicit "NC" label) that
-  they're unconnected on this board. **Both P4-side pins actually found
+  source and destination; these don't, which is genuine but not
+  certain evidence (noisy PDF-text extraction, not an explicit "NC"
+  label) that they're unconnected on this board. **Both P4-side pins actually found
   (GPIO35, GPIO23) sit outside GPIO0-15** - confirmed against this
   project's own generated `sdkconfig.h` for the `esp32p4` target: the
   chip's standard deep-sleep wake APIs require the wake pin to be in the

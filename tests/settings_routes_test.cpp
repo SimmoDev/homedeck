@@ -169,8 +169,8 @@ TEST_F(SettingsRoutesTest, PostSettingsRejectsPathTraversalInModuleOrKey) {
     EXPECT_EQ(post.status_code, 400);
     EXPECT_NE(post.body.find("invalid_key"), std::string::npos);
 
-    // Confirms the rejection is real, not just a satisfied response code -
-    // nothing escaped root_dir_ onto disk.
+    // The rejection actually took effect, not just a satisfied response
+    // code - nothing escaped root_dir_ onto disk.
     EXPECT_FALSE(std::filesystem::exists(root_dir_.parent_path() / "secrets"));
 }
 

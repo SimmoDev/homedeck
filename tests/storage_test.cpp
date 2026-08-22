@@ -249,8 +249,8 @@ TEST_F(StorageTest, SetSettingRejectsPathTraversalSegments) {
     EXPECT_FALSE(storage.GetSetting("..", "hub_ip").has_value());
     EXPECT_FALSE(storage.EraseSetting("harmony", "../secret"));
 
-    // Confirms the rejection is real, not just a false return - nothing
-    // escaped root_dir_ onto disk.
+    // The rejection actually took effect, not just a false return -
+    // nothing escaped root_dir_ onto disk.
     EXPECT_FALSE(std::filesystem::exists(root_dir_.parent_path() / "etc"));
 }
 
