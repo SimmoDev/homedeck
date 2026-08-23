@@ -95,6 +95,49 @@ for f in "$@"; do
         echo "$ml_matches" | sed 's/^/    /'
         status=1
     fi
+
+    # Neither pass above sees a call as the unbraced body of an
+    # if/while/for statement (`if (ready) esp_wifi_connect();`) - it
+    # follows the condition's closing `)`, not a `{`/`;`/`}` boundary or
+    # line start. Walks the line by character to find the condition's own
+    # balanced close (so a for-loop's internal `;`s, e.g.
+    # `for (int i = 0; i < 3; i++) esp_foo();`, don't confuse where the
+    # condition actually ends), then checks whether what follows is a
+    # bare call with the same closing shape and paren-balance guard as
+    # the single-line pass above.
+    cf_matches=$(awk '
+        {
+            line = $0
+            if (line ~ /^[[:space:]]*(if|while|for)[[:space:]]*\(/) {
+                pos = index(line, "(")
+                depth = 0
+                n = length(line)
+                close_pos = 0
+                for (k = pos; k <= n; k++) {
+                    c = substr(line, k, 1)
+                    if (c == "(") depth++
+                    else if (c == ")") {
+                        depth--
+                        if (depth == 0) { close_pos = k; break }
+                    }
+                }
+                if (close_pos > 0) {
+                    rest = substr(line, close_pos + 1)
+                    sub(/^[[:space:]]+/, "", rest)
+                    if (rest ~ /^(esp_|mdns_|httpd_)[A-Za-z0-9_]+\(.*\);[[:space:]]*$/ && rest !~ /httpd_resp_/) {
+                        n_open = gsub(/\(/, "(", rest)
+                        n_close = gsub(/\)/, ")", rest)
+                        if (n_close <= n_open) print NR ": " line
+                    }
+                }
+            }
+        }
+    ' "$f" || true)
+    if [ -n "$cf_matches" ]; then
+        echo "[esp-idf-return] $f: bare call as an unbraced if/while/for body, return value not checked/logged:"
+        echo "$cf_matches" | sed 's/^/    /'
+        status=1
+    fi
 done
 
 exit $status
