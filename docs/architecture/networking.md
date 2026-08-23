@@ -38,7 +38,11 @@ does. First-run setup uses a SoftAP: the device broadcasts its own
 temporary access point, a computer or phone connects to it, and a minimal
 HTTP setup form (not the full Svelte Web UI — see [web-ui.md](web-ui.md))
 collects the Wi-Fi SSID and password, which the device applies via
-`esp_wifi_set_config`/`esp_wifi_connect`. Touch UI on-screen keyboard entry
+`esp_wifi_set_config`/`esp_wifi_connect`. The form's submitted values are
+percent-decoded and length-validated before being applied
+(`src/core/url_codec.h`, `src/core/wifi_credentials.h`) so a network name
+or password containing a space or symbol is handled correctly rather than
+corrupted. Touch UI on-screen keyboard entry
 remains available as a fallback for users without a second device handy,
 but SoftAP + setup form is the primary, documented path. See
 [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)

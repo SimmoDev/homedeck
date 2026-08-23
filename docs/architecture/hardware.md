@@ -117,16 +117,11 @@ connect time (see [harmony.md](harmony.md#connection)), but the crash
 rate hasn't been re-evaluated against it - still an open, accepted gap,
 not a resolved one.
 
-The provisioning flow (`firmware/main/wifi_setup.cpp`) is a SoftAP +
-minimal HTTP setup form, not ESP-IDF's `wifi_provisioning` component —
-see [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md)
-for why. SoftAP setup, credential submission, connection, and SoftAP
-teardown all work end to end, including with a non-alphanumeric SSID
-(an apostrophe). The form's submitted values are
-percent-decoded and length-validated before being applied
-(`src/core/url_codec.h`, `src/core/wifi_credentials.h`) so a network name
-or password containing a space or symbol is handled correctly rather than
-corrupted.
+The provisioning flow's SoftAP setup, credential submission, connection,
+and SoftAP teardown all work end to end on the Tab5, including with a
+non-alphanumeric SSID (an apostrophe) — see
+[networking.md](networking.md#initial-wi-fi-provisioning) for the flow
+itself.
 
 Two standing facts about this flow:
 - **Wi-Fi credentials live on the C6 co-processor's own flash, not the
