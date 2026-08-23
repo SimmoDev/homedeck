@@ -245,7 +245,17 @@ private:
     // events (DevicesScreen's LONG_PRESSED_REPEAT handler) can queue
     // dozens of entries during even a brief drop, all replayed
     // back-to-back on reconnect. The oldest entry is dropped first once
-    // full - most-recent intent matters more for a live remote.
+    // full - most-recent intent matters more for a live remote. One
+    // shared cap/policy across both device-command bursts (the case this
+    // was sized for) and StartActivity() calls - a StartActivity queued
+    // behind a long enough held-button repeat train can be silently
+    // evicted the same way an old device command would be, with no
+    // HarmonyCommandDroppedEvent (deliberate for a cap-based drop, see
+    // EnqueueCommand()'s own comment) even though double-tapping an
+    // activity is a materially rarer, higher-intent action than a
+    // held-button repeat. Not split into a separate, larger-or-unbounded
+    // allowance for StartActivity specifically, since nothing has shown
+    // this asymmetry to matter in practice yet.
     static constexpr size_t kMaxPendingCommands = 20;
 
     // Appends to pending_commands_ and enforces kMaxPendingCommands,
