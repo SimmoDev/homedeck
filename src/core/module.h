@@ -28,6 +28,15 @@ public:
     virtual ~Module() = default;
 
     virtual void Start() = 0;
+    // May block synchronously for as long as an in-flight network call's
+    // own worst-case timeout - a background Task's stop_token can only be
+    // checked between blocking calls, not used to interrupt one already in
+    // flight (see HarmonyConnection::ConnectAndFetchConfig()'s own
+    // comment for why), so Stop() can't return until whatever call is
+    // currently blocking naturally times out. Not currently user-visible
+    // (today's only callers are process teardown and test fixtures, not a
+    // live UI action), but a future "restart module"/"apply settings" UI
+    // action must not call this synchronously from the UI thread.
     virtual void Stop() = 0;
 };
 
