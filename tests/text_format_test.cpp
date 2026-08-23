@@ -40,6 +40,13 @@ TEST(SplitCamelCaseTest, SplitsAtADigitToUpperBoundary) {
     // KeepsATrailingDigitAttached above, but a space is still inserted
     // before the uppercase letter that follows it.
     EXPECT_EQ(homedeck::SplitCamelCase("Mode3D"), "Mode3 D");
+    // The digit-to-upper boundary rule applies independently of the
+    // acronym-run rule (KeepsAnAcronymRunTogether above) - a digit
+    // immediately before an acronym run still splits before the run's
+    // first letter, and the acronym rule then splits again at the run's
+    // own upper-to-lower boundary, same as if a lowercase letter preceded
+    // the run instead of a digit.
+    EXPECT_EQ(homedeck::SplitCamelCase("3DMode"), "3 D Mode");
 }
 
 TEST(SplitCamelCaseTest, HandlesASingleWordOrLetter) {
