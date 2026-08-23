@@ -22,9 +22,7 @@ namespace homedeck {
 
 // See ADR-0029 for the protocol this is built against: a local
 // WebSocket/JSON API on the hub's port 8088, no authentication step of
-// any kind - "connection," not "authentication," despite the roadmap's
-// older wording (docs/roadmap.md's M3 section, corrected there once this
-// lands).
+// any kind.
 enum class HarmonyConnectionState {
     kDisconnected,  // no hub address configured, or not yet attempted
     kConnecting,
