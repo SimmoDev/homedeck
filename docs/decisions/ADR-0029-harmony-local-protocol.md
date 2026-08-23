@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted
+Accepted. The Consequences section's `WebSocketClient` bullet describes
+the simulator backend as using libcurl's native WS API
+(`curl_ws_send`/`curl_ws_recv`) — that's superseded: distro-packaged
+libcurl doesn't register `ws`/`wss` as protocol schemes at all, so the
+actual simulator implementation is `CURLOPT_CONNECT_ONLY` plus a
+hand-rolled RFC 6455 handshake/framing over
+`curl_easy_send()`/`curl_easy_recv()`, documented in
+`src/platform/host/websocket_client.h`'s own header comment.
 
 ## Context
 
@@ -85,17 +92,11 @@ its own manual URL entry.
   use that wrapper either way.
 - New platform capability:
   `WebSocketClient` (`src/platform/websocket_client.h`), backed by
-  libcurl on the simulator and `espressif/esp_websocket_client` on
-  firmware - neither target had an outbound WebSocket client before
-  this. `HttpClient::Post()` (`src/platform/http_client.h`) also gained an
-  `extra_headers` parameter, specifically for the Origin header above.
-  Correction: the simulator backend does not use libcurl's own native WS
-  API (`curl_ws_send`/`curl_ws_recv`) as this ADR originally stated -
-  distro-packaged libcurl doesn't register `ws`/`wss` as protocol schemes
-  at all, so the actual mechanism is `CURLOPT_CONNECT_ONLY` plus a
-  hand-rolled RFC 6455 handshake/framing over
-  `curl_easy_send()`/`curl_easy_recv()`, documented in
-  `src/platform/host/websocket_client.h`'s own header comment.
+  libcurl's native WS API (`curl_ws_send`/`curl_ws_recv`) on the
+  simulator and `espressif/esp_websocket_client` on firmware - neither
+  target had an outbound WebSocket client before this. `HttpClient::Post()`
+  (`src/platform/http_client.h`) also gained an `extra_headers`
+  parameter, specifically for the Origin header above.
 - The account email/username in the handshake response is personal data
   returned over an unauthenticated local endpoint - a fact about the
   hub's own protocol design, not something HomeDeck's implementation
