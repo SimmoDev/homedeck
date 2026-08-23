@@ -5,12 +5,15 @@
 # specific function/API name, or narrating a debugging investigation rather
 # than stating its resulting fact. Non-blocking - see pre-commit.
 #
-# This doc has drifted back into scope violations across four consecutive
-# milestone exit reviews (M2 pass 9, M2 pass 12, M3 pass 2, M3 pass 10),
-# each time fixed by a manual sweep that didn't hold to the next milestone -
-# see the feedback-hardware-md-scope memory. A function name cited here has
-# also gone stale/wrong at least once (a symbol that didn't exist in the
-# vendored header), which a pure electrical-fact statement can't do.
+# This doc has drifted back into scope violations across five consecutive
+# milestone exit reviews (M2 pass 9, M2 pass 12, M3 pass 2, M3 pass 10, M3
+# pass 18), each time fixed by a manual sweep that didn't hold to the next
+# milestone - see the feedback-hardware-md-scope memory. A function name
+# cited here has also gone stale/wrong at least once (a symbol that didn't
+# exist in the vendored header), which a pure electrical-fact statement
+# can't do. The M3 pass 18 violation cited a src/core/ header path with no
+# parenthesized call at all, which the function-citation check below can't
+# see - see the src/core|platform path check below.
 set -uo pipefail
 
 status=0
@@ -33,6 +36,22 @@ for f in "$@"; do
     if [ -n "$fn_matches" ]; then
         echo "[hardware-md-scope] $f: function/API name citation (hardware.md is facts-only, not software behavior):"
         echo "$fn_matches" | sed 's/^/    /'
+        status=1
+    fi
+
+    # Core/platform source-file path citations (no parenthesized call
+    # needed to be a violation, unlike the function-citation check above -
+    # e.g. `src/core/url_codec.h`). Scoped to src/core/ and src/platform/
+    # specifically, not firmware/components/ - a vendored BSP header cited
+    # for a pin/register constant (e.g. confirming a GPIO number) is a
+    # legitimate electrical-fact citation this file already makes
+    # elsewhere; a src/core|platform path is Core/platform software by
+    # definition (see CLAUDE.md's Core responsibilities), so citing one
+    # here is always out of scope.
+    path_matches=$(grep -noE '`?src/(core|platform)/[A-Za-z0-9_./-]*\.(h|hpp|cpp|c)`?' "$f" || true)
+    if [ -n "$path_matches" ]; then
+        echo "[hardware-md-scope] $f: src/core or src/platform file citation (hardware.md is facts-only, not software behavior):"
+        echo "$path_matches" | sed 's/^/    /'
         status=1
     fi
 
