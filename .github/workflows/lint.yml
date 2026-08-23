@@ -30,7 +30,7 @@ jobs:
       - name: Run check-esp-idf-returns.sh and check-esp-http-timeouts.sh against firmware/main and src/platform/firmware
         continue-on-error: true
         run: |
-          files=$(git ls-files -- 'firmware/main/*.cpp' 'src/platform/firmware/*.cpp')
+          files=$(git ls-files -- 'firmware/main/*.cpp' 'firmware/main/*.h' 'firmware/main/*.hpp' 'src/platform/firmware/*.cpp' 'src/platform/firmware/*.h' 'src/platform/firmware/*.hpp')
           bash tools/githooks/check-esp-idf-returns.sh $files
           bash tools/githooks/check-esp-http-timeouts.sh $files
 

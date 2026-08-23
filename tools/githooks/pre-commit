@@ -20,7 +20,12 @@ staged_files=$(git diff --cached --name-only --diff-filter=ACM)
 # alternative catches those by basename instead, since this project's own
 # narration convention applies to their comments too.
 doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yaml)$|(^|/)sdkconfig[^/]*$' || true)
-esp_files=$(echo "$staged_files" | grep -E '^(firmware/main|src/platform/firmware)/.*\.cpp$' || true)
+# .h/.hpp included, not just .cpp - an esp_/mdns_/httpd_ call or an
+# esp_http_client_perform() with no timeout set can live in a header-only
+# inline function/lambda just as easily as a .cpp, and neither check-
+# esp-idf-returns.sh nor check-esp-http-timeouts.sh cares which file a
+# call sits in.
+esp_files=$(echo "$staged_files" | grep -E '^(firmware/main|src/platform/firmware)/.*\.(cpp|h|hpp)$' || true)
 cpp_files=$(echo "$staged_files" | grep -E '\.cpp$' || true)
 
 found_issue=0
