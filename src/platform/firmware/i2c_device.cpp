@@ -1,10 +1,12 @@
 #include "platform/firmware/i2c_device.h"
 
 #include "esp_err.h"
+#include "esp_log.h"
 
 namespace homedeck {
 
 namespace {
+constexpr char kTag[] = "i2c_device";
 constexpr int kTimeoutMs = 1000;
 constexpr uint32_t kSclSpeedHz = 400000;
 }  // namespace
@@ -30,7 +32,18 @@ I2cDevice::I2cDevice(i2c_master_bus_handle_t bus, uint8_t address) {
     ESP_ERROR_CHECK(i2c_master_bus_add_device(bus, &dev_cfg, &handle_));
 }
 
-I2cDevice::~I2cDevice() { i2c_master_bus_rm_device(handle_); }
+I2cDevice::~I2cDevice() {
+    // Same "log a warning, don't silently lose it" convention as every
+    // other teardown call in this codebase (e.g.
+    // FirmwareWebSocketClient::Close()) - a failure here (device busy on
+    // the bus) would otherwise leave a stale device-table entry with no
+    // diagnostic trace.
+    esp_err_t err = i2c_master_bus_rm_device(handle_);
+    if (err != ESP_OK) {
+        ESP_LOGW(kTag, "i2c_master_bus_rm_device() failed: %s - the device-table entry may be leaked",
+                 esp_err_to_name(err));
+    }
+}
 
 bool I2cDevice::Write(uint8_t /*device_address*/, const uint8_t* data, size_t len) {
     return i2c_master_transmit(handle_, data, static_cast<size_t>(len), kTimeoutMs) == ESP_OK;
