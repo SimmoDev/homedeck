@@ -216,15 +216,19 @@ AdminAuthService::~AdminAuthService() {
 // touches no shared state (no ctr_drbg_/entropy_ call), so Login()
 // deliberately calls it *without* holding mutex_ - see Login()'s own
 // comment for why that matters.
-std::vector<unsigned char> AdminAuthService::GenerateSalt() {
+std::optional<std::vector<unsigned char>> AdminAuthService::GenerateSalt() {
     std::vector<unsigned char> salt(kSaltBytes);
-    mbedtls_ctr_drbg_random(ctr_drbg_.get(), salt.data(), salt.size());
+    if (mbedtls_ctr_drbg_random(ctr_drbg_.get(), salt.data(), salt.size()) != 0) {
+        return std::nullopt;
+    }
     return salt;
 }
 
-SessionToken AdminAuthService::GenerateSessionToken() {
-    unsigned char token[kSessionTokenBytes];
-    mbedtls_ctr_drbg_random(ctr_drbg_.get(), token, sizeof(token));
+std::optional<SessionToken> AdminAuthService::GenerateSessionToken() {
+    unsigned char token[kSessionTokenBytes] = {};
+    if (mbedtls_ctr_drbg_random(ctr_drbg_.get(), token, sizeof(token)) != 0) {
+        return std::nullopt;
+    }
     return ToHex(token, sizeof(token));
 }
 
@@ -232,12 +236,14 @@ SessionToken AdminAuthService::GenerateSessionToken() {
 // local mbedtls context. Safe to call concurrently from multiple threads
 // with no lock of any kind, unlike GenerateSalt()/GenerateSessionToken()
 // above.
-std::string AdminAuthService::HashPasswordHex(const std::string& password,
-                                               const std::vector<unsigned char>& salt) {
-    unsigned char output[kHashBytes];
-    mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA256, reinterpret_cast<const unsigned char*>(password.data()),
-                                   password.size(), salt.data(), salt.size(), kPbkdf2Iterations, sizeof(output),
-                                   output);
+std::optional<std::string> AdminAuthService::HashPasswordHex(const std::string& password,
+                                                               const std::vector<unsigned char>& salt) {
+    unsigned char output[kHashBytes] = {};
+    if (mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA256, reinterpret_cast<const unsigned char*>(password.data()),
+                                       password.size(), salt.data(), salt.size(), kPbkdf2Iterations, sizeof(output),
+                                       output) != 0) {
+        return std::nullopt;
+    }
     return ToHex(output, sizeof(output));
 }
 
@@ -274,16 +280,25 @@ std::optional<SessionToken> AdminAuthService::SetInitialPassword(const std::stri
     if (storage_.GetSecret(kModuleId, kPasswordKey).has_value()) {
         return std::nullopt;  // already set - see web-ui.md, this isn't a password-change flow
     }
-    std::vector<unsigned char> salt = GenerateSalt();
-    std::string hash_hex = HashPasswordHex(password, salt);
-    std::string encoded =
-        "pbkdf2-sha256$" + std::to_string(kPbkdf2Iterations) + "$" + ToHex(salt.data(), salt.size()) + "$" + hash_hex;
+    auto salt = GenerateSalt();
+    if (!salt.has_value()) {
+        return std::nullopt;
+    }
+    auto hash_hex = HashPasswordHex(password, *salt);
+    if (!hash_hex.has_value()) {
+        return std::nullopt;
+    }
+    std::string encoded = "pbkdf2-sha256$" + std::to_string(kPbkdf2Iterations) + "$" +
+                           ToHex(salt->data(), salt->size()) + "$" + *hash_hex;
     if (!storage_.SetSecret(kModuleId, kPasswordKey, kPasswordSchemaVersion, encoded)) {
         return std::nullopt;
     }
     SweepExpiredSessions();
-    SessionToken token = GenerateSessionToken();
-    sessions_[token] = time_source_.Now() + kSessionLifetime;
+    auto token = GenerateSessionToken();
+    if (!token.has_value()) {
+        return std::nullopt;
+    }
+    sessions_[*token] = time_source_.Now() + kSessionLifetime;
     return token;
 }
 
@@ -325,7 +340,8 @@ std::optional<SessionToken> AdminAuthService::Login(const std::string& password)
     // other authenticated endpoint - for the full ~2s each.
     bool authenticated = false;
     if (stored_hash.has_value()) {
-        auto computed = FromHex(HashPasswordHex(password, stored_hash->salt));
+        auto hash_hex = HashPasswordHex(password, stored_hash->salt);
+        auto computed = hash_hex.has_value() ? FromHex(*hash_hex) : std::nullopt;
         authenticated = computed.has_value() && ConstantTimeEquals(*computed, stored_hash->hash);
     }
 
@@ -342,8 +358,11 @@ std::optional<SessionToken> AdminAuthService::Login(const std::string& password)
     failed_login_attempts_ = 0;
     locked_until_ = std::chrono::system_clock::time_point{};
     SweepExpiredSessions();
-    SessionToken token = GenerateSessionToken();
-    sessions_[token] = time_source_.Now() + kSessionLifetime;
+    auto token = GenerateSessionToken();
+    if (!token.has_value()) {
+        return std::nullopt;
+    }
+    sessions_[*token] = time_source_.Now() + kSessionLifetime;
     return token;
 }
 

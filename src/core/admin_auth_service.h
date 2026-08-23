@@ -97,9 +97,12 @@ public:
     size_t ActiveSessionCountForTesting();
 
 private:
-    SessionToken GenerateSessionToken();
-    std::vector<unsigned char> GenerateSalt();
-    std::string HashPasswordHex(const std::string& password, const std::vector<unsigned char>& salt);
+    // std::nullopt on an mbedtls RNG/KDF failure - the caller must not
+    // proceed as if it had received real random/hashed output, since
+    // there is no safe default value for security-relevant material.
+    std::optional<SessionToken> GenerateSessionToken();
+    std::optional<std::vector<unsigned char>> GenerateSalt();
+    std::optional<std::string> HashPasswordHex(const std::string& password, const std::vector<unsigned char>& salt);
     // Erases every expired entry from sessions_ - see its own comment
     // for why this is needed at all. Caller must already hold mutex_.
     void SweepExpiredSessions();
