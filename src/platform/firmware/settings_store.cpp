@@ -2,6 +2,7 @@
 
 #include "platform/firmware/nvs_blob_store.h"
 
+#include "esp_log.h"
 #include "nvs.h"
 
 namespace homedeck {
@@ -32,8 +33,19 @@ std::vector<SettingsEntry> FirmwareSettingsStore::ListAll() {
     esp_err_t err = nvs_entry_find(NVS_DEFAULT_PART_NAME, nullptr, NVS_TYPE_BLOB, &it);
     while (err == ESP_OK) {
         nvs_entry_info_t info;
-        nvs_entry_info(it, &info);
-        ns_keys.emplace_back(info.namespace_name, info.key);
+        esp_err_t info_err = nvs_entry_info(it, &info);
+        // Reached only right after nvs_entry_find()/nvs_entry_next() both
+        // already returned ESP_OK for this same iterator, so this is
+        // effectively unreachable with the current NVS driver - checked
+        // regardless, same as every other esp_*() call in this codebase.
+        // Skipping the entry (rather than aborting the whole listing) on
+        // an unexpected failure keeps one bad entry from hiding every
+        // other setting from a backup export.
+        if (info_err != ESP_OK) {
+            ESP_LOGW(kTag, "nvs_entry_info() failed: %s - skipping this entry", esp_err_to_name(info_err));
+        } else {
+            ns_keys.emplace_back(info.namespace_name, info.key);
+        }
         err = nvs_entry_next(&it);
     }
     nvs_release_iterator(it);
