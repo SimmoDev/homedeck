@@ -1,9 +1,8 @@
 # The simulator's HTTP server backend (see platform/host/http_server.h) -
 # civetweb v1.16's own CMakeLists.txt predates CMake's removal of
 # compatibility with versions before 3.5, so CMAKE_POLICY_VERSION_MINIMUM
-# must be set before fetching it, confirmed via a real scratch build
-# rather than assumed. CIVETWEB_ENABLE_CXX stays off - only the plain C
-# API is used (see http_server.h's own comment for why).
+# must be set before fetching it. CIVETWEB_ENABLE_CXX stays off - only
+# the plain C API is used (see http_server.h's own comment for why).
 include(FetchContent)
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 FetchContent_Declare(
@@ -17,8 +16,7 @@ set(CIVETWEB_ENABLE_CXX OFF CACHE BOOL "" FORCE)
 # Defaults ON in Debug builds and compiles civetweb's own object files with
 # -fsanitize=..., but that flag never reaches our own targets' link line
 # (this repo doesn't build with sanitizers), leaving unresolved __ubsan_*/
-# __asan_* symbols at link time - confirmed via a real Debug-mode build
-# failing with exactly those undefined references.
+# __asan_* symbols at link time in a Debug build.
 set(CIVETWEB_ENABLE_ASAN OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(civetweb)
 
@@ -29,18 +27,15 @@ FetchContent_MakeAvailable(civetweb)
 # implementation of a security primitive for the host target. Only
 # mbedcrypto (the primitive library) is linked - mbedx509/mbedtls (the
 # X.509 and TLS stacks) build as part of the same CMake project but
-# nothing links them, since nothing here needs TLS. Confirmed via a real
-# scratch FetchContent build producing real PBKDF2/CTR_DRBG output,
-# matching this project's standing "verify, don't assume" discipline for
-# new dependencies.
+# nothing links them, since nothing here needs TLS.
 set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
-# mbedtls treats its own compiler warnings as errors by default -
-# confirmed via the same scratch build above that this repo's GCC
-# version trips some of them (mostly -Wunterminated-string-initialization
-# in its TLS 1.3 code, which nothing here uses), so this stays off rather
-# than gating an unrelated dependency's build on warnings in code paths
-# this project doesn't exercise.
+# mbedtls treats its own compiler warnings as errors by default, and this
+# repo's GCC version trips some of them (mostly
+# -Wunterminated-string-initialization in its TLS 1.3 code, which nothing
+# here uses), so this stays off rather than gating an unrelated
+# dependency's build on warnings in code paths this project doesn't
+# exercise.
 set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
   mbedtls

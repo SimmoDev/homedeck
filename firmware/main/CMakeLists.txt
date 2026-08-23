@@ -5,7 +5,7 @@
 # vs. add_library/target_link_libraries) and integrating them cleanly
 # (in particular, confirming LVGL's `TARGET lvgl` check in
 # src/CMakeLists.txt resolves correctly against the managed `lvgl`
-# component) is real, unverified risk not worth taking on for this
+# component) is a genuine, unverified risk not worth taking on for this
 # step. This does mean these paths need updating by hand if src/'s own
 # file list changes - a known tradeoff, not an oversight.
 
@@ -13,9 +13,9 @@
 # build is a deliberately separate, explicit step (not auto-invoked from
 # CMake - see
 # docs/decisions/ADR-0025-webui-static-asset-storage.md),
-# so a stale/missing build here is a real, easy-to-hit case, not a
-# hypothetical - fail with a clear message rather than EMBED_FILES'
-# own opaque "file not found" error.
+# so a stale/missing build here is easy to hit, not hypothetical - fail
+# with a clear message rather than EMBED_FILES' own opaque "file not
+# found" error.
 if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../webui/dist/index.html" OR
    NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../webui/dist/app.js" OR
    NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../../webui/dist/app.css")
