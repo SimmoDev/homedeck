@@ -78,6 +78,20 @@ startup code. Background tasks a module runs must respect this lifecycle —
 a stopped module should not continue polling in the background, per the
 background task requirements in [CLAUDE.md](../../CLAUDE.md).
 
+### Enable/disable and multi-instance mechanism
+
+A module's enabled/disabled state and support for multiple concurrent
+instances of the same module type are handled by the same mechanism, not
+two separate ones: Core holds a per-module-type list of live instances —
+empty means disabled, one entry is the common single-instance case, more
+than one is multi-instance — rather than a bespoke enabled/disabled flag
+plus a separate instance registry. This avoids two independent
+enable/disable code paths (one for "no instance exists" and one for "an
+instance exists but is flagged off") that would otherwise need to agree
+with each other. See
+[modules.md's Status section](../architecture/modules.md#status) for the
+current single-instance shape this generalizes from.
+
 ## Consequences
 
 - The first module implementation (Harmony, M3) effectively becomes the
