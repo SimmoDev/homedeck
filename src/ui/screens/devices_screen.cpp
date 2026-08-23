@@ -94,14 +94,11 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     list_container_ = chrome.list_container;
     lv_obj_t* home_button = chrome.home_button;
 
-    // status_label_ sits at the top of the screen (index 1, right after
-    // the title) rather than inside detail_container_ - visible in both
-    // the device list and a device's command view, mirroring
-    // ActivitiesScreen's own standing offline indicator (see state_sub_
-    // below).
-    status_label_ = lv_label_create(container);
-    lv_label_set_text(status_label_, "");  // LVGL defaults a new label's text to "Text" otherwise.
-    lv_obj_move_to_index(status_label_, 1);
+    // status_label_ sits at the top of the screen (right after the title)
+    // rather than inside detail_container_ - visible in both the device
+    // list and a device's command view, mirroring ActivitiesScreen's own
+    // standing offline indicator (see state_sub_ below).
+    status_label_ = CreateHarmonyStatusLabel(container);
 
     detail_container_ = lv_obj_create(container);
     lv_obj_remove_style_all(detail_container_);

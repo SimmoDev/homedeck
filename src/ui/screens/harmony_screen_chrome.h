@@ -26,4 +26,15 @@ struct HarmonyScreenChrome {
 // rather than this function taking on a caller-specific insertion hook.
 HarmonyScreenChrome CreateHarmonyScreenChrome(lv_obj_t* root, const char* title, Navigation& navigation);
 
+// The standing connection-status label ActivitiesScreen/DevicesScreen
+// each construct identically - positioned between the title and
+// hint_label (index 1), same as this call's own caller repositions
+// status_label_ to when it's created separately - see
+// CreateHarmonyScreenChrome()'s own insertion-order comment. Starts
+// empty (LVGL defaults a new label's text to "Text" otherwise); each
+// screen owns its own event-subscription wiring and offline-indicator
+// text, since those genuinely differ between them (ActivitiesScreen's
+// own in-progress-tap states have no DevicesScreen equivalent).
+lv_obj_t* CreateHarmonyStatusLabel(lv_obj_t* container);
+
 }  // namespace homedeck

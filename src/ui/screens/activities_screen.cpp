@@ -35,13 +35,7 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     list_container_ = chrome.list_container;
     lv_obj_t* home_button = chrome.home_button;
 
-    // Between the title and hint_label - see CreateHarmonyScreenChrome()'s
-    // own comment on why a caller with content to insert there repositions
-    // it after the fact rather than the chrome function taking an
-    // insertion hook.
-    status_label_ = lv_label_create(chrome.container);
-    lv_label_set_text(status_label_, "");  // LVGL defaults a new label's text to "Text" otherwise.
-    lv_obj_move_to_index(status_label_, 1);
+    status_label_ = CreateHarmonyStatusLabel(chrome.container);
 
     // A secondary, lighter-weight affordance than the home button/activity
     // buttons - Devices is the advanced/raw-command surface (see

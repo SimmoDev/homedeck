@@ -44,4 +44,11 @@ HarmonyScreenChrome CreateHarmonyScreenChrome(lv_obj_t* root, const char* title,
     return {container, hint_label, list_container, home_button};
 }
 
+lv_obj_t* CreateHarmonyStatusLabel(lv_obj_t* container) {
+    lv_obj_t* status_label = lv_label_create(container);
+    lv_label_set_text(status_label, "");  // LVGL defaults a new label's text to "Text" otherwise.
+    lv_obj_move_to_index(status_label, 1);
+    return status_label;
+}
+
 }  // namespace homedeck
