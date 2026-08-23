@@ -117,15 +117,17 @@ struct HarmonyCurrentActivityChangedEvent {
 };
 
 // Published when a queued command is dropped rather than reaching the hub,
-// for any of three reasons: a command older than max_pending_command_age_
+// for any of four reasons: a command older than max_pending_command_age_
 // (a connection outage outlasted the queue's own staleness bound, so it
 // never reached the hub and never will); a send partway through
 // SendPendingCommands()'s own batch failing, or that batch being
 // interrupted by a stop request, either way taking every remaining queued
-// command in the batch with it; or a command still sitting in the queue
+// command in the batch with it; a command still sitting in the queue
 // when ConnectionLoop() itself shuts down without ever reaching
 // SendPendingCommands() at all (see ConnectionLoop()'s own post-loop
-// drain). Marker only, same shape as HarmonyConfigUpdatedEvent - a UI
+// drain); or a genuine hub_host change discarding every command still
+// queued against the previous hub (see ClearPendingCommandsIfAny()).
+// Marker only, same shape as HarmonyConfigUpdatedEvent - a UI
 // showing an optimistic "in progress" status for a specific queued action
 // (ActivitiesScreen's "Starting <name>...") is the only plausible
 // subscriber, and it already tracks which action that was locally.

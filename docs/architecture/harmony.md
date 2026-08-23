@@ -141,19 +141,22 @@ swallow the second address's own failure notification, since neither
 transition passes through `kConnected`.
 
 A fourth event, `HarmonyCommandDroppedEvent`, is published when a queued
-command is dropped rather than reaching the hub, for any of three
+command is dropped rather than reaching the hub, for any of four
 reasons: being older than `max_pending_command_age_` (a connection
 outage outlasted the pending-command queue's own staleness bound, so the
 command never reached the hub and never will); a send partway through
 `SendPendingCommands()`'s own batch failing, or that batch being
 interrupted by a stop request, either way taking every remaining queued
-command in the batch with it; or a command still queued when
+command in the batch with it; a command still queued when
 `ConnectionLoop()` itself shuts down without ever reaching
-`SendPendingCommands()` at all. `ActivitiesScreen`'s own `dropped_sub_`
+`SendPendingCommands()` at all; or a genuine `hub_host` change
+discarding every command still queued against the previous hub (see
+`ClearPendingCommandsIfAny()`). `ActivitiesScreen`'s own `dropped_sub_`
 is the only subscriber, reporting "Couldn't start `<name>` - hub
 unreachable" for the cases none of the other three events cover: a tap
 that ages out before a connection ever comes back to send it, or one
-lost to a batch interruption of any of the three kinds above.
+lost to a batch interruption or hub change of any of the four kinds
+above.
 
 ## Web UI
 
