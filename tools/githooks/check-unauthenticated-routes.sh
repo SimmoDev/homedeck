@@ -38,7 +38,11 @@ for f in "$@"; do
     # real C++ parsing, so it can't perfectly attribute RequireAuth to
     # the *matching* RegisterHandler call in a file with several close
     # together, but that shape doesn't occur in this codebase today.
-    matches=$(awk -v file="$f" '
+    # Trailing `//` comments are stripped first so a RequireAuth mention
+    # in a comment (e.g. "// TODO: add RequireAuth") can't satisfy the
+    # check for a real unauthenticated call beside it - still not real
+    # parsing, so a /* */ block comment isn't handled the same way.
+    matches=$(sed -E 's#//.*$##' "$f" | awk -v file="$f" '
         /[a-zA-Z_][a-zA-Z0-9_]*\.RegisterHandler\(/ {
             pending_line = NR
             window = 5
@@ -51,7 +55,7 @@ for f in "$@"; do
                 pending_line = 0
             }
         }
-    ' "$f" || true)
+    ' || true)
     if [ -n "$matches" ]; then
         echo "[unauthenticated-route] $matches"
         status=1
