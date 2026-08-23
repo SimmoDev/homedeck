@@ -30,8 +30,8 @@ for f in "$@"; do
     [ -f "$f" ] || continue
     is_exempt_file "$f" && continue
 
-    # For every *call* to RegisterHandler( (a preceding '.', not '::' -
-    # excludes HttpServer's own RegisterHandler *definition* in
+    # For every *call* to RegisterHandler( (a preceding '.' or '->', not
+    # '::' - excludes HttpServer's own RegisterHandler *definition* in
     # firmware/host http_server.cpp), look for RequireAuth within the
     # next 5 lines (covers this codebase's multi-line call style - see
     # e.g. settings_routes.cpp) - a plain sliding-window text search, not
@@ -40,10 +40,10 @@ for f in "$@"; do
     # together, but that shape doesn't occur in this codebase today.
     # Trailing `//` comments are stripped first so a RequireAuth mention
     # in a comment (e.g. "// TODO: add RequireAuth") can't satisfy the
-    # check for a real unauthenticated call beside it - still not real
+    # check for an unauthenticated call beside it - still not real
     # parsing, so a /* */ block comment isn't handled the same way.
     matches=$(sed -E 's#//.*$##' "$f" | awk -v file="$f" '
-        /[a-zA-Z_][a-zA-Z0-9_]*\.RegisterHandler\(/ {
+        /[a-zA-Z_][a-zA-Z0-9_]*(\.|->)RegisterHandler\(/ {
             pending_line = NR
             window = 5
         }
