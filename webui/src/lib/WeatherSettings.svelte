@@ -174,7 +174,7 @@
         {#each results as result}
           <li>
             <span>{[result.name, result.admin1, result.country].filter(Boolean).join(", ")}</span>
-            <button onclick={() => selectLocation(result)} disabled={saving}>Select</button>
+            <button onclick={() => selectLocation(result)} disabled={searching || saving}>Select</button>
           </li>
         {/each}
       </ul>
