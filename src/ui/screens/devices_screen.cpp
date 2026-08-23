@@ -120,6 +120,15 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     lv_label_set_text(back_label, LV_SYMBOL_LEFT " Devices");
 
     device_title_label_ = lv_label_create(detail_container_);
+    // Device labels come straight from the hub's config, not curated
+    // strings - a user can name a device anything in the MyHarmony app.
+    // detail_container_ is 90%-wide and clips children by default (no
+    // LV_OBJ_FLAG_OVERFLOW_VISIBLE set anywhere here), so without an
+    // explicit width+wrap a long name would clip mid-word - same pattern
+    // harmony_screen_chrome.cpp's hint_label already uses.
+    lv_obj_set_width(device_title_label_, LV_PCT(90));
+    lv_label_set_long_mode(device_title_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(device_title_label_, LV_TEXT_ALIGN_CENTER, 0);
 
     commands_container_ = lv_obj_create(detail_container_);
     lv_obj_remove_style_all(commands_container_);
