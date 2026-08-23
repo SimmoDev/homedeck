@@ -161,7 +161,31 @@ WifiSetupState g_state;
 // its first disconnect event.
 esp_timer_handle_t g_reconnect_timer = nullptr;
 
-void ReconnectTimerCallback(void* /*arg*/) { esp_wifi_connect(); }
+void ReconnectTimerCallback(void* /*arg*/) {
+    esp_err_t err = esp_wifi_connect();
+    if (err != ESP_OK) {
+        // Same underlying situation WIFI_EVENT_STA_START's own handler
+        // documents (a failed esp_wifi_connect() means no
+        // WIFI_EVENT_STA_DISCONNECTED fires for this attempt either), but
+        // higher-stakes here: this timer is what the retry chain re-arms
+        // itself with on every disconnect for as long as the device runs,
+        // not a one-time boot-path call - leaving it unhandled would let a
+        // single transient failure permanently stall reconnection with no
+        // log line and no further attempts. Reschedules directly rather
+        // than routing through OnEvent()'s WIFI_EVENT_STA_DISCONNECTED
+        // bookkeeping (reconnect_policy's give-up/recovery attempt
+        // counting) - this call never actually started a connection to
+        // fail, so it isn't the kind of attempt that counting tracks.
+        ESP_LOGW(kTag, "esp_wifi_connect (on reconnect timer) failed: %s - rescheduling in %dms", esp_err_to_name(err),
+                 kReconnectBackoffMs);
+        esp_timer_stop(g_reconnect_timer);
+        esp_err_t start_err =
+            esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(kReconnectBackoffMs) * 1000);
+        if (start_err != ESP_OK) {
+            ESP_LOGE(kTag, "Failed to reschedule the reconnect timer: %s", esp_err_to_name(start_err));
+        }
+    }
+}
 
 // Runs StartRecoveryAccessPoint() (defined below, forward-declared here)
 // off the ESP-IDF event-loop task - OnEvent() itself must never block
