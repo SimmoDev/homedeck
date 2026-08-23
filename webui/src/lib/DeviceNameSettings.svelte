@@ -77,7 +77,6 @@
   {:else}
     <div class="row">
       <input
-        id="device-name"
         type="text"
         aria-label="Device name"
         bind:value={deviceName}

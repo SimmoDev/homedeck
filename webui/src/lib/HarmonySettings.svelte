@@ -161,7 +161,6 @@
            scripted POST), not something this input can trigger on its
            own. -->
       <input
-        id="harmony-hub-host"
         type="text"
         aria-label="Harmony Hub address"
         placeholder="Hub IP address or hostname"
