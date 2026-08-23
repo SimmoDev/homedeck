@@ -35,9 +35,9 @@ jobs:
           bash tools/githooks/check-esp-idf-returns.sh $files
           bash tools/githooks/check-esp-http-timeouts.sh $files
 
-      - name: Run check-curl-timeouts.sh and check-unauthenticated-routes.sh against every tracked .cpp file
+      - name: Run check-curl-timeouts.sh and check-unauthenticated-routes.sh against every tracked .cpp/.h/.hpp file
         continue-on-error: true
         run: |
-          files=$(git ls-files -- '*.cpp')
+          files=$(git ls-files -- '*.cpp' '*.h' '*.hpp')
           bash tools/githooks/check-curl-timeouts.sh $files
           bash tools/githooks/check-unauthenticated-routes.sh $files

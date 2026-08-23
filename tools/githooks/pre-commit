@@ -28,7 +28,10 @@ doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yam
 # esp-idf-returns.sh nor check-esp-http-timeouts.sh cares which file a
 # call sits in.
 esp_files=$(echo "$staged_files" | grep -E '^(firmware/main|src/platform/firmware)/.*\.(cpp|h|hpp)$' || true)
-cpp_files=$(echo "$staged_files" | grep -E '\.cpp$' || true)
+# .h/.hpp included, not just .cpp - same reasoning as esp_files above: a
+# curl_easy_perform() call or a server.RegisterHandler( registration can
+# live in a header-only inline function just as easily as a .cpp.
+cpp_files=$(echo "$staged_files" | grep -E '\.(cpp|h|hpp)$' || true)
 
 found_issue=0
 
