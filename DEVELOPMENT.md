@@ -111,6 +111,13 @@ re-reading in full up front.
   [ADR-0025](docs/decisions/ADR-0025-webui-static-asset-storage.md)
   for why this is a separate, explicit build step rather than
   auto-invoked from CMake.
+- **Pre-commit hooks** — run `git config core.hooksPath tools/githooks`
+  once per clone to activate them. Only `check-secrets.sh` blocks a
+  commit; the rest (narration/wording, hardware.md scope, ESP-IDF
+  returns, curl/HTTP timeouts, unauthenticated routes) warn only — see
+  [Continuous integration](#continuous-integration) below for the
+  full-repo CI sweeps that back these up regardless of local
+  activation.
 
 ## ESP-IDF setup
 
