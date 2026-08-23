@@ -1007,6 +1007,71 @@ TEST_F(HarmonyConnectionTest, ConfigFetchWithMalformedJsonResponseEntersErrorSta
     connection.Stop();
 }
 
+// The handshake succeeds and the WebSocket opens, but the config request's
+// own ReceiveText() never gets a reply at all (as opposed to
+// ConfigFetchWithMalformedJsonResponseEntersErrorState's malformed-but-
+// present reply above, or TransportFailureOnTheBestEffortActivityProbeFails
+// TheConnectAttempt's later current-activity probe) - a distinct guard
+// clause in ConnectAndFetchConfig() from either of those.
+TEST_F(HarmonyConnectionTest, ConfigFetchTransportFailureEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    // Deliberately no response of any kind queued - the config request's
+    // own ReceiveText() must see this as a transport failure, not hang.
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_GT(script->close_count, 0) << "ws_client_ must be closed, not left dangling half-open";
+    }
+
+    connection.Stop();
+}
+
+// Well-formed JSON that's simply missing `data` (or has it as a non-object)
+// is a distinct guard clause in ConnectAndFetchConfig() from the malformed-
+// JSON-parse-failure case ConfigFetchWithMalformedJsonResponseEntersErrorState
+// above already covers.
+TEST_F(HarmonyConnectionTest, ConfigFetchResponseMissingDataObjectEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, R"({"id":1,"msg":"OK"})");  // well-formed JSON, no "data" field at all
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+
+    connection.Stop();
+}
+
 // The periodic liveness probe's own response (getCurrentActivity) can be
 // malformed independently of the config fetch - it must be treated the
 // same as any other failed liveness probe (drop the connection, retry),
