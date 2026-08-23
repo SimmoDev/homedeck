@@ -356,6 +356,19 @@ private:
     // worth a new failure notification - apart from "the same address is
     // just retrying after backoff" - not. See that class's own comment.
     void ClearConfigIfPresent(bool force_publish = false);
+    // Drops every queued PendingCommand and publishes HarmonyCommandDroppedEvent
+    // if any existed - called alongside ClearConfigIfPresent() at the same
+    // two hub_host-identity-change points (becoming unconfigured, or
+    // pointed at a different address), and only when last_hub_host_ is
+    // already non-empty at the call site (a genuine prior hub existed to
+    // invalidate the queue against - see each call site's own comment for
+    // why the very first connect attempt of the process must not clear a
+    // command queued before any hub was configured). A command queued
+    // against the previous hub carries that hub's own ids/action strings
+    // (see PendingCommand's own comment); left queued, it would otherwise
+    // be sent to whichever hub connects next using *that* hub's hub_id_ -
+    // a different hub_host is a different device, not a retry target.
+    void ClearPendingCommandsIfAny();
     // watch_commands: only the connected loop's own wait should notice a
     // pending command (ws_client_ only exists then); the unconfigured/
     // error-backoff waits leave it queued rather than waking early on

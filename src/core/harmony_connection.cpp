@@ -331,6 +331,18 @@ void HarmonyConnection::ClearConfigIfPresent(bool force_publish) {
     }
 }
 
+void HarmonyConnection::ClearPendingCommandsIfAny() {
+    bool had_commands;
+    {
+        std::lock_guard<std::mutex> lock(wake_mutex_);
+        had_commands = !pending_commands_.empty();
+        pending_commands_.clear();
+    }
+    if (had_commands) {
+        event_bus_.Publish(HarmonyCommandDroppedEvent{});
+    }
+}
+
 void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
     // Woken on request_stop() too, not just by TriggerReconnect() or a
     // Sleep() timeout - preserves Task::~Task()'s "stops and joins
@@ -342,6 +354,15 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         std::optional<VersionedValue> hub_host_setting = storage_.GetSetting(kModuleId, kHubHostKey);
         if (!hub_host_setting.has_value() || hub_host_setting->value.empty()) {
             ClearConfigIfPresent();
+            // Only once a previous hub was actually configured - a command
+            // queued before any hub has ever been set (last_hub_host_ still
+            // empty) has no prior hub to have been wrongly addressed to; it
+            // stays queued, waiting for whichever hub is configured first,
+            // same as StartActivity()'s own "no-op if never connected"
+            // contract already documents.
+            if (!last_hub_host_.empty()) {
+                ClearPendingCommandsIfAny();
+            }
             SetState(HarmonyConnectionState::kDisconnected);
             Sleep(kUnconfiguredRecheckInterval, stop, /*watch_commands=*/false);
             continue;
@@ -360,6 +381,14 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         // HarmonySettings.svelte's own post-save comment.
         if (hub_host_setting->value != last_hub_host_) {
             ClearConfigIfPresent(/*force_publish=*/true);
+            // Same "only if a previous hub actually existed" guard as the
+            // unconfigured branch above - last_hub_host_ empty here means
+            // this is the very first connect attempt of the process, not a
+            // switch away from a hub any queued command could have been
+            // meant for.
+            if (!last_hub_host_.empty()) {
+                ClearPendingCommandsIfAny();
+            }
         }
         last_hub_host_ = hub_host_setting->value;
 

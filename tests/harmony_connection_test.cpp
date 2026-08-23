@@ -763,6 +763,56 @@ TEST_F(HarmonyConnectionTest, ChangingHubHostAfterANeverSuccessfulAttemptStillPu
     connection.Stop();
 }
 
+TEST_F(HarmonyConnectionTest, ChangingHubHostDropsPendingCommandsQueuedAgainstThePreviousHub) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    // Hub A's handshake never succeeds, so a command queued while pointed
+    // at it stays queued (kError's backoff Sleep() doesn't watch commands
+    // - see Sleep()'s own watch_commands comment) rather than ever being
+    // sent to hub A itself.
+    http_client.SetResponse(homedeck::HttpClientResponse{false, 0, ""});
+
+    std::atomic<int> dropped_events{0};
+    auto dropped_sub =
+        bus.Subscribe<homedeck::HarmonyCommandDroppedEvent>([&](const homedeck::HarmonyCommandDroppedEvent&) { dropped_events++; });
+
+    auto script = std::make_shared<WsScript>();
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    connection.PressDeviceCommand(R"({"command":"hubA_only"})");
+
+    // Point at hub B, which does connect successfully - this must not let
+    // the still-queued hub-A command reach hub B using hub B's own hub_id_.
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "192.168.1.99"));
+    connection.TriggerReconnect();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        for (const std::string& sent : script->sent_texts) {
+            EXPECT_EQ(sent.find("hubA_only"), std::string::npos)
+                << "a command queued against the previous hub must never reach the newly-configured one";
+        }
+    }
+    EXPECT_GE(dropped_events.load(), 1) << "the abandoned hub-A command should have published a drop event";
+
+    connection.Stop();
+}
+
 TEST_F(HarmonyConnectionTest, HandshakeFailureEntersErrorStateThenRecoversOnceItSucceeds) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
