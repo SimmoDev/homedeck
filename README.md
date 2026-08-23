@@ -4,6 +4,8 @@
 [![Simulator](https://github.com/SimmoDev/homedeck/actions/workflows/simulator.yml/badge.svg)](https://github.com/SimmoDev/homedeck/actions/workflows/simulator.yml)
 [![Unit tests](https://github.com/SimmoDev/homedeck/actions/workflows/tests.yml/badge.svg)](https://github.com/SimmoDev/homedeck/actions/workflows/tests.yml)
 [![Secret scan](https://github.com/SimmoDev/homedeck/actions/workflows/secrets.yml/badge.svg)](https://github.com/SimmoDev/homedeck/actions/workflows/secrets.yml)
+[![Docs check](https://github.com/SimmoDev/homedeck/actions/workflows/docs.yml/badge.svg)](https://github.com/SimmoDev/homedeck/actions/workflows/docs.yml)
+[![Lint check](https://github.com/SimmoDev/homedeck/actions/workflows/lint.yml/badge.svg)](https://github.com/SimmoDev/homedeck/actions/workflows/lint.yml)
 
 HomeDeck is a battery-powered handheld smart home controller built around
 the [M5Stack Tab5 Kit](https://docs.m5stack.com/en/core/Tab5). It's

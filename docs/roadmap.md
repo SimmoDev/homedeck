@@ -44,14 +44,16 @@ management state model" item instead.
       driver, LVGL pinned to `v9.5.0` via `FetchContent` (see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system)
       and [simulator/README.md](../simulator/README.md)).
-- [x] CI and unit test framework — three independent GitHub Actions
-      workflows, one per job (separate files, each with its own status
-      badge — see [README.md](../README.md)): `simulator`, `tests`
+- [x] CI and unit test framework — independent GitHub Actions workflows,
+      one per job (separate files, each with its own status badge — see
+      [README.md](../README.md)), starting with `simulator`, `tests`
       (GoogleTest+GoogleMock, its own host-native CMake project per
       [tests/README.md](../tests/README.md) — see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#5-test-framework)),
-      and `firmware` (the `espressif/idf:v5.4.3` Docker image). See
-      [DEVELOPMENT.md](../DEVELOPMENT.md#continuous-integration).
+      and `firmware` (the `espressif/idf:v5.4.3` Docker image). More
+      workflows have been added since (doc/lint/secret sweeps) — see
+      [DEVELOPMENT.md](../DEVELOPMENT.md#continuous-integration) for the
+      current full list.
 - [x] Reference hardware confirmed — the K145 kit (see
       [hardware.md](architecture/hardware.md#power)) with the **ST7123**
       integrated display+touch driver, detected at runtime per

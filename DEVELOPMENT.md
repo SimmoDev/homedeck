@@ -329,11 +329,11 @@ activation (`git config core.hooksPath tools/githooks`) is a per-clone
 opt-in, and `--no-verify`/GUI clients bypass it entirely.
 
 A sixth, [`lint.yml`](.github/workflows/lint.yml), runs the pre-commit
-hook's three remaining checks
-(`check-esp-idf-returns.sh`/`check-curl-timeouts.sh`/`check-esp-http-timeouts.sh`)
-against every tracked file (push, PR, and weekly) — the same
-"full-tree, not just a commit's diff" and non-blocking reasoning as
-`docs.yml`.
+hook's four remaining checks
+(`check-esp-idf-returns.sh`/`check-curl-timeouts.sh`/`check-esp-http-timeouts.sh`/
+`check-unauthenticated-routes.sh`) against every tracked file (push, PR,
+and weekly) — the same "full-tree, not just a commit's diff" and
+non-blocking reasoning as `docs.yml`.
 
 ## Status
 
