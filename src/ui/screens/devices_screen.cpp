@@ -226,6 +226,7 @@ void DevicesScreen::ShowDeviceDetail(const std::string& device_id) {
     // deleted (lv_obj_clean() above) - stale pointers otherwise.
     long_press_active_buttons_.clear();
 
+    bool rendered_any_group = false;
     for (const HarmonyControlGroup& group : device->control_groups) {
         // A group with no commands is kept in the parsed data (see
         // ParseControlGroups()'s own comment on why), but a heading with
@@ -235,6 +236,17 @@ void DevicesScreen::ShowDeviceDetail(const std::string& device_id) {
             continue;
         }
         RenderControlGroup(group);
+        rendered_any_group = true;
+    }
+
+    // A device Harmony knows about but with nothing sendable (every
+    // control_groups entry empty) would otherwise leave this view showing
+    // just the back button and title with no explanation - every other
+    // empty state on these two screens (e.g. hint_label_ for "not
+    // connected yet") has one.
+    if (!rendered_any_group) {
+        lv_obj_t* empty_label = lv_label_create(commands_container_);
+        lv_label_set_text(empty_label, "No commands available for this device.");
     }
 
     lv_obj_add_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
