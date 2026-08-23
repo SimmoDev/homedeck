@@ -1,14 +1,15 @@
 name: Lint check
 
-# Runs the three tools/githooks/ checks that have no other CI backstop
-# (check-esp-idf-returns.sh/check-curl-timeouts.sh/check-esp-http-timeouts.sh)
-# against every tracked file, not just a commit's diff - same "the local
-# pre-commit hook only ever sees staged files, so a violation in a file
-# nobody happens to touch again stays invisible indefinitely" reasoning
-# docs.yml already uses for check-docs.sh/check-hardware-md-scope.sh.
-# Non-blocking, same as the pre-commit hook itself (see pre-commit's own
-# header comment for why these three stay warn-only): this is a periodic
-# report, not a merge gate.
+# Runs the four tools/githooks/ checks that have no other CI backstop
+# (check-esp-idf-returns.sh/check-curl-timeouts.sh/check-esp-http-timeouts.sh/
+# check-unauthenticated-routes.sh) against every tracked file, not just a
+# commit's diff - same "the local pre-commit hook only ever sees staged
+# files, so a violation in a file nobody happens to touch again stays
+# invisible indefinitely" reasoning docs.yml already uses for
+# check-docs.sh/check-hardware-md-scope.sh. Non-blocking, same as the
+# pre-commit hook itself (see pre-commit's own header comment for why
+# these four stay warn-only): this is a periodic report, not a merge
+# gate.
 
 on:
   push:
@@ -22,7 +23,7 @@ on:
 
 jobs:
   lint:
-    name: Full-repo esp-idf-returns/curl-timeout/esp-http-timeout sweep
+    name: Full-repo esp-idf-returns/curl-timeout/esp-http-timeout/unauthenticated-route sweep
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -34,8 +35,9 @@ jobs:
           bash tools/githooks/check-esp-idf-returns.sh $files
           bash tools/githooks/check-esp-http-timeouts.sh $files
 
-      - name: Run check-curl-timeouts.sh against every tracked .cpp file
+      - name: Run check-curl-timeouts.sh and check-unauthenticated-routes.sh against every tracked .cpp file
         continue-on-error: true
         run: |
           files=$(git ls-files -- '*.cpp')
           bash tools/githooks/check-curl-timeouts.sh $files
+          bash tools/githooks/check-unauthenticated-routes.sh $files

@@ -42,8 +42,12 @@ why that split exists. Checking for the following defect classes:
   is deliberately not covered by this one, since its own config struct's
   `network_timeout_ms` already defaults to a bounded 10s, unlike
   libcurl's own multi-minute default
-  (`githooks/check-esp-http-timeouts.sh`); and, against every staged file
-  regardless of extension, private-key blocks, cloud-provider/API-token
+  (`githooks/check-esp-http-timeouts.sh`); a `server.RegisterHandler(...)`
+  call with no `RequireAuth(...)` wrapper within 5 lines, in any staged
+  `.cpp` file, excluding the auth routes themselves and static asset
+  serving - the two known-legitimate unauthenticated route registrations
+  (`githooks/check-unauthenticated-routes.sh`); and, against every staged
+  file regardless of extension, private-key blocks, cloud-provider/API-token
   credential shapes, and a staged `.env` file - the one check that
   actually blocks the commit
   (`githooks/check-secrets.sh`).
