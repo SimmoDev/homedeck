@@ -12,10 +12,15 @@ status=0
 
 for f in "$@"; do
     [ -f "$f" ] || continue
-    grep -q 'curl_easy_perform(' "$f" || continue
-    if ! grep -qE 'CURLOPT_(CONNECT)?TIMEOUT' "$f"; then
+    # Trailing `//` comments stripped first - a prose mention of
+    # curl_easy_perform() (e.g. explaining why a rejected approach isn't
+    # used) must not count as an actual call. Still not real parsing, so
+    # a /* */ block comment isn't handled the same way.
+    stripped=$(sed -E 's#//.*$##' "$f")
+    echo "$stripped" | grep -q 'curl_easy_perform(' || continue
+    if ! echo "$stripped" | grep -qE 'CURLOPT_(CONNECT)?TIMEOUT'; then
         echo "[curl-timeout] $f: calls curl_easy_perform() but sets no CURLOPT_TIMEOUT/CURLOPT_CONNECTTIMEOUT anywhere in the file:"
-        grep -n 'curl_easy_perform(' "$f" | grep -vE '^\s*[0-9]+:\s*//' | sed 's/^/    /'
+        echo "$stripped" | grep -n 'curl_easy_perform(' | sed 's/^/    /'
         status=1
     fi
 done
