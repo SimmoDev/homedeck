@@ -515,6 +515,36 @@ TEST_F(HarmonyConnectionTest, NotConfiguredStaysDisconnectedAndNeverCallsOut) {
     connection.Stop();
 }
 
+// StartActivity()'s own header comment documents it as safe to call
+// before any hub is ever configured - "a no-op if never connected: the
+// request just waits harmlessly." No prior test called it in that state.
+TEST_F(HarmonyConnectionTest, StartActivityBeforeAnyHubIsConfiguredWaitsHarmlessly) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    auto script = std::make_shared<WsScript>();
+
+    std::atomic<int> dropped_events{0};
+    auto dropped_sub =
+        bus.Subscribe<homedeck::HarmonyCommandDroppedEvent>([&](const homedeck::HarmonyCommandDroppedEvent&) { dropped_events++; });
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+    connection.StartActivity("123");
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    EXPECT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kDisconnected);
+    EXPECT_EQ(http_client.PostCount(), 0) << "no hub is configured, so the queued activity must never be sent";
+    EXPECT_EQ(dropped_events.load(), 0) << "the request should still be waiting, not yet discarded";
+    connection.Stop();
+}
+
 TEST_F(HarmonyConnectionTest, ConfiguredHandshakeAndConfigFetchSucceedPublishesConnectedWithDevicesAndActivities) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
