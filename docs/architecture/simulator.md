@@ -44,7 +44,7 @@ for why this ruled out a separate web-based mock UI.
     be manipulated from a debug control, rather than always reporting a
     fixed value.
   - *Power states* (see [power-management.md](power-management.md)):
-    `Sleeping` isn't real ESP32 deep sleep (see
+    `Sleeping` isn't ESP32 deep sleep (see
     [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)) — the
     process keeps running underneath either way, matching real hardware,
     so there's nothing here the simulator needs to avoid replicating.

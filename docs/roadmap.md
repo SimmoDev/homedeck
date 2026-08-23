@@ -324,7 +324,7 @@ simulator.
       doesn't need one, see
       [power-management.md](architecture/power-management.md#status)),
       including wake-to-full-brightness
-      from `Sleeping` on touch. `Sleeping` isn't real ESP32 deep sleep -
+      from `Sleeping` on touch. `Sleeping` isn't ESP32 deep sleep -
       display off, CPU stays active, touch-wake by polling - since
       M5Stack's own official Tab5
       firmware uses the same pattern for the same reason (see
