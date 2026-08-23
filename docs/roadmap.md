@@ -608,7 +608,8 @@ day-to-day usage with HomeDeck.
       step — see [ADR-0018](decisions/ADR-0018-staged-security-hardening.md).
       Timing within M7 is a placeholder, not fixed: the actual trigger is
       a module credential existing to protect (see ADR-0018), which
-      may land earlier once M3+ modules are built
+      first becomes possible at M6 (Home Assistant) or whichever module
+      first needs one — Harmony (M3) has no credential of any kind
 - [ ] Weather condition icons for `WeatherWidget` (`src/ui/weather_widget.cpp`),
       replacing the current text-only WMO condition mapping - custom
       icon assets, out of scope for the widget's first pass (see
