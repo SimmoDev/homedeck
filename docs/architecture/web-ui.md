@@ -252,9 +252,9 @@ for why `SettingsStore` and `SecretStore` no longer share physical NVS
 storage on firmware - the admin password hash still keeps its explicit
 reserved-key guard as a second-layer safeguard, covered by a dedicated
 regression test). `webui/src/lib/Settings.svelte` shows a concrete
-device name field (the first setting exposed this way - replaces the
-previously hardcoded `"homedeck"` mDNS hostname, applied live via
-`mdns_hostname_set()` without a reboot) plus backup download/restore -
+device name field (the first setting exposed this way - controls the
+mDNS hostname, applied live via `mdns_hostname_set()` without a reboot)
+plus backup download/restore -
 deliberately not a generic raw settings editor, since device name alone
 gave the design nothing to check itself against.
 

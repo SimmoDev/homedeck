@@ -150,7 +150,7 @@ do and why, worth reading at least once.
    despite the wider mount. Mounting the repo root does surface a cosmetic
    git ownership warning ("detected dubious ownership") during configure —
    harmless, it only means `PROJECT_VER` can't be derived from `git
-   describe`, same as before this change.
+   describe` inside this container, regardless of mount width.
 
    **Two steps, not one:** the build runs as root inside the container —
    root always has a valid, writable `$HOME`, so ccache, git, and
