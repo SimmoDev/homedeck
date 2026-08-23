@@ -43,13 +43,6 @@
   let status: HarmonyStatus | undefined = $state(undefined);
   let statusError: string | undefined = $state(undefined);
   let statusLoading = $state(false);
-  // Bumped by every loadStatus() call and captured locally so a response
-  // that resolves after a newer call has already started (saveHubHost()'s
-  // own tail call isn't awaited, so two saves in quick succession can have
-  // two GETs in flight at once with no guarantee they resolve in send
-  // order) is discarded instead of overwriting the UI with a superseded
-  // hub's status.
-  let statusRequestId = 0;
 
   async function loadHubHost() {
     // Same tripGuard() double-fire guard saveHubHost() below already uses
@@ -69,10 +62,13 @@
   }
 
   async function loadStatus() {
-    const requestId = ++statusRequestId;
-    statusLoading = true;
+    // Same tripGuard() double-fire guard loadHubHost() above uses - this
+    // also happens to be what makes saveHubHost()'s un-awaited tail call
+    // safe against overlapping with an in-flight Refresh click or the
+    // initial mount call: with only one loadStatus() ever in flight at a
+    // time, its response can never be superseded by a newer call's own.
+    if (tripGuard(() => statusLoading, () => (statusLoading = true))) return;
     const result = await loadJson<HarmonyStatus>("/api/harmony/status");
-    if (requestId !== statusRequestId) return; // superseded by a newer loadStatus() call
     statusLoading = false;
     if (result.error !== undefined) {
       statusError = result.error;
