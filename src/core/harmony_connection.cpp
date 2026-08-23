@@ -402,14 +402,35 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         SetState(HarmonyConnectionState::kConnected);
         event_bus_.Publish(HarmonyConfigUpdatedEvent{});
 
+        // Any TriggerReconnect() call that landed before this exact point -
+        // whether before Start()'s background thread even began running,
+        // or during the handshake/config-fetch above - is already
+        // satisfied: hub_host_setting was just read fresh at the top of
+        // this same iteration, so the connection just established already
+        // reflects it. Left set, it would instead be consumed by the
+        // first Sleep() below, forcing one wholly unnecessary extra
+        // reconnect cycle for a trigger that predates - and is already
+        // answered by - the connection this iteration just made. A
+        // TriggerReconnect() call from here onward is a genuine "the
+        // configured address may have changed since I connected" request
+        // and correctly breaks the loop below to re-check it.
+        {
+            std::lock_guard<std::mutex> lock(wake_mutex_);
+            wake_requested_ = false;
+        }
+
         while (!stop.stop_requested()) {
             WakeReason reason = Sleep(liveness_interval_, stop, /*watch_commands=*/true);
             if (reason == WakeReason::kStopRequested) break;
+            // Sleep() reports only one reason even though a trigger and a
+            // pending command are independent conditions, not mutually
+            // exclusive - draining here regardless of which one woke this
+            // cycle means a manual reconnect request (kTriggered) never
+            // strands an already-queued command until the next cycle
+            // happens to catch it. A no-op when nothing is queued.
+            if (!SendPendingCommands(stop)) break;  // connection dropped mid-send
             if (reason == WakeReason::kTriggered) break;  // re-check the configured address
-            if (reason == WakeReason::kCommandPending) {
-                if (!SendPendingCommands(stop)) break;  // connection dropped mid-send
-                continue;  // stay connected - a command isn't a reconnect request
-            }
+            if (reason == WakeReason::kCommandPending) continue;  // stay connected - a command isn't a reconnect request
             if (FetchCurrentActivity(stop) != ActivityFetchResult::kOk) break;  // connection silently dropped, or unparseable
         }
 
