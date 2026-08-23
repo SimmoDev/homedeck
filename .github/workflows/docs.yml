@@ -33,7 +33,7 @@ jobs:
         run: |
           files=$(git ls-files -- \
             '*.md' '*.cpp' '*.cc' '*.h' '*.hpp' '*.ts' '*.svelte' '*.yml' '*.yaml' \
-            '*sdkconfig*' \
+            '*sdkconfig*' 'CMakeLists.txt' '**/CMakeLists.txt' '*.cmake' \
             ':!firmware/components/m5stack_tab5/**' \
             ':!src/third_party/nlohmann/**')
           bash tools/githooks/check-docs.sh $files

@@ -16,10 +16,12 @@ staged_files=$(git diff --cached --name-only --diff-filter=ACM)
 
 
 # The extension alternation misses sdkconfig.defaults/sdkconfig.defaults.*
-# entirely (no recognized extension after the last dot) - the second
-# alternative catches those by basename instead, since this project's own
-# narration convention applies to their comments too.
-doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yaml)$|(^|/)sdkconfig[^/]*$' || true)
+# and CMakeLists.txt entirely (no recognized extension after the last dot,
+# or - for CMakeLists.txt - a dot that isn't this project's own narration-
+# bearing extension) - the basename/`.cmake`-extension alternatives catch
+# those instead, since this project's own narration convention applies to
+# their comments too.
+doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yaml|cmake)$|(^|/)sdkconfig[^/]*$|(^|/)CMakeLists\.txt$' || true)
 # .h/.hpp included, not just .cpp - an esp_/mdns_/httpd_ call or an
 # esp_http_client_perform() with no timeout set can live in a header-only
 # inline function/lambda just as easily as a .cpp, and neither check-
