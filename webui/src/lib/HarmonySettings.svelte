@@ -29,6 +29,7 @@
     hasConfig: boolean;
     devices: HarmonyDevice[];
     activities: HarmonyActivity[];
+    currentActivityId: string;
   }
 
   let error: string | undefined = $state(undefined);
@@ -141,6 +142,16 @@
     }
   }
 
+  // Empty until the first successful fetch (see HarmonyConnectionSnapshot's
+  // own comment, core/harmony_connection.h) - and, defensively, may not
+  // match any entry in status.activities if the config changed between the
+  // status snapshot being taken and this render. undefined in both cases
+  // means "nothing to show," not an error.
+  function currentActivityLabel(currentStatus: HarmonyStatus): string | undefined {
+    if (currentStatus.currentActivityId === "") return undefined;
+    return currentStatus.activities.find((activity) => activity.id === currentStatus.currentActivityId)?.label;
+  }
+
   loadHubHost();
   loadStatus();
 </script>
@@ -200,6 +211,9 @@
         {#if status.hasConfig}
           &mdash; {status.devices.length} device{status.devices.length === 1 ? "" : "s"}, {status.activities.length}
           activit{status.activities.length === 1 ? "y" : "ies"}
+          {#if currentActivityLabel(status) !== undefined}
+            &mdash; current activity: <strong>{currentActivityLabel(status)}</strong>
+          {/if}
         {/if}
       </p>
     {/if}
