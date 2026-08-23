@@ -1458,6 +1458,50 @@ TEST_F(HarmonyConnectionTest, DrainsStaleMessagesBeforeSendingTheInitialConfigRe
     EXPECT_LT(first_receive0 - script->call_log.begin(), config_send - script->call_log.begin());
 }
 
+// DrainStaleMessages() bounds its own poll loop (kMaxDrainIterations = 20,
+// harmony_connection.cpp) rather than draining an unbounded backlog
+// forever - proven by queuing more stale messages than the cap and
+// checking the drain's own 0ms polls stop there. A single stray message
+// (every other drain test above) can't tell a bounded drain from an
+// unbounded one; only a backlog bigger than the cap can.
+TEST_F(HarmonyConnectionTest, DrainStaleMessagesStopsAtItsOwnIterationCap) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    // One more than the 20-message cap - queued before Start() so all 21
+    // are already "buffered" for the very first DrainStaleMessages() call,
+    // the one that runs right before the initial config request is sent.
+    for (int i = 0; i < 21; ++i) {
+        PushStaleResponse(script, R"({"data":{"result":"stray"}})");
+    }
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    connection.Stop();
+
+    std::lock_guard<std::mutex> lock(script->mutex);
+    auto config_send = std::find_if(script->call_log.begin(), script->call_log.end(),
+                                     [](const std::string& entry) { return entry.find("engine?config") != std::string::npos; });
+    ASSERT_NE(config_send, script->call_log.end());
+    int receive0_count = static_cast<int>(std::count(script->call_log.begin(), config_send, "receive0"));
+    EXPECT_EQ(receive0_count, 20)
+        << "DrainStaleMessages() must stop at its own iteration cap, not drain every buffered message unconditionally";
+}
+
 TEST_F(HarmonyConnectionTest, PressDeviceCommandSendsAPressWithTheGivenAction) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
