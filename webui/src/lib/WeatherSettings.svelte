@@ -20,6 +20,7 @@
 
   let error: string | undefined = $state(undefined);
   let loaded = $state(false);
+  let loading = $state(false);
   let displayName = $state("");
   let query = $state("");
   let searching = $state(false);
@@ -30,7 +31,13 @@
   let saved = $state(false);
 
   async function loadWeatherLocation() {
+    // Same tripGuard() double-fire guard searchLocation()/save() below
+    // already use - a double-clicked Retry could otherwise put two
+    // overlapping GETs in flight, and an out-of-order response would
+    // overwrite this component's state with stale data.
+    if (tripGuard(() => loading, () => (loading = true))) return;
     const result = await loadJson<SettingEntry[]>("/api/settings");
+    loading = false;
     if (result.error !== undefined) {
       error = result.error;
       return;
@@ -124,7 +131,7 @@
   <h3>Weather</h3>
   {#if error}
     <p class="error" aria-live="polite">Error: {error}</p>
-    <button onclick={loadWeatherLocation}>Retry</button>
+    <button onclick={loadWeatherLocation} disabled={loading}>Retry</button>
   {:else if !loaded}
     <p class="hint">Loading...</p>
   {:else}

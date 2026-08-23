@@ -14,12 +14,19 @@
   let error: string | undefined = $state(undefined);
   let deviceName = $state("");
   let loaded = $state(false);
+  let loading = $state(false);
   let saving = $state(false);
   let saveError: string | undefined = $state(undefined);
   let saved = $state(false);
 
   async function loadDeviceName() {
+    // Same tripGuard() double-fire guard saveDeviceName() below already
+    // uses - a double-clicked Retry could otherwise put two overlapping
+    // GETs in flight, and an out-of-order response would overwrite this
+    // component's state with stale data.
+    if (tripGuard(() => loading, () => (loading = true))) return;
     const result = await loadJson<SettingEntry[]>("/api/settings");
+    loading = false;
     if (result.error !== undefined) {
       error = result.error;
       return;
@@ -71,7 +78,7 @@
   <h3>Device name</h3>
   {#if error}
     <p class="error" aria-live="polite">Error: {error}</p>
-    <button onclick={loadDeviceName}>Retry</button>
+    <button onclick={loadDeviceName} disabled={loading}>Retry</button>
   {:else if !loaded}
     <p class="hint">Loading...</p>
   {:else}

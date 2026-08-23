@@ -15,11 +15,18 @@
 
   let status: DiagnosticsStatus | undefined = $state<DiagnosticsStatus | undefined>(undefined);
   let error: string | undefined = $state(undefined);
+  let loading = $state(false);
   let downloadingCoreDump = $state(false);
   let coreDumpError: string | undefined = $state(undefined);
 
   async function load() {
+    // Same tripGuard() double-fire guard downloadCoreDump() below already
+    // uses - a double-clicked Retry could otherwise put two overlapping
+    // GETs in flight, and an out-of-order response would overwrite this
+    // component's state with stale data.
+    if (tripGuard(() => loading, () => (loading = true))) return;
     const result = await loadJson<DiagnosticsStatus>("/api/diagnostics");
+    loading = false;
     if (result.error !== undefined) {
       error = result.error;
       return;
@@ -43,7 +50,7 @@
   <h2>Status</h2>
   {#if error}
     <p class="error" aria-live="polite">Error: {error}</p>
-    <button onclick={load}>Retry</button>
+    <button onclick={load} disabled={loading}>Retry</button>
   {:else if !status}
     <p class="hint">Loading...</p>
   {:else}

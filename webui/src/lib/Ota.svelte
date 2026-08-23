@@ -18,6 +18,7 @@
 
   let status: OtaStatus | undefined = $state(undefined);
   let error: string | undefined = $state(undefined);
+  let statusLoading = $state(false);
   let selectedFile: File | undefined = $state(undefined);
   let uploadState: UploadState = $state("idle");
   let uploadProgress = $state(0);
@@ -26,7 +27,13 @@
   let rebootError: string | undefined = $state(undefined);
 
   async function loadStatus() {
+    // Same tripGuard() double-fire guard reboot()/upload() below already
+    // use - a double-clicked Retry could otherwise put two overlapping
+    // GETs in flight, and an out-of-order response would overwrite this
+    // component's state with stale data.
+    if (tripGuard(() => statusLoading, () => (statusLoading = true))) return;
     const result = await loadJson<OtaStatus>("/api/ota/status");
+    statusLoading = false;
     if (result.error !== undefined) {
       error = result.error;
       return;
@@ -126,7 +133,7 @@
   <h2>Firmware update</h2>
   {#if error}
     <p class="error" aria-live="polite">Error: {error}</p>
-    <button onclick={loadStatus}>Retry</button>
+    <button onclick={loadStatus} disabled={statusLoading}>Retry</button>
   {:else if !status}
     <p class="hint">Loading...</p>
   {:else}

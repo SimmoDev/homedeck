@@ -1,5 +1,6 @@
 <script lang="ts">
   import { loadJson } from "./api";
+  import { tripGuard } from "./guardedAction";
 
   // Structured log viewer (see ADR-0019-structured-logging.md).
   interface LogEntry {
@@ -16,6 +17,7 @@
   // rejected outright without this).
   let logs: LogEntry[] | undefined = $state<LogEntry[] | undefined>(undefined);
   let logsError: string | undefined = $state(undefined);
+  let logsLoading = $state(false);
   // Filtering happens client-side against the already-fetched array, not
   // server-side query params - the whole log is small enough (see
   // ADR-0019's rotation cap) that this is simpler than a backend filter
@@ -24,7 +26,13 @@
   let componentFilter = $state("all");
 
   async function loadLogs() {
+    // Same tripGuard() double-fire guard this project's other retry
+    // buttons use - a double-clicked Retry could otherwise put two
+    // overlapping GETs in flight, and an out-of-order response would
+    // overwrite this component's state with stale data.
+    if (tripGuard(() => logsLoading, () => (logsLoading = true))) return;
     const result = await loadJson<LogEntry[]>("/api/diagnostics/logs");
+    logsLoading = false;
     if (result.error !== undefined) {
       logsError = result.error;
       return;
@@ -55,7 +63,7 @@
   <h2>Logs</h2>
   {#if logsError}
     <p class="error" aria-live="polite">Error: {logsError}</p>
-    <button onclick={loadLogs}>Retry</button>
+    <button onclick={loadLogs} disabled={logsLoading}>Retry</button>
   {:else if !logs}
     <p class="hint">Loading...</p>
   {:else if logs.length === 0}

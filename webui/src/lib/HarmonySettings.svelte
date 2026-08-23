@@ -34,6 +34,7 @@
 
   let error: string | undefined = $state(undefined);
   let loaded = $state(false);
+  let loading = $state(false);
   let hubHost = $state("");
   let saving = $state(false);
   let saveError: string | undefined = $state(undefined);
@@ -51,7 +52,13 @@
   let statusRequestId = 0;
 
   async function loadHubHost() {
+    // Same tripGuard() double-fire guard saveHubHost() below already uses
+    // - a double-clicked Retry could otherwise put two overlapping GETs
+    // in flight, and an out-of-order response would overwrite this
+    // component's state with stale data.
+    if (tripGuard(() => loading, () => (loading = true))) return;
     const result = await loadJson<SettingEntry[]>("/api/settings");
+    loading = false;
     if (result.error !== undefined) {
       error = result.error;
       return;
@@ -160,7 +167,7 @@
   <h3>Harmony Hub</h3>
   {#if error}
     <p class="error" aria-live="polite">Error: {error}</p>
-    <button onclick={loadHubHost}>Retry</button>
+    <button onclick={loadHubHost} disabled={loading}>Retry</button>
   {:else if !loaded}
     <p class="hint">Loading...</p>
   {:else}
