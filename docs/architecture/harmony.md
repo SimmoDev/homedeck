@@ -186,3 +186,22 @@ integration, and the Web UI settings page. First-time cloud pairing is
 out of scope, unconfirmed either way — this module only ever connects
 to an already-paired hub, per
 [ADR-0003](../decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control).
+
+**Known, accepted limitation: the device/activity list itself only
+refreshes on (re)connect, not while a connection stays up.** Only
+`current_activity_id` is refreshed periodically (see the Activities
+section above); the full device/activity list is fetched once, in
+`ConnectAndFetchConfig()`, and any hub-pushed unsolicited message
+(including a config-changed notification) is explicitly discarded by
+`DrainStaleMessages()` rather than acted on. Renaming, adding, or
+removing an activity or device on the hub (e.g. via the MyHarmony app)
+is invisible to HomeDeck until the WebSocket connection actually drops
+and reconnects, which for a healthy connection may not happen for hours.
+The Web UI's manual "Reconnect" button
+(`POST /api/harmony/reconnect`) is the only way to force a refresh
+today. Accepted rather than built around because this class's transport
+is a simple synchronous request/response loop (see that class's own
+header comment) — handling unsolicited push messages would be a
+substantially bigger, separate undertaking than periodically re-polling
+the full config, and no user-visible need for either has been
+demonstrated yet.
