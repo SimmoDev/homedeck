@@ -56,6 +56,12 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     // drags with root_'s overscroll bounce instead of staying put as
     // fixed chrome.
     lv_obj_add_flag(devices_button, LV_OBJ_FLAG_FLOATING);
+    // See kMinNavTouchTarget's own comment (remote_button.h) - this
+    // button's lighter visual weight (above) is a deliberate color/size
+    // choice, but the actual tappable area still needs a guaranteed
+    // minimum the same as every other interactive element on this screen.
+    lv_obj_set_style_min_width(devices_button, kMinNavTouchTarget, 0);
+    lv_obj_set_style_min_height(devices_button, kMinNavTouchTarget, 0);
     lv_obj_add_event_cb(devices_button, OnDevicesButtonClicked, LV_EVENT_CLICKED, this);
     lv_obj_t* devices_label = lv_label_create(devices_button);
     lv_label_set_text(devices_label, "Devices");

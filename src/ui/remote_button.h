@@ -18,6 +18,16 @@ namespace homedeck {
 // for a consistent look and feel.
 constexpr int32_t kRemoteButtonHeight = 110;
 
+// Minimum width/height for navigation chrome that's deliberately lighter-
+// weight than a full remote-control button (the home affordance,
+// DevicesScreen's own "Devices" nav button on ActivitiesScreen - see each
+// one's own comment on why they're visually secondary) - CLAUDE.md's
+// "large touch targets" requirement isn't scoped to primary buttons only,
+// but LVGL's default theme button padding auto-fits to content with no
+// guaranteed minimum, so a short label/icon-only button can end up
+// smaller than this without it being a deliberate choice either way.
+constexpr int32_t kMinNavTouchTarget = 48;
+
 // A large, labeled button - the common shape every Harmony remote-control
 // button builds on (ActivitiesScreen's activities, DevicesScreen's
 // devices and their commands - see docs/roadmap.md's M3
