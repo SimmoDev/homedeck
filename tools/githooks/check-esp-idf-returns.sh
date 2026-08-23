@@ -39,6 +39,62 @@ for f in "$@"; do
         echo "$matches" | sed 's/^/    /'
         status=1
     fi
+
+    # The single-line pass above is blind to a call whose own argument list
+    # spans multiple lines: its start line has an unclosed `(`, so it can
+    # never match the per-line regex's `.*\);...$` tail on its own. This
+    # pass only starts a join from a line that is BOTH a genuine
+    # statement-boundary call start (same (^|[{};]) requirement as above,
+    # so an ESP_ERROR_CHECK(-wrapped or assigned multi-line call is still
+    # correctly excluded) AND has more '(' than ')' on that single line -
+    # i.e. an actually-unclosed call, not just a line whose trailing
+    # punctuation happens not to match the single-line pass's own closing
+    # shape (e.g. a lambda assigned to a variable, `cb = [](){ f(); };`,
+    # is already fully balanced on one line and must never be treated as
+    # multi-line, or the join would run away consuming the rest of the
+    # file looking for a close that will never come). It then appends
+    # subsequent lines until parens balance, and only reports if the
+    # balanced result's own trailing shape confirms a bare, terminated
+    # statement (mirroring the single-line pass's own closing check, with
+    # an optional trailing `;` to also cover a `};`-closed lambda body) -
+    # silently drops anything else (e.g. the call's result feeding into a
+    # further expression) rather than risk a false positive.
+    ml_matches=$(awk '
+        { lines[NR] = $0 }
+        END {
+            n = NR
+            i = 1
+            while (i <= n) {
+                line = lines[i]
+                n_open_start = gsub(/\(/, "(", line)
+                n_close_start = gsub(/\)/, ")", line)
+                if (line ~ /(^|[{};])[[:space:]]*(esp_|mdns_|httpd_)[A-Za-z0-9_]+\(/ && n_open_start > n_close_start) {
+                    combined = line
+                    start = i
+                    j = i
+                    balanced = 0
+                    while (1) {
+                        n_open = gsub(/\(/, "(", combined)
+                        n_close = gsub(/\)/, ")", combined)
+                        if (n_close >= n_open) { balanced = 1; break }
+                        j++
+                        if (j > n) break
+                        combined = combined " " lines[j]
+                    }
+                    if (balanced && combined ~ /\);[[:space:]]*\}?[[:space:]]*;?[[:space:]]*$/ && combined !~ /httpd_resp_/) {
+                        print start ": " combined
+                    }
+                    i = j
+                }
+                i++
+            }
+        }
+    ' "$f" || true)
+    if [ -n "$ml_matches" ]; then
+        echo "[esp-idf-return] $f: bare multi-line call, return value not checked/logged:"
+        echo "$ml_matches" | sed 's/^/    /'
+        status=1
+    fi
 done
 
 exit $status
