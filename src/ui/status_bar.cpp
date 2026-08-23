@@ -2,6 +2,7 @@
 
 #include "core/low_battery_monitor.h"
 #include "ui/quick_settings_panel.h"
+#include "ui/remote_button.h"
 #include "ui/theme.h"
 #include "ui/time_format.h"
 
@@ -140,6 +141,17 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     lv_obj_set_style_text_color(settings_icon, lv_color_white(), 0);
     lv_label_set_text(settings_icon, LV_SYMBOL_SETTINGS);
     lv_obj_add_flag(settings_icon, LV_OBJ_FLAG_CLICKABLE);
+    // See kMinNavTouchTarget's own comment (remote_button.h) - this icon
+    // opens Quick Settings and is the most frequently reachable tap target
+    // in the app (present on every screen, dashboard included), but
+    // kHeight (48px) is too short to grow the icon's own box to
+    // kMinNavTouchTarget without visually overflowing the bar.
+    // lv_obj_set_ext_click_area() extends the tap-detection region without
+    // changing layout/visual size - the right LVGL idiom for an icon-only
+    // element in a height-constrained container. Half of (kMinNavTouchTarget
+    // minus kBodyFont's own ~27px line height) lands the total hit area
+    // close to kMinNavTouchTarget.
+    lv_obj_set_ext_click_area(settings_icon, (kMinNavTouchTarget - 27) / 2);
     lv_obj_add_event_cb(settings_icon, OnSettingsIconClicked, LV_EVENT_CLICKED, &event_bus);
 
     battery_label_ = lv_label_create(right_cluster);
