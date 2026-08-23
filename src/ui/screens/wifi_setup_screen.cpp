@@ -1,5 +1,6 @@
 #include "ui/screens/wifi_setup_screen.h"
 
+#include "ui/remote_button.h"
 #include "ui/theme.h"
 
 namespace homedeck {
@@ -43,6 +44,12 @@ WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_rea
     keyboard_.AttachTo(password_field_);
 
     lv_obj_t* connect_button = lv_button_create(container);
+    // See kMinNavTouchTarget's own comment (remote_button.h) - same nav-
+    // chrome sizing as every other button on this screen; this is the
+    // one action on the device's provisioning fallback path, with no
+    // home affordance to fall back to.
+    lv_obj_set_style_min_width(connect_button, kMinNavTouchTarget, 0);
+    lv_obj_set_style_min_height(connect_button, kMinNavTouchTarget, 0);
     lv_obj_add_event_cb(connect_button, OnConnectClicked, LV_EVENT_CLICKED, this);
     lv_obj_t* connect_label = lv_label_create(connect_button);
     lv_label_set_text(connect_label, "Connect");
