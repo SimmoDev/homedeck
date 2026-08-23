@@ -26,7 +26,14 @@ constexpr int32_t kRemoteButtonHeight = 110;
 // but LVGL's default theme button padding auto-fits to content with no
 // guaranteed minimum, so a short label/icon-only button can end up
 // smaller than this without it being a deliberate choice either way.
-constexpr int32_t kMinNavTouchTarget = 48;
+// 88 = Android's own 48dp minimum touch-target guideline converted to
+// this panel's actual ~294 PPI (48 * 294 / 160, dp being defined against
+// a 160dpi baseline) rather than treated as a raw pixel count - the same
+// dp/PPI conversion dashboard.md's status-bar font-size reasoning already
+// does. A raw 48px here would be ~4.1mm at this density, well under every
+// platform's physical touch-target floor (Android 48dp/~7.6mm, Apple
+// 44pt/~6.9mm, WCAG 2.5.5/~9mm).
+constexpr int32_t kMinNavTouchTarget = 88;
 
 // A large, labeled button - the common shape every Harmony remote-control
 // button builds on (ActivitiesScreen's activities, DevicesScreen's
