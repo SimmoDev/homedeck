@@ -943,6 +943,37 @@ TEST_F(HarmonyConnectionTest, HandshakeMissingActiveRemoteIdEntersErrorState) {
     connection.Stop();
 }
 
+// Well-formed JSON that's simply missing `data` (or has it as a
+// non-object) is a distinct guard clause from
+// HandshakeMissingActiveRemoteIdEntersErrorState above, which needs
+// `data` to already be a present object before it can even look for
+// activeRemoteId inside it. Mirrors
+// ConfigFetchResponseMissingDataObjectEntersErrorState's own coverage of
+// the identical guard shape on the config-fetch side.
+TEST_F(HarmonyConnectionTest, HandshakeMissingDataObjectEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, R"({"id":1,"msg":"OK"})"});
+
+    auto script = std::make_shared<WsScript>();
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+
+    connection.Stop();
+}
+
 // activeRemoteId comes from the hub's own (per ADR-0029, unauthenticated)
 // handshake response and becomes the trailing hubId value in
 // WebSocketUrl()'s raw concatenation - a value containing '&' could
