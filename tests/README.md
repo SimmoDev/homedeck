@@ -29,7 +29,11 @@ own equally real `*_routes_test.cpp` alongside it (`settings_routes_test.cpp`,
 `weather_routes_test.cpp`, `wifi_routes_test.cpp`), each driving auth-required,
 input-validation, and error-path cases over the same real socket
 `HostHttpServer` uses;
-`static_assets_test.cpp`, `power_manager_test.cpp`,
+`PowerManager` (`power_manager_test.cpp` — the full
+Active/Idle/Sleeping/Updating/Error state machine, the sleep-veto
+mechanism, `Updating`/`Error` precedence over each other and over
+inactivity timeouts, and active-brightness clamping/baseline behavior);
+`static_assets_test.cpp`,
 `critical_battery_monitor_test.cpp`, `notification_sound_test.cpp`,
 `network_status_monitor_test.cpp`, `weather_provider_test.cpp`,
 `grid_occupancy_test.cpp`, `time_format_test.cpp`,
