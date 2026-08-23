@@ -73,7 +73,7 @@
   <h1>HomeDeck</h1>
 
   {#if wifiResetTriggered}
-    <p class="hint">
+    <p class="hint" aria-live="polite">
       Wi-Fi credentials cleared. The device is rebooting into setup mode - connect to its
       {#if wifiResetSsid}
         <strong>{wifiResetSsid}</strong> Wi-Fi network
