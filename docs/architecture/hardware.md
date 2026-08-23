@@ -265,8 +265,8 @@ same physical pins.
   full battery) even with USB-C still connected. There is no separate
   raw cable/VBUS-presence pin exposed via either IO expander on the
   pinmap, confirmed both by tracing every USB-C connector net on the
-  full schematic and against M5Stack's own M5Unified library (Tab5's
-  `isCharging()` reads this identical bit). Needs a pull-down
+  full schematic and against M5Stack's own M5Unified library, whose
+  Tab5 charge-status read targets this identical bit. Needs a pull-down
   explicitly enabled (not left floating) to read cleanly - confirmed on
   hardware, matching M5Stack's own
   [M5Tab5-UserDemo](https://github.com/m5stack/M5Tab5-UserDemo)
