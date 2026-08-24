@@ -5,15 +5,14 @@
 # specific function/API name, or narrating a debugging investigation rather
 # than stating its resulting fact. Non-blocking - see pre-commit.
 #
-# This doc has drifted back into scope violations across five consecutive
-# milestone exit reviews (M2 pass 9, M2 pass 12, M3 pass 2, M3 pass 10, M3
-# pass 18), each time fixed by a manual sweep that didn't hold to the next
-# milestone - see the feedback-hardware-md-scope memory. A function name
-# cited here has also gone stale/wrong at least once (a symbol that didn't
-# exist in the vendored header), which a pure electrical-fact statement
-# can't do. The M3 pass 18 violation cited a src/core/ header path with no
-# parenthesized call at all, which the function-citation check below can't
-# see - see the src/core|platform path check below.
+# This doc has repeatedly drifted back into scope violations after manual
+# sweeps that didn't hold across later edits, which is why this check is
+# automated rather than relying on review alone. A function name cited
+# here can also go stale/wrong (a symbol that doesn't exist in the
+# vendored header), which a pure electrical-fact statement can't do. A
+# src/core/ or platform/ header path with no parenthesized call is a
+# separate violation shape the function-citation check below can't see
+# on its own - see the src/core|platform path check below.
 set -uo pipefail
 
 status=0
