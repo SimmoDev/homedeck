@@ -560,7 +560,7 @@ this until it's done — see
 **Exit criteria:** a user can fully replace their physical Harmony remote's
 day-to-day usage with HomeDeck.
 
-## M4 — Media
+## M4 — Media (current)
 
 - [ ] Kodi integration — needs the mDNS *browsing* wrapper deferred from
       M2's LAN discovery item (see
