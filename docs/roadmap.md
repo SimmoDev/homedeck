@@ -358,7 +358,7 @@ administered over the Web UI (after setting an admin password on first
 login) once on the LAN, kept updated over OTA, and the dashboard/widget
 framework is ready for a module to plug into.
 
-## M3 — Harmony (current)
+## M3 — Harmony (complete)
 
 **Goal:** a complete Harmony Hub replacement. Scope does not expand beyond
 this until it's done — see
