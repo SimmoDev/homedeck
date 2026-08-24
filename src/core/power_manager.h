@@ -63,11 +63,11 @@ public:
     // Event-based, time-limited request to delay entering Sleeping - see
     // ADR-0005's sleep-veto decision. HasActiveSleepVeto() is consulted
     // by OnTick()'s Idle->Sleeping transition; RequestSleepVeto() itself
-    // still has no module caller until M3+, built ahead of one per
-    // ADR-0005's own reasoning that retrofitting it later would be
-    // disruptive to every module's background-task code. Each call
-    // overwrites the previously recorded expiry rather than stacking
-    // across repeated calls.
+    // still has no module caller - Harmony (M3) doesn't need one - built
+    // ahead of one per ADR-0005's own reasoning that retrofitting it
+    // later would be disruptive to every module's background-task code.
+    // Each call overwrites the previously recorded expiry rather than
+    // stacking across repeated calls.
     void RequestSleepVeto(std::chrono::milliseconds duration);
     bool HasActiveSleepVeto() const;
 
