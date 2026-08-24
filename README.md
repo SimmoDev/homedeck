@@ -45,9 +45,9 @@ possible, but none is planned or committed to.
 
 ## Current status
 
-M3 (Harmony) is the current milestone. See
-[docs/roadmap.md](docs/roadmap.md) for what's built, what's in progress,
-and what's still open, and the architectural decisions index.
+M3 (Harmony) is complete — HomeDeck can fully replace a Harmony Hub
+remote's day-to-day usage. See [docs/roadmap.md](docs/roadmap.md) for
+what's built, what's still open, and the architectural decisions index.
 
 ## Architecture
 
