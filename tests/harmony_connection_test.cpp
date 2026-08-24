@@ -1808,10 +1808,12 @@ TEST_F(HarmonyConnectionTest, FailedCommandSendDropsTheConnectionAndReconnects) 
     connection.Stop();
 }
 
-// A batch of queued commands must stop at the first failed send rather
-// than attempting every remaining entry against a connection that just
-// proved it's dead - the second command here should never be attempted.
-TEST_F(HarmonyConnectionTest, FailedSendStopsTheBatchWithoutAttemptingLaterCommands) {
+// A non-release command queued behind an earlier failed send in the same
+// batch must not be attempted against a connection that just proved it's
+// dead - the second command here should never be attempted. (A release
+// command in the same position would be attempted regardless - see
+// ReleaseCommandIsStillAttemptedAfterAnEarlierSendFailsInTheSameBatch.)
+TEST_F(HarmonyConnectionTest, FailedSendSkipsLaterNonReleaseCommandsInTheBatch) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
