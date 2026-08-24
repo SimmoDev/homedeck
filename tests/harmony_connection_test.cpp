@@ -2083,8 +2083,7 @@ TEST_F(HarmonyConnectionTest, MidBatchSendFailurePublishesADroppedEvent) {
     connection.Stop();
 }
 
-// Regression test for the M3 pass-21 exit-review MEDIUM finding: a
-// release-status device command is the one entry that stops something
+// A release-status device command is the one entry that stops something
 // already happening hub-side (a repeating IR hold), so it must still be
 // sent even once it's aged past max_pending_command_age_ - unlike a
 // press/hold/startactivity, there's no "no longer reflects what the user
@@ -2135,9 +2134,8 @@ TEST_F(HarmonyConnectionTest, StaleReleaseCommandIsStillSentOnReconnect) {
     connection.Stop();
 }
 
-// Regression test for the same M3 pass-21 finding: a release queued
-// behind an entry whose send already failed in the same batch must still
-// be attempted, not silently discarded along with the rest of the batch -
+// A release queued behind an entry whose send already failed in the same
+// batch must still be attempted, not silently discarded along with it -
 // see SendPendingCommands()'s own comment on why a release is worth the
 // one extra attempt even against a transport already known dead.
 TEST_F(HarmonyConnectionTest, ReleaseCommandIsStillAttemptedAfterAnEarlierSendFailsInTheSameBatch) {
@@ -2206,16 +2204,15 @@ TEST_F(HarmonyConnectionTest, ReleaseCommandIsStillAttemptedAfterAnEarlierSendFa
     connection.Stop();
 }
 
-// Regression test for the M3 pass-20 exit-review HIGH finding: a
-// TriggerReconnect() (the Web UI's save-address flow, harmony_routes.cpp)
-// landing while ConnectAndFetchConfig() is still in flight against the
-// *old* address must not be silently discarded by the post-kConnected
-// wake_requested_ reset if that in-flight attempt then succeeds - see
-// ConnectionLoop()'s own comment on why the reset now re-reads storage
-// before discarding. Uses WsScript::block_next_send (same mechanism as
-// StopDuringAnInFlightBatchSendPublishesADroppedEvent below) to pin the
-// old-address attempt inside its own config-fetch SendText() call, the
-// exact window the finding is about.
+// A TriggerReconnect() (the Web UI's save-address flow,
+// harmony_routes.cpp) landing while ConnectAndFetchConfig() is still in
+// flight against the *old* address must not be silently discarded by the
+// post-kConnected wake_requested_ reset if that in-flight attempt then
+// succeeds - see ConnectionLoop()'s own comment on why the reset now
+// re-reads storage before discarding. Uses WsScript::block_next_send
+// (same mechanism as StopDuringAnInFlightBatchSendPublishesADroppedEvent
+// below) to pin the old-address attempt inside its own config-fetch
+// SendText() call, the exact window this test targets.
 TEST_F(HarmonyConnectionTest, HubHostChangeArrivingDuringAnInFlightConnectIsNotDiscardedOnceThatConnectSucceeds) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
