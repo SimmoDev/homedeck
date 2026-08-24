@@ -62,8 +62,10 @@ covers the percent-decoding shared by that same form-parsing path and
 
 `harmony_connection_test.cpp` covers `HarmonyConnection` (M3, the first
 module test) - connect/retry/liveness-probe behavior and the
-press/hold/release device-command path - against a scriptable
-`WebSocketClient` double, the same fake-transport-double approach
+press/hold/release device-command path, including the pending-command
+queue's staleness/batch-failure drop semantics and a release command's
+exemption from both - against a scriptable `WebSocketClient` double,
+the same fake-transport-double approach
 `weather_provider_test.cpp` already established for `HttpClient`, plus
 two real-backend tests against real `HostHttpClient`/`HostWebSocketClient`
 instances and a raw-socket stand-in hub instead - the fake-only coverage

@@ -115,7 +115,9 @@ nothing. All three calls are safe from any thread and queue onto
 `HarmonyConnection`'s own connection-loop thread
 (`pending_commands_`, capped at 20 entries and dropping any entry older
 than 5s by default — both bound how much a burst of taps/holds during a
-brief connectivity drop can replay, stale, all at once on reconnect).
+brief connectivity drop can replay, stale, all at once on reconnect. A
+`release`-status command is exempt from the staleness drop — see the
+`HarmonyCommandDroppedEvent` paragraph below).
 A send failure has no result value to check
 (`Press`/`Hold`/`ReleaseDeviceCommand()` are all `void`); the only
 in-screen signal is `DevicesScreen`'s own status label reacting to
@@ -151,8 +153,17 @@ command in the batch with it; a command still queued when
 `ConnectionLoop()` itself shuts down without ever reaching
 `SendPendingCommands()` at all; or a genuine `hub_host` change
 discarding every command still queued against the previous hub (see
-`ClearPendingCommandsIfAny()`). `ActivitiesScreen`'s own `dropped_sub_`
-is the only subscriber, reporting "Couldn't start `<name>` - hub
+`ClearPendingCommandsIfAny()`). A `release`-status command — the one
+message that stops something already happening hub-side, such as a
+repeating IR hold — is exempt from the first of these and from the
+batch-abort-on-send-failure half of the second: it's still attempted even
+past the staleness bound, or past an earlier failed send in the same
+batch, on the reasoning that stopping a hub-side repeat is worth the
+attempt even against a transport already known dead; it can still be the
+subject of this event via a stop-requested interruption, connection
+shutdown, or a hub change, just not those two.
+`ActivitiesScreen`'s own `dropped_sub_` is the only subscriber, reporting
+"Couldn't start `<name>` - hub
 unreachable" for the cases none of the other three events cover: a tap
 that ages out before a connection ever comes back to send it, or one
 lost to a batch interruption or hub change of any of the four kinds
