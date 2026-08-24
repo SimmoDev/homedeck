@@ -161,7 +161,14 @@ past the staleness bound, or past an earlier failed send in the same
 batch, on the reasoning that stopping a hub-side repeat is worth the
 attempt even against a transport already known dead; it can still be the
 subject of this event via a stop-requested interruption, connection
-shutdown, or a hub change, just not those two.
+shutdown, or a hub change, just not those two. The exemption guarantees a
+release is *attempted* once the connection is back up, not that it is
+sent promptly — delivery still waits on the same retry/backoff schedule
+as any other reconnect, so a long outage delays it correspondingly.
+Whether the hub itself times out an IR hold it stops receiving refreshes
+for during that window is outside this codebase's knowledge — the
+protocol carries no documented behavior for it either way (see
+[ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md)).
 `ActivitiesScreen`'s own `dropped_sub_` is the only subscriber, reporting
 "Couldn't start `<name>` - hub
 unreachable" for the cases none of the other three events cover: a tap
