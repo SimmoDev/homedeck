@@ -39,7 +39,10 @@ inactivity timeouts, and active-brightness clamping/baseline behavior);
 `grid_occupancy_test.cpp`, `time_format_test.cpp`,
 `text_format_test.cpp` (`SplitCamelCase()`, `src/ui/text_format.h` - a
 pure string helper despite living under `src/ui/`, same reasoning as
-`time_format_test.cpp`), `retry_backoff_test.cpp` (`RetryBackoff`,
+`time_format_test.cpp`), `activity_start_tracker_test.cpp`
+(`ActivityStartTracker`, `src/ui/activity_start_tracker.h` -
+`ActivitiesScreen`'s optimistic "Starting <name>..." status-tracking
+decision logic, pulled out for the same reason), `retry_backoff_test.cpp` (`RetryBackoff`,
 `src/core/retry_backoff.h` - the generic exponential-backoff utility
 `HarmonyConnection` is the first consumer of), `http_client_test.cpp`,
 `logger_test.cpp`, `battery_reader_test.cpp`, `display_brightness_test.cpp`,
