@@ -186,9 +186,9 @@ construction as Init, the destructor as teardown. `core/harmony_connection.h`/
 a new `platform/websocket_client.h` (`HostWebSocketClient`/
 `FirmwareWebSocketClient`, see
 [ADR-0029](../docs/decisions/ADR-0029-harmony-local-protocol.md)), a
-generic `core/retry_backoff.h` exponential-backoff utility
-([ADR-0006](../docs/decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership)'s
-previously-unbuilt default), and `core/harmony_routes.h`/`.cpp` for its
+generic `core/retry_backoff.h` exponential-backoff utility (see
+[ADR-0006](../docs/decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership)),
+and `core/harmony_routes.h`/`.cpp` for its
 Web UI status/reconnect endpoints. `ui/screens/activities_screen.h`/`.cpp`
 and `devices_screen.h`/`.cpp` are its Touch UI screens,
 `ui/harmony_widget.h`/`.cpp` is its dashboard widget, and
