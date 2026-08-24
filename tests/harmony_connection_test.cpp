@@ -494,6 +494,45 @@ TEST(IsValidHubHostTest, RejectsABareUnbracketedIpv6Literal) {
     EXPECT_FALSE(homedeck::IsValidHubHost("fe80::1"));
 }
 
+// See IsValidHubId()'s own comment (harmony_connection.h) - unlike
+// IsValidHubHost() above, this value comes from the hub's own
+// unauthenticated handshake response, not an admin-entered setting.
+TEST(IsValidHubIdTest, AcceptsABareDecimalId) { EXPECT_TRUE(homedeck::IsValidHubId("74494839")); }
+
+TEST(IsValidHubIdTest, AcceptsAHexOrUuidShapedId) {
+    // Every activeRemoteId observed so far is a bare decimal number, but
+    // the alphanumeric (not digits-only) character class deliberately
+    // leaves room for a hub that returns something hex/UUID-shaped instead.
+    EXPECT_TRUE(homedeck::IsValidHubId("1a2b3c4d"));
+}
+
+TEST(IsValidHubIdTest, RejectsEmpty) {
+    // Unlike IsValidHubHost(), which accepts empty as "not this function's
+    // concern" - there's no "not yet configured" reading of an empty
+    // activeRemoteId once a handshake response has actually been parsed.
+    EXPECT_FALSE(homedeck::IsValidHubId(""));
+}
+
+TEST(IsValidHubIdTest, RejectsUrlStructuralCharacters) {
+    // '&'/'#' would otherwise reach WebSocketUrl()'s raw concatenation
+    // unchanged and, like IsValidHubHost()'s own '#'/'?'/'@' case, change
+    // what the connect URL's query string actually contains rather than
+    // just failing to connect.
+    EXPECT_FALSE(homedeck::IsValidHubId("74494839&evil=1"));
+    EXPECT_FALSE(homedeck::IsValidHubId("74494839#fragment"));
+}
+
+TEST(IsValidHubIdTest, RejectsWhitespace) { EXPECT_FALSE(homedeck::IsValidHubId("7449 4839")); }
+
+TEST(IsValidHubIdTest, RejectsNonAsciiBytes) {
+    // Same non-ASCII-byte rejection reasoning as
+    // IsValidHubHostTest.RejectsNonAsciiBytesIncludingUnicodeWhitespace -
+    // std::isalnum() on a byte outside the ASCII range is undefined
+    // behavior for a plain (non-unsigned-char-cast) char, and there's no
+    // legitimate non-ASCII activeRemoteId to accommodate regardless.
+    EXPECT_FALSE(homedeck::IsValidHubId("74494839\xC2\xA0"));
+}
+
 TEST_F(HarmonyConnectionTest, NotConfiguredStaysDisconnectedAndNeverCallsOut) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

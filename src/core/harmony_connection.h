@@ -48,6 +48,18 @@ enum class HarmonyConnectionState {
 // it as "not yet configured," not a malformed address.
 bool IsValidHubHost(const std::string& value);
 
+// Restricts activeRemoteId (see ConnectAndFetchConfig()) to ASCII
+// alphanumerics before it becomes the trailing hubId value in
+// WebSocketUrl()'s raw string concatenation - see harmony_connection.cpp's
+// own comment on why alphanumeric rather than digits-only, and on why this
+// one matters even though hub_host above is admin-entered and this value
+// isn't: activeRemoteId comes from the hub's own handshake response, an
+// unauthenticated protocol (ADR-0029), so a malicious or spoofed response
+// is the threat this guards against, not a typo. Empty is rejected, unlike
+// IsValidHubHost() above - there's no "not yet configured" reading of an
+// empty activeRemoteId once a handshake response has been parsed.
+bool IsValidHubId(const std::string& value);
+
 // One entry from a device's controlGroup[].function[] - a single sendable
 // IR command. `action` is the hub's own ready-to-send JSON string (e.g.
 // `{"command":"VolumeUp","type":"IRCommand","deviceId":"74494839"}`),
