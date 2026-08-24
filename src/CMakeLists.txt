@@ -105,6 +105,10 @@ add_library(homedeck_core
   # logic, extracted specifically so it's host-testable (see that class's
   # own header comment).
   ui/activity_start_tracker.cpp
+  # Same reasoning again - DevicesScreen's long-press/scroll-vs-tap
+  # decision logic, extracted specifically so it's host-testable (see
+  # that class's own header comment).
+  ui/command_button_press_tracker.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 

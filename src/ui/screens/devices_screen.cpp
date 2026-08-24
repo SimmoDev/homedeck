@@ -228,9 +228,9 @@ void DevicesScreen::ShowDeviceDetail(const std::string& device_id) {
 
     lv_obj_clean(commands_container_);
     command_button_actions_.clear();
-    // The buttons long_press_active_buttons_ refers to are about to be
-    // deleted (lv_obj_clean() above) - stale pointers otherwise.
-    long_press_active_buttons_.clear();
+    // The buttons press_tracker_ refers to are about to be deleted
+    // (lv_obj_clean() above) - stale pointers otherwise.
+    press_tracker_.Reset();
 
     bool rendered_any_group = false;
     for (const HarmonyControlGroup& group : device->control_groups) {
@@ -410,8 +410,10 @@ void DevicesScreen::OnCommandButtonLongPressed(lv_event_t* e) {
     if (it == self->command_button_actions_.end()) {
         return;
     }
+    // Always kPress - see CommandButtonPressTracker::OnLongPressed()'s own
+    // comment.
+    self->press_tracker_.OnLongPressed(button);
     self->harmony_connection_.PressDeviceCommand(it->second);
-    self->long_press_active_buttons_.insert(button);
 }
 
 void DevicesScreen::OnCommandButtonLongPressRepeat(lv_event_t* e) {
@@ -422,6 +424,7 @@ void DevicesScreen::OnCommandButtonLongPressRepeat(lv_event_t* e) {
     if (it == self->command_button_actions_.end()) {
         return;
     }
+    self->press_tracker_.OnLongPressRepeat(button);
     self->harmony_connection_.HoldDeviceCommand(it->second);
 }
 
@@ -434,21 +437,27 @@ void DevicesScreen::OnCommandButtonReleased(lv_event_t* e) {
         return;
     }
 
-    if (self->long_press_active_buttons_.erase(button) > 0) {
-        // Was already pressed (and possibly held) - always send the
-        // matching release, regardless of what the touch did afterward.
-        self->harmony_connection_.ReleaseDeviceCommand(it->second);
-        return;
+    // Same check LVGL's own CLICKED implementation makes, done here
+    // directly instead of relying on a separate CLICKED handler (see this
+    // method's own declaration comment for why) - press_tracker_ decides
+    // what that means (see its own header comment) since it also needs to
+    // remember whether this button was already mid-long-press.
+    bool is_scrolling = lv_indev_get_scroll_obj(lv_indev_active()) != nullptr;
+    CommandButtonPressTracker::Action action = self->press_tracker_.OnReleased(button, is_scrolling);
+    switch (action) {
+        case CommandButtonPressTracker::Action::kNone:
+            break;  // a drag/scroll that happened to start on the button, not a tap
+        case CommandButtonPressTracker::Action::kRelease:
+            self->harmony_connection_.ReleaseDeviceCommand(it->second);
+            break;
+        case CommandButtonPressTracker::Action::kPressAndRelease:
+            self->harmony_connection_.PressDeviceCommand(it->second);
+            self->harmony_connection_.ReleaseDeviceCommand(it->second);
+            break;
+        case CommandButtonPressTracker::Action::kPress:
+        case CommandButtonPressTracker::Action::kHold:
+            break;  // OnReleased() never returns these
     }
-
-    // Never long-pressed - same check LVGL's own CLICKED implementation
-    // makes, done here directly instead of relying on a separate CLICKED
-    // handler (see this method's own declaration comment for why).
-    if (lv_indev_get_scroll_obj(lv_indev_active()) != nullptr) {
-        return;  // this was a drag/scroll that happened to start on the button, not a tap
-    }
-    self->harmony_connection_.PressDeviceCommand(it->second);
-    self->harmony_connection_.ReleaseDeviceCommand(it->second);
 }
 
 void DevicesScreen::OnBackButtonClicked(lv_event_t* e) {

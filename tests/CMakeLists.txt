@@ -64,6 +64,7 @@ add_executable(homedeck_tests
   wifi_routes_test.cpp
   logger_test.cpp
   activity_start_tracker_test.cpp
+  command_button_press_tracker_test.cpp
 )
 target_link_libraries(homedeck_tests PRIVATE homedeck_core GTest::gtest_main GTest::gmock)
 

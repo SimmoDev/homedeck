@@ -5,6 +5,7 @@
 #include "lvgl.h"
 #include "platform/battery_reader.h"
 #include "platform/network_status.h"
+#include "ui/command_button_press_tracker.h"
 #include "ui/navigation.h"
 #include "ui/status_bar.h"
 
@@ -161,12 +162,12 @@ private:
     // button -> the command's own action string, rebuilt fresh every
     // ShowDeviceDetail() call.
     std::unordered_map<lv_obj_t*, std::string> command_button_actions_;
-    // Buttons currently mid-long-press (OnCommandButtonLongPressed() set
-    // it, OnCommandButtonReleased() clears it) - see the latter's own
-    // comment. Cleared alongside command_button_actions_ on every
-    // ShowDeviceDetail() rebuild, not just erased per-button on release,
-    // since the buttons themselves get deleted then too.
-    std::unordered_set<lv_obj_t*> long_press_active_buttons_;
+    // Long-press/scroll-vs-tap decision logic for command buttons,
+    // pulled out into its own LVGL-free, host-testable class - see its
+    // own header comment. Reset alongside command_button_actions_ on
+    // every ShowDeviceDetail() rebuild, since the buttons it was
+    // tracking are about to be deleted (stale pointers otherwise).
+    CommandButtonPressTracker press_tracker_;
 
     EventBus::ScopedSubscription config_sub_;
     EventBus::ScopedSubscription state_sub_;
