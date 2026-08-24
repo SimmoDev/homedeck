@@ -402,21 +402,35 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         SetState(HarmonyConnectionState::kConnected);
         event_bus_.Publish(HarmonyConfigUpdatedEvent{});
 
-        // Any TriggerReconnect() call that landed before this exact point -
-        // whether before Start()'s background thread even began running,
-        // or during the handshake/config-fetch above - is already
-        // satisfied: hub_host_setting was just read fresh at the top of
-        // this same iteration, so the connection just established already
-        // reflects it. Left set, it would instead be consumed by the
-        // first Sleep() below, forcing one wholly unnecessary extra
-        // reconnect cycle for a trigger that predates - and is already
-        // answered by - the connection this iteration just made. A
-        // TriggerReconnect() call from here onward is a genuine "the
-        // configured address may have changed since I connected" request
-        // and correctly breaks the loop below to re-check it.
+        // Any TriggerReconnect() call whose hub_host is still the one just
+        // connected to - whether it landed before Start()'s background
+        // thread even began running, or during the handshake/config-fetch
+        // above - is already satisfied: the connection just established
+        // already reflects it. Left set, it would instead be consumed by
+        // the first Sleep() below, forcing one wholly unnecessary extra
+        // reconnect cycle for a trigger that's already answered.
+        //
+        // But hub_host_setting (read once, at the top of this iteration)
+        // can go stale during ConnectAndFetchConfig()'s own network round
+        // trip (up to ~kConnectTimeoutMs + kConfigFetchTimeoutMs): a Web UI
+        // save landing in that window is a genuine "the configured address
+        // changed since I connected" request, not one this iteration's
+        // connection already satisfies - discarding it here would strand
+        // the connection on the address it just connected to, indefinitely
+        // (a plain liveness timeout doesn't re-check storage; only another
+        // explicit trigger or a connection drop does). storage_ is read
+        // again here, under wake_mutex_ (so no concurrent TriggerReconnect()
+        // call can land between this read and the reset below), to tell
+        // the two cases apart: only discard the trigger if hub_host is
+        // still what this iteration actually connected with.
         {
             std::lock_guard<std::mutex> lock(wake_mutex_);
-            wake_requested_ = false;
+            std::optional<VersionedValue> post_connect_hub_host = storage_.GetSetting(kModuleId, kHubHostKey);
+            bool hub_host_unchanged =
+                post_connect_hub_host.has_value() && post_connect_hub_host->value == hub_host_setting->value;
+            if (hub_host_unchanged) {
+                wake_requested_ = false;
+            }
         }
 
         while (!stop.stop_requested()) {

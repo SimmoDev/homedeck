@@ -2042,6 +2042,77 @@ TEST_F(HarmonyConnectionTest, MidBatchSendFailurePublishesADroppedEvent) {
     connection.Stop();
 }
 
+// Regression test for the M3 pass-20 exit-review HIGH finding: a
+// TriggerReconnect() (the Web UI's save-address flow, harmony_routes.cpp)
+// landing while ConnectAndFetchConfig() is still in flight against the
+// *old* address must not be silently discarded by the post-kConnected
+// wake_requested_ reset if that in-flight attempt then succeeds - see
+// ConnectionLoop()'s own comment on why the reset now re-reads storage
+// before discarding. Uses WsScript::block_next_send (same mechanism as
+// StopDuringAnInFlightBatchSendPublishesADroppedEvent below) to pin the
+// old-address attempt inside its own config-fetch SendText() call, the
+// exact window the finding is about.
+TEST_F(HarmonyConnectionTest, HubHostChangeArrivingDuringAnInFlightConnectIsNotDiscardedOnceThatConnectSucceeds) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    // The old-address attempt's own config/current-activity responses,
+    // consumed once SendText() below is released.
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+    // The new-address attempt's own responses, queued up front - WsScript
+    // has no per-hub distinction, only connect_urls' recorded order below
+    // proves which attempt actually reached the hub.
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->block_next_send = true;
+    }
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    {
+        std::unique_lock<std::mutex> lock(script->mutex);
+        ASSERT_TRUE(script->send_cv.wait_for(lock, std::chrono::seconds(3), [&] { return script->send_blocked; }));
+    }
+
+    // The Web UI's actual save-then-reconnect sequence, landing while the
+    // old-address attempt above is still blocked mid-SendText().
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 2, "192.168.1.99"));
+    connection.TriggerReconnect();
+
+    // Let the old-address attempt complete - it succeeds, since its own
+    // responses are already queued.
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->release_blocked_send = true;
+    }
+    script->send_cv.notify_all();
+
+    // The connection must not settle on the old address: the trigger that
+    // landed mid-flight must survive the post-connect reset and drive a
+    // second connect attempt against the new one.
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return !script->connect_urls.empty() && script->connect_urls.back().find("192.168.1.99") != std::string::npos;
+    })) << "the connection must reconnect to the new address, not stay stuck on the one it just connected to";
+
+    connection.Stop();
+}
+
 // SendPendingCommands()'s own stop.stop_requested() check (harmony_connection.cpp)
 // used to return false without publishing HarmonyCommandDroppedEvent, silently
 // dropping every command still left in that batch - unlike the stale-age and
