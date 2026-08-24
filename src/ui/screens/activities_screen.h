@@ -5,6 +5,7 @@
 #include "lvgl.h"
 #include "platform/battery_reader.h"
 #include "platform/network_status.h"
+#include "ui/activity_start_tracker.h"
 #include "ui/navigation.h"
 #include "ui/status_bar.h"
 
@@ -121,15 +122,10 @@ private:
     std::unordered_map<lv_obj_t*, std::string> button_activity_ids_;
 
     // Local optimistic "tapped, not yet confirmed" state - see this
-    // class's own header comment above.
-    std::string starting_activity_id_;
-    // True after dropped_sub_ reports the pending tap above was dropped
-    // unsent - kept separate from starting_activity_id_ (which this
-    // clears immediately, unlike the still-pending case) so
-    // RestyleButtons()'s blank-status guard can tell "nothing pending"
-    // apart from "the last tap just failed and its message should stay
-    // up until something newer supersedes it."
-    bool command_failed_ = false;
+    // class's own header comment above and ActivityStartTracker's own
+    // header comment for why this decision logic lives in its own
+    // LVGL-free, host-testable class rather than directly in this screen.
+    ActivityStartTracker tracker_;
     // Backstop for a command the hub silently ignores - see
     // OnStartingTimeout()'s own comment. Created once, reused for the
     // life of this instance; starts paused.

@@ -101,6 +101,10 @@ add_library(homedeck_core
   # Same reasoning as ui/time_format.cpp above - a pure string helper
   # (DevicesScreen's own call site), not an LVGL concern.
   ui/text_format.cpp
+  # Same reasoning again - ActivitiesScreen's optimistic-status decision
+  # logic, extracted specifically so it's host-testable (see that class's
+  # own header comment).
+  ui/activity_start_tracker.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 

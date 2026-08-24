@@ -69,8 +69,7 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
             // over: either it's the one that was requested, or something
             // else (a second Harmony client) changed it instead - either
             // way, there's nothing left to keep waiting for.
-            starting_activity_id_.clear();
-            command_failed_ = false;
+            tracker_.ClearPending();
             RestyleButtons();
         });
     // A pending "Starting <name>..." tap only clears via an activity-ID
@@ -83,15 +82,14 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     // would otherwise supersede it until the user taps something new.
     state_sub_ = event_bus.SubscribeUi<HarmonyConnectionStateChangedEvent>(
         [this](const HarmonyConnectionStateChangedEvent& event) {
-            if (event.state != HarmonyConnectionState::kConnected && !starting_activity_id_.empty()) {
-                starting_activity_id_.clear();
+            bool pending_cleared_by_disconnect =
+                tracker_.OnConnectionStateChanged(event.state == HarmonyConnectionState::kConnected);
+            if (pending_cleared_by_disconnect) {
                 lv_timer_pause(starting_timeout_timer_);
-            } else if (event.state == HarmonyConnectionState::kConnected && command_failed_) {
-                command_failed_ = false;
             }
-            // Every transition, not just the two cases above - the
-            // offline indicator RestyleButtons() shows/clears (see its
-            // own comment) depends on the current state regardless of
+            // Every transition, not just the case above - the offline
+            // indicator RestyleButtons() shows/clears (see its own
+            // comment) depends on the current state regardless of
             // whether anything else needed clearing.
             RestyleButtons();
         });
@@ -101,12 +99,11 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     // comment. Reports it explicitly rather than leaving "Starting
     // <name>..." to clear on its own with no indication the tap failed.
     dropped_sub_ = event_bus.SubscribeUi<HarmonyCommandDroppedEvent>([this](const HarmonyCommandDroppedEvent&) {
-        if (starting_activity_id_.empty()) return;  // nothing pending right now - not this screen's own drop
-        auto it = activity_buttons_.find(starting_activity_id_);
+        auto it = activity_buttons_.find(tracker_.pending_activity_id());
         const char* label = it != activity_buttons_.end() ? lv_label_get_text(lv_obj_get_child(it->second, 0)) : "activity";
-        lv_label_set_text_fmt(status_label_, "Couldn't start %s - hub unreachable", label);
-        starting_activity_id_.clear();
-        command_failed_ = true;
+        std::optional<std::string> status_text = tracker_.OnCommandDropped(label);
+        if (!status_text.has_value()) return;  // nothing pending right now - not this screen's own drop
+        lv_label_set_text(status_label_, status_text->c_str());
     });
 
     // Created once, reused for the life of this instance rather than a
@@ -184,9 +181,8 @@ void ActivitiesScreen::Rebuild() {
     // forever: neither HarmonyCurrentActivityChangedEvent (id.empty()'s
     // own check would try to match an id that can't ever come back) nor
     // dropped_sub_ specifically target this case.
-    if (!starting_activity_id_.empty() && activity_buttons_.find(starting_activity_id_) == activity_buttons_.end()) {
-        starting_activity_id_.clear();
-        command_failed_ = false;
+    if (tracker_.has_pending() && activity_buttons_.find(tracker_.pending_activity_id()) == activity_buttons_.end()) {
+        tracker_.ClearPending();
         // Same reasoning as state_sub_'s identical clear (this class's
         // constructor) - nothing is pending for this timer to fire a
         // timeout against anymore.
@@ -211,7 +207,7 @@ void ActivitiesScreen::RestyleButtons() {
     // still shows the last-known state (see Rebuild()'s own comment),
     // and a user opening this screen while already offline otherwise has
     // no way to tell that from a healthy connection.
-    if (starting_activity_id_.empty() && !command_failed_) {
+    if (!tracker_.has_pending() && !tracker_.command_failed()) {
         lv_label_set_text(status_label_, snapshot.state == HarmonyConnectionState::kConnected
                                               ? ""
                                               : "Offline - showing last known activities");
@@ -246,45 +242,32 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
     bool is_current = activity_id == self->harmony_connection_.Snapshot().current_activity_id;
 
     self->harmony_connection_.StartActivity(activity_id);
-    self->starting_activity_id_ = activity_id;
-    self->command_failed_ = false;
 
     lv_obj_t* label = lv_obj_get_child(button, 0);
     const char* activity_label = lv_label_get_text(label);
-    if (is_current) {
-        // Re-tapping the running activity resends its own start command -
-        // useful to resync AV gear that's drifted out of sync with the
-        // hub's own idea of what's on, the same re-trigger the official
-        // Harmony app/remote support. Unlike a fresh start, no
-        // HarmonyCurrentActivityChangedEvent will ever follow (the id
-        // doesn't change), so this message has no natural point to clear
-        // itself and stays up until the next unrelated event (a
-        // different tap, an actual activity change, a connection drop)
-        // supersedes it - dropped_sub_/state_sub_ (this class's own
-        // subscriptions above) still correctly report a failed resend
-        // the same way they would a fresh one. An acceptable trade-off
-        // against the alternative this replaced: a silent no-op with no
-        // way to resend at all.
-        //
-        // A still-running timer from an earlier fresh-start tap this
-        // resend just overwrote starting_activity_id_ for must not
-        // survive to fire against this resend's own activity - without
-        // pausing it here, OnStartingTimeout() would eventually show "No
-        // response starting <this resend's activity>" on the original
-        // fresh-start tap's schedule, not this resend's, since it only
-        // checks starting_activity_id_'s current value, not when it was
-        // last set.
-        lv_timer_pause(self->starting_timeout_timer_);
-        lv_label_set_text_fmt(self->status_label_, "Resent to %s.", activity_label);
-    } else {
-        lv_label_set_text_fmt(self->status_label_, "Starting %s...", activity_label);
+    ActivityStartTracker::TapOutcome outcome = self->tracker_.OnActivityTapped(activity_id, activity_label, is_current);
+    lv_label_set_text(self->status_label_, outcome.status_text.c_str());
+    if (outcome.is_fresh_start) {
         // Only a fresh start needs the timeout backstop - a resend's own
-        // "Resent to %s." message is documented above as intentionally
-        // persistent until something else supersedes it, not something
-        // this class waits on an activity-ID change to clear.
+        // "Resent to <name>." message is intentionally persistent until
+        // something else supersedes it, not something this class waits
+        // on an activity-ID change to clear (see ActivityStartTracker's
+        // own comment on why a resend reports is_fresh_start=false).
         lv_timer_set_repeat_count(self->starting_timeout_timer_, 1);
         lv_timer_reset(self->starting_timeout_timer_);
         lv_timer_resume(self->starting_timeout_timer_);
+    } else {
+        // Re-tapping the running activity resends its own start command -
+        // useful to resync AV gear that's drifted out of sync with the
+        // hub's own idea of what's on, the same re-trigger the official
+        // Harmony app/remote support. A still-running timer from an
+        // earlier fresh-start tap this resend just overwrote the
+        // pending activity for must not survive to fire against this
+        // resend's own activity - without pausing it here,
+        // OnStartingTimeout() would eventually show "No response
+        // starting <this resend's activity>" on the original fresh-start
+        // tap's schedule, not this resend's.
+        lv_timer_pause(self->starting_timeout_timer_);
     }
 
     self->RestyleButtons();
@@ -292,13 +275,12 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
 
 void ActivitiesScreen::OnStartingTimeout(lv_timer_t* timer) {
     auto* self = static_cast<ActivitiesScreen*>(lv_timer_get_user_data(timer));
-    if (self->starting_activity_id_.empty()) return;  // already cleared by an event in the meantime
-    auto it = self->activity_buttons_.find(self->starting_activity_id_);
+    auto it = self->activity_buttons_.find(self->tracker_.pending_activity_id());
     const char* label =
         it != self->activity_buttons_.end() ? lv_label_get_text(lv_obj_get_child(it->second, 0)) : "activity";
-    lv_label_set_text_fmt(self->status_label_, "No response starting %s - try again", label);
-    self->starting_activity_id_.clear();
-    self->command_failed_ = true;
+    std::optional<std::string> status_text = self->tracker_.OnStartingTimedOut(label);
+    if (!status_text.has_value()) return;  // already cleared by an event in the meantime
+    lv_label_set_text(self->status_label_, status_text->c_str());
 }
 
 void ActivitiesScreen::OnDevicesButtonClicked(lv_event_t* e) {

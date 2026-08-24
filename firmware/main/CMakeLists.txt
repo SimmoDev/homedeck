@@ -59,6 +59,7 @@ idf_component_register(
         "../../src/ui/remote_button.cpp"
         "../../src/ui/time_format.cpp"
         "../../src/ui/text_format.cpp"
+        "../../src/ui/activity_start_tracker.cpp"
         "../../src/ui/status_bar.cpp"
         "../../src/ui/dashboard_grid.cpp"
         "../../src/ui/widget_tile.cpp"
