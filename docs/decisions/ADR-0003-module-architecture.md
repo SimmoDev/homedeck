@@ -128,7 +128,7 @@ that matters for this project's own reference hardware and for the
 realistic majority of prospective users (existing Harmony owners, not new
 buyers, since Harmony hardware is no longer sold new). "Hub discovery and
 authentication" in the M3 scope (see
-[roadmap.md](../roadmap.md#m3--harmony-current)) should be understood as
+[roadmap.md](../roadmap.md#m3--harmony-complete)) should be understood as
 discovering and authenticating against an already-configured hub on the
 LAN, not performing Logitech's original first-time cloud pairing flow.
 Whether first-time cloud pairing is still possible at all remains
