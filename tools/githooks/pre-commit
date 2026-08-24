@@ -20,8 +20,10 @@ staged_files=$(git diff --cached --name-only --diff-filter=ACM)
 # or - for CMakeLists.txt - a dot that isn't this project's own narration-
 # bearing extension) - the basename/`.cmake`-extension alternatives catch
 # those instead, since this project's own narration convention applies to
-# their comments too.
-doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yaml|cmake)$|(^|/)sdkconfig[^/]*$|(^|/)CMakeLists\.txt$' || true)
+# their comments too. `.sh` is included for the same reason - these
+# githook scripts are as subject to the narration convention as anything
+# else, not exempt just because they're the ones doing the checking.
+doc_files=$(echo "$staged_files" | grep -E '\.(md|cpp|cc|h|hpp|ts|svelte|yml|yaml|cmake|sh)$|(^|/)sdkconfig[^/]*$|(^|/)CMakeLists\.txt$' || true)
 # .h/.hpp included, not just .cpp - an esp_/mdns_/httpd_ call or an
 # esp_http_client_perform() with no timeout set can live in a header-only
 # inline function/lambda just as easily as a .cpp, and neither check-
