@@ -2042,6 +2042,129 @@ TEST_F(HarmonyConnectionTest, MidBatchSendFailurePublishesADroppedEvent) {
     connection.Stop();
 }
 
+// Regression test for the M3 pass-21 exit-review MEDIUM finding: a
+// release-status device command is the one entry that stops something
+// already happening hub-side (a repeating IR hold), so it must still be
+// sent even once it's aged past max_pending_command_age_ - unlike a
+// press/hold/startactivity, there's no "no longer reflects what the user
+// wants" reading of a late release; the user already lifted their finger.
+TEST_F(HarmonyConnectionTest, StaleReleaseCommandIsStillSentOnReconnect) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    // hub_host deliberately not set yet - see StaleQueuedCommandsAreDroppedOnReconnect's
+    // own comment: the connection loop stays in its unconfigured wait,
+    // which never watches pending_commands_, so the enqueued release below
+    // is guaranteed to still be queued, untouched, when it goes stale.
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    constexpr std::chrono::milliseconds kFastMaxAge{50};
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff, std::chrono::seconds(30), kFastMaxAge);
+    connection.Start();
+
+    std::atomic<int> dropped_events{0};
+    auto dropped_sub =
+        bus.Subscribe<homedeck::HarmonyCommandDroppedEvent>([&](const homedeck::HarmonyCommandDroppedEvent&) { dropped_events++; });
+
+    connection.ReleaseDeviceCommand(R"({"idx":"stale-release"})");
+    std::this_thread::sleep_for(kFastMaxAge * 3);  // well past max_pending_command_age_
+
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+    connection.TriggerReconnect();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+    // config request + current-activity request + the release itself.
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->sent_texts.size() >= 3;
+    })) << "the stale release must still be sent, not dropped as too old";
+
+    EXPECT_EQ(dropped_events.load(), 0) << "a release is exempt from the staleness drop - see max_pending_command_age_'s own comment";
+
+    connection.Stop();
+}
+
+// Regression test for the same M3 pass-21 finding: a release queued
+// behind an entry whose send already failed in the same batch must still
+// be attempted, not silently discarded along with the rest of the batch -
+// see SendPendingCommands()'s own comment on why a release is worth the
+// one extra attempt even against a transport already known dead.
+TEST_F(HarmonyConnectionTest, ReleaseCommandIsStillAttemptedAfterAnEarlierSendFailsInTheSameBatch) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+
+    std::atomic<int> dropped_events{0};
+    auto dropped_sub =
+        bus.Subscribe<homedeck::HarmonyCommandDroppedEvent>([&](const homedeck::HarmonyCommandDroppedEvent&) { dropped_events++; });
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->block_next_send = true;
+        script->send_should_succeed = false;
+    }
+    // Same back-to-back-enqueue idiom as StopDuringAnInFlightBatchSendPublishesADroppedEvent
+    // above, relying on both landing in pending_commands_ before the
+    // connection loop's own thread wakes and swaps it into one batch.
+    connection.PressDeviceCommand(R"({"idx":"first"})");
+    connection.ReleaseDeviceCommand(R"({"idx":"second"})");
+
+    {
+        std::unique_lock<std::mutex> lock(script->mutex);
+        ASSERT_TRUE(script->send_cv.wait_for(lock, std::chrono::seconds(3), [&] { return script->send_blocked; }));
+    }
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->release_blocked_send = true;
+    }
+    script->send_cv.notify_all();
+
+    ASSERT_TRUE(WaitFor([&] { return dropped_events.load() > 0; }));
+    EXPECT_EQ(dropped_events.load(), 1) << "one drop event for the batch, not one per dropped entry";
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        // Content, not an exact count - SendPendingCommands() returning
+        // false makes ConnectionLoop() immediately retry
+        // ConnectAndFetchConfig() with no backoff sleep (see
+        // SendPendingCommands()'s own header comment), and that reconnect's
+        // own config-fetch send can already have landed in sent_texts by
+        // the time this check runs, same reasoning
+        // StaleQueuedCommandsAreDroppedOnReconnect's own "fresh" check
+        // above uses.
+        EXPECT_TRUE(std::any_of(script->sent_texts.begin(), script->sent_texts.end(),
+                                 [](const std::string& s) { return s.find("second") != std::string::npos; }))
+            << "the release must still be attempted even though the earlier press in this batch already failed to send";
+    }
+
+    connection.Stop();
+}
+
 // Regression test for the M3 pass-20 exit-review HIGH finding: a
 // TriggerReconnect() (the Web UI's save-address flow, harmony_routes.cpp)
 // landing while ConnectAndFetchConfig() is still in flight against the

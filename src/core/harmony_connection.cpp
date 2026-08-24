@@ -677,6 +677,7 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
 
     bool started_activity = false;
     bool dropped_stale_command = false;
+    bool transport_failed = false;
     auto now = std::chrono::steady_clock::now();
     for (const PendingCommand& command : commands) {
         // See ConnectAndFetchConfig()'s own comment on why this is
@@ -691,9 +692,16 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
             event_bus_.Publish(HarmonyCommandDroppedEvent{});
             return false;
         }
-        if (now - command.enqueued_at > max_pending_command_age_) {
+        // See SendPendingCommands()'s own header comment on why a release
+        // is exempt from both this staleness check and the
+        // already-failed-transport skip below.
+        bool is_release = command.device_command && command.device_command->status == "release";
+        if (!is_release && now - command.enqueued_at > max_pending_command_age_) {
             dropped_stale_command = true;  // see max_pending_command_age_'s own comment
             continue;
+        }
+        if (transport_failed && !is_release) {
+            continue;  // already known dead - nothing to gain sending more onto it
         }
         bool sent;
         if (command.activity_id) {
@@ -716,20 +724,7 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
         } else {
             continue;
         }
-        // Stop at the first failed send rather than chasing it with more -
-        // a dropped connection won't suddenly start succeeding mid-batch,
-        // and every remaining entry in this batch would otherwise also
-        // block on the same dead transport for no benefit. This entry and
-        // every one still left in `commands` are dropped the same way a
-        // stale entry is (see dropped_stale_command's own event below) -
-        // without this, a long-press-repeat sequence whose connection
-        // dies mid-batch loses its eventual ReleaseDeviceCommand silently,
-        // with nothing telling DevicesScreen the command it just sent
-        // never completed.
-        if (!sent) {
-            event_bus_.Publish(HarmonyCommandDroppedEvent{});
-            return false;
-        }
+        if (!sent) transport_failed = true;
     }
 
     if (started_activity && !stop.stop_requested()) {
@@ -741,10 +736,10 @@ bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
     }
     // One event per batch, not one per dropped entry - see
     // HarmonyCommandDroppedEvent's own comment.
-    if (dropped_stale_command) {
+    if (dropped_stale_command || transport_failed) {
         event_bus_.Publish(HarmonyCommandDroppedEvent{});
     }
-    return true;
+    return !transport_failed;
 }
 
 bool HarmonyConnection::SendHoldAction(const std::string& action, const std::string& status) {

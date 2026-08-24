@@ -124,7 +124,12 @@ struct HarmonyCurrentActivityChangedEvent {
 // when ConnectionLoop() itself shuts down without ever reaching
 // SendPendingCommands() at all (see ConnectionLoop()'s own post-loop
 // drain); or a genuine hub_host change discarding every command still
-// queued against the previous hub (see ClearPendingCommandsIfAny()).
+// queued against the previous hub (see ClearPendingCommandsIfAny()). A
+// release-status device command is exempt from the staleness drop and
+// from the batch-abort-on-send-failure half of the second reason (see
+// SendPendingCommands()'s own comment) - it can still be the subject of
+// this event via a stop-requested interruption, ConnectionLoop() shutting
+// down, or a hub_host change, just not those two.
 // Marker only, same shape as HarmonyConfigUpdatedEvent - a UI
 // showing an optimistic "in progress" status for a specific queued action
 // (ActivitiesScreen's "Starting <name>...") is the only plausible
@@ -320,15 +325,22 @@ private:
     // HoldDeviceCommand()/ReleaseDeviceCommand() queued, building and
     // sending each one's actual payload here (not in those methods
     // themselves - see PendingCommand's own comment on why) - called
-    // from the connected loop's own thread only. Stops at the first
-    // failed send rather than attempting the rest of the batch - a
+    // from the connected loop's own thread only. Stops chasing a dead
+    // transport with more non-release sends once one has failed - a
     // dropped connection won't start succeeding mid-batch, so there's
-    // nothing to gain from chasing it with more sends (each one able to
-    // block on the same dead transport). One FetchCurrentActivity()
-    // follow-up at the end if any successfully-sent entry was a
-    // startactivity, not one per entry - a burst of queued commands only
-    // needs one refresh. Returns false if any send failed (a dropped
-    // connection mid-batch) - the caller treats that the same as a
+    // nothing to gain from blocking every remaining entry on the same
+    // dead socket - but a release-status device command is still
+    // attempted regardless: unlike a press/hold/startactivity, a release
+    // is the one entry that stops something already happening hub-side
+    // (a repeating IR hold), so it's worth the one extra attempt even
+    // against a transport already known dead, rather than risking a
+    // command button's hub-side action never getting the message that
+    // stops it. Same exemption applies to max_pending_command_age_'s own
+    // staleness drop below - see that member's own comment. One
+    // FetchCurrentActivity() follow-up at the end if any successfully-sent
+    // entry was a startactivity, not one per entry - a burst of queued
+    // commands only needs one refresh. Returns false if any send failed (a
+    // dropped connection mid-batch) - the caller treats that the same as a
     // failed liveness probe rather than silently discarding it, since a
     // silent send failure would otherwise strand the remaining queued
     // commands with no feedback and no retry until the next
@@ -396,7 +408,10 @@ private:
     // SendPendingCommands() drops any entry older than this rather than
     // sending it - a queued command from long enough ago no longer
     // reflects what the user actually wants sent to a hub whose
-    // real-world state has moved on.
+    // real-world state has moved on. Not applied to a release-status
+    // device command - see that method's own comment on why a release is
+    // always worth attempting once a connection exists to send it over,
+    // however late.
     std::chrono::milliseconds max_pending_command_age_;
 
     // Owned by, and only ever touched from, task_'s own thread - no mutex
