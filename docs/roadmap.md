@@ -492,8 +492,13 @@ this until it's done — see
       to fix it. `VolumeUp`/`VolumeDown`/`ChannelUp`/`ChannelDown` (5-6
       of 8 devices) get `LV_SYMBOL_PLUS`/`MINUS` icons too, matching the
       D-pad's icon-based directions, as do `PrevChannel`
-      (`LV_SYMBOL_LOOP`) and `Mute` (`LV_SYMBOL_MUTE`).
-      `FastForward`/`Rewind` (no seek icon exists) and
+      (`LV_SYMBOL_LOOP`) and `Mute` (`LV_SYMBOL_MUTE`). Playback and
+      navigation commands map directly to their own LVGL symbol:
+      `Play`/`Pause`/`Stop`/`Eject` (`LV_SYMBOL_PLAY`/`PAUSE`/`STOP`/
+      `EJECT`), `SkipBackward`/`SkipForward` (`LV_SYMBOL_PREV`/`NEXT`),
+      and `Home` (`LV_SYMBOL_HOME`). `FastForward`/`Rewind` (no seek icon
+      exists, and reusing `SkipBackward`/`SkipForward`'s icons would make
+      both pairs ambiguous on a device that has both groups) and
       `PowerOff`/`PowerOn`/`PowerToggle` (LVGL has exactly one power icon
       for three different actions) are the commands that genuinely have
       no fitting icon and stay as text. `CreateRemoteButton()`
