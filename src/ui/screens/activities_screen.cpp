@@ -1,7 +1,7 @@
 #include "ui/screens/activities_screen.h"
 
 #include "ui/remote_button.h"
-#include "ui/screens/harmony_screen_chrome.h"
+#include "ui/screens/screen_chrome.h"
 
 namespace homedeck {
 
@@ -30,12 +30,12 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
       navigation_(navigation),
       root_(lv_obj_create(nullptr)),
       status_bar_(root_, event_bus, battery_reader, network_status) {
-    HarmonyScreenChrome chrome = CreateHarmonyScreenChrome(root_, "Activities", navigation);
+    ScreenChrome chrome = CreateScreenChrome(root_, "Activities", "Not connected to a Harmony Hub yet.", navigation);
     hint_label_ = chrome.hint_label;
-    list_container_ = chrome.list_container;
+    list_container_ = chrome.content_container;
     lv_obj_t* home_button = chrome.home_button;
 
-    status_label_ = CreateHarmonyStatusLabel(chrome.container);
+    status_label_ = CreateChromeStatusLabel(chrome.container);
 
     // A secondary, lighter-weight affordance than the home button/activity
     // buttons - Devices is the advanced/raw-command surface (see

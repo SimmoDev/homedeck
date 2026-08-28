@@ -1,7 +1,7 @@
 #include "ui/screens/devices_screen.h"
 
 #include "ui/remote_button.h"
-#include "ui/screens/harmony_screen_chrome.h"
+#include "ui/screens/screen_chrome.h"
 #include "ui/text_format.h"
 
 namespace homedeck {
@@ -88,17 +88,17 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     : harmony_connection_(harmony_connection),
       root_(lv_obj_create(nullptr)),
       status_bar_(root_, event_bus, battery_reader, network_status) {
-    HarmonyScreenChrome chrome = CreateHarmonyScreenChrome(root_, "Devices", navigation);
+    ScreenChrome chrome = CreateScreenChrome(root_, "Devices", "Not connected to a Harmony Hub yet.", navigation);
     lv_obj_t* container = chrome.container;
     hint_label_ = chrome.hint_label;
-    list_container_ = chrome.list_container;
+    list_container_ = chrome.content_container;
     lv_obj_t* home_button = chrome.home_button;
 
     // status_label_ sits at the top of the screen (right after the title)
     // rather than inside detail_container_ - visible in both the device
     // list and a device's command view, mirroring ActivitiesScreen's own
     // standing offline indicator (see state_sub_ below).
-    status_label_ = CreateHarmonyStatusLabel(container);
+    status_label_ = CreateChromeStatusLabel(container);
 
     detail_container_ = lv_obj_create(container);
     lv_obj_remove_style_all(detail_container_);
@@ -128,7 +128,7 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     // detail_container_ is 90%-wide and clips children by default (no
     // LV_OBJ_FLAG_OVERFLOW_VISIBLE set anywhere here), so without an
     // explicit width+wrap a long name would clip mid-word - same pattern
-    // harmony_screen_chrome.cpp's hint_label already uses.
+    // screen_chrome.cpp's hint_label already uses.
     lv_obj_set_width(device_title_label_, LV_PCT(90));
     lv_label_set_long_mode(device_title_label_, LV_LABEL_LONG_WRAP);
     lv_obj_set_style_text_align(device_title_label_, LV_TEXT_ALIGN_CENTER, 0);

@@ -1,4 +1,4 @@
-#include "ui/screens/harmony_screen_chrome.h"
+#include "ui/screens/screen_chrome.h"
 
 #include "ui/home_affordance.h"
 #include "ui/status_bar.h"
@@ -6,7 +6,7 @@
 
 namespace homedeck {
 
-HarmonyScreenChrome CreateHarmonyScreenChrome(lv_obj_t* root, const char* title, Navigation& navigation) {
+ScreenChrome CreateScreenChrome(lv_obj_t* root, const char* title, const char* hint_text, Navigation& navigation) {
     lv_obj_set_style_text_font(root, kBodyFont, 0);
 
     lv_obj_t* container = lv_obj_create(root);
@@ -22,29 +22,29 @@ HarmonyScreenChrome CreateHarmonyScreenChrome(lv_obj_t* root, const char* title,
     lv_label_set_text(title_label, title);
 
     lv_obj_t* hint_label = lv_label_create(container);
-    lv_label_set_text(hint_label, "Not connected to a Harmony Hub yet.");
+    lv_label_set_text(hint_label, hint_text);
     lv_label_set_long_mode(hint_label, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(hint_label, LV_PCT(90));
     lv_obj_set_style_text_align(hint_label, LV_TEXT_ALIGN_CENTER, 0);
 
-    lv_obj_t* list_container = lv_obj_create(container);
-    lv_obj_remove_style_all(list_container);
-    lv_obj_set_size(list_container, LV_PCT(90), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_t* content_container = lv_obj_create(container);
+    lv_obj_remove_style_all(content_container);
+    lv_obj_set_size(content_container, LV_PCT(90), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(content_container, LV_FLEX_FLOW_COLUMN);
     // Deliberate spacing between genuinely large buttons, not a tight list -
     // see each button's own pad_ver comment (remote_button.cpp) for why
     // "large" is the deliberate target here, not a compact default. root
     // (the screen itself) is left scrollable, same as DashboardGrid's own
     // "content can exceed the visible screen" handling, so a longer list
     // still works.
-    lv_obj_set_style_pad_row(list_container, 12, 0);
+    lv_obj_set_style_pad_row(content_container, 12, 0);
 
     lv_obj_t* home_button = CreateHomeAffordance(root, navigation);
 
-    return {container, hint_label, list_container, home_button};
+    return {container, hint_label, content_container, home_button};
 }
 
-lv_obj_t* CreateHarmonyStatusLabel(lv_obj_t* container) {
+lv_obj_t* CreateChromeStatusLabel(lv_obj_t* container) {
     lv_obj_t* status_label = lv_label_create(container);
     lv_label_set_text(status_label, "");  // LVGL defaults a new label's text to "Text" otherwise.
     lv_obj_move_to_index(status_label, 1);

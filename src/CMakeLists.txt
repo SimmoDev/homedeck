@@ -147,7 +147,7 @@ if(TARGET lvgl)
     ui/screens/wifi_setup_screen.cpp
     ui/screens/activities_screen.cpp
     ui/screens/devices_screen.cpp
-    ui/screens/harmony_screen_chrome.cpp
+    ui/screens/screen_chrome.cpp
     ui/lvgl_user_activity_source.cpp
     ui/app_core.cpp
     # None of these three is a portable UI file - HostAudioOutput
