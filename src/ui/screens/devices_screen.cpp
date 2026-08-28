@@ -111,16 +111,12 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     // their own comments).
     lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
 
-    lv_obj_t* back_button = lv_button_create(detail_container_);
-    // See kMinNavTouchTarget's own comment (remote_button.h) - same nav-
-    // chrome sizing as the home affordance and ActivitiesScreen's own
-    // "Devices" button; this is the only way back from a device's command
-    // view short of Home.
-    lv_obj_set_style_min_width(back_button, kMinNavTouchTarget, 0);
-    lv_obj_set_style_min_height(back_button, kMinNavTouchTarget, 0);
+    // Same nav-chrome button as the home affordance and ActivitiesScreen's
+    // own "Devices" button (CreateNavChromeButton, remote_button.h) -
+    // kMinNavTouchTarget-sized with a centred label; this is the only way
+    // back from a device's command view short of Home.
+    lv_obj_t* back_button = CreateNavChromeButton(detail_container_, LV_SYMBOL_LEFT " Devices");
     lv_obj_add_event_cb(back_button, OnBackButtonClicked, LV_EVENT_CLICKED, this);
-    lv_obj_t* back_label = lv_label_create(back_button);
-    lv_label_set_text(back_label, LV_SYMBOL_LEFT " Devices");
 
     device_title_label_ = lv_label_create(detail_container_);
     // Device labels come straight from the hub's config, not curated

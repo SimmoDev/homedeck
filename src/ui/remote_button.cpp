@@ -4,10 +4,11 @@ namespace homedeck {
 
 namespace {
 
-// kRemoteButtonHeight's own decomposition (27px line height * 2 + this
-// value * 2) - kept as a named constant here (not just inline in both
-// places) since CreateRemoteButton's label height below needs the same
-// number pad_ver was built from, to stay in sync if either changes.
+// The top/bottom padding inside a remote button - the other half of
+// kRemoteButtonHeight's decomposition (27px line height * 2 + this value
+// * 2), named so the two stay legibly in sync. A label taller than the
+// resulting content area (a rare third wrapped line) overflows into this
+// padding rather than being clipped.
 constexpr int32_t kButtonVerticalPad = 28;
 
 }  // namespace
@@ -17,38 +18,45 @@ lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, in
     lv_obj_set_width(button, width);
     lv_obj_set_height(button, kRemoteButtonHeight);
     lv_obj_set_style_pad_ver(button, kButtonVerticalPad, 0);
+    // A flex column that centres its child on both axes - this is what
+    // vertically centres the label regardless of how many lines it wraps
+    // to. lv_button_create() gives its child no layout of its own, so a
+    // one-line label in a fixed-height button (or a fixed-height label
+    // box) would otherwise sit at the top: the wrapped two-line labels
+    // DevicesScreen's 31%-width command grid produces would look centred
+    // while every one-line label read as top-aligned against them.
+    lv_obj_set_flex_flow(button, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(button, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
 
     lv_obj_t* label = lv_label_create(button);
     lv_label_set_text(label, label_text.c_str());
-    // A label with no width constraint sizes to its own content and, once
-    // that's wider than the button (routine at the 31%-width DevicesScreen
-    // uses for its command grid - "Volume Down"/"Direction Right" and the
-    // like don't fit one line at that width), gets clipped at the
-    // button's edge instead of wrapping - there's nothing for
-    // LV_LABEL_LONG_WRAP (the default long mode already) to wrap against
-    // without an explicit width. Matching the button's own width fixes
-    // that; center-aligning the text keeps a wrapped two-line label
-    // looking the same as a single-line one instead of defaulting left.
+    // Width-constrained so a label wider than the button wraps instead of
+    // clipping at the button's edge (routine at the 31%-width command
+    // grid - "Volume Down"/"Direction Right" don't fit one line there);
+    // text centred so a wrapped two-line label reads the same as a
+    // one-line one. Content height, so the flex centring above applies -
+    // kRemoteButtonHeight still budgets ~two lines of vertical room
+    // (see its own comment); a rare third line overflows into the
+    // button's own padding rather than being truncated.
     lv_obj_set_width(label, LV_PCT(100));
-    // kRemoteButtonHeight budgets exactly two lines (see its own comment);
-    // a third line (a long SplitCamelCase()'d multi-word command label at
-    // the 31%-width grid) would otherwise overflow the button and clip
-    // silently with no indication anything's missing. Giving the label an
-    // explicit height matching that two-line budget lets LONG_DOT replace
-    // an overflowing last line with an ellipsis instead - LVGL only
-    // truncates a label against a fixed height, not just a fixed width.
-    lv_obj_set_height(label, kRemoteButtonHeight - 2 * kButtonVerticalPad);
-    lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
+    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
     lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
-    // lv_button_create() doesn't give its child a centering layout of its
-    // own (no flex/grid set on the button by LVGL's source, default
-    // theme included), so the label sits at its default top-left
-    // position rather than centering vertically - invisible
-    // while every button's height auto-fit its own one-line label (no
-    // vertical slack to reveal it), became visible once DevicesScreen's
-    // grid started giving every button the same fixed height regardless
-    // of its own label's line count.
-    lv_obj_align(label, LV_ALIGN_CENTER, 0, 0);
+
+    return button;
+}
+
+lv_obj_t* CreateNavChromeButton(lv_obj_t* parent, const char* label_text) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_set_style_min_width(button, kMinNavTouchTarget, 0);
+    lv_obj_set_style_min_height(button, kMinNavTouchTarget, 0);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, label_text);
+    // Same reason CreateRemoteButton aligns its own label above -
+    // lv_button_create() gives its child no centering layout, so once
+    // min-sizing makes the button taller/wider than the label it would
+    // otherwise sit in the top-left corner.
+    lv_obj_center(label);
 
     return button;
 }

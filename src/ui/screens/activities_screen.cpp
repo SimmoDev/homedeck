@@ -41,7 +41,9 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     // buttons - Devices is the advanced/raw-command surface (see
     // DevicesScreen's own header comment), not the primary
     // remote-replacement interaction this screen already is.
-    lv_obj_t* devices_button = lv_button_create(root_);
+    // kMinNavTouchTarget sizing and the centred label come from
+    // CreateNavChromeButton (remote_button.h).
+    lv_obj_t* devices_button = CreateNavChromeButton(root_, "Devices");
     // Below StatusBar::kHeight, not just root_'s bare top-right corner -
     // that would sit inside the status bar's own chrome.
     lv_obj_align(devices_button, LV_ALIGN_TOP_RIGHT, -16, StatusBar::kHeight + 16);
@@ -50,15 +52,7 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     // drags with root_'s overscroll bounce instead of staying put as
     // fixed chrome.
     lv_obj_add_flag(devices_button, LV_OBJ_FLAG_FLOATING);
-    // See kMinNavTouchTarget's own comment (remote_button.h) - this
-    // button's lighter visual weight (above) is a deliberate color/size
-    // choice, but the actual tappable area still needs a guaranteed
-    // minimum the same as every other interactive element on this screen.
-    lv_obj_set_style_min_width(devices_button, kMinNavTouchTarget, 0);
-    lv_obj_set_style_min_height(devices_button, kMinNavTouchTarget, 0);
     lv_obj_add_event_cb(devices_button, OnDevicesButtonClicked, LV_EVENT_CLICKED, this);
-    lv_obj_t* devices_label = lv_label_create(devices_button);
-    lv_label_set_text(devices_label, "Devices");
 
     config_sub_ = event_bus.SubscribeUi<HarmonyConfigUpdatedEvent>(
         [this](const HarmonyConfigUpdatedEvent&) { Rebuild(); });

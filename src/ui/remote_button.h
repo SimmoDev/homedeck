@@ -53,4 +53,16 @@ constexpr int32_t kMinNavTouchTarget = 88;
 // parameter, since every caller wants the same value.
 lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, int32_t width = LV_PCT(100));
 
+// A lighter-weight navigation-chrome button than CreateRemoteButton -
+// the home affordance, ActivitiesScreen's "Devices" button, and
+// DevicesScreen's "back" button. Guarantees kMinNavTouchTarget on both
+// axes (LVGL's default theme button padding auto-fits its content with
+// no floor) and centers the single label/icon child - a bare
+// lv_button_create() leaves that child at its top-left default position
+// once the button is min-sized larger than its content (see
+// CreateRemoteButton's own comment for why LVGL doesn't center it).
+// The caller owns everything else: position, the FLOATING flag,
+// background colour, and the click handler.
+lv_obj_t* CreateNavChromeButton(lv_obj_t* parent, const char* label_text);
+
 }  // namespace homedeck

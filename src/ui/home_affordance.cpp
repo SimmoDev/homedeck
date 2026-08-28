@@ -14,12 +14,10 @@ void OnHomeClicked(lv_event_t* e) {
 }  // namespace
 
 lv_obj_t* CreateHomeAffordance(lv_obj_t* parent, Navigation& navigation) {
-    lv_obj_t* button = lv_button_create(parent);
+    // kMinNavTouchTarget sizing and the centred icon come from
+    // CreateNavChromeButton (remote_button.h).
+    lv_obj_t* button = CreateNavChromeButton(parent, LV_SYMBOL_HOME);
     lv_obj_align(button, LV_ALIGN_BOTTOM_LEFT, 16, -16);
-    // See kMinNavTouchTarget's own comment - an icon-only button auto-fit
-    // to LVGL's default theme padding has no guaranteed minimum otherwise.
-    lv_obj_set_style_min_width(button, kMinNavTouchTarget, 0);
-    lv_obj_set_style_min_height(button, kMinNavTouchTarget, 0);
     // See StatusBar's own FLOATING comment - same fix, same reason: this
     // button is a child of each screen's scrolling root_, and without
     // this it scrolls out of view/drags with overscroll instead of
@@ -33,9 +31,6 @@ lv_obj_t* CreateHomeAffordance(lv_obj_t* parent, Navigation& navigation) {
     // comment for that same "considered theme styling is M7 scope" precedent.
     lv_obj_set_style_bg_color(button, lv_palette_main(LV_PALETTE_GREY), 0);
     lv_obj_add_event_cb(button, OnHomeClicked, LV_EVENT_CLICKED, &navigation);
-
-    lv_obj_t* icon = lv_label_create(button);
-    lv_label_set_text(icon, LV_SYMBOL_HOME);
 
     return button;
 }
