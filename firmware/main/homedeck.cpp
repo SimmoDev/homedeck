@@ -31,6 +31,7 @@
 #include "platform/firmware/http_client.h"
 #include "platform/firmware/websocket_client.h"
 #include "platform/firmware/http_server.h"
+#include "platform/firmware/mdns_browser.h"
 #include "platform/firmware/network_status.h"
 #include "platform/firmware/secret_store.h"
 #include "platform/firmware/settings_store.h"
@@ -528,6 +529,7 @@ extern "C" void app_main(void) {
     // Declared here (not narrower) so it stays alive for the rest of
     // app_main's life, which never returns.
     homedeck::FirmwareHttpServer web_server;
+    homedeck::FirmwareMdnsBrowser mdns_browser;
     ServeEmbeddedWebUi(web_server);
 
     ESP_ERROR_CHECK(esp_netif_init());
@@ -555,6 +557,7 @@ extern "C" void app_main(void) {
             .http_client = http_client,
             .http_server = web_server,
             .make_websocket_client = [] { return std::make_unique<homedeck::FirmwareWebSocketClient>(); },
+            .mdns_browser = mdns_browser,
             .time_source = time_source,
             .wifi_submit =
                 [](const std::string& ssid, const std::string& password) {

@@ -110,7 +110,9 @@ fake `MdnsBrowser`/`WebSocketClient` doubles, plus
 libcurl-backed `HostWebSocketClient` against a raw-socket loopback
 JSON-RPC peer, the same reasoning `harmony_connection_test.cpp` and
 `websocket_client_test.cpp` give for testing against a genuine transport
-rather than only a double.
+rather than only a double. `kodi_routes_test.cpp` covers the two Web UI
+routes (`/api/kodi/status`, `/api/kodi/reconnect`) - auth gating and the
+`KodiSnapshot` wire serialisation, empty and populated.
 
 Further module tests arrive alongside the modules they test, not before
 they exist.

@@ -10,6 +10,7 @@
 #include "platform/host/file_backed_store.h"
 #include "platform/host/http_client.h"
 #include "platform/host/http_server.h"
+#include "platform/host/mdns_browser.h"
 #include "platform/host/websocket_client.h"
 #include "platform/host/network_status.h"
 #include "platform/host/secret_store.h"
@@ -120,6 +121,7 @@ int main() {
     // docs/architecture/web-ui.md#status) - the built Svelte/Vite
     // scaffold plus admin auth, settings, and diagnostics.
     homedeck::HostHttpServer web_server;
+    homedeck::HostMdnsBrowser mdns_browser;
     homedeck::HostTimeSource time_source;
 
     // Declared here, not narrower - captured by reference into
@@ -156,6 +158,7 @@ int main() {
             .http_client = http_client,
             .http_server = web_server,
             .make_websocket_client = [] { return std::make_unique<homedeck::HostWebSocketClient>(); },
+            .mdns_browser = mdns_browser,
             .time_source = time_source,
             .wifi_submit =
                 [](const std::string& ssid, const std::string& /*password*/) {

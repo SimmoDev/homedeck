@@ -51,6 +51,7 @@ idf_component_register(
         "../../src/core/harmony_notification_bridge.cpp"
         "../../src/core/harmony_routes.cpp"
         "../../src/core/kodi_client.cpp"
+        "../../src/core/kodi_routes.cpp"
         "../../src/ui/screens/dashboard_screen.cpp"
         "../../src/ui/screens/wifi_setup_screen.cpp"
         "../../src/ui/screens/activities_screen.cpp"

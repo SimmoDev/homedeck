@@ -8,6 +8,8 @@
 #include "core/harmony_connection.h"
 #include "core/harmony_notification_bridge.h"
 #include "core/harmony_routes.h"
+#include "core/kodi_client.h"
+#include "core/kodi_routes.h"
 #include "core/logger.h"
 #include "core/low_battery_monitor.h"
 #include "core/network_status_monitor.h"
@@ -25,6 +27,7 @@
 #include "platform/display_brightness.h"
 #include "platform/http_client.h"
 #include "platform/http_server.h"
+#include "platform/mdns_browser.h"
 #include "platform/network_status.h"
 #include "platform/secret_store.h"
 #include "platform/settings_store.h"
@@ -87,6 +90,10 @@ public:
         // stateful connection genuinely does. Firmware passes a factory
         // returning FirmwareWebSocketClient, the simulator HostWebSocketClient.
         HarmonyConnection::WebSocketClientFactory make_websocket_client;
+        // One-shot mDNS service browser - the Kodi module (M4) is the
+        // first consumer. Firmware passes FirmwareMdnsBrowser, the
+        // simulator HostMdnsBrowser.
+        MdnsBrowser& mdns_browser;
         // Wall-clock time - Clock and Logger's shared source. Firmware
         // passes Rx8130TimeSource, the simulator HostTimeSource.
         TimeSource& time_source;
@@ -143,6 +150,7 @@ private:
     HttpClient& http_client_;
     OpenMeteoWeatherProvider weather_provider_;
     HarmonyConnection harmony_connection_;
+    KodiClient kodi_client_;
 
     DashboardScreen dashboard_;
     ClockWidget clock_widget_;

@@ -193,7 +193,7 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
         {
             std::lock_guard<std::mutex> lock(mutex_);
             state_.resolved_host = host_setting->value;
-            state_.discovered_count = 0;
+            state_.discovered.clear();
         }
         return Target{host_setting->value, kDefaultPort};
     }
@@ -232,9 +232,18 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
         target = Target{host, chosen->port};
         resolved_host = host + ":" + std::to_string(chosen->port);
     }
+
+    std::vector<KodiDiscoveredInstance> discovered;
+    discovered.reserve(instances.size());
+    for (const MdnsService& s : instances) {
+        auto uuid_it = s.txt.find("uuid");
+        discovered.push_back(KodiDiscoveredInstance{
+            s.instance_name, !s.address.empty() ? s.address : s.hostname,
+            uuid_it != s.txt.end() ? uuid_it->second : std::string()});
+    }
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        state_.discovered_count = static_cast<int>(instances.size());
+        state_.discovered = std::move(discovered);
         state_.resolved_host = resolved_host;
     }
     return target;

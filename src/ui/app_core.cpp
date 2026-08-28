@@ -30,6 +30,7 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
       http_client_(deps.http_client),
       weather_provider_(deps.http_client, storage_, event_bus),
       harmony_connection_(deps.http_client, deps.make_websocket_client, storage_, event_bus),
+      kodi_client_(deps.make_websocket_client, deps.mdns_browser, storage_, event_bus),
       dashboard_(event_bus, deps.battery_reader, deps.network_status),
       clock_widget_(dashboard_.Grid().Container(), event_bus),
       network_status_widget_(dashboard_.Grid().Container(), event_bus, deps.network_status),
@@ -90,6 +91,9 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
             if (module == HarmonyConnection::kModuleId && key == HarmonyConnection::kHubHostKey) {
                 return IsValidHubHost(value);
             }
+            if (module == KodiClient::kModuleId && key == KodiClient::kHostKey) {
+                return IsValidKodiHost(value);
+            }
             if (module == OpenMeteoWeatherProvider::kModuleId) {
                 return IsValidWeatherCoordinate(key, value);
             }
@@ -97,12 +101,14 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
         });
     RegisterWeatherRoutes(deps.http_server, http_client_, weather_provider_, admin_auth_);
     RegisterHarmonyRoutes(deps.http_server, harmony_connection_, admin_auth_);
+    RegisterKodiRoutes(deps.http_server, kodi_client_, admin_auth_);
     RegisterWifiRoutes(deps.http_server, admin_auth_, deps.wifi_reset);
 }
 
 void AppCore::Start() {
     clock_.Start();
     harmony_connection_.Start();
+    kodi_client_.Start();
 }
 
 }  // namespace homedeck

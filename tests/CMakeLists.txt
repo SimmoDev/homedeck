@@ -53,6 +53,7 @@ add_executable(homedeck_tests
   harmony_connection_test.cpp
   harmony_notification_bridge_test.cpp
   kodi_client_test.cpp
+  kodi_routes_test.cpp
   notification_sound_test.cpp
   admin_auth_service_test.cpp
   admin_auth_routes_test.cpp

@@ -93,6 +93,7 @@ add_library(homedeck_core
   core/harmony_notification_bridge.cpp
   core/harmony_routes.cpp
   core/kodi_client.cpp
+  core/kodi_routes.cpp
   # Lives in ui/ (it's a UI-formatting concern, called from
   # ClockWidget/StatusBar), but is genuinely LVGL-free - built here
   # instead of homedeck_ui below so it's covered by tests/, which never

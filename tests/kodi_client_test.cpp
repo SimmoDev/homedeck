@@ -390,7 +390,7 @@ TEST_F(KodiClientTest, MultipleInstancesWithNoSelectionStaysDisconnected) {
     ASSERT_TRUE(WaitFor([&] { return browser.BrowseCount() >= 1; }));
     std::this_thread::sleep_for(std::chrono::milliseconds(80));
     EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kDisconnected);
-    EXPECT_EQ(client->Snapshot().discovered_count, 2);
+    EXPECT_EQ(client->Snapshot().discovered.size(), 2u);
     {
         std::lock_guard<std::mutex> lock(script->mutex);
         EXPECT_TRUE(script->connect_urls.empty()) << "ambiguous discovery must not guess an instance";

@@ -69,6 +69,15 @@ struct KodiNowPlaying {
     bool can_seek = false;
 };
 
+// One Kodi instance seen by the most recent discovery browse - enough
+// for the Web UI settings page to render a "pick one" list keyed by the
+// stable `uuid` (ADR-0030).
+struct KodiDiscoveredInstance {
+    std::string name;
+    std::string host;
+    std::string uuid;
+};
+
 struct KodiSnapshot {
     KodiConnectionState state = KodiConnectionState::kDisconnected;
     // True once any poll or notification has populated the fields below
@@ -79,10 +88,10 @@ struct KodiSnapshot {
     // the `host` override, or the chosen discovered instance) - shown on
     // the Web UI settings page. Empty when no target could be resolved.
     std::string resolved_host;
-    // Instances seen by the most recent discovery browse. >1 with no
-    // saved selection is the "ask the user to choose" case (ADR-0030);
-    // the UI needs the count to say so.
-    int discovered_count = 0;
+    // Instances seen by the most recent discovery browse. size() > 1 with
+    // no saved selection is the "ask the user to choose" case (ADR-0030).
+    // Empty while a manual `host` override is in effect (no browse runs).
+    std::vector<KodiDiscoveredInstance> discovered;
     std::string app_version;
     int volume = 0;
     bool muted = false;
@@ -218,7 +227,7 @@ private:
     // connect to, or nullopt when none can be resolved (no override, and
     // either nothing discovered or more than one instance with no saved
     // selection - the "ask the user to choose" case). Updates
-    // discovered_count / resolved_host on the snapshot as a side effect.
+    // discovered / resolved_host on the snapshot as a side effect.
     std::optional<Target> ResolveTarget();
     // Opens the WebSocket and runs one initial reconcile poll. true only
     // if both succeeded, leaving ws_client_ open and owned by the
