@@ -10,6 +10,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -32,6 +33,12 @@ enum class KodiConnectionState {
 };
 
 enum class KodiPlaybackState { kInactive, kPlaying, kPaused };
+
+// The Kodi UI-navigation actions the Touch UI's remote screen sends -
+// each maps to a dedicated Input.* JSON-RPC method (ADR-0030 prefers
+// those over Input.ExecuteAction, whose action-name validation was
+// inconsistent on the reference build).
+enum class KodiInput { kUp, kDown, kLeft, kRight, kSelect, kBack, kHome, kInfo, kContextMenu, kShowOsd };
 
 // Rejects the same shapes IsValidHubHost() does (scheme prefix, embedded
 // whitespace/control bytes, a path, `#`/`?`/`@`, a bare IPv6 literal) and
@@ -125,16 +132,18 @@ public:
     static constexpr char kServiceType[] = "_xbmc-jsonrpc._tcp";
     static constexpr uint16_t kDefaultPort = 9090;
 
-    // browse_timeout / reconcile_interval / pump_interval are injectable
-    // (defaulted to production values) so tests don't wait out the
-    // production discovery/poll cadences - the same "production default,
-    // test-overridable" shape HarmonyConnection uses.
+    // browse_timeout / reconcile_interval / pump_interval /
+    // max_pending_command_age are injectable (defaulted to production
+    // values) so tests don't wait out the production discovery/poll
+    // cadences - the same "production default, test-overridable" shape
+    // HarmonyConnection uses.
     KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser& mdns_browser, Storage& storage,
                EventBus& event_bus, std::chrono::milliseconds initial_backoff = std::chrono::seconds(2),
                std::chrono::milliseconds max_backoff = std::chrono::seconds(60),
                std::chrono::milliseconds reconcile_interval = std::chrono::seconds(10),
                std::chrono::milliseconds pump_interval = std::chrono::milliseconds(250),
-               std::chrono::milliseconds browse_timeout = std::chrono::seconds(2));
+               std::chrono::milliseconds browse_timeout = std::chrono::seconds(2),
+               std::chrono::milliseconds max_pending_command_age = std::chrono::seconds(5));
 
     // Module:
     void Start() override;
@@ -148,13 +157,60 @@ public:
     // this. Same shape as HarmonyConnection::TriggerReconnect().
     void TriggerReconnect();
 
+    // Playback / navigation commands. All safe to call from any thread
+    // (e.g. a Touch UI screen on the UI thread): they queue the intent
+    // onto the connection loop's own thread, which owns ws_client_.
+    // Fire-and-forget - Kodi's own pushed notifications, not a reply to
+    // these, are what refresh the snapshot. A no-op if never connected;
+    // the queue is bounded and drops the oldest entry when full, and
+    // drops entries older than max_pending_command_age (StopPlayback() and mute
+    // are exempt - like Harmony's `release`, they stop/settle something
+    // already happening and stay worth attempting once a connection
+    // exists, however late).
+    void PlayPause();
+    void StopPlayback();
+    void SeekPercent(double percent);   // 0..100
+    void SetSpeed(int speed);           // Kodi's speed ladder: -32..-2, 1, 2..32
+    void SetVolume(int volume);         // 0..100
+    void ToggleMute();
+    void SendInput(KodiInput input);
+    // Starts playback of a library item, e.g. OpenLibraryItem("movieid",
+    // 42) or ("episodeid", 958). `resume` picks up from the stored
+    // resume point. Player.Open (ADR-0030) - the browse screens (M4b)
+    // are the caller.
+    void OpenLibraryItem(const std::string& id_field, long long id, bool resume);
+
 private:
     struct Target {
         std::string host;
         uint16_t port = kDefaultPort;
     };
 
-    enum class WakeReason { kTimeout, kTriggered, kStopRequested };
+    enum class WakeReason { kTimeout, kTriggered, kCommandPending, kStopRequested };
+
+    // A player command whose params can't be built until the connection
+    // loop's own thread resolves the active playerid (see
+    // SendPendingCommands()). A global command (volume/mute/input/open)
+    // needs no playerid, so its method/params are pre-built at enqueue
+    // and player_command stays empty.
+    struct PlayerCommand {
+        enum class Kind { kPlayPause, kStop, kSeekPercent, kSetSpeed };
+        Kind kind;
+        double value = 0;  // percent for kSeekPercent, speed for kSetSpeed
+    };
+    struct PendingCommand {
+        std::optional<PlayerCommand> player_command;
+        std::string method;       // set iff player_command is empty
+        std::string params_json;  // "" for a no-param method
+        bool keep_when_stale = false;
+        std::chrono::steady_clock::time_point enqueued_at;
+    };
+
+    // Bounds how many commands accumulate while disconnected/reconnecting
+    // (a bug tap-storm, or the UI queuing while offline) - the oldest is
+    // dropped first once full, same policy and reasoning as
+    // HarmonyConnection::kMaxPendingCommands.
+    static constexpr size_t kMaxPendingCommands = 20;
 
     void ConnectionLoop(std::stop_token stop);
     // Reads the `host`/`instance_uuid` settings and, if discovery is in
@@ -194,7 +250,26 @@ private:
     // reconcile interval (notifications carry no timing fields - ADR-0030).
     void HandleNotification(const std::string& frame_text);
     void SetState(KodiConnectionState state);
-    WakeReason Sleep(std::chrono::milliseconds delay, std::stop_token stop);
+    // watch_commands: only the connected inner loop watches
+    // pending_commands_ (ws_client_ exists only then) - the
+    // no-target/backoff waits leave commands queued rather than
+    // busy-waking on them, same as HarmonyConnection::Sleep().
+    WakeReason Sleep(std::chrono::milliseconds delay, std::stop_token stop, bool watch_commands);
+
+    void EnqueueCommand(PendingCommand command);
+    // Drains pending_commands_ and sends each - fire-and-forget SendText,
+    // not Call(): a command's reply carries no state this class needs
+    // (Kodi pushes the resulting state change separately), and the pump
+    // discards the reply frame. Resolves the active playerid once, up
+    // front, only if any queued entry needs one. Drops stale entries
+    // (keep_when_stale exempt) and stops sending non-exempt entries once
+    // a send has failed (transport gone). Returns false on a send
+    // failure so the caller reconnects rather than looping on a dead
+    // socket. Loop-thread only.
+    bool SendPendingCommands(std::stop_token stop);
+    // Sends Player.GetActivePlayers and returns the first video/audio
+    // player's id, or -1 if nothing is playing / the call failed.
+    int ResolveActivePlayerId(std::stop_token stop);
 
     WebSocketClientFactory make_websocket_client_;
     MdnsBrowser& mdns_browser_;
@@ -205,6 +280,7 @@ private:
     std::chrono::milliseconds reconcile_interval_;
     std::chrono::milliseconds pump_interval_;
     std::chrono::milliseconds browse_timeout_;
+    std::chrono::milliseconds max_pending_command_age_;
 
     // Owned by, and only ever touched from, task_'s own thread - no
     // mutex, same single-owner reasoning as HarmonyConnection::ws_client_.
@@ -226,6 +302,10 @@ private:
     std::mutex wake_mutex_;
     std::condition_variable wake_cv_;
     bool wake_requested_ = false;
+    // Guarded by wake_mutex_ too (one wake channel for both a trigger
+    // and a queued command - Sleep() tells them apart), same as
+    // HarmonyConnection::pending_commands_.
+    std::deque<PendingCommand> pending_commands_;
 
     std::unique_ptr<Task> task_;
 };

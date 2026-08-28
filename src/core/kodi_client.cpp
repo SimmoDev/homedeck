@@ -122,7 +122,8 @@ bool IsValidKodiHost(const std::string& value) {
 KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser& mdns_browser, Storage& storage,
                        EventBus& event_bus, std::chrono::milliseconds initial_backoff,
                        std::chrono::milliseconds max_backoff, std::chrono::milliseconds reconcile_interval,
-                       std::chrono::milliseconds pump_interval, std::chrono::milliseconds browse_timeout)
+                       std::chrono::milliseconds pump_interval, std::chrono::milliseconds browse_timeout,
+                       std::chrono::milliseconds max_pending_command_age)
     : make_websocket_client_(std::move(make_websocket_client)),
       mdns_browser_(mdns_browser),
       storage_(storage),
@@ -130,7 +131,8 @@ KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser
       backoff_(initial_backoff, max_backoff),
       reconcile_interval_(reconcile_interval),
       pump_interval_(pump_interval),
-      browse_timeout_(browse_timeout) {}
+      browse_timeout_(browse_timeout),
+      max_pending_command_age_(max_pending_command_age) {}
 
 void KodiClient::Start() {
     if (task_) {
@@ -167,15 +169,20 @@ void KodiClient::SetState(KodiConnectionState state) {
     event_bus_.Publish(KodiConnectionStateChangedEvent{state});
 }
 
-KodiClient::WakeReason KodiClient::Sleep(std::chrono::milliseconds delay, std::stop_token stop) {
+KodiClient::WakeReason KodiClient::Sleep(std::chrono::milliseconds delay, std::stop_token stop, bool watch_commands) {
     std::unique_lock<std::mutex> lock(wake_mutex_);
-    wake_cv_.wait_for(lock, delay, [this, &stop] { return wake_requested_ || stop.stop_requested(); });
+    wake_cv_.wait_for(lock, delay, [this, &stop, watch_commands] {
+        return wake_requested_ || (watch_commands && !pending_commands_.empty()) || stop.stop_requested();
+    });
     if (stop.stop_requested()) {
         return WakeReason::kStopRequested;
     }
     if (wake_requested_) {
         wake_requested_ = false;
         return WakeReason::kTriggered;
+    }
+    if (watch_commands && !pending_commands_.empty()) {
+        return WakeReason::kCommandPending;
     }
     return WakeReason::kTimeout;
 }
@@ -240,7 +247,7 @@ void KodiClient::ConnectionLoop(std::stop_token stop) {
         std::optional<Target> target = ResolveTarget();
         if (!target.has_value()) {
             SetState(KodiConnectionState::kDisconnected);
-            Sleep(kNoTargetRecheckInterval, stop);
+            Sleep(kNoTargetRecheckInterval, stop, /*watch_commands=*/false);
             continue;
         }
 
@@ -251,7 +258,7 @@ void KodiClient::ConnectionLoop(std::stop_token stop) {
                 ws_client_.reset();
             }
             SetState(KodiConnectionState::kError);
-            Sleep(backoff_.NextDelay(), stop);
+            Sleep(backoff_.NextDelay(), stop, /*watch_commands=*/false);
             continue;
         }
         backoff_.ResetAttempts();
@@ -259,13 +266,23 @@ void KodiClient::ConnectionLoop(std::stop_token stop) {
 
         auto last_reconcile = std::chrono::steady_clock::now();
         while (!stop.stop_requested()) {
-            WakeReason reason = Sleep(pump_interval_, stop);
+            WakeReason reason = Sleep(pump_interval_, stop, /*watch_commands=*/true);
             if (reason == WakeReason::kStopRequested) {
                 break;
             }
             PumpNotifications();
+            // Drained regardless of wake reason - a reconnect trigger or
+            // a reconcile timeout must not strand an already-queued
+            // command until the next cycle. A no-op when nothing is
+            // queued (same as HarmonyConnection's loop).
+            if (!SendPendingCommands(stop)) {
+                break;  // transport dropped mid-send
+            }
             if (reason == WakeReason::kTriggered) {
                 break;  // re-resolve the target - host/instance selection may have changed
+            }
+            if (reason == WakeReason::kCommandPending) {
+                continue;  // stay connected - a command isn't a reconnect request
             }
             auto now = std::chrono::steady_clock::now();
             if (needs_immediate_poll_ || now - last_reconcile >= reconcile_interval_) {
@@ -536,6 +553,169 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
     if (changed) {
         event_bus_.Publish(KodiNowPlayingChangedEvent{});
     }
+}
+
+// --- Commands ------------------------------------------------------------
+
+namespace {
+
+const char* InputMethod(KodiInput input) {
+    switch (input) {
+        case KodiInput::kUp: return "Input.Up";
+        case KodiInput::kDown: return "Input.Down";
+        case KodiInput::kLeft: return "Input.Left";
+        case KodiInput::kRight: return "Input.Right";
+        case KodiInput::kSelect: return "Input.Select";
+        case KodiInput::kBack: return "Input.Back";
+        case KodiInput::kHome: return "Input.Home";
+        case KodiInput::kInfo: return "Input.Info";
+        case KodiInput::kContextMenu: return "Input.ContextMenu";
+        case KodiInput::kShowOsd: return "Input.ShowOSD";
+    }
+    return "Input.Select";
+}
+
+}  // namespace
+
+void KodiClient::EnqueueCommand(PendingCommand command) {
+    command.enqueued_at = std::chrono::steady_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(wake_mutex_);
+        pending_commands_.push_back(std::move(command));
+        while (pending_commands_.size() > kMaxPendingCommands) {
+            pending_commands_.pop_front();
+        }
+    }
+    wake_cv_.notify_one();
+}
+
+void KodiClient::PlayPause() {
+    EnqueueCommand(PendingCommand{PlayerCommand{PlayerCommand::Kind::kPlayPause, 0}, "", "", false, {}});
+}
+
+void KodiClient::StopPlayback() {
+    // keep_when_stale: a stop that outlasts the queue's staleness bound
+    // is still worth attempting once a connection returns - it settles
+    // something still happening on the box, like Harmony's `release`.
+    EnqueueCommand(PendingCommand{PlayerCommand{PlayerCommand::Kind::kStop, 0}, "", "", true, {}});
+}
+
+void KodiClient::SeekPercent(double percent) {
+    EnqueueCommand(PendingCommand{PlayerCommand{PlayerCommand::Kind::kSeekPercent, percent}, "", "", false, {}});
+}
+
+void KodiClient::SetSpeed(int speed) {
+    EnqueueCommand(
+        PendingCommand{PlayerCommand{PlayerCommand::Kind::kSetSpeed, static_cast<double>(speed)}, "", "", false, {}});
+}
+
+void KodiClient::SetVolume(int volume) {
+    nlohmann::json params = {{"volume", volume}};
+    EnqueueCommand(PendingCommand{std::nullopt, "Application.SetVolume", params.dump(), false, {}});
+}
+
+void KodiClient::ToggleMute() {
+    // Kodi accepts the string "toggle" for the `mute` param. keep_when_stale
+    // for the same reason as Stop().
+    EnqueueCommand(PendingCommand{std::nullopt, "Application.SetMute", R"({"mute":"toggle"})", true, {}});
+}
+
+void KodiClient::SendInput(KodiInput input) {
+    EnqueueCommand(PendingCommand{std::nullopt, InputMethod(input), "", false, {}});
+}
+
+void KodiClient::OpenLibraryItem(const std::string& id_field, long long id, bool resume) {
+    nlohmann::json params = {{"item", {{id_field, id}}}};
+    if (resume) {
+        params["options"] = {{"resume", true}};
+    }
+    EnqueueCommand(PendingCommand{std::nullopt, "Player.Open", params.dump(), false, {}});
+}
+
+int KodiClient::ResolveActivePlayerId(std::stop_token stop) {
+    std::optional<std::string> text = Call("Player.GetActivePlayers", "", kCallTimeoutMs, stop);
+    if (!text.has_value()) {
+        return -1;
+    }
+    nlohmann::json parsed = ParseBoundedJson(*text);
+    auto result_it = parsed.is_object() ? parsed.find("result") : parsed.end();
+    if (result_it == parsed.end() || !result_it->is_array() || result_it->empty()) {
+        return -1;
+    }
+    return result_it->front().value("playerid", -1);
+}
+
+bool KodiClient::SendPendingCommands(std::stop_token stop) {
+    std::deque<PendingCommand> batch;
+    {
+        std::lock_guard<std::mutex> lock(wake_mutex_);
+        batch.swap(pending_commands_);
+    }
+    if (batch.empty()) {
+        return true;
+    }
+    if (!ws_client_) {
+        return false;  // only reached from the connected loop, but be safe
+    }
+
+    const bool needs_player_id =
+        std::any_of(batch.begin(), batch.end(), [](const PendingCommand& c) { return c.player_command.has_value(); });
+    const int player_id = needs_player_id ? ResolveActivePlayerId(stop) : -1;
+
+    const auto now = std::chrono::steady_clock::now();
+    bool transport_failed = false;
+    for (const PendingCommand& command : batch) {
+        if (stop.stop_requested()) {
+            return false;
+        }
+        if (!command.keep_when_stale && now - command.enqueued_at > max_pending_command_age_) {
+            continue;  // stale - what the user wanted then no longer reflects now
+        }
+        if (transport_failed && !command.keep_when_stale) {
+            continue;  // socket already dead - nothing to gain from more sends
+        }
+
+        std::string method;
+        std::string params_json;
+        if (command.player_command.has_value()) {
+            if (player_id < 0) {
+                continue;  // nothing playing / resolve failed - the command has no target
+            }
+            const PlayerCommand& pc = *command.player_command;
+            nlohmann::json params = {{"playerid", player_id}};
+            switch (pc.kind) {
+                case PlayerCommand::Kind::kPlayPause: method = "Player.PlayPause"; break;
+                case PlayerCommand::Kind::kStop: method = "Player.Stop"; break;
+                case PlayerCommand::Kind::kSeekPercent:
+                    method = "Player.Seek";
+                    params["value"] = {{"percentage", pc.value}};
+                    break;
+                case PlayerCommand::Kind::kSetSpeed:
+                    method = "Player.SetSpeed";
+                    params["speed"] = static_cast<int>(pc.value);
+                    break;
+            }
+            params_json = params.dump();
+        } else {
+            method = command.method;
+            params_json = command.params_json;
+        }
+
+        nlohmann::json request = {{"jsonrpc", "2.0"}, {"id", ++next_rpc_id_}, {"method", method}};
+        if (!params_json.empty()) {
+            nlohmann::json params = ParseBoundedJson(params_json);
+            if (!params.is_discarded()) {
+                request["params"] = std::move(params);
+            }
+        }
+        // Fire-and-forget: Kodi's own pushed notification (not this
+        // reply) is what refreshes the snapshot; the reply frame is
+        // discarded by the next PumpNotifications() (no `method` field).
+        if (!ws_client_->SendText(request.dump())) {
+            transport_failed = true;
+        }
+    }
+    return !transport_failed;
 }
 
 }  // namespace homedeck

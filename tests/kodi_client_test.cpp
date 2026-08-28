@@ -22,6 +22,7 @@
 #include <cstdint>
 #include <deque>
 #include <filesystem>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -153,6 +154,36 @@ void Push(const std::shared_ptr<WsScript>& script, std::string frame) {
     script->pushed.push_back(std::move(frame));
 }
 
+int CountSent(const std::shared_ptr<WsScript>& script, const std::string& needle) {
+    std::lock_guard<std::mutex> lock(script->mutex);
+    int n = 0;
+    for (const std::string& s : script->sent) {
+        if (s.find(needle) != std::string::npos) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+// True once a single sent frame contains every needle (e.g. the method
+// and a specific param).
+bool SentFrameHasAll(const std::shared_ptr<WsScript>& script, std::initializer_list<std::string> needles) {
+    std::lock_guard<std::mutex> lock(script->mutex);
+    for (const std::string& s : script->sent) {
+        bool all = true;
+        for (const std::string& n : needles) {
+            if (s.find(n) == std::string::npos) {
+                all = false;
+                break;
+            }
+        }
+        if (all) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // A play-state notification triggers an immediate reconcile poll (to
 // pick up position/duration - see needs_immediate_poll_), and that
 // poll's Player.GetProperties reply carries `speed` too. Kodi returns
@@ -234,10 +265,11 @@ protected:
     // disagree - Kodi's own poll reads live state, so they agree).
     std::unique_ptr<KodiClient> MakeClient(std::shared_ptr<WsScript> script, FakeMdnsBrowser& browser,
                                            homedeck::Storage& storage, homedeck::EventBus& bus,
-                                           std::chrono::milliseconds reconcile = kFastReconcile) {
+                                           std::chrono::milliseconds reconcile = kFastReconcile,
+                                           std::chrono::milliseconds max_command_age = std::chrono::seconds(5)) {
         return std::make_unique<KodiClient>(
             [script] { return std::make_unique<FakeWebSocketClient>(script); }, browser, storage, bus, kFastBackoff,
-            kFastBackoff, reconcile, kFastPump, kFastBrowse);
+            kFastBackoff, reconcile, kFastPump, kFastBrowse, max_command_age);
     }
 
     static constexpr std::chrono::seconds kNoReconcile{30};
@@ -631,6 +663,152 @@ TEST_F(KodiClientTest, TriggerReconnectReResolvesTheTarget) {
     client->TriggerReconnect();
 
     ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->Stop();
+}
+
+// --- Commands (Phase C) -------------------------------------------------
+
+// Connects to a manual host that is playing an episode (so
+// ResolveActivePlayerId() returns 1), reconcile slowed so command sends
+// are the only traffic the assertions look at.
+#define KODI_COMMAND_RIG()                                                                   \
+    homedeck::HostSettingsStore settings_store(root_dir_);                                    \
+    homedeck::HostCacheStore cache_store(root_dir_);                                          \
+    homedeck::HostSecretStore secret_store(root_dir_);                                        \
+    homedeck::Storage storage(settings_store, cache_store, secret_store);                     \
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20")); \
+    homedeck::EventBus bus;                                                                   \
+    FakeMdnsBrowser browser;                                                                  \
+    auto script = std::make_shared<WsScript>();                                               \
+    ScriptPlayingKodi(script)
+
+TEST_F(KodiClientTest, PlaybackCommandsSendTheRightMethodWithTheResolvedPlayerId) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->PlayPause();
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Player.PlayPause", "\"playerid\":1"}); }));
+
+    client->StopPlayback();
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Player.Stop", "\"playerid\":1"}); }));
+
+    client->SeekPercent(66);
+    ASSERT_TRUE(
+        WaitFor([&] { return SentFrameHasAll(script, {"Player.Seek", "\"playerid\":1", "\"percentage\":66"}); }));
+
+    client->SetSpeed(4);
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Player.SetSpeed", "\"speed\":4"}); }));
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, GlobalCommandsNeedNoPlayerId) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->SetVolume(30);
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Application.SetVolume", "\"volume\":30"}); }));
+
+    client->ToggleMute();
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Application.SetMute", "\"mute\":\"toggle\""}); }));
+
+    client->SendInput(homedeck::KodiInput::kUp);
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "\"method\":\"Input.Up\"") == 1; }));
+
+    client->SendInput(homedeck::KodiInput::kShowOsd);
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "Input.ShowOSD") == 1; }));
+
+    client->OpenLibraryItem("movieid", 42, /*resume=*/true);
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Player.Open", "\"movieid\":42", "\"resume\":true"}); }));
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, ACommandReplyFrameDoesNotDisturbTheSnapshot) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    int volume_before = client->Snapshot().volume;
+
+    // The fake auto-queues {"id":N,"result":...} for every sent command;
+    // PumpNotifications() must discard it (no "method" field), not treat
+    // it as state.
+    client->PlayPause();
+    client->SendInput(homedeck::KodiInput::kSelect);
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+
+    EXPECT_EQ(client->Snapshot().volume, volume_before);
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, ACommandQueuedWhileDisconnectedIsSentOnceConnected) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->connect_ok = false;
+    }
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kError; }));
+
+    client->SendInput(homedeck::KodiInput::kSelect);  // queued against a dead connection
+    std::this_thread::sleep_for(std::chrono::milliseconds(40));
+    EXPECT_EQ(CountSent(script, "Input.Select"), 0);
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->connect_ok = true;
+    }
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "Input.Select") == 1; }))
+        << "the queued command must go out once a connection exists";
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, StaleNonExemptCommandsAreDroppedButStopIsKept) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->connect_ok = false;
+    }
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile, /*max_command_age=*/std::chrono::milliseconds(30));
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kError; }));
+
+    client->SendInput(homedeck::KodiInput::kSelect);  // not exempt
+    client->StopPlayback();                            // keep_when_stale
+    std::this_thread::sleep_for(std::chrono::milliseconds(90));  // both now older than max_command_age
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->connect_ok = true;
+    }
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Player.Stop", "\"playerid\":1"}); }))
+        << "a stop stays worth attempting however late";
+    EXPECT_EQ(CountSent(script, "Input.Select"), 0) << "the stale navigation command was dropped";
     client->Stop();
 }
 

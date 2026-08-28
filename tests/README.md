@@ -100,9 +100,12 @@ match, single-instance auto-select, and the ambiguous/offline cases that
 must stay disconnected rather than guess), the JSON-RPC `id`-correlation
 loop dispatching interleaved pushed notifications, notification-driven
 Now Playing state (play/pause/stop, volume) with identity taken from the
-notification rather than a later `Player.GetItem`, and the
-"unreachable Kodi raises no notification" path - against fake
-`MdnsBrowser`/`WebSocketClient` doubles, plus
+notification rather than a later `Player.GetItem`, the
+"unreachable Kodi raises no notification" path, and the fire-and-forget
+command surface (playback/`Input.*`/`Player.Open` queued onto the
+connection thread, the active-player-id resolved at send time, stale
+non-exempt entries dropped on reconnect while a stop is kept) - against
+fake `MdnsBrowser`/`WebSocketClient` doubles, plus
 `RealBackendConnectsReconcilesAndHandlesAPushedNotification` driving the
 libcurl-backed `HostWebSocketClient` against a raw-socket loopback
 JSON-RPC peer, the same reasoning `harmony_connection_test.cpp` and
