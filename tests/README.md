@@ -92,8 +92,25 @@ validation, the message-size cap, and the zero-timeout non-blocking
 `ReceiveText(0)` case.
 `harmony_notification_bridge_test.cpp` covers `HarmonyNotificationBridge`'s
 notify-once-per-outage latch, and `harmony_routes_test.cpp` covers its two
-Web UI routes. Further module tests arrive alongside the modules they
-test, not before they exist.
+Web UI routes.
+
+`kodi_client_test.cpp` covers `KodiClient` (M4, the second module test) -
+mDNS instance discovery/selection (manual host override, saved-`uuid`
+match, single-instance auto-select, and the ambiguous/offline cases that
+must stay disconnected rather than guess), the JSON-RPC `id`-correlation
+loop dispatching interleaved pushed notifications, notification-driven
+Now Playing state (play/pause/stop, volume) with identity taken from the
+notification rather than a later `Player.GetItem`, and the
+"unreachable Kodi raises no notification" path - against fake
+`MdnsBrowser`/`WebSocketClient` doubles, plus
+`RealBackendConnectsReconcilesAndHandlesAPushedNotification` driving the
+libcurl-backed `HostWebSocketClient` against a raw-socket loopback
+JSON-RPC peer, the same reasoning `harmony_connection_test.cpp` and
+`websocket_client_test.cpp` give for testing against a genuine transport
+rather than only a double.
+
+Further module tests arrive alongside the modules they test, not before
+they exist.
 
 Build and run locally:
 
