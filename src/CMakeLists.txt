@@ -111,6 +111,10 @@ add_library(homedeck_core
   # decision logic, extracted specifically so it's host-testable (see
   # that class's own header comment).
   ui/command_button_press_tracker.cpp
+  # Same reasoning again - the Kodi Touch UI's display-string formatting
+  # (KodiWidget line, Now Playing subtitle, mm:ss), LVGL-free and
+  # host-tested (see kodi_display_test.cpp).
+  ui/kodi_display.cpp
 )
 target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 
@@ -143,11 +147,14 @@ if(TARGET lvgl)
     ui/quick_settings_panel.cpp
     ui/keyboard_input.cpp
     ui/harmony_widget.cpp
+    ui/kodi_widget.cpp
     ui/remote_button.cpp
     ui/screens/dashboard_screen.cpp
     ui/screens/wifi_setup_screen.cpp
     ui/screens/activities_screen.cpp
     ui/screens/devices_screen.cpp
+    ui/screens/now_playing_screen.cpp
+    ui/screens/kodi_remote_screen.cpp
     ui/screens/screen_chrome.cpp
     ui/lvgl_user_activity_source.cpp
     ui/app_core.cpp
