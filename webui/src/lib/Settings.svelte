@@ -7,6 +7,7 @@
   import BackupSettings from "./BackupSettings.svelte";
   import DeviceNameSettings from "./DeviceNameSettings.svelte";
   import HarmonySettings from "./HarmonySettings.svelte";
+  import KodiSettings from "./KodiSettings.svelte";
   import WeatherSettings from "./WeatherSettings.svelte";
 </script>
 
@@ -15,6 +16,7 @@
   <DeviceNameSettings />
   <WeatherSettings />
   <HarmonySettings />
+  <KodiSettings />
   <BackupSettings />
 </div>
 
