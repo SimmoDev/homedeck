@@ -76,7 +76,7 @@ the module boundary does for it.
 | Kodi | M4 | Not started |
 | Uptime Kuma | M5 | Not started |
 | Home Assistant | M6 | Not started |
-| MQTT, Jellyfin, Plex, Spotify, Prometheus, Grafana, ESPHome, Shelly | Future | Not scoped |
+| MQTT, Jellyfin, Plex, Spotify, Prometheus, Grafana, ESPHome, Shelly, Gotify | Future | Not scoped |
 
 Each module-specific architecture document is written once that
 module's design is actually being implemented, not speculatively ahead

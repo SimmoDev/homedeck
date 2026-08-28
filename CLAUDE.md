@@ -279,6 +279,7 @@ Future modules may include:
 - Grafana
 - ESPHome
 - Shelly
+- Gotify
 
 ---
 
