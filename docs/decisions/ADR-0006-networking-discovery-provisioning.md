@@ -11,7 +11,12 @@ proprietary UDP broadcast protocol") is superseded by
 protocol at all for the reference hub's current-generation firmware; the
 decision itself (a thin mDNS wrapper only, not a universal abstraction)
 stands unchanged - Harmony was never going to use that wrapper either
-way.
+way. The "mDNS *browsing* … remains unbuilt" note further down was true
+when written; the wrapper (`src/platform/mdns_browser.h`) was built in
+M4 with Kodi as its first consumer - its host backend links
+`libavahi-client` (see
+[DEVELOPMENT.md](../../DEVELOPMENT.md), [kodi.md](../architecture/kodi.md),
+[ADR-0030](ADR-0030-kodi-jsonrpc-transport.md)).
 
 ## Context
 

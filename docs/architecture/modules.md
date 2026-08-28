@@ -73,7 +73,7 @@ the module boundary does for it.
 | Module | Milestone | Status |
 |---|---|---|
 | Harmony Hub | M3 | M3 roadmap items complete — see [roadmap.md](../roadmap.md) and [harmony.md](harmony.md) |
-| Kodi | M4 | Not started |
+| Kodi | M4 | M4a items complete (connection, Now Playing, remote) — see [roadmap.md](../roadmap.md) and [kodi.md](kodi.md); library browsing is M4b |
 | Uptime Kuma | M5 | Not started |
 | Home Assistant | M6 | Not started |
 | MQTT, Jellyfin, Plex, Spotify, Prometheus, Grafana, ESPHome, Shelly, Gotify | Future | Not scoped |
@@ -81,10 +81,10 @@ the module boundary does for it.
 Each module-specific architecture document is written once that
 module's design is actually being implemented, not speculatively ahead
 of it — see the scope-control guidance in
-[CLAUDE.md](../../CLAUDE.md). [harmony.md](harmony.md) is the first
-example, written once Harmony's own design was actually being
-implemented in M3; a future `docs/architecture/kodi.md` and so on will
-follow the same rule.
+[CLAUDE.md](../../CLAUDE.md). [harmony.md](harmony.md) (M3) and
+[kodi.md](kodi.md) (M4) are the examples so far, each written once that
+module's design was actually being implemented; later modules follow
+the same rule.
 
 ## Status
 

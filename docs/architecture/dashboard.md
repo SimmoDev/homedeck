@@ -248,3 +248,8 @@ launcher grid ([ADR-0004](../decisions/ADR-0004-ui-philosophy.md)). A
 2-column tile showing the connection state, or (once connected) the
 current activity's own label, sourced from `HarmonyConnection`
 (`src/core/harmony_connection.h`).
+
+`KodiWidget` (`src/ui/kodi_widget.h`/`.cpp`) is the second module tile,
+following the same shape: a 2-column tile showing what Kodi is playing
+or the connection state, tapping through to `NowPlayingScreen` (M4a —
+see [kodi.md](kodi.md)).

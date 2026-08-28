@@ -562,13 +562,34 @@ day-to-day usage with HomeDeck.
 
 ## M4 — Media (current)
 
-- [ ] Kodi integration — needs the mDNS *browsing* wrapper deferred from
-      M2's LAN discovery item (see
-      [networking.md](architecture/networking.md#lan-discovery)); this is
-      its first consumer
-- [ ] Media browsing
-- [ ] Playback control
-- [ ] Now Playing widget/screen
+- [x] Kodi integration — `KodiClient` (`src/core/kodi_client.h`/`.cpp`),
+      the second `Module` implementation, over Kodi's unauthenticated
+      JSON-RPC WebSocket on port 9090 (see
+      [ADR-0030](decisions/ADR-0030-kodi-jsonrpc-transport.md) and
+      [kodi.md](architecture/kodi.md)). Consumes the mDNS *browsing*
+      wrapper (`src/platform/mdns_browser.h`) that this milestone added
+      to Core, deferred from M2's LAN discovery item (see
+      [networking.md](architecture/networking.md#lan-discovery)) — Kodi
+      is its first consumer. Discovery picks an instance by its stable
+      mDNS TXT `uuid`, with a manual host override; "Kodi not running"
+      is a normal state, not a fault (no `NotificationEvent`).
+      `KodiSettings.svelte` plus `GET /api/kodi/status` /
+      `POST /api/kodi/reconnect` (`src/core/kodi_routes.h`/`.cpp`) are
+      the Web UI surface.
+- [ ] Media browsing — video/music/files/live-TV library screens (M4b);
+      `KodiClient::OpenLibraryItem()` is the plumbing already in place.
+      Artwork stays out of scope until M7 (the `image://` URLs resolve
+      only through Kodi's authenticated port 8080 — see ADR-0030).
+- [x] Playback control — `PlayPause`/`StopPlayback`/`SeekPercent`/
+      `SetSpeed`/`SetVolume`/`ToggleMute`/`SendInput`, fire-and-forget
+      onto the connection loop with the same bounded pending-queue +
+      staleness-drop shape as Harmony's command path.
+- [x] Now Playing widget/screen — `KodiWidget` on the dashboard →
+      `NowPlayingScreen` (subtitle, `lv_bar` progress, transport
+      controls) and `KodiRemoteScreen` (a D-pad plus Back/Home/Info/
+      OSD/Menu). Fully push-driven from Kodi's own notifications, no
+      optimistic local state. Both build on the shared `ScreenChrome`
+      generalised from Harmony's screens.
 
 ## M5 — Monitoring
 
