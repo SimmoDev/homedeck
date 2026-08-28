@@ -97,6 +97,13 @@ re-reading in full up front.
   dependent (e.g. `libcurl4-openssl-dev` on Debian/Ubuntu). System-linked
   via `find_package(CURL)`, not vendored, the same host-only-tooling
   precedent as SDL2 above.
+- **libavahi-client development package** — required for `HostMdnsBrowser`
+  (`src/platform/host/mdns_browser.h`), the simulator's LAN-discovery
+  backend (Kodi and, later, Home Assistant). Exact package name is
+  platform-dependent (e.g. `libavahi-client-dev` on Debian/Ubuntu).
+  System-linked via `pkg-config`, same host-only-tooling precedent as
+  SDL2/libcurl. Only the simulator links it — the unit-test build does
+  not.
 - **Python 3** — only needed on the host if using a native ESP-IDF install
   instead of Docker; the `espressif/idf:v5.4.3` image bundles its own
   (Python 3.12.3).

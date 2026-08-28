@@ -110,13 +110,21 @@ simulator-side equivalent needed (the simulator is already reachable at
 `localhost`, and desktop OSes run their own mDNS responder for the
 machine itself).
 
-Still not implemented: the mDNS *browsing* wrapper this document
-describes above, for modules to discover Home Assistant/Kodi. That has no
-consumer until one of those modules exists (M4 for Kodi, M6 for Home
-Assistant) — building it now would be exactly the kind of speculative
-Core abstraction [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape)
-itself rejects. LAN discovery (browsing) remains planned for whichever of
-those milestones lands first.
+The mDNS *browsing* wrapper is also implemented, as of M4 (Kodi is its
+first consumer — the point at which it stopped being the speculative
+Core abstraction
+[ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape)
+rejected building ahead of one). A portable `MdnsBrowser` interface
+(`src/platform/mdns_browser.h`) exposes a single
+`Browse(service_type, timeout)` that returns **every** resolved
+instance — never a single "the" result, since multiple instances of one
+service type on a LAN (a media box per room) is expected, and choosing
+between them is the calling module's policy. It is backed by
+`FirmwareMdnsBrowser` (ESP-IDF's `mdns` component, `mdns_query_ptr`) and
+`HostMdnsBrowser` (libavahi-client, simulator only — see
+[DEVELOPMENT.md](../../DEVELOPMENT.md); returns empty rather than failing
+when no local mDNS responder is running). Home Assistant (M6) is the
+expected second consumer.
 
 Connectivity status is also implemented: a portable `NetworkStatus`
 interface (`src/platform/network_status.h`) exposes a `Snapshot()` of

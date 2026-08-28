@@ -117,6 +117,15 @@ target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 # LVGL before adding this directory. tests/ never fetches LVGL, so it
 # simply doesn't get this target, keeping Core's unit tests LVGL-free.
 if(TARGET lvgl)
+  # HostMdnsBrowser (platform/host/mdns_browser.h) needs libavahi-client.
+  # It lives in this simulator-only target, not homedeck_platform_host,
+  # for the same reason HostAudioOutput/UiTask below do: the tests/
+  # build must stay free of the dependency. The MdnsBrowser interface
+  # itself (platform/mdns_browser.h) is header-only and stays reachable
+  # from homedeck_core for KodiClient.
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(AVAHI REQUIRED IMPORTED_TARGET avahi-client)
+
   add_library(homedeck_ui
     ui/ui_dispatch.cpp
     ui/navigation.cpp
@@ -153,6 +162,7 @@ if(TARGET lvgl)
     platform/host/audio_output.cpp
     platform/host/ui_task.cpp
     platform/host/display_brightness.cpp
+    platform/host/mdns_browser.cpp
   )
-  target_link_libraries(homedeck_ui PUBLIC homedeck_core lvgl)
+  target_link_libraries(homedeck_ui PUBLIC homedeck_core lvgl PkgConfig::AVAHI)
 endif()
