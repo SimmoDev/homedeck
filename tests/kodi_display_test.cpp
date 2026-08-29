@@ -46,6 +46,12 @@ TEST(KodiWidgetLineTest, ReportsPlaybackWhenConnected) {
     paused_movie.playback = homedeck::KodiPlaybackState::kPaused;
     paused_movie.title = "A Movie";
     EXPECT_EQ(homedeck::KodiWidgetLine(Connected(paused_movie)), "Paused: A Movie");
+
+    // Playing but no title resolved yet (add-on playback before the first
+    // notification) - no placeholder name.
+    homedeck::KodiNowPlaying playing_unknown;
+    playing_unknown.playback = homedeck::KodiPlaybackState::kPlaying;
+    EXPECT_EQ(homedeck::KodiWidgetLine(Connected(playing_unknown)), "Playing");
 }
 
 TEST(KodiNowPlayingSubtitleTest, InactiveSaysNothingPlaying) {

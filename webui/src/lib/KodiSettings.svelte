@@ -165,9 +165,9 @@
 
   function nowPlayingSummary(np: KodiStatus["nowPlaying"]): string | undefined {
     if (np.playback === "inactive") return undefined;
-    const name = np.showTitle || np.title || "Something";
+    const name = np.showTitle || np.title;
     const verb = np.playback === "paused" ? "Paused" : "Playing";
-    return `${verb}: ${name}`;
+    return name ? `${verb}: ${name}` : verb;
   }
 
   loadSettings();

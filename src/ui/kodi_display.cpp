@@ -4,14 +4,11 @@ namespace homedeck {
 
 namespace {
 
+// Empty when neither field is populated (e.g. add-on playback before the
+// first Player.On* notification) - the caller drops the ": <title>"
+// suffix rather than printing a placeholder.
 std::string PrimaryTitle(const KodiNowPlaying& np) {
-    if (!np.show_title.empty()) {
-        return np.show_title;
-    }
-    if (!np.title.empty()) {
-        return np.title;
-    }
-    return "Something";
+    return !np.show_title.empty() ? np.show_title : np.title;
 }
 
 }  // namespace
@@ -30,13 +27,14 @@ std::string KodiWidgetLine(const KodiSnapshot& snapshot) {
         case KodiConnectionState::kConnected:
             break;
     }
+    const std::string title = PrimaryTitle(snapshot.now_playing);
     switch (snapshot.now_playing.playback) {
         case KodiPlaybackState::kInactive:
             return "Idle";
         case KodiPlaybackState::kPaused:
-            return "Paused: " + PrimaryTitle(snapshot.now_playing);
+            return title.empty() ? "Paused" : "Paused: " + title;
         case KodiPlaybackState::kPlaying:
-            return "Playing: " + PrimaryTitle(snapshot.now_playing);
+            return title.empty() ? "Playing" : "Playing: " + title;
     }
     return "Idle";
 }
