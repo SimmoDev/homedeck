@@ -116,6 +116,23 @@ void CreateTestPlayToneButton(lv_obj_t* parent, HostAudioOutput& audio_output) {
 
 namespace {
 
+void OnTestFakeKodiClicked(lv_event_t* e) {
+    auto* kodi_backend = static_cast<DebugKodiBackend*>(lv_event_get_user_data(e));
+    kodi_backend->Toggle();
+}
+
+}  // namespace
+
+void CreateTestFakeKodiButton(lv_obj_t* parent, DebugKodiBackend& kodi_backend) {
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_add_event_cb(button, OnTestFakeKodiClicked, LV_EVENT_CLICKED, &kodi_backend);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: toggle fake Kodi connection");
+}
+
+namespace {
+
 void OnTestLowBatteryClicked(lv_event_t* e) {
     auto* battery_reader = static_cast<HostBatteryReader*>(lv_event_get_user_data(e));
     battery_reader->SetPercent(10);

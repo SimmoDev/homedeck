@@ -10,8 +10,6 @@
 #include "platform/host/file_backed_store.h"
 #include "platform/host/http_client.h"
 #include "platform/host/http_server.h"
-#include "platform/host/mdns_browser.h"
-#include "platform/host/websocket_client.h"
 #include "platform/host/network_status.h"
 #include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
@@ -121,7 +119,11 @@ int main() {
     // docs/architecture/web-ui.md#status) - the built Svelte/Vite
     // scaffold plus admin auth, settings, and diagnostics.
     homedeck::HostHttpServer web_server;
-    homedeck::HostMdnsBrowser mdns_browser;
+    // Both the MdnsBrowser handed to KodiClient and the factory behind
+    // make_websocket_client below - transparent to real discovery and to
+    // Harmony's own WebSocket until the "toggle fake Kodi connection"
+    // debug button arms it (see debug_kodi_backend.h).
+    homedeck::sim::DebugKodiBackend kodi_backend;
     homedeck::HostTimeSource time_source;
 
     // Declared here, not narrower - captured by reference into
@@ -157,8 +159,8 @@ int main() {
             .secret_store = secret_store,
             .http_client = http_client,
             .http_server = web_server,
-            .make_websocket_client = [] { return std::make_unique<homedeck::HostWebSocketClient>(); },
-            .mdns_browser = mdns_browser,
+            .make_websocket_client = [&kodi_backend] { return kodi_backend.MakeWebSocketClient(); },
+            .mdns_browser = kodi_backend,
             .time_source = time_source,
             .wifi_submit =
                 [](const std::string& ssid, const std::string& /*password*/) {
@@ -203,12 +205,17 @@ int main() {
     // No real SoftAP here to derive these from - a fixed placeholder is
     // enough to exercise the layout (see wifi_setup_screen.h's SetApInfo).
     app_core.GetWifiSetupScreen().SetApInfo(kFakeApSsid, "192.168.4.1");
+    // So "Test: toggle fake Kodi connection" re-resolves KodiClient's
+    // target the instant it's pressed, not only when its current
+    // connection happens to drop.
+    kodi_backend.SetClient(app_core.GetKodiClient());
     homedeck::sim::CreateTestBackToDashboardButton(app_core.GetWifiSetupScreen().Root(), app_core.GetNavigation());
 
     lv_obj_t* test_button_panel = homedeck::sim::CreateTestButtonPanel(app_core.GetDashboard().Root());
     homedeck::sim::CreateTestWifiSetupNavButton(test_button_panel, app_core.GetNavigation());
     homedeck::sim::CreateTestWifiDisconnectButton(test_button_panel, network_status);
     homedeck::sim::CreateTestPlayToneButton(test_button_panel, audio_output);
+    homedeck::sim::CreateTestFakeKodiButton(test_button_panel, kodi_backend);
     homedeck::sim::CreateTestLowBatteryButton(test_button_panel, battery_reader);
     homedeck::sim::CreateTestCriticalBatteryButton(test_button_panel, battery_reader);
     homedeck::sim::CreateTestExternalPowerButton(test_button_panel, battery_reader);

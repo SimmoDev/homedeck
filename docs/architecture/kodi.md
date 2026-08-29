@@ -191,8 +191,10 @@ the two Web UI routes and the settings page.
 transport row with `SetTransportGlyph()`'s double-triangle rewind/
 fast-forward glyph, the volume row, the D-pad) lives inside `content_`,
 which stays hidden until `KodiClient::Snapshot().state == kConnected`
-(see `NowPlayingScreen::Refresh()`). Reaching that state in the
-simulator requires a Kodi instance on the LAN.
+(see `NowPlayingScreen::Refresh()`). In the simulator that state needs
+either a Kodi instance on the LAN or the "Test: toggle fake Kodi
+connection" debug control (see
+[simulator.md](simulator.md#status), `simulator/debug_kodi_backend.cpp`).
 
 **Not yet built (M4b):** library browsing (movies / TV / music / files /
 live TV / recently added / continue watching) and the screens for it.

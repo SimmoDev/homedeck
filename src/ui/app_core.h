@@ -147,6 +147,7 @@ public:
     Navigation& GetNavigation() { return navigation_; }
     WifiSetupScreen& GetWifiSetupScreen() { return wifi_setup_screen_; }
     Logger& GetLogger() { return logger_; }
+    KodiClient& GetKodiClient() { return kodi_client_; }
 
 private:
     Storage storage_;

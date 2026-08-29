@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/logger.h"
+#include "debug_kodi_backend.h"
 #include "platform/host/audio_output.h"
 #include "platform/host/battery_reader.h"
 #include "platform/host/network_status.h"
@@ -90,6 +91,13 @@ void CreateTestWifiDisconnectButton(lv_obj_t* parent, HostNetworkStatus& network
 // in the simulator, a lasting dev hook for that hardware signal the same
 // way the battery/network buttons below are for theirs.
 void CreateTestPlayToneButton(lv_obj_t* parent, HostAudioOutput& audio_output);
+
+// Not temporary - toggles DebugKodiBackend between transparent and
+// answering as a fake Kodi, so NowPlayingScreen / KodiRemoteScreen's
+// connected-only content (hidden until KodiClient reaches kConnected)
+// can be seen in the simulator without a Kodi on the LAN. See
+// debug_kodi_backend.h for the fake's scope.
+void CreateTestFakeKodiButton(lv_obj_t* parent, DebugKodiBackend& kodi_backend);
 
 // Temporary test-only wiring proving LowBatteryMonitor/NotificationBanner
 // end to end - HostBatteryReader is a fixed-then-adjustable mock (see

@@ -66,6 +66,17 @@ for why this ruled out a separate web-based mock UI.
     [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-ota-batterypower-gate)
     against the mocked battery level above — so the OTA page named in
     [web-ui.md](web-ui.md#scope) can be built and tested here too.
+  - *A connected Kodi:* the Kodi Touch UI hides its populated content
+    until `KodiClient` reaches `kConnected` (see
+    [kodi.md](kodi.md#status)), so those screens need a Kodi instance to
+    render. `DebugKodiBackend` (`simulator/debug_kodi_backend.cpp`) is
+    the `MdnsBrowser` and WebSocket factory handed to `KodiClient`; the
+    "Test: toggle fake Kodi connection" control arms it to answer with
+    canned JSON-RPC (a seekable episode part-way through), so Now Playing
+    / Remote can be exercised without one. Disarmed it is transparent — a
+    Kodi on the LAN and Harmony's own connection are unaffected. It
+    renders state, not a Kodi: a transport/nav tap sends its command but
+    nothing on screen moves in response.
 - **Networking:** the simulator runs on a real machine with a real network
   stack, so networking, the embedded HTTP server, and the Web Management UI
   can be exercised against real (or locally mocked) external services
