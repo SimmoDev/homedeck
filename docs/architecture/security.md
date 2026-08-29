@@ -152,6 +152,38 @@ admin (e.g. OTA uploads below) — not a privilege-escalation path, since
 only an already-authenticated admin can point HomeDeck's outbound
 connection anywhere.
 
+## Kodi link (unauthenticated by protocol design)
+
+The Kodi module's connection isn't gated by `AdminAuthService` either,
+for the same reason as Harmony above: Kodi's local JSON-RPC API on port
+9090 has no authentication step at all
+([ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)). Any
+device on the same LAN can open the same WebSocket HomeDeck does, issue
+playback/input commands, or respond to HomeDeck's own requests as if it
+were Kodi. As with Harmony, this is a fact about Kodi's own protocol
+design, not a HomeDeck implementation gap - and, per ADR-0030, it's the
+identical threat model already accepted for Harmony above, not a new
+category of risk.
+
+`KodiClient` (`src/core/kodi_client.h`/`.cpp`) treats every response the
+same defensive way `HarmonyConnection` does: bounded JSON nesting depth
+(`ParseBoundedJson()` in `kodi_client.cpp`, sharing the same
+`src/core/json_request.h` utility), the same bounded WebSocket message
+size and receive-queue depth Harmony's transport already enforces
+(`platform/websocket_client.h`, both backends - shared code, not
+duplicated per-module), and every parsed field type-checked before use
+(`ApplyItemFields()` leaves a missing/malformed field at its struct
+default rather than surfacing broken state).
+
+The outbound direction is admin-controlled the same way: `host`
+(validated by `IsValidKodiHost()`, `src/core/kodi_client.cpp`) is an
+arbitrary LAN host HomeDeck connects to, settable only through
+`POST /api/settings`, gated by `AdminAuthService` like every other
+write. `instance_uuid`, the alternative selection key, is never used to
+build a URL - it's only matched against discovered mDNS TXT records -
+so it carries none of `host`'s injection risk and needs no equivalent
+validation.
+
 ## Status
 
 **Admin auth is implemented** — see [web-ui.md](web-ui.md#status) for
