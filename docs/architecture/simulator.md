@@ -95,8 +95,9 @@ and the dedicated UI task are all implemented (`Task`/`Queue`/`Timer`/
 of them too — `DashboardScreen` (live clock, battery), `Navigation`, and
 the persistent home affordance are all implemented — see
 [dashboard.md](dashboard.md#status) and [ui.md](ui.md#status) for detail.
-Harmony (`src/core/harmony_connection.h`/`.cpp` and its screens/widget) is
-the first module, and runs on the simulator the same as hardware — see
+Harmony (`src/core/harmony_connection.h`/`.cpp` and its screens/widget)
+and Kodi (`src/core/kodi_client.h`/`.cpp` and its screens/widget) both
+run on the simulator the same as hardware — see
 [modules.md](modules.md#status) for the full detail. See
 [DEVELOPMENT.md](../../DEVELOPMENT.md#simulator-workflow) for the
 day-to-day workflow.
