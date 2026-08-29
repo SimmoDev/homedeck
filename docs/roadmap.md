@@ -562,7 +562,14 @@ day-to-day usage with HomeDeck.
 
 ## M4 — Media (current)
 
-- [x] Kodi integration — `KodiClient` (`src/core/kodi_client.h`/`.cpp`),
+M4 ships in two parts. **M4a** is Kodi connection, playback/transport
+control, and the Now Playing / remote Touch UI. **M4b** is Kodi library
+browsing (the screens for movies / TV / music / files / live TV and the
+navigation into them). Each item below is tagged with the part it belongs
+to; a part is done when all its items are checked and its exit criteria
+hold.
+
+- [x] (M4a) Kodi integration — `KodiClient` (`src/core/kodi_client.h`/`.cpp`),
       the second `Module` implementation, over Kodi's unauthenticated
       JSON-RPC WebSocket on port 9090 (see
       [ADR-0030](decisions/ADR-0030-kodi-jsonrpc-transport.md) and
@@ -576,20 +583,27 @@ day-to-day usage with HomeDeck.
       `KodiSettings.svelte` plus `GET /api/kodi/status` /
       `POST /api/kodi/reconnect` (`src/core/kodi_routes.h`/`.cpp`) are
       the Web UI surface.
-- [ ] Media browsing — video/music/files/live-TV library screens (M4b);
+- [ ] (M4b) Media browsing — video/music/files/live-TV library screens;
       `KodiClient::OpenLibraryItem()` is the plumbing already in place.
       Artwork stays out of scope until M7 (the `image://` URLs resolve
       only through Kodi's authenticated port 8080 — see ADR-0030).
-- [x] Playback control — `PlayPause`/`StopPlayback`/`SeekPercent`/
+- [x] (M4a) Playback control — `PlayPause`/`StopPlayback`/`SeekPercent`/
       `SetSpeed`/`SetVolume`/`ToggleMute`/`SendInput`, fire-and-forget
       onto the connection loop with the same bounded pending-queue +
       staleness-drop shape as Harmony's command path.
-- [x] Now Playing widget/screen — `KodiWidget` on the dashboard →
+- [x] (M4a) Now Playing widget/screen — `KodiWidget` on the dashboard →
       `NowPlayingScreen` (subtitle, `lv_bar` progress, transport
       controls) and `KodiRemoteScreen` (a D-pad plus Back/Home/Info/
       OSD/Menu). Fully push-driven from Kodi's own notifications, no
       optimistic local state. Both build on the shared `ScreenChrome`
       generalised from Harmony's screens.
+
+**M4a exit criteria:** a user can point HomeDeck at a Kodi instance (by
+discovery or manual address), and from the Touch UI see what it is
+playing and drive playback, transport, volume, and menu navigation.
+
+**M4b exit criteria:** a user can browse the Kodi library from the Touch
+UI and start playback of a chosen item.
 
 ## M5 — Monitoring
 
