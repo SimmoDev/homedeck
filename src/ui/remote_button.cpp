@@ -51,10 +51,9 @@ void SetTransportGlyph(lv_obj_t* button, bool pointing_left) {
         return;
     }
     lv_label_set_text(label, LV_SYMBOL_PLAY LV_SYMBOL_PLAY);
-    // Close the gap between the two triangles so they read as one FF/RW
-    // glyph, without overlapping them into a single blob - tuned by eye
-    // at the body font size (see remote_button.h).
-    lv_obj_set_style_text_letter_space(label, -5, 0);
+    // Zero letter spacing - the two triangles sit at their natural
+    // advance widths, touching but not overlapping (see remote_button.h).
+    lv_obj_set_style_text_letter_space(label, 0, 0);
     if (pointing_left) {
         lv_obj_set_style_transform_pivot_x(label, LV_PCT(50), 0);
         lv_obj_set_style_transform_pivot_y(label, LV_PCT(50), 0);
