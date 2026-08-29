@@ -107,11 +107,18 @@
     saved = false;
 
     // Two keys, written in turn - one identifies the target, the other
-    // must be cleared or the connection loop would still see it.
-    for (const [key, value] of [
+    // must be cleared or the connection loop would still see it. Not
+    // atomic: if the first write lands and the second fails (a network
+    // drop between the two calls), the two mutually-exclusive settings
+    // are left inconsistent until the user retries - the index check
+    // below tells them that happened rather than showing the same
+    // generic error either write would produce.
+    const writes: [string, string][] = [
       [kHostKey, hostValue],
       [kInstanceUuidKey, uuidValue],
-    ]) {
+    ];
+    for (let i = 0; i < writes.length; i++) {
+      const [key, value] = writes[i];
       const result = await postJson("/api/settings", {
         module: kModuleId,
         key,
@@ -120,7 +127,7 @@
       });
       if (!result.ok) {
         saving = false;
-        saveError =
+        const reason =
           result.kind === "network"
             ? result.message
             : result.body.error === "invalid_value"
@@ -128,6 +135,8 @@
               : result.body.error === "value_too_long"
                 ? "Kodi address is too long."
                 : `Save failed: ${result.status}`;
+        saveError =
+          i === 0 ? reason : `Saved the new selection, but failed to clear the previous one - save again. (${reason})`;
         return;
       }
     }
