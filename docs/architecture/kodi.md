@@ -179,21 +179,26 @@ Implemented for M4a: discovery/selection, connection, Now Playing state
 and the transport/nav Touch UI, the fire-and-forget command surface,
 the two Web UI routes and the settings page.
 
-**Connected-state Touch UI rendering is implemented but not yet
-visually verified against a live Kodi instance.** `NowPlayingScreen`/
+**Connected-state Touch UI rendering has been visually confirmed
+against a live Kodi instance and a live Harmony hub.** `NowPlayingScreen`/
 `KodiRemoteScreen`'s populated content (the transport row including
 `SetTransportGlyph()`'s double-triangle rewind/fast-forward glyph, the
 volume row, the D-pad) only exists inside `content_`, which stays
 hidden until `KodiClient::Snapshot().state == kConnected` (see
-`NowPlayingScreen::Refresh()`). The disconnected hint view has been
-confirmed to render cleanly in the simulator; the connected view has
-not, since neither the simulator nor `simulator/debug_panel.cpp`'s
-existing test hooks can currently fake a connected Kodi/Harmony
-instance - reaching it today needs a reachable Kodi box on the LAN. A
-debug fake-connect hook (mirroring `debug_panel.cpp`'s existing
-battery/OTA/power-state test buttons) would close this gap and is
-worth adding before the next round of visual changes to either
-module's connected-state screens.
+`NowPlayingScreen::Refresh()`) - so reaching it needs an actual
+reachable Kodi box, not just the simulator's own idle state. Pointed
+the simulator at a LAN Kodi instance and Harmony hub directly (manual
+`host`/`hub_host` settings, bypassing discovery), the double-triangle
+glyph renders cleanly - two flush, non-overlapping triangles, correctly
+mirrored for rewind - on both `NowPlayingScreen`'s transport row and
+`DevicesScreen`'s `RenderGenericGrid()` (confirmed on an NVIDIA Shield
+device's "Transport Basic" group), and every button's icon/label is
+vertically and horizontally centered on both screens plus
+`KodiRemoteScreen`'s D-pad. `simulator/debug_panel.cpp` still has no
+built-in way to reach this state without a device on the LAN to
+connect to - worth a fake-connect debug hook (mirroring the existing
+battery/OTA/power-state test buttons) so this doesn't require hardware
+to verify next time.
 
 **Not yet built (M4b):** library browsing (movies / TV / music / files /
 live TV / recently added / continue watching) and the screens for it.
