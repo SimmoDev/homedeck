@@ -16,7 +16,7 @@ HOST="${1:-homedeck.local}"
 
 STATUS=$(curl -sf "http://$HOST/api/auth/status")
 if echo "$STATUS" | grep -q '"passwordSet":true'; then
-  echo "A password is already set on $HOST - there's no change flow yet (ADR-0007)." >&2
+  echo "A password is already set on $HOST - there's no change flow yet." >&2
   echo "Run tools/factory-reset.sh then tools/flash.sh first if you need to reset it." >&2
   exit 1
 fi
