@@ -179,6 +179,22 @@ Implemented for M4a: discovery/selection, connection, Now Playing state
 and the transport/nav Touch UI, the fire-and-forget command surface,
 the two Web UI routes and the settings page.
 
+**Connected-state Touch UI rendering is implemented but not yet
+visually verified against a live Kodi instance.** `NowPlayingScreen`/
+`KodiRemoteScreen`'s populated content (the transport row including
+`SetTransportGlyph()`'s double-triangle rewind/fast-forward glyph, the
+volume row, the D-pad) only exists inside `content_`, which stays
+hidden until `KodiClient::Snapshot().state == kConnected` (see
+`NowPlayingScreen::Refresh()`). The disconnected hint view has been
+confirmed to render cleanly in the simulator; the connected view has
+not, since neither the simulator nor `simulator/debug_panel.cpp`'s
+existing test hooks can currently fake a connected Kodi/Harmony
+instance - reaching it today needs a reachable Kodi box on the LAN. A
+debug fake-connect hook (mirroring `debug_panel.cpp`'s existing
+battery/OTA/power-state test buttons) would close this gap and is
+worth adding before the next round of visual changes to either
+module's connected-state screens.
+
 **Not yet built (M4b):** library browsing (movies / TV / music / files /
 live TV / recently added / continue watching) and the screens for it.
 `OpenLibraryItem()` is the plumbing already in place for it. Artwork is
