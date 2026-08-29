@@ -177,10 +177,14 @@ public:
     // Fire-and-forget - Kodi's own pushed notifications, not a reply to
     // these, are what refresh the snapshot. A no-op if never connected;
     // the queue is bounded and drops the oldest entry when full, and
-    // drops entries older than max_pending_command_age (StopPlayback() and mute
-    // are exempt - like Harmony's `release`, they stop/settle something
-    // already happening and stay worth attempting once a connection
-    // exists, however late).
+    // drops entries older than max_pending_command_age. StopPlayback()
+    // and mute are exempt from that staleness drop - like Harmony's
+    // `release`, they settle something already happening on the box, so
+    // an aged-out one is still sent on the next drain rather than
+    // discarded. None of this survives a transport failure mid-drain:
+    // the in-flight batch is not requeued (SendPendingCommands()). Kodi's
+    // push-driven UI re-syncs on the next reconcile, so nothing is left
+    // stuck by a lost command.
     void PlayPause();
     void StopPlayback();
     void SeekPercent(double percent);   // 0..100

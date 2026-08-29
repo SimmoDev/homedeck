@@ -127,8 +127,11 @@ The queue is bounded (drop-oldest when full) and drops entries older
 than `max_pending_command_age`, mirroring
 `HarmonyConnection::pending_commands_`. `StopPlayback()` and mute are
 exempt from the staleness drop - like Harmony's `release`, they settle
-something already happening on the box and stay worth attempting once a
-connection returns.
+something already happening on the box, so an aged-out one is still sent
+on the next drain. A command is still lost if the transport fails while
+its own batch is draining (the batch is not requeued); because Now
+Playing is push-driven, the next reconcile poll re-syncs state, so a
+lost command leaves nothing stuck.
 
 Player-scoped commands (`PlayPause` etc.) can't be built until the loop
 thread resolves the active `playerid`; `SendPendingCommands()` resolves
