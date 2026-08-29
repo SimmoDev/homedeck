@@ -64,15 +64,15 @@ NowPlayingScreen::NowPlayingScreen(EventBus& event_bus, BatteryReader& battery_r
     // skip-track (DevicesScreen maps SkipBackward/SkipForward to them).
     lv_obj_t* transport_row = CreateRow(content_);
 
-    lv_obj_t* rewind_button = add_button(transport_row, "", Action::kSeekBack, LV_PCT(23));
-    SetTransportGlyph(rewind_button, /*pointing_left=*/true);
+    rewind_button_ = add_button(transport_row, "", Action::kSeekBack, LV_PCT(23));
+    SetTransportGlyph(rewind_button_, /*pointing_left=*/true);
 
     lv_obj_t* play_pause_button = add_button(transport_row, LV_SYMBOL_PLAY, Action::kPlayPause, LV_PCT(23));
     play_pause_label_ = lv_obj_get_child(play_pause_button, 0);
     add_button(transport_row, LV_SYMBOL_STOP, Action::kStop, LV_PCT(23));
 
-    lv_obj_t* ff_button = add_button(transport_row, "", Action::kSeekForward, LV_PCT(23));
-    SetTransportGlyph(ff_button, /*pointing_left=*/false);
+    ff_button_ = add_button(transport_row, "", Action::kSeekForward, LV_PCT(23));
+    SetTransportGlyph(ff_button_, /*pointing_left=*/false);
 
     // Mute, then down, then up - matching how Harmony's generic command
     // grid orders Mute / VolumeDown / VolumeUp (and PrevChannel /
@@ -134,6 +134,17 @@ void NowPlayingScreen::Refresh() {
 
     lv_label_set_text(play_pause_label_,
                       np.playback == KodiPlaybackState::kPlaying ? LV_SYMBOL_PAUSE : LV_SYMBOL_PLAY);
+
+    // Some live/add-on sources Kodi can play but not scrub through -
+    // seeking then is a silent no-op on Kodi's own side, so disable
+    // rather than send a command that does nothing.
+    if (np.can_seek) {
+        lv_obj_remove_state(rewind_button_, LV_STATE_DISABLED);
+        lv_obj_remove_state(ff_button_, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_state(rewind_button_, LV_STATE_DISABLED);
+        lv_obj_add_state(ff_button_, LV_STATE_DISABLED);
+    }
 }
 
 void NowPlayingScreen::OnActionClicked(lv_event_t* e) {

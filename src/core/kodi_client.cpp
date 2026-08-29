@@ -454,7 +454,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
     std::optional<std::string> props_text =
         Call("Player.GetProperties",
              R"({"playerid":)" + std::to_string(player_id) +
-                 R"(,"properties":["speed","percentage","time","totaltime"]})",
+                 R"(,"properties":["speed","percentage","time","totaltime","canseek"]})",
              kCallTimeoutMs, stop);
     if (!props_text.has_value()) {
         return false;
@@ -480,6 +480,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
             np.percent = props_result->value("percentage", np.percent);
             np.position_ms = MillisFromTimeObject(props_result->value("time", nlohmann::json::object()));
             np.duration_ms = MillisFromTimeObject(props_result->value("totaltime", nlohmann::json::object()));
+            np.can_seek = props_result->value("canseek", np.can_seek);
         }
 
         // GetItem's identity is only used until a notification supplies

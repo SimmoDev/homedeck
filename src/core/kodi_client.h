@@ -66,6 +66,11 @@ struct KodiNowPlaying {
     long long position_ms = 0;
     long long duration_ms = 0;
     double percent = 0.0;
+    // From Player.GetProperties' own "canseek" - false for some live/add-on
+    // sources Kodi can play but not scrub through. Polled only (no
+    // equivalent field on any Player.On* notification), so it lags behind
+    // position/duration by up to one reconcile cycle; resets to false with
+    // the rest of this struct once playback stops.
     bool can_seek = false;
 };
 

@@ -147,9 +147,14 @@ connection state and, on tap, opens `NowPlayingScreen`.
 on the shared `ScreenChrome` (`src/ui/screens/screen_chrome.h`, factored
 out of Harmony's screens) - has a subtitle, an `lv_bar` progress bar
 with an `m:ss` time label, and transport buttons (seek ±, play/pause,
-stop, volume ±, mute) wired to the `KodiClient` commands. It is fully
-push-driven: every element re-renders from `KodiClient::Snapshot()` on
-each Kodi event, with **no optimistic local state** (unlike
+stop, volume ±, mute) wired to the `KodiClient` commands. The seek
+buttons disable themselves (`LV_STATE_DISABLED`) when
+`KodiNowPlaying::can_seek` is false - `Player.GetProperties`'s own
+`canseek` property, false for some live/add-on sources Kodi can play
+but not scrub through, where a seek command would otherwise be a
+silent no-op. It is fully push-driven: every element re-renders from
+`KodiClient::Snapshot()` on each Kodi event, with **no optimistic
+local state** (unlike
 `ActivitiesScreen`, whose optimistic-status machinery exists only
 because Harmony's IR path gives no confirmation). A "Remote" button
 opens:

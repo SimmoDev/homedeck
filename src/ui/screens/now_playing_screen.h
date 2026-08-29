@@ -47,6 +47,8 @@ private:
     lv_obj_t* progress_bar_;
     lv_obj_t* time_label_;
     lv_obj_t* play_pause_label_;  // flips between the PLAY and PAUSE glyph on Refresh()
+    lv_obj_t* rewind_button_;     // disabled on Refresh() when !now_playing.can_seek
+    lv_obj_t* ff_button_;         // same
 
     EventBus::ScopedSubscription state_sub_;
     EventBus::ScopedSubscription now_playing_sub_;
