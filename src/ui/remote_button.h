@@ -65,4 +65,14 @@ lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, in
 // background colour, and the click handler.
 lv_obj_t* CreateNavChromeButton(lv_obj_t* parent, const char* label_text);
 
+// Replaces a remote button's label with a rewind (`pointing_left`) or
+// fast-forward double-triangle. The bundled symbol font has no such
+// glyph, so it's two `LV_SYMBOL_PLAY` triangles butted together with
+// negative letter spacing; the rewind one is that same label rotated
+// 180 degrees (`fa-play` is vertically symmetric, so it just points
+// left). Call with the button CreateRemoteButton() returned. Used by
+// both NowPlayingScreen's transport row and DevicesScreen's
+// Rewind/FastForward commands so the two modules match.
+void SetTransportGlyph(lv_obj_t* button, bool pointing_left);
+
 }  // namespace homedeck

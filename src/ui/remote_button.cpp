@@ -45,6 +45,23 @@ lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, in
     return button;
 }
 
+void SetTransportGlyph(lv_obj_t* button, bool pointing_left) {
+    lv_obj_t* label = lv_obj_get_child(button, 0);
+    if (label == nullptr) {
+        return;
+    }
+    lv_label_set_text(label, LV_SYMBOL_PLAY LV_SYMBOL_PLAY);
+    // Close the gap between the two triangles so they read as one FF/RW
+    // glyph, without overlapping them into a single blob - tuned by eye
+    // at the body font size (see remote_button.h).
+    lv_obj_set_style_text_letter_space(label, -5, 0);
+    if (pointing_left) {
+        lv_obj_set_style_transform_pivot_x(label, LV_PCT(50), 0);
+        lv_obj_set_style_transform_pivot_y(label, LV_PCT(50), 0);
+        lv_obj_set_style_transform_rotation(label, 1800, 0);  // 0.1deg units -> 180deg
+    }
+}
+
 lv_obj_t* CreateNavChromeButton(lv_obj_t* parent, const char* label_text) {
     lv_obj_t* button = lv_button_create(parent);
     lv_obj_set_style_min_width(button, kMinNavTouchTarget, 0);

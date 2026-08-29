@@ -286,6 +286,12 @@ void DevicesScreen::RenderGenericGrid(lv_obj_t* parent, const std::vector<Harmon
         const char* icon = IconForCommandName(command.name);
         std::string label = icon != nullptr ? std::string(icon) : SplitCamelCase(command.label);
         lv_obj_t* button = CreateRemoteButton(grid, label, kGridButtonWidth);
+        // Rewind/FastForward have no font glyph of their own - draw the
+        // same double-triangle NowPlayingScreen uses, so the two modules
+        // match (see SetTransportGlyph, remote_button.h).
+        if (command.name == "Rewind" || command.name == "FastForward") {
+            SetTransportGlyph(button, command.name == "Rewind");
+        }
         WireCommandButton(button, command.action);
     }
 }

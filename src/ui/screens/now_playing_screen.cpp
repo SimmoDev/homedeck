@@ -59,16 +59,20 @@ NowPlayingScreen::NowPlayingScreen(EventBus& event_bus, BatteryReader& battery_r
     };
 
     // The two outer buttons are a coarse rewind / fast-forward (a
-    // percentage seek). LV_SYMBOL_PREV/NEXT are reserved for genuine
-    // skip-track elsewhere (DevicesScreen maps SkipBackward/SkipForward
-    // to them), and Harmony renders FastForward/Rewind as text rather
-    // than reusing those icons - "<<" / ">>" keeps that consistent.
+    // percentage seek), drawn as a double-triangle by SetTransportGlyph
+    // (remote_button.h). LV_SYMBOL_PREV/NEXT stay reserved for genuine
+    // skip-track (DevicesScreen maps SkipBackward/SkipForward to them).
     lv_obj_t* transport_row = CreateRow(content_);
-    add_button(transport_row, "<<", Action::kSeekBack, LV_PCT(23));
+
+    lv_obj_t* rewind_button = add_button(transport_row, "", Action::kSeekBack, LV_PCT(23));
+    SetTransportGlyph(rewind_button, /*pointing_left=*/true);
+
     lv_obj_t* play_pause_button = add_button(transport_row, LV_SYMBOL_PLAY, Action::kPlayPause, LV_PCT(23));
     play_pause_label_ = lv_obj_get_child(play_pause_button, 0);
     add_button(transport_row, LV_SYMBOL_STOP, Action::kStop, LV_PCT(23));
-    add_button(transport_row, ">>", Action::kSeekForward, LV_PCT(23));
+
+    lv_obj_t* ff_button = add_button(transport_row, "", Action::kSeekForward, LV_PCT(23));
+    SetTransportGlyph(ff_button, /*pointing_left=*/false);
 
     // Mute, then down, then up - matching how Harmony's generic command
     // grid orders Mute / VolumeDown / VolumeUp (and PrevChannel /
