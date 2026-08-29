@@ -58,16 +58,25 @@ NowPlayingScreen::NowPlayingScreen(EventBus& event_bus, BatteryReader& battery_r
         return button;
     };
 
+    // The two outer buttons are a coarse rewind / fast-forward (a
+    // percentage seek). LV_SYMBOL_PREV/NEXT are reserved for genuine
+    // skip-track elsewhere (DevicesScreen maps SkipBackward/SkipForward
+    // to them), and Harmony renders FastForward/Rewind as text rather
+    // than reusing those icons - "<<" / ">>" keeps that consistent.
     lv_obj_t* transport_row = CreateRow(content_);
-    add_button(transport_row, LV_SYMBOL_PREV, Action::kSeekBack, LV_PCT(23));
+    add_button(transport_row, "<<", Action::kSeekBack, LV_PCT(23));
     lv_obj_t* play_pause_button = add_button(transport_row, LV_SYMBOL_PLAY, Action::kPlayPause, LV_PCT(23));
     play_pause_label_ = lv_obj_get_child(play_pause_button, 0);
     add_button(transport_row, LV_SYMBOL_STOP, Action::kStop, LV_PCT(23));
-    add_button(transport_row, LV_SYMBOL_NEXT, Action::kSeekForward, LV_PCT(23));
+    add_button(transport_row, ">>", Action::kSeekForward, LV_PCT(23));
 
+    // Mute, then down, then up - matching how Harmony's generic command
+    // grid orders Mute / VolumeDown / VolumeUp (and PrevChannel /
+    // ChannelDown / ChannelUp): the toggle first, then decrease, then
+    // increase.
     lv_obj_t* volume_row = CreateRow(content_);
-    add_button(volume_row, LV_SYMBOL_MINUS, Action::kVolumeDown, LV_PCT(31));
     add_button(volume_row, LV_SYMBOL_MUTE, Action::kMute, LV_PCT(31));
+    add_button(volume_row, LV_SYMBOL_MINUS, Action::kVolumeDown, LV_PCT(31));
     add_button(volume_row, LV_SYMBOL_PLUS, Action::kVolumeUp, LV_PCT(31));
 
     add_button(content_, "Remote", Action::kOpenRemote, LV_PCT(100));

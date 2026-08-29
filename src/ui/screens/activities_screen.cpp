@@ -35,6 +35,12 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     list_container_ = chrome.content_container;
     lv_obj_t* home_button = chrome.home_button;
 
+    // The floating "Devices" button (created below) is pinned at this
+    // screen's own top offset and is kMinNavTouchTarget tall - inset the
+    // activity list below its footprint so a full-width activity button
+    // never renders under it.
+    lv_obj_set_style_pad_top(list_container_, kMinNavTouchTarget, 0);
+
     status_label_ = CreateChromeStatusLabel(chrome.container);
 
     // A secondary, lighter-weight affordance than the home button/activity
