@@ -494,6 +494,51 @@ TEST_F(KodiClientTest, PlayNotificationPopulatesNowPlayingIdentityAndState) {
     client->Stop();
 }
 
+// Per kodi.md's "Identity vs. timing" (ADR-0030 records the underlying
+// protocol facts): once a Player.On* notification supplies identity, a
+// later reconcile poll's Player.GetItem must not overwrite it - the
+// main reason is add-on playback, where GetItem
+// returns blanks that ApplyItemFields() would already leave alone, so
+// this scripts the poll returning a *different, non-blank* title
+// instead - the only way to prove identity_from_notification_ actually
+// suppresses the overwrite rather than ApplyItemFields' own
+// leave-blank-fields-alone behavior doing it incidentally.
+TEST_F(KodiClientTest, NotificationIdentitySurvivesALaterPollWithADifferentGetItemResult) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);  // GetItem starts as "Some Show" S3E7 (no notification seen yet)
+
+    auto client = MakeClient(script, browser, storage, bus);  // default (fast) reconcile interval
+    client->Start();
+    // ConnectAndPrime's up-front poll has no notification to prefer, so
+    // GetItem's own value is used - confirms the starting state this
+    // test's premise depends on.
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.title == "Some Show"; }));
+
+    Push(script, R"({"jsonrpc":"2.0","method":"Player.OnAVChange","params":{"data":{"item":{"title":"",)"
+                 R"("label":"Add-on Movie","type":"unknown"},"player":{"playerid":1,"speed":1}}}})");
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.title == "Add-on Movie"; }));
+
+    // The next periodic poll's GetItem now returns a different,
+    // non-blank title - if identity_from_notification_ didn't suppress
+    // it, ApplyItemFields() would happily overwrite with this.
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Player.GetItem"] = R"({"item":{"title":"Wrong Title From Poll","type":"movie"}})";
+    }
+    std::this_thread::sleep_for(kFastReconcile * 3);
+    EXPECT_EQ(client->Snapshot().now_playing.title, "Add-on Movie")
+        << "the notification's identity must survive a later poll's differing GetItem result";
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, PauseThenStopNotificationsTrackPlaybackState) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
