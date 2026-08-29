@@ -65,51 +65,51 @@ TEST_F(AdminAuthRoutesTest, FullSetupLoginProtectedRouteLogoutFlow) {
                             auth_->RequireAuth([](const homedeck::HttpRequest&) {
                                 return homedeck::HttpResponse{200, "text/plain", "secret data", {}};
                             }));
-    ASSERT_TRUE(server.Start(18190));
+    ASSERT_TRUE(server.Start(0));
 
     // 1. Status before setup: no password, not authenticated.
-    auto status1 = HttpRequestRaw(18190, "GET", "/api/auth/status", "");
+    auto status1 = HttpRequestRaw(server.BoundPort(), "GET", "/api/auth/status", "");
     EXPECT_EQ(status1.status_code, 200);
     EXPECT_NE(status1.body.find("\"passwordSet\":false"), std::string::npos);
 
     // 2. The protected route refuses before setup, with the specific
     // "setup required" signal, not a generic 401.
-    auto protected_before_setup = HttpRequestRaw(18190, "GET", "/api/test/protected", "");
+    auto protected_before_setup = HttpRequestRaw(server.BoundPort(), "GET", "/api/test/protected", "");
     EXPECT_EQ(protected_before_setup.status_code, 403);
 
     // 3. Setup succeeds and returns a session cookie.
-    auto setup = HttpRequestRaw(18190, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     EXPECT_EQ(setup.status_code, 200);
     ASSERT_FALSE(setup.set_cookie.empty());
     std::string cookie = SessionCookieOnly(setup.set_cookie);
 
     // 4. A second setup attempt is rejected now that one exists.
-    auto second_setup = HttpRequestRaw(18190, "POST", "/api/auth/setup", R"({"password":"something else"})");
+    auto second_setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"something else"})");
     EXPECT_EQ(second_setup.status_code, 409);
 
     // 5. The session from setup already works against the protected route.
-    auto protected_with_session = HttpRequestRaw(18190, "GET", "/api/test/protected", "", cookie);
+    auto protected_with_session = HttpRequestRaw(server.BoundPort(), "GET", "/api/test/protected", "", cookie);
     EXPECT_EQ(protected_with_session.status_code, 200);
     EXPECT_EQ(protected_with_session.body, "secret data");
 
     // 6. Logging in fresh (a separate session) also works against the
     // now-set password.
-    auto login = HttpRequestRaw(18190, "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
+    auto login = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
     EXPECT_EQ(login.status_code, 200);
     ASSERT_FALSE(login.set_cookie.empty());
     std::string login_cookie = SessionCookieOnly(login.set_cookie);
-    auto protected_with_login_session = HttpRequestRaw(18190, "GET", "/api/test/protected", "", login_cookie);
+    auto protected_with_login_session = HttpRequestRaw(server.BoundPort(), "GET", "/api/test/protected", "", login_cookie);
     EXPECT_EQ(protected_with_login_session.status_code, 200);
 
     // 7. Wrong password on login is rejected.
-    auto bad_login = HttpRequestRaw(18190, "POST", "/api/auth/login", R"({"password":"wrong"})");
+    auto bad_login = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/login", R"({"password":"wrong"})");
     EXPECT_EQ(bad_login.status_code, 401);
 
     // 8. Logout invalidates the session - the same cookie no longer
     // reaches the protected route.
-    auto logout = HttpRequestRaw(18190, "POST", "/api/auth/logout", "", cookie);
+    auto logout = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/logout", "", cookie);
     EXPECT_EQ(logout.status_code, 200);
-    auto protected_after_logout = HttpRequestRaw(18190, "GET", "/api/test/protected", "", cookie);
+    auto protected_after_logout = HttpRequestRaw(server.BoundPort(), "GET", "/api/test/protected", "", cookie);
     EXPECT_EQ(protected_after_logout.status_code, 401);
 }
 
@@ -120,18 +120,18 @@ TEST_F(AdminAuthRoutesTest, FullSetupLoginProtectedRouteLogoutFlow) {
 TEST_F(AdminAuthRoutesTest, LoginIsThrottledAfterRepeatedFailures) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    ASSERT_TRUE(server.Start(18191));
+    ASSERT_TRUE(server.Start(0));
 
-    auto setup = HttpRequestRaw(18191, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     ASSERT_EQ(setup.status_code, 200);
 
     for (int i = 0; i < 5; i++) {
-        auto bad_login = HttpRequestRaw(18191, "POST", "/api/auth/login", R"({"password":"wrong"})");
+        auto bad_login = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/login", R"({"password":"wrong"})");
         EXPECT_EQ(bad_login.status_code, 401);
     }
 
     // Locked out now - even the correct password gets 429, not 200.
-    auto locked_out = HttpRequestRaw(18191, "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
+    auto locked_out = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
     EXPECT_EQ(locked_out.status_code, 429);
     EXPECT_NE(locked_out.body.find("too_many_attempts"), std::string::npos);
 }
@@ -139,9 +139,9 @@ TEST_F(AdminAuthRoutesTest, LoginIsThrottledAfterRepeatedFailures) {
 TEST_F(AdminAuthRoutesTest, SetupRejectsPasswordUnderMinimumLength) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    ASSERT_TRUE(server.Start(18192));
+    ASSERT_TRUE(server.Start(0));
 
-    auto setup = HttpRequestRaw(18192, "POST", "/api/auth/setup", R"({"password":"short"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"short"})");
     EXPECT_EQ(setup.status_code, 400);
     EXPECT_NE(setup.body.find("password_too_short"), std::string::npos);
     EXPECT_FALSE(auth_->IsPasswordSet());
@@ -150,10 +150,10 @@ TEST_F(AdminAuthRoutesTest, SetupRejectsPasswordUnderMinimumLength) {
 TEST_F(AdminAuthRoutesTest, SetupRejectsPasswordOverMaximumLength) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    ASSERT_TRUE(server.Start(18196));
+    ASSERT_TRUE(server.Start(0));
 
     std::string oversized_password(257, 'a');
-    auto setup = HttpRequestRaw(18196, "POST", "/api/auth/setup",
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup",
                                  R"({"password":")" + oversized_password + R"("})");
     EXPECT_EQ(setup.status_code, 400);
     EXPECT_NE(setup.body.find("password_too_long"), std::string::npos);
@@ -163,20 +163,20 @@ TEST_F(AdminAuthRoutesTest, SetupRejectsPasswordOverMaximumLength) {
 TEST_F(AdminAuthRoutesTest, LoginRejectsPasswordOverMaximumLengthWithoutCountingAsAFailedAttempt) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
-    ASSERT_TRUE(server.Start(18197));
+    ASSERT_TRUE(server.Start(0));
 
-    auto setup = HttpRequestRaw(18197, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     ASSERT_EQ(setup.status_code, 200);
 
     std::string oversized_password(257, 'a');
-    auto oversized_login = HttpRequestRaw(18197, "POST", "/api/auth/login",
+    auto oversized_login = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/login",
                                            R"({"password":")" + oversized_password + R"("})");
     EXPECT_EQ(oversized_login.status_code, 400);
     EXPECT_NE(oversized_login.body.find("password_too_long"), std::string::npos);
 
     // The real password still logs in cleanly afterward - the oversized
     // attempt above must not have counted against kMaxFailedLoginAttempts.
-    auto real_login = HttpRequestRaw(18197, "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
+    auto real_login = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/login", R"({"password":"correct horse battery"})");
     EXPECT_EQ(real_login.status_code, 200);
 }
 
@@ -194,9 +194,9 @@ TEST_F(AdminAuthRoutesTest, SetupReturns500WhenStorageWriteFailsWithPasswordStil
 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, failing_auth);
-    ASSERT_TRUE(server.Start(18193));
+    ASSERT_TRUE(server.Start(0));
 
-    auto setup = HttpRequestRaw(18193, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     EXPECT_EQ(setup.status_code, 500);
     EXPECT_NE(setup.body.find("storage_write_failed"), std::string::npos);
     EXPECT_FALSE(failing_auth.IsPasswordSet());

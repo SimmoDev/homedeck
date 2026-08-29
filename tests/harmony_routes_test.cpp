@@ -136,26 +136,26 @@ TEST_F(HarmonyRoutesTest, BothEndpointsRequireAuthentication) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterHarmonyRoutes(server, *harmony_connection_, *auth_);
-    ASSERT_TRUE(server.Start(18330));
+    ASSERT_TRUE(server.Start(0));
 
-    EXPECT_EQ(HttpRequestRaw(18330, "GET", "/api/harmony/status", "").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18330, "POST", "/api/harmony/reconnect", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/harmony/status", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/harmony/reconnect", "").status_code, 403);
 
-    auto setup = HttpRequestRaw(18330, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     ASSERT_EQ(setup.status_code, 200);
 
-    EXPECT_EQ(HttpRequestRaw(18330, "GET", "/api/harmony/status", "").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18330, "POST", "/api/harmony/reconnect", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/harmony/status", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/harmony/reconnect", "").status_code, 401);
 }
 
 TEST_F(HarmonyRoutesTest, StatusReportsDisconnectedWithNoConfigBeforeAnyHubIsConfigured) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterHarmonyRoutes(server, *harmony_connection_, *auth_);
-    ASSERT_TRUE(server.Start(18331));
-    std::string cookie = Login(18331);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18331, "GET", "/api/harmony/status", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/harmony/status", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("state":"disconnected")"), std::string::npos);
     EXPECT_NE(result.body.find(R"("hasConfig":false)"), std::string::npos);
@@ -178,10 +178,10 @@ TEST_F(HarmonyRoutesTest, StatusReportsPopulatedSnapshotOnceConnected) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterHarmonyRoutes(server, connected_connection, *auth_);
-    ASSERT_TRUE(server.Start(18333));
-    std::string cookie = Login(18333);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18333, "GET", "/api/harmony/status", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/harmony/status", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("state":"connected")"), std::string::npos);
     EXPECT_NE(result.body.find(R"("hasConfig":true)"), std::string::npos);
@@ -196,9 +196,9 @@ TEST_F(HarmonyRoutesTest, ReconnectReturnsOk) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterHarmonyRoutes(server, *harmony_connection_, *auth_);
-    ASSERT_TRUE(server.Start(18332));
-    std::string cookie = Login(18332);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18332, "POST", "/api/harmony/reconnect", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "POST", "/api/harmony/reconnect", "", cookie);
     EXPECT_EQ(result.status_code, 200);
 }

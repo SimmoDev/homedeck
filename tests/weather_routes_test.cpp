@@ -110,26 +110,26 @@ TEST_F(WeatherRoutesTest, BothEndpointsRequireAuthentication) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18310));
+    ASSERT_TRUE(server.Start(0));
 
-    EXPECT_EQ(HttpRequestRaw(18310, "GET", "/api/weather/geocode?query=Berlin", "").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18310, "POST", "/api/weather/refresh", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/weather/refresh", "").status_code, 403);
 
-    auto setup = HttpRequestRaw(18310, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     ASSERT_EQ(setup.status_code, 200);
 
-    EXPECT_EQ(HttpRequestRaw(18310, "GET", "/api/weather/geocode?query=Berlin", "").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18310, "POST", "/api/weather/refresh", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/weather/refresh", "").status_code, 401);
 }
 
 TEST_F(WeatherRoutesTest, GeocodeRejectsMissingQueryParam) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18311));
-    std::string cookie = Login(18311);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18311, "GET", "/api/weather/geocode", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode", "", cookie);
     EXPECT_EQ(result.status_code, 400);
     EXPECT_NE(result.body.find(R"("field":"query")"), std::string::npos);
 }
@@ -138,11 +138,11 @@ TEST_F(WeatherRoutesTest, GeocodeRejectsAnOversizedQuery) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18319));
-    std::string cookie = Login(18319);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     std::string oversized_query(101, 'a');
-    auto result = HttpRequestRaw(18319, "GET", "/api/weather/geocode?query=" + oversized_query, "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=" + oversized_query, "", cookie);
     EXPECT_EQ(result.status_code, 400);
     EXPECT_NE(result.body.find("query_too_long"), std::string::npos);
 }
@@ -159,10 +159,10 @@ TEST_F(WeatherRoutesTest, GeocodeParsesUpstreamResultsAndSkipsIncompleteEntries)
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18312));
-    std::string cookie = Login(18312);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18312, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("name":"Berlin")"), std::string::npos);
     EXPECT_EQ(result.body.find("Incomplete"), std::string::npos);
@@ -183,10 +183,10 @@ TEST_F(WeatherRoutesTest, GeocodeSkipsEntriesWithNonNumericLatitudeOrLongitude) 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18320));
-    std::string cookie = Login(18320);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18320, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("name":"Berlin")"), std::string::npos);
     EXPECT_EQ(result.body.find("WrongType"), std::string::npos);
@@ -207,10 +207,10 @@ TEST_F(WeatherRoutesTest, GeocodeSkipsEntriesWithNonStringName) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18321));
-    std::string cookie = Login(18321);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18321, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("name":"Berlin")"), std::string::npos);
     EXPECT_EQ(result.body.find(R"("latitude":1.0)"), std::string::npos);
@@ -229,10 +229,10 @@ TEST_F(WeatherRoutesTest, GeocodeDefaultsAdmin1AndCountryToEmptyWhenWrongTyped) 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18322));
-    std::string cookie = Login(18322);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18322, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("name":"Berlin")"), std::string::npos);
     EXPECT_NE(result.body.find(R"("admin1":"")"), std::string::npos);
@@ -243,8 +243,8 @@ TEST_F(WeatherRoutesTest, GeocodeUrlEncodesTheQueryBeforeForwarding) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18313));
-    std::string cookie = Login(18313);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     geocode_http_client_.SetResponse(homedeck::HttpClientResponse{true, 200, R"({"results":[]})"});
     // "New York" contains a space - must be percent-encoded (or at
@@ -254,7 +254,7 @@ TEST_F(WeatherRoutesTest, GeocodeUrlEncodesTheQueryBeforeForwarding) {
     // successfully with a query containing reserved characters; the
     // FakeHttpClient doesn't capture the outbound URL to inspect
     // directly.
-    auto result = HttpRequestRaw(18313, "GET", "/api/weather/geocode?query=New%20York", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=New%20York", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_EQ(geocode_http_client_.GetCount(), 1);
 }
@@ -265,10 +265,10 @@ TEST_F(WeatherRoutesTest, GeocodeReturns502WhenUpstreamRequestFails) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18314));
-    std::string cookie = Login(18314);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18314, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 502);
     EXPECT_NE(result.body.find("upstream_failed"), std::string::npos);
 }
@@ -279,10 +279,10 @@ TEST_F(WeatherRoutesTest, GeocodeReturns502OnNon200UpstreamStatus) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18315));
-    std::string cookie = Login(18315);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18315, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 502);
     EXPECT_NE(result.body.find("upstream_failed"), std::string::npos);
 }
@@ -293,10 +293,10 @@ TEST_F(WeatherRoutesTest, GeocodeReturns502OnMalformedUpstreamJson) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18316));
-    std::string cookie = Login(18316);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18316, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 502);
     EXPECT_NE(result.body.find("upstream_invalid_response"), std::string::npos);
 }
@@ -310,10 +310,10 @@ TEST_F(WeatherRoutesTest, GeocodeReturns502OnExcessivelyNestedUpstreamJson) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18320));
-    std::string cookie = Login(18320);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18320, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 502);
     EXPECT_NE(result.body.find("upstream_invalid_response"), std::string::npos);
 }
@@ -324,10 +324,10 @@ TEST_F(WeatherRoutesTest, GeocodeReturnsEmptyResultsWhenUpstreamOmitsResultsKey)
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18317));
-    std::string cookie = Login(18317);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18317, "GET", "/api/weather/geocode?query=Berlin", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/weather/geocode?query=Berlin", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_EQ(result.body, R"({"results":[]})");
 }
@@ -344,11 +344,11 @@ TEST_F(WeatherRoutesTest, RefreshTriggersAnImmediatePoll) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWeatherRoutes(server, geocode_http_client_, *weather_provider_, *auth_);
-    ASSERT_TRUE(server.Start(18318));
-    std::string cookie = Login(18318);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     int count_before = geocode_http_client_.GetCount();
-    auto result = HttpRequestRaw(18318, "POST", "/api/weather/refresh", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "POST", "/api/weather/refresh", "", cookie);
     EXPECT_EQ(result.status_code, 200);
 
     for (int i = 0; i < 200 && geocode_http_client_.GetCount() == count_before; ++i) {

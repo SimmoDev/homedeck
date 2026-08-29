@@ -83,20 +83,20 @@ TEST_F(OtaRoutesTest, AllThreeEndpointsRequireAuthentication) {
     bool rebooted = false;
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true),
                                  [&rebooted]() { rebooted = true; });
-    ASSERT_TRUE(server.Start(18201));
+    ASSERT_TRUE(server.Start(0));
 
     // No password set yet - 403 setup_required, matching diagnostics_routes_test.cpp's precedent.
-    EXPECT_EQ(HttpRequestRaw(18201, "GET", "/api/ota/status", "").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18201, "POST", "/api/ota/upload", "x").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18201, "POST", "/api/ota/reboot", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/ota/status", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "x").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/reboot", "").status_code, 403);
 
-    auto setup = HttpRequestRaw(18201, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     ASSERT_EQ(setup.status_code, 200);
 
     // Password set, but no session cookie - 401.
-    EXPECT_EQ(HttpRequestRaw(18201, "GET", "/api/ota/status", "").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18201, "POST", "/api/ota/upload", "x").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18201, "POST", "/api/ota/reboot", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/ota/status", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "x").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/reboot", "").status_code, 401);
     EXPECT_FALSE(rebooted);
 }
 
@@ -107,10 +107,10 @@ TEST_F(OtaRoutesTest, StatusReflectsBatteryGateAndVersion) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
-    ASSERT_TRUE(server.Start(18202));
-    std::string cookie = Login(18202);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto status = HttpRequestRaw(18202, "GET", "/api/ota/status", "", cookie);
+    auto status = HttpRequestRaw(server.BoundPort(), "GET", "/api/ota/status", "", cookie);
     EXPECT_EQ(status.status_code, 200);
     EXPECT_NE(status.body.find("\"batteryPercent\":50"), std::string::npos);
     EXPECT_NE(status.body.find("\"externalPowerConnected\":false"), std::string::npos);
@@ -127,10 +127,10 @@ TEST_F(OtaRoutesTest, UploadRejectedWithReasonWhenGateClosed) {
     std::string written_image;
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_,
                                  MakeWriter(1024, true, &written_image), []() {});
-    ASSERT_TRUE(server.Start(18203));
-    std::string cookie = Login(18203);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto upload = HttpRequestRaw(18203, "POST", "/api/ota/upload", "firmware bytes", cookie);
+    auto upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "firmware bytes", cookie);
     EXPECT_EQ(upload.status_code, 403);
     EXPECT_NE(upload.body.find("gate_closed"), std::string::npos);
     EXPECT_TRUE(written_image.empty());
@@ -144,10 +144,10 @@ TEST_F(OtaRoutesTest, UploadRejectedWhenLargerThanMaxImageSize) {
     std::string written_image;
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_,
                                  MakeWriter(4, true, &written_image), []() {});
-    ASSERT_TRUE(server.Start(18204));
-    std::string cookie = Login(18204);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto upload = HttpRequestRaw(18204, "POST", "/api/ota/upload", "this image is too large", cookie);
+    auto upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "this image is too large", cookie);
     EXPECT_EQ(upload.status_code, 400);
     EXPECT_TRUE(written_image.empty());
 }
@@ -160,10 +160,10 @@ TEST_F(OtaRoutesTest, UploadSucceedsAgainstASmallFakeImageWhenGateOpen) {
     std::string written_image;
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_,
                                  MakeWriter(1024, true, &written_image), []() {});
-    ASSERT_TRUE(server.Start(18205));
-    std::string cookie = Login(18205);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto upload = HttpRequestRaw(18205, "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
+    auto upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
     EXPECT_EQ(upload.status_code, 200);
     EXPECT_EQ(written_image, "fake firmware image bytes");
 }
@@ -174,10 +174,10 @@ TEST_F(OtaRoutesTest, UploadReturns500WhenWriteFails) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, false), []() {});
-    ASSERT_TRUE(server.Start(18206));
-    std::string cookie = Login(18206);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto upload = HttpRequestRaw(18206, "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
+    auto upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
     EXPECT_EQ(upload.status_code, 500);
 }
 
@@ -188,13 +188,13 @@ TEST_F(OtaRoutesTest, ExternalPowerOpensGateEvenAtLowBattery) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
-    ASSERT_TRUE(server.Start(18207));
-    std::string cookie = Login(18207);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto status = HttpRequestRaw(18207, "GET", "/api/ota/status", "", cookie);
+    auto status = HttpRequestRaw(server.BoundPort(), "GET", "/api/ota/status", "", cookie);
     EXPECT_NE(status.body.find("\"gateOpen\":true"), std::string::npos);
 
-    auto upload = HttpRequestRaw(18207, "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
+    auto upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
     EXPECT_EQ(upload.status_code, 200);
 }
 
@@ -206,10 +206,10 @@ TEST_F(OtaRoutesTest, RebootCallsTheInjectedRebootFunction) {
     bool rebooted = false;
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true),
                                  [&rebooted]() { rebooted = true; });
-    ASSERT_TRUE(server.Start(18208));
-    std::string cookie = Login(18208);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto reboot = HttpRequestRaw(18208, "POST", "/api/ota/reboot", "", cookie);
+    auto reboot = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/reboot", "", cookie);
     EXPECT_EQ(reboot.status_code, 200);
     EXPECT_TRUE(rebooted);
 }
@@ -224,10 +224,10 @@ TEST_F(OtaRoutesTest, SuccessfulUploadPublishesInProgressThenFinished) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
-    ASSERT_TRUE(server.Start(18209));
-    std::string cookie = Login(18209);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto upload = HttpRequestRaw(18209, "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
+    auto upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
     EXPECT_EQ(upload.status_code, 200);
     ASSERT_EQ(events.size(), 2u);
     EXPECT_TRUE(events[0]);
@@ -244,10 +244,10 @@ TEST_F(OtaRoutesTest, FailedWriteStillPublishesFinishedNotLeftStuckInProgress) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, false), []() {});
-    ASSERT_TRUE(server.Start(18210));
-    std::string cookie = Login(18210);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto upload = HttpRequestRaw(18210, "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
+    auto upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "fake firmware image bytes", cookie);
     EXPECT_EQ(upload.status_code, 500);
     ASSERT_EQ(events.size(), 2u);
     EXPECT_TRUE(events[0]);
@@ -265,10 +265,10 @@ TEST_F(OtaRoutesTest, GateClosedRejectionPublishesNeitherEvent) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, MakeWriter(1024, true), []() {});
-    ASSERT_TRUE(server.Start(18211));
-    std::string cookie = Login(18211);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto upload = HttpRequestRaw(18211, "POST", "/api/ota/upload", "firmware bytes", cookie);
+    auto upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "firmware bytes", cookie);
     EXPECT_EQ(upload.status_code, 403);
     EXPECT_EQ(event_count, 0);
 }
@@ -304,11 +304,11 @@ TEST_F(OtaRoutesTest, ConcurrentUploadIsRejectedRatherThanRacingTheFirst) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterOtaRoutes(server, event_bus_, *auth_, battery_reader_, writer, []() {});
-    ASSERT_TRUE(server.Start(18212));
-    std::string cookie = Login(18212);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     std::thread first_upload([&] {
-        auto result = HttpRequestRaw(18212, "POST", "/api/ota/upload", "first image", cookie);
+        auto result = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "first image", cookie);
         EXPECT_EQ(result.status_code, 200);
     });
 
@@ -317,7 +317,7 @@ TEST_F(OtaRoutesTest, ConcurrentUploadIsRejectedRatherThanRacingTheFirst) {
         started_cv.wait(lock, [&] { return write_started; });
     }
 
-    auto second_upload = HttpRequestRaw(18212, "POST", "/api/ota/upload", "second image", cookie);
+    auto second_upload = HttpRequestRaw(server.BoundPort(), "POST", "/api/ota/upload", "second image", cookie);
     EXPECT_EQ(second_upload.status_code, 409);
     EXPECT_NE(second_upload.body.find("upload_in_progress"), std::string::npos);
 

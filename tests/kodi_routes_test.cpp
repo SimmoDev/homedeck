@@ -128,16 +128,16 @@ TEST_F(KodiRoutesTest, BothEndpointsRequireAuthentication) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterKodiRoutes(server, *client, *auth_);
-    ASSERT_TRUE(server.Start(18360));
+    ASSERT_TRUE(server.Start(0));
 
-    EXPECT_EQ(HttpRequestRaw(18360, "GET", "/api/kodi/status", "").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18360, "POST", "/api/kodi/reconnect", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/kodi/reconnect", "").status_code, 403);
 
-    ASSERT_EQ(HttpRequestRaw(18360, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})").status_code,
+    ASSERT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})").status_code,
               200);
 
-    EXPECT_EQ(HttpRequestRaw(18360, "GET", "/api/kodi/status", "").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18360, "POST", "/api/kodi/reconnect", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/kodi/reconnect", "").status_code, 401);
 }
 
 TEST_F(KodiRoutesTest, StatusReportsDisconnectedBeforeAnyInstanceIsConfigured) {
@@ -145,10 +145,10 @@ TEST_F(KodiRoutesTest, StatusReportsDisconnectedBeforeAnyInstanceIsConfigured) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterKodiRoutes(server, *client, *auth_);
-    ASSERT_TRUE(server.Start(18361));
-    std::string cookie = Login(18361);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18361, "GET", "/api/kodi/status", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("state":"disconnected")"), std::string::npos);
     EXPECT_NE(result.body.find(R"("hasStatus":false)"), std::string::npos);
@@ -164,10 +164,10 @@ TEST_F(KodiRoutesTest, StatusReportsPopulatedSnapshotOnceConnected) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterKodiRoutes(server, *client, *auth_);
-    ASSERT_TRUE(server.Start(18362));
-    std::string cookie = Login(18362);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto result = HttpRequestRaw(18362, "GET", "/api/kodi/status", "", cookie);
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("state":"connected")"), std::string::npos);
     EXPECT_NE(result.body.find(R"("resolvedHost":"127.0.0.1")"), std::string::npos);
@@ -182,8 +182,8 @@ TEST_F(KodiRoutesTest, ReconnectReturnsOk) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterKodiRoutes(server, *client, *auth_);
-    ASSERT_TRUE(server.Start(18363));
-    std::string cookie = Login(18363);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    EXPECT_EQ(HttpRequestRaw(18363, "POST", "/api/kodi/reconnect", "", cookie).status_code, 200);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/kodi/reconnect", "", cookie).status_code, 200);
 }

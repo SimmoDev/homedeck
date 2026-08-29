@@ -75,37 +75,37 @@ TEST_F(SettingsRoutesTest, AllFiveEndpointsRequireAuthentication) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18210));
+    ASSERT_TRUE(server.Start(0));
 
-    EXPECT_EQ(HttpRequestRaw(18210, "GET", "/api/settings", "").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18210, "POST", "/api/settings", "{}").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18210, "POST", "/api/settings/erase", "{}").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18210, "GET", "/api/backup", "").status_code, 403);
-    EXPECT_EQ(HttpRequestRaw(18210, "POST", "/api/backup/restore", "{}").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/settings", "{}").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/settings/erase", "{}").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/backup", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/backup/restore", "{}").status_code, 403);
 
-    auto setup = HttpRequestRaw(18210, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     ASSERT_EQ(setup.status_code, 200);
 
-    EXPECT_EQ(HttpRequestRaw(18210, "GET", "/api/settings", "").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18210, "POST", "/api/settings", "{}").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18210, "POST", "/api/settings/erase", "{}").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18210, "GET", "/api/backup", "").status_code, 401);
-    EXPECT_EQ(HttpRequestRaw(18210, "POST", "/api/backup/restore", "{}").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/settings", "{}").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/settings/erase", "{}").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "GET", "/api/backup", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/backup/restore", "{}").status_code, 401);
 }
 
 TEST_F(SettingsRoutesTest, SetThenGetRoundTrips) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18211));
-    std::string cookie = Login(18211);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto post = HttpRequestRaw(18211, "POST", "/api/settings",
+    auto post = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                                 R"({"module":"harmony","key":"hub_ip","value":"10.0.0.5","schemaVersion":1})",
                                 cookie);
     EXPECT_EQ(post.status_code, 200);
 
-    auto get = HttpRequestRaw(18211, "GET", "/api/settings", "", cookie);
+    auto get = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
     EXPECT_EQ(get.status_code, 200);
     EXPECT_NE(get.body.find(R"("module":"harmony")"), std::string::npos);
     EXPECT_NE(get.body.find(R"("key":"hub_ip")"), std::string::npos);
@@ -117,10 +117,10 @@ TEST_F(SettingsRoutesTest, PostSettingsRejectsMissingFields) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18212));
-    std::string cookie = Login(18212);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto missing_key = HttpRequestRaw(18212, "POST", "/api/settings",
+    auto missing_key = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                                        R"({"module":"harmony","value":"x","schemaVersion":1})", cookie);
     EXPECT_EQ(missing_key.status_code, 400);
     EXPECT_NE(missing_key.body.find(R"("field":"key")"), std::string::npos);
@@ -130,11 +130,11 @@ TEST_F(SettingsRoutesTest, PostSettingsRejectsOversizedModuleOrKey) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18213));
-    std::string cookie = Login(18213);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     auto post = HttpRequestRaw(
-        18213, "POST", "/api/settings",
+        server.BoundPort(), "POST", "/api/settings",
         R"({"module":"harmony","key":"this_key_is_way_too_long_for_nvs","value":"x","schemaVersion":1})", cookie);
     EXPECT_EQ(post.status_code, 400);
     EXPECT_NE(post.body.find("invalid_key"), std::string::npos);
@@ -144,13 +144,13 @@ TEST_F(SettingsRoutesTest, PostSettingsRejectsAValueOverTheLengthCap) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18220));
-    std::string cookie = Login(18220);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     // kMaxSettingValueLength (4096, settings_routes.cpp) - one byte over.
     std::string oversized_value(4097, 'x');
     nlohmann::json body = {{"module", "harmony"}, {"key", "note"}, {"value", oversized_value}, {"schemaVersion", 1}};
-    auto post = HttpRequestRaw(18220, "POST", "/api/settings", body.dump(), cookie);
+    auto post = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings", body.dump(), cookie);
     EXPECT_EQ(post.status_code, 400);
     EXPECT_NE(post.body.find("value_too_long"), std::string::npos);
 
@@ -161,10 +161,10 @@ TEST_F(SettingsRoutesTest, PostSettingsRejectsPathTraversalInModuleOrKey) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18218));
-    std::string cookie = Login(18218);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto post = HttpRequestRaw(18218, "POST", "/api/settings",
+    auto post = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                                 R"({"module":"..","key":"../../secrets","value":"x","schemaVersion":1})", cookie);
     EXPECT_EQ(post.status_code, 400);
     EXPECT_NE(post.body.find("invalid_key"), std::string::npos);
@@ -178,16 +178,16 @@ TEST_F(SettingsRoutesTest, EraseRemovesAKey) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18214));
-    std::string cookie = Login(18214);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    HttpRequestRaw(18214, "POST", "/api/settings",
+    HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                     R"({"module":"harmony","key":"hub_ip","value":"10.0.0.5","schemaVersion":1})", cookie);
     auto erase =
-        HttpRequestRaw(18214, "POST", "/api/settings/erase", R"({"module":"harmony","key":"hub_ip"})", cookie);
+        HttpRequestRaw(server.BoundPort(), "POST", "/api/settings/erase", R"({"module":"harmony","key":"hub_ip"})", cookie);
     EXPECT_EQ(erase.status_code, 200);
 
-    auto get = HttpRequestRaw(18214, "GET", "/api/settings", "", cookie);
+    auto get = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
     EXPECT_EQ(get.body, "[]");
 }
 
@@ -200,8 +200,8 @@ TEST_F(SettingsRoutesTest, ReservedAdminPasswordKeyIsRejectedAndNeverExposed) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18215));
-    std::string cookie = Login(18215);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     // The real password hash Login() just set, via the legitimate
     // SecretStore path - this must be unchanged by everything below.
@@ -210,24 +210,24 @@ TEST_F(SettingsRoutesTest, ReservedAdminPasswordKeyIsRejectedAndNeverExposed) {
     ASSERT_TRUE(original_hash.has_value());
 
     auto post =
-        HttpRequestRaw(18215, "POST", "/api/settings",
+        HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                         R"({"module":"core","key":"admin_pw_hash","value":"clobbered","schemaVersion":1})", cookie);
     EXPECT_EQ(post.status_code, 403);
     EXPECT_NE(post.body.find("reserved_key"), std::string::npos);
 
     auto erase =
-        HttpRequestRaw(18215, "POST", "/api/settings/erase", R"({"module":"core","key":"admin_pw_hash"})", cookie);
+        HttpRequestRaw(server.BoundPort(), "POST", "/api/settings/erase", R"({"module":"core","key":"admin_pw_hash"})", cookie);
     EXPECT_EQ(erase.status_code, 403);
     EXPECT_NE(erase.body.find("reserved_key"), std::string::npos);
 
-    auto get_settings = HttpRequestRaw(18215, "GET", "/api/settings", "", cookie);
+    auto get_settings = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
     EXPECT_EQ(get_settings.body.find("admin_pw_hash"), std::string::npos);
 
-    auto get_backup = HttpRequestRaw(18215, "GET", "/api/backup", "", cookie);
+    auto get_backup = HttpRequestRaw(server.BoundPort(), "GET", "/api/backup", "", cookie);
     EXPECT_EQ(get_backup.body.find("admin_pw_hash"), std::string::npos);
 
     auto restore = HttpRequestRaw(
-        18215, "POST", "/api/backup/restore",
+        server.BoundPort(), "POST", "/api/backup/restore",
         R"({"settings":[{"module":"core","key":"admin_pw_hash","value":"clobbered-via-restore","schemaVersion":1}]})",
         cookie);
     EXPECT_EQ(restore.status_code, 200);
@@ -249,17 +249,17 @@ TEST_F(SettingsRoutesTest, RestoreReplaysEntriesAndReportsFailures) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
-    ASSERT_TRUE(server.Start(18216));
-    std::string cookie = Login(18216);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     auto restore =
-        HttpRequestRaw(18216, "POST", "/api/backup/restore",
+        HttpRequestRaw(server.BoundPort(), "POST", "/api/backup/restore",
                         R"({"settings":[{"module":"harmony","key":"hub_ip","value":"10.0.0.5","schemaVersion":1}]})",
                         cookie);
     EXPECT_EQ(restore.status_code, 200);
     EXPECT_NE(restore.body.find(R"("applied":1)"), std::string::npos);
 
-    auto get = HttpRequestRaw(18216, "GET", "/api/settings", "", cookie);
+    auto get = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
     EXPECT_NE(get.body.find(R"("value":"10.0.0.5")"), std::string::npos);
 }
 
@@ -275,18 +275,18 @@ TEST_F(SettingsRoutesTest, DeviceNameValidateCallbackCanReject) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, on_device_name_validate, on_device_name_committed);
-    ASSERT_TRUE(server.Start(18217));
-    std::string cookie = Login(18217);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     auto accepted = HttpRequestRaw(
-        18217, "POST", "/api/settings",
+        server.BoundPort(), "POST", "/api/settings",
         R"({"module":"core","key":"device_name","value":"living-room","schemaVersion":1})", cookie);
     EXPECT_EQ(accepted.status_code, 200);
     ASSERT_EQ(committed_values.size(), 1u);
     EXPECT_EQ(committed_values[0], "living-room");
 
     auto rejected =
-        HttpRequestRaw(18217, "POST", "/api/settings",
+        HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                         R"({"module":"core","key":"device_name","value":"reject-me","schemaVersion":1})", cookie);
     EXPECT_EQ(rejected.status_code, 400);
     // Rejected before ever reaching Storage - the committed callback must
@@ -295,7 +295,7 @@ TEST_F(SettingsRoutesTest, DeviceNameValidateCallbackCanReject) {
 
     // The rejected value must not have been persisted - the accepted
     // one from before should still be the current value.
-    auto get = HttpRequestRaw(18217, "GET", "/api/settings", "", cookie);
+    auto get = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
     EXPECT_NE(get.body.find(R"("value":"living-room")"), std::string::npos);
     EXPECT_EQ(get.body.find("reject-me"), std::string::npos);
 }
@@ -309,30 +309,30 @@ TEST_F(SettingsRoutesTest, SettingValidateCallbackCanRejectAModulesOwnKey) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, nullptr, nullptr, on_setting_validate);
-    ASSERT_TRUE(server.Start(18221));
-    std::string cookie = Login(18221);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     auto accepted =
-        HttpRequestRaw(18221, "POST", "/api/settings",
+        HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                         R"({"module":"harmony","key":"hub_host","value":"10.0.0.5","schemaVersion":1})", cookie);
     EXPECT_EQ(accepted.status_code, 200);
 
     auto rejected = HttpRequestRaw(
-        18221, "POST", "/api/settings",
+        server.BoundPort(), "POST", "/api/settings",
         R"({"module":"harmony","key":"hub_host","value":"http://reject-me","schemaVersion":1})", cookie);
     EXPECT_EQ(rejected.status_code, 400);
     EXPECT_NE(rejected.body.find("invalid_value"), std::string::npos);
 
     // A different module/key untouched by the callback's own condition
     // must still pass through unaffected.
-    auto unrelated = HttpRequestRaw(18221, "POST", "/api/settings",
+    auto unrelated = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                                      R"({"module":"weather","key":"latitude","value":"51.5","schemaVersion":1})",
                                      cookie);
     EXPECT_EQ(unrelated.status_code, 200);
 
     // The rejected value must not have been persisted - the accepted
     // one from before should still be the current value.
-    auto get = HttpRequestRaw(18221, "GET", "/api/settings", "", cookie);
+    auto get = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
     EXPECT_NE(get.body.find(R"("value":"10.0.0.5")"), std::string::npos);
     EXPECT_EQ(get.body.find("reject-me"), std::string::npos);
 }
@@ -351,11 +351,11 @@ TEST_F(SettingsRoutesTest, RestoreRejectsAnEntryFailingOnSettingValidate) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, nullptr, nullptr, on_setting_validate);
-    ASSERT_TRUE(server.Start(18222));
-    std::string cookie = Login(18222);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
     auto restore = HttpRequestRaw(
-        18222, "POST", "/api/backup/restore",
+        server.BoundPort(), "POST", "/api/backup/restore",
         R"({"settings":[{"module":"harmony","key":"hub_host","value":"realhost#fragment","schemaVersion":1},)"
         R"({"module":"weather","key":"latitude","value":"51.5","schemaVersion":1}]})",
         cookie);
@@ -364,7 +364,7 @@ TEST_F(SettingsRoutesTest, RestoreRejectsAnEntryFailingOnSettingValidate) {
     EXPECT_NE(restore.body.find(R"("rejected":[{"key":"hub_host","module":"harmony"}])"), std::string::npos);
 
     // The rejected value must not have been persisted at all.
-    auto get = HttpRequestRaw(18222, "GET", "/api/settings", "", cookie);
+    auto get = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
     EXPECT_EQ(get.body.find("hub_host"), std::string::npos);
     EXPECT_NE(get.body.find(R"("value":"51.5")"), std::string::npos);
 }
@@ -384,12 +384,12 @@ TEST_F(SettingsRoutesTest, DeviceNameCommittedCallbackDoesNotFireWhenTheStorageW
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, failing_auth);
     homedeck::RegisterSettingsRoutes(server, failing_storage, failing_auth, nullptr, on_device_name_committed);
-    ASSERT_TRUE(server.Start(18299));
-    auto setup = HttpRequestRaw(18299, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    ASSERT_TRUE(server.Start(0));
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     std::string cookie = SessionCookieOnly(setup.set_cookie);
 
     auto result = HttpRequestRaw(
-        18299, "POST", "/api/settings",
+        server.BoundPort(), "POST", "/api/settings",
         R"({"module":"core","key":"device_name","value":"living-room","schemaVersion":1})", cookie);
     EXPECT_EQ(result.status_code, 500);
     EXPECT_FALSE(committed_fired);
@@ -405,11 +405,11 @@ TEST_F(SettingsRoutesTest, PostSettingsReturns500WhenTheStorageWriteFails) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, failing_auth);
     homedeck::RegisterSettingsRoutes(server, failing_storage, failing_auth);
-    ASSERT_TRUE(server.Start(18219));
-    auto setup = HttpRequestRaw(18219, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    ASSERT_TRUE(server.Start(0));
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     std::string cookie = SessionCookieOnly(setup.set_cookie);
 
-    auto result = HttpRequestRaw(18219, "POST", "/api/settings",
+    auto result = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
                                   R"({"module":"harmony","key":"hub_ip","value":"10.0.0.5","schemaVersion":1})",
                                   cookie);
     EXPECT_EQ(result.status_code, 500);
@@ -426,12 +426,12 @@ TEST_F(SettingsRoutesTest, PostSettingsEraseReturns500WhenTheStorageEraseFails) 
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, failing_auth);
     homedeck::RegisterSettingsRoutes(server, failing_storage, failing_auth);
-    ASSERT_TRUE(server.Start(18220));
-    auto setup = HttpRequestRaw(18220, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    ASSERT_TRUE(server.Start(0));
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     std::string cookie = SessionCookieOnly(setup.set_cookie);
 
     auto result =
-        HttpRequestRaw(18220, "POST", "/api/settings/erase", R"({"module":"harmony","key":"hub_ip"})", cookie);
+        HttpRequestRaw(server.BoundPort(), "POST", "/api/settings/erase", R"({"module":"harmony","key":"hub_ip"})", cookie);
     EXPECT_EQ(result.status_code, 500);
     EXPECT_NE(result.body.find("erase_failed"), std::string::npos);
 }

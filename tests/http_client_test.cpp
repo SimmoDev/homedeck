@@ -17,16 +17,28 @@
 // than exercising only its own internal logic. Matches this project's
 // "test for real, not mocked" precedent (AdminAuthService's real
 // PBKDF2 test, http_server_test.cpp's own raw-socket round trip).
+//
+// Servers bind an ephemeral port (Start(0)) rather than a fixed one so
+// a parallel or rapidly-repeated run can't collide - see
+// HostHttpServer::BoundPort().
+
+namespace {
+
+std::string LoopbackUrl(uint16_t port, const std::string& path) {
+    return "http://127.0.0.1:" + std::to_string(port) + path;
+}
+
+}  // namespace
 
 TEST(HostHttpClient, GetReturnsARealResponseFromARealServer) {
     homedeck::HostHttpServer server;
     server.RegisterHandler(homedeck::HttpMethod::kGet, "/hello", [](const homedeck::HttpRequest&) {
         return homedeck::HttpResponse{200, "text/plain", "world", {}};
     });
-    ASSERT_TRUE(server.Start(18184));
+    ASSERT_TRUE(server.Start(0));
 
     homedeck::HostHttpClient client;
-    homedeck::HttpClientResponse response = client.Get("http://127.0.0.1:18184/hello");
+    homedeck::HttpClientResponse response = client.Get(LoopbackUrl(server.BoundPort(), "/hello"));
 
     EXPECT_TRUE(response.success);
     EXPECT_EQ(response.status_code, 200);
@@ -38,10 +50,10 @@ TEST(HostHttpClient, UnregisteredPathReturns404) {
     server.RegisterHandler(homedeck::HttpMethod::kGet, "/hello", [](const homedeck::HttpRequest&) {
         return homedeck::HttpResponse{200, "text/plain", "world", {}};
     });
-    ASSERT_TRUE(server.Start(18185));
+    ASSERT_TRUE(server.Start(0));
 
     homedeck::HostHttpClient client;
-    homedeck::HttpClientResponse response = client.Get("http://127.0.0.1:18185/nope");
+    homedeck::HttpClientResponse response = client.Get(LoopbackUrl(server.BoundPort(), "/nope"));
 
     // A 404 is still a real, received response - success is about the
     // transport, not the HTTP-level outcome (see http_client.h).
@@ -57,10 +69,10 @@ TEST(HostHttpClient, PostSendsJsonBodyAndReturnsARealResponse) {
                                 received_body = request.body;
                                 return homedeck::HttpResponse{200, "application/json", R"({"ok":true})", {}};
                             });
-    ASSERT_TRUE(server.Start(18187));
+    ASSERT_TRUE(server.Start(0));
 
     homedeck::HostHttpClient client;
-    homedeck::HttpClientResponse response = client.Post("http://127.0.0.1:18187/echo", R"({"id":1})");
+    homedeck::HttpClientResponse response = client.Post(LoopbackUrl(server.BoundPort(), "/echo"), R"({"id":1})");
 
     EXPECT_TRUE(response.success);
     EXPECT_EQ(response.status_code, 200);
@@ -82,14 +94,15 @@ TEST(HostHttpClient, PostSendsJsonBodyAndReturnsARealResponse) {
 TEST(HostHttpClient, PostSendsExtraHeaders) {
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     ASSERT_GE(listen_fd, 0);
-    int reuse = 1;
-    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr.sin_port = htons(18189);
+    addr.sin_port = htons(0);  // kernel-assigned free port
     ASSERT_EQ(bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)), 0);
     ASSERT_EQ(listen(listen_fd, 1), 0);
+    socklen_t addr_len = sizeof(addr);
+    ASSERT_EQ(getsockname(listen_fd, reinterpret_cast<sockaddr*>(&addr), &addr_len), 0);
+    const uint16_t port = ntohs(addr.sin_port);
 
     std::string received_request;
     std::thread server_thread([listen_fd, &received_request] {
@@ -108,7 +121,7 @@ TEST(HostHttpClient, PostSendsExtraHeaders) {
 
     homedeck::HostHttpClient client;
     homedeck::HttpClientResponse response =
-        client.Post("http://127.0.0.1:18189/echo", "{}", {{"Origin", "http://example.com"}});
+        client.Post(LoopbackUrl(port, "/echo"), "{}", {{"Origin", "http://example.com"}});
 
     server_thread.join();
     close(listen_fd);
@@ -118,10 +131,25 @@ TEST(HostHttpClient, PostSendsExtraHeaders) {
 }
 
 TEST(HostHttpClient, UnreachableServerReturnsFailure) {
-    // Nothing listening on this port - a real connection-refused case,
-    // not a timeout (which would make this test slow).
+    // Bind then immediately release an ephemeral port to get a number
+    // nothing is listening on - a real connection-refused case, not a
+    // timeout (which would make this test slow). The gap between release
+    // and connect is a theoretical TOCTOU, not a practical one on
+    // loopback.
+    int probe = socket(AF_INET, SOCK_STREAM, 0);
+    ASSERT_GE(probe, 0);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    addr.sin_port = htons(0);
+    ASSERT_EQ(bind(probe, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)), 0);
+    socklen_t addr_len = sizeof(addr);
+    ASSERT_EQ(getsockname(probe, reinterpret_cast<sockaddr*>(&addr), &addr_len), 0);
+    const uint16_t closed_port = ntohs(addr.sin_port);
+    close(probe);
+
     homedeck::HostHttpClient client;
-    homedeck::HttpClientResponse response = client.Get("http://127.0.0.1:18186/anything");
+    homedeck::HttpClientResponse response = client.Get(LoopbackUrl(closed_port, "/anything"));
 
     EXPECT_FALSE(response.success);
     EXPECT_EQ(response.status_code, 0);

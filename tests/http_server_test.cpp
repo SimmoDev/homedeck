@@ -96,9 +96,9 @@ TEST(HostHttpServer, RespondsToARealRequestOverARealSocket) {
                             [](const homedeck::HttpRequest&) {
                                 return homedeck::HttpResponse{200, "text/plain", "world", {}};
                             });
-    ASSERT_TRUE(server.Start(18181));
+    ASSERT_TRUE(server.Start(0));
 
-    std::string response = HttpGet(18181, "/hello");
+    std::string response = HttpGet(server.BoundPort(), "/hello");
 
     EXPECT_NE(response.find("200"), std::string::npos);
     EXPECT_NE(response.find("world"), std::string::npos);
@@ -115,9 +115,9 @@ TEST(HostHttpServer, RequestCookieHeaderIsReadableAndResponseExtraHeadersAreSent
             response.extra_headers.push_back({"Set-Cookie", "session=abc123; HttpOnly"});
             return response;
         });
-    ASSERT_TRUE(server.Start(18183));
+    ASSERT_TRUE(server.Start(0));
 
-    std::string response = HttpGet(18183, "/echo-cookie", "Cookie: session=xyz\r\n");
+    std::string response = HttpGet(server.BoundPort(), "/echo-cookie", "Cookie: session=xyz\r\n");
 
     EXPECT_EQ(seen_cookie, "session=xyz");
     EXPECT_NE(response.find("Set-Cookie: session=abc123; HttpOnly"), std::string::npos);
@@ -129,9 +129,9 @@ TEST(HostHttpServer, UnregisteredPathReturns404) {
                             [](const homedeck::HttpRequest&) {
                                 return homedeck::HttpResponse{200, "text/plain", "world", {}};
                             });
-    ASSERT_TRUE(server.Start(18182));
+    ASSERT_TRUE(server.Start(0));
 
-    std::string response = HttpGet(18182, "/nope");
+    std::string response = HttpGet(server.BoundPort(), "/nope");
 
     EXPECT_NE(response.find("404"), std::string::npos);
 }
@@ -144,10 +144,10 @@ TEST(HostHttpServer, ResponseStatusLineIncludesARealReasonPhrase) {
     server.RegisterHandler(homedeck::HttpMethod::kGet, "/throttled", [](const homedeck::HttpRequest&) {
         return homedeck::HttpResponse{429, "application/json", "{}", {}};
     });
-    ASSERT_TRUE(server.Start(18185));
+    ASSERT_TRUE(server.Start(0));
 
-    EXPECT_NE(HttpGet(18185, "/unauthorized").find("401 Unauthorized"), std::string::npos);
-    EXPECT_NE(HttpGet(18185, "/throttled").find("429 Too Many Requests"), std::string::npos);
+    EXPECT_NE(HttpGet(server.BoundPort(), "/unauthorized").find("401 Unauthorized"), std::string::npos);
+    EXPECT_NE(HttpGet(server.BoundPort(), "/throttled").find("429 Too Many Requests"), std::string::npos);
 }
 
 TEST(HostHttpServer, RejectsOversizedRequestBodyBeforeReadingIt) {
@@ -157,13 +157,13 @@ TEST(HostHttpServer, RejectsOversizedRequestBodyBeforeReadingIt) {
         handler_called = true;
         return homedeck::HttpResponse{200, "text/plain", "ok", {}};
     });
-    ASSERT_TRUE(server.Start(18186));
+    ASSERT_TRUE(server.Start(0));
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     ASSERT_GE(sock, 0);
     sockaddr_in addr = {};
     addr.sin_family = AF_INET;
-    addr.sin_port = htons(18186);
+    addr.sin_port = htons(server.BoundPort());
     inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
     ASSERT_EQ(connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)), 0);
 
@@ -206,9 +206,9 @@ TEST(HostHttpServer, LargeRequestBodyIsReadInFull) {
                                 content_matched = request.body == body;
                                 return homedeck::HttpResponse{200, "text/plain", "ok", {}};
                             });
-    ASSERT_TRUE(server.Start(18184));
+    ASSERT_TRUE(server.Start(0));
 
-    std::string response = HttpPost(18184, "/upload", body);
+    std::string response = HttpPost(server.BoundPort(), "/upload", body);
 
     EXPECT_NE(response.find("200"), std::string::npos);
     EXPECT_EQ(received_size, kBodySize);

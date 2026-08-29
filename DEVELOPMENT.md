@@ -291,8 +291,12 @@ Once the simulator target exists (M1):
 - **Automated tests:**
   ```sh
   cd tests && cmake -B build -G Ninja && cmake --build build
-  ctest --test-dir build --output-on-failure
+  ctest --test-dir build --output-on-failure       # add -j for a parallel run
   ```
+  Socket-using tests bind an ephemeral port (the two Harmony real-backend
+  tests skip rather than fail if their fixed port is taken), so `ctest -j`
+  and repeated back-to-back runs are safe and a locally-running
+  Kodi/Harmony/etc. won't collide with the suite.
   GoogleTest+GoogleMock (see
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#5-test-framework)),
   its own host-native CMake project — see [tests/README.md](tests/README.md).

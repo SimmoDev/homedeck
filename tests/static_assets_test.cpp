@@ -49,23 +49,23 @@ std::string HttpGet(uint16_t port, const std::string& path) {
 TEST(ServeStaticFiles, RegisteredAssetIsServedWithItsContentType) {
     homedeck::HostHttpServer server;
     homedeck::ServeStaticFiles(server, {{"/", "text/html", "<h1>hi</h1>"}, {"/app.js", "application/javascript", "1"}});
-    ASSERT_TRUE(server.Start(18184));
+    ASSERT_TRUE(server.Start(0));
 
-    std::string index_response = HttpGet(18184, "/");
+    std::string index_response = HttpGet(server.BoundPort(), "/");
     EXPECT_NE(index_response.find("200"), std::string::npos);
     EXPECT_NE(index_response.find("Content-Type: text/html"), std::string::npos);
     EXPECT_NE(index_response.find("<h1>hi</h1>"), std::string::npos);
 
-    std::string js_response = HttpGet(18184, "/app.js");
+    std::string js_response = HttpGet(server.BoundPort(), "/app.js");
     EXPECT_NE(js_response.find("Content-Type: application/javascript"), std::string::npos);
 }
 
 TEST(ServeStaticFiles, UnregisteredPathStillReturns404) {
     homedeck::HostHttpServer server;
     homedeck::ServeStaticFiles(server, {{"/", "text/html", "<h1>hi</h1>"}});
-    ASSERT_TRUE(server.Start(18185));
+    ASSERT_TRUE(server.Start(0));
 
-    std::string response = HttpGet(18185, "/nope");
+    std::string response = HttpGet(server.BoundPort(), "/nope");
 
     EXPECT_NE(response.find("404"), std::string::npos);
 }

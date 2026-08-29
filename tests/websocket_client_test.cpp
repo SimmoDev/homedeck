@@ -167,23 +167,35 @@ void SendServerLargeFrameBestEffort(int fd, const std::string& payload, int dead
     }
 }
 
-int ListenOnLoopback(int port) {
+// Binds a kernel-assigned free loopback port (reported via *out_port) so
+// parallel or rapidly-repeated runs can't collide on a fixed one.
+// Returns -1 on any failure rather than a half-open fd, so the caller
+// can ASSERT instead of accept()ing on a socket that never listened.
+int ListenOnLoopback(uint16_t* out_port) {
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int reuse = 1;
-    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    if (listen_fd < 0) {
+        return -1;
+    }
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr.sin_port = htons(port);
-    bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-    listen(listen_fd, 1);
+    addr.sin_port = htons(0);
+    socklen_t addr_len = sizeof(addr);
+    if (bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0 || listen(listen_fd, 1) != 0 ||
+        getsockname(listen_fd, reinterpret_cast<sockaddr*>(&addr), &addr_len) != 0) {
+        close(listen_fd);
+        return -1;
+    }
+    *out_port = ntohs(addr.sin_port);
     return listen_fd;
 }
 
 }  // namespace
 
 TEST(HostWebSocketClient, ConnectSendAndReceiveARealTextFrameRoundTrip) {
-    int listen_fd = ListenOnLoopback(18300);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
     std::string received_from_client;
 
     std::jthread server_thread([listen_fd, &received_from_client] {
@@ -196,7 +208,7 @@ TEST(HostWebSocketClient, ConnectSendAndReceiveARealTextFrameRoundTrip) {
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18300/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
     ASSERT_TRUE(client.SendText(R"({"ping":true})"));
     std::optional<std::string> response = client.ReceiveText(2000);
 
@@ -217,7 +229,9 @@ TEST(HostWebSocketClient, ReceiveTextReassemblesOneFrameDeliveredAcrossMultipleR
     // continuation frame, covered by
     // ReceiveTextReassemblesARealMultiFrameContinuationMessage below) -
     // one large single frame, not several small ones.
-    int listen_fd = ListenOnLoopback(18301);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
     std::string payload = "{\"activities\":[" + std::string(20000, 'a') + "]}";
 
     std::jthread server_thread([listen_fd, &payload] {
@@ -229,7 +243,7 @@ TEST(HostWebSocketClient, ReceiveTextReassemblesOneFrameDeliveredAcrossMultipleR
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18301/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
     std::optional<std::string> response = client.ReceiveText(2000);
 
     server_thread.join();
@@ -246,7 +260,9 @@ TEST(HostWebSocketClient, ReceiveTextReassemblesARealMultiFrameContinuationMessa
     // against the reference hub arrives as a single frame (ADR-0029), but
     // ReceiveText()'s own loop handles this shape too; nothing before
     // this test actually exercised it against the real backend.
-    int listen_fd = ListenOnLoopback(18308);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -268,7 +284,7 @@ TEST(HostWebSocketClient, ReceiveTextReassemblesARealMultiFrameContinuationMessa
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18308/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
     std::optional<std::string> response = client.ReceiveText(2000);
 
     server_thread.join();
@@ -284,7 +300,9 @@ TEST(HostWebSocketClient, ReceiveTextRepliesToAPingAndKeepsWaitingForTheRealMess
     // own caller as message content - the caller is waiting for the
     // getCurrentActivity/config response the hub actually sent, not a
     // transport-level keep-alive.
-    int listen_fd = ListenOnLoopback(18309);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
     std::string received_pong_payload;
 
     std::jthread server_thread([listen_fd, &received_pong_payload] {
@@ -323,7 +341,7 @@ TEST(HostWebSocketClient, ReceiveTextRepliesToAPingAndKeepsWaitingForTheRealMess
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18309/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
     std::optional<std::string> response = client.ReceiveText(2000);
 
     server_thread.join();
@@ -335,7 +353,9 @@ TEST(HostWebSocketClient, ReceiveTextRepliesToAPingAndKeepsWaitingForTheRealMess
 }
 
 TEST(HostWebSocketClient, ReceiveTextRejectsAMessageOverTheSizeCap) {
-    int listen_fd = ListenOnLoopback(18302);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -351,7 +371,7 @@ TEST(HostWebSocketClient, ReceiveTextRejectsAMessageOverTheSizeCap) {
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18302/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
     std::optional<std::string> response = client.ReceiveText(5000);
 
     server_thread.join();
@@ -364,7 +384,9 @@ TEST(HostWebSocketClient, ReceiveTextEchoesACloseFrameBack) {
     // RFC 6455's closing handshake: the endpoint that receives a CLOSE
     // frame is expected to send one back before the TCP connection
     // actually closes.
-    int listen_fd = ListenOnLoopback(18307);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
     uint8_t received_opcode = 0xFF;  // sentinel - never a valid opcode nibble on its own
 
     std::jthread server_thread([listen_fd, &received_opcode] {
@@ -382,7 +404,7 @@ TEST(HostWebSocketClient, ReceiveTextEchoesACloseFrameBack) {
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18307/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
     std::optional<std::string> response = client.ReceiveText(2000);
 
     server_thread.join();
@@ -401,7 +423,9 @@ TEST(HostWebSocketClient, SendTextFailsAfterReceivingACloseFrame) {
     // succeed - a write on a connection the peer has already ended,
     // instead of failing outright the way a caller already treats a dead
     // connection.
-    int listen_fd = ListenOnLoopback(18312);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -419,7 +443,7 @@ TEST(HostWebSocketClient, SendTextFailsAfterReceivingACloseFrame) {
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18312/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
     EXPECT_FALSE(client.ReceiveText(2000).has_value());
     EXPECT_FALSE(client.SendText(R"({"probe":"after-close"})"));
 
@@ -433,7 +457,9 @@ TEST(HostWebSocketClient, ReceiveTextRejectsABinaryFrame) {
     // message content - this transport has no authentication at all
     // (ADR-0029), so a hostile/misbehaving LAN peer sending one is a
     // real possibility.
-    int listen_fd = ListenOnLoopback(18306);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -447,7 +473,7 @@ TEST(HostWebSocketClient, ReceiveTextRejectsABinaryFrame) {
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18306/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
     std::optional<std::string> response = client.ReceiveText(2000);
 
     server_thread.join();
@@ -465,7 +491,9 @@ TEST(HostWebSocketClient, ConnectFailsOnAWrongSecWebSocketAcceptHeader) {
     // 101 (a misconfigured device, a captive-portal-style proxy, a
     // different service that took over the hub's IP after a DHCP lease
     // change).
-    int listen_fd = ListenOnLoopback(18304);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -480,7 +508,7 @@ TEST(HostWebSocketClient, ConnectFailsOnAWrongSecWebSocketAcceptHeader) {
     });
 
     homedeck::HostWebSocketClient client;
-    bool connected = client.Connect("ws://127.0.0.1:18304/");
+    bool connected = client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/");
 
     server_thread.join();
     close(listen_fd);
@@ -489,7 +517,9 @@ TEST(HostWebSocketClient, ConnectFailsOnAWrongSecWebSocketAcceptHeader) {
 }
 
 TEST(HostWebSocketClient, ConnectFailsWhenSecWebSocketAcceptIsMissingEntirely) {
-    int listen_fd = ListenOnLoopback(18305);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -503,7 +533,7 @@ TEST(HostWebSocketClient, ConnectFailsWhenSecWebSocketAcceptIsMissingEntirely) {
     });
 
     homedeck::HostWebSocketClient client;
-    bool connected = client.Connect("ws://127.0.0.1:18305/");
+    bool connected = client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/");
 
     server_thread.join();
     close(listen_fd);
@@ -516,7 +546,9 @@ TEST(HostWebSocketClient, ConnectFailsWhenUpgradeHeaderIsMissingOrWrong) {
     // header too, not just Sec-WebSocket-Accept - a correct Accept key
     // alone (this server computes one for real) doesn't by itself prove
     // the response is shaped as a WebSocket upgrade.
-    int listen_fd = ListenOnLoopback(18310);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -532,7 +564,7 @@ TEST(HostWebSocketClient, ConnectFailsWhenUpgradeHeaderIsMissingOrWrong) {
     });
 
     homedeck::HostWebSocketClient client;
-    bool connected = client.Connect("ws://127.0.0.1:18310/");
+    bool connected = client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/");
 
     server_thread.join();
     close(listen_fd);
@@ -541,7 +573,9 @@ TEST(HostWebSocketClient, ConnectFailsWhenUpgradeHeaderIsMissingOrWrong) {
 }
 
 TEST(HostWebSocketClient, ConnectFailsWhenConnectionHeaderIsMissingOrWrong) {
-    int listen_fd = ListenOnLoopback(18311);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -557,7 +591,7 @@ TEST(HostWebSocketClient, ConnectFailsWhenConnectionHeaderIsMissingOrWrong) {
     });
 
     homedeck::HostWebSocketClient client;
-    bool connected = client.Connect("ws://127.0.0.1:18311/");
+    bool connected = client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/");
 
     server_thread.join();
     close(listen_fd);
@@ -571,7 +605,9 @@ TEST(HostWebSocketClient, ReceiveTextZeroDoesNotBlockWhenNothingIsPending) {
     // silent no-op on this backend: with nothing pending, ReceiveText(0)
     // must return promptly rather than blocking for the connection's
     // full lifetime.
-    int listen_fd = ListenOnLoopback(18303);
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
 
     std::jthread server_thread([listen_fd] {
         int conn_fd = accept(listen_fd, nullptr, nullptr);
@@ -582,7 +618,7 @@ TEST(HostWebSocketClient, ReceiveTextZeroDoesNotBlockWhenNothingIsPending) {
     });
 
     homedeck::HostWebSocketClient client;
-    ASSERT_TRUE(client.Connect("ws://127.0.0.1:18303/"));
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
 
     auto start = std::chrono::steady_clock::now();
     std::optional<std::string> response = client.ReceiveText(0);

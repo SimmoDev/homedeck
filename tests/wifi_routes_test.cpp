@@ -61,17 +61,17 @@ TEST_F(WifiRoutesTest, ResetRequiresAuthentication) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWifiRoutes(server, *auth_, []() -> std::optional<std::string> { return "HomeDeck-TEST"; });
-    ASSERT_TRUE(server.Start(18400));
+    ASSERT_TRUE(server.Start(0));
 
     // No password set yet - 403 setup_required, matching
     // ota_routes_test.cpp/diagnostics_routes_test.cpp's precedent.
-    EXPECT_EQ(HttpRequestRaw(18400, "POST", "/api/wifi/reset", "").status_code, 403);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/wifi/reset", "").status_code, 403);
 
-    auto setup = HttpRequestRaw(18400, "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
+    auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
     ASSERT_EQ(setup.status_code, 200);
 
     // Password set, but no session cookie - 401.
-    EXPECT_EQ(HttpRequestRaw(18400, "POST", "/api/wifi/reset", "").status_code, 401);
+    EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/wifi/reset", "").status_code, 401);
 }
 
 TEST_F(WifiRoutesTest, ResetSucceedsAndReturnsTheApSsidFromTheInjectedResetFunction) {
@@ -82,10 +82,10 @@ TEST_F(WifiRoutesTest, ResetSucceedsAndReturnsTheApSsidFromTheInjectedResetFunct
         reset_called = true;
         return "HomeDeck-A1B2C3";
     });
-    ASSERT_TRUE(server.Start(18401));
-    std::string cookie = Login(18401);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto reset = HttpRequestRaw(18401, "POST", "/api/wifi/reset", "", cookie);
+    auto reset = HttpRequestRaw(server.BoundPort(), "POST", "/api/wifi/reset", "", cookie);
     EXPECT_EQ(reset.status_code, 200);
     EXPECT_TRUE(reset_called);
     EXPECT_NE(reset.body.find(R"("apSsid":"HomeDeck-A1B2C3")"), std::string::npos);
@@ -95,10 +95,10 @@ TEST_F(WifiRoutesTest, ResetReturns500WhenTheUnderlyingResetFails) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterWifiRoutes(server, *auth_, []() -> std::optional<std::string> { return std::nullopt; });
-    ASSERT_TRUE(server.Start(18402));
-    std::string cookie = Login(18402);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
 
-    auto reset = HttpRequestRaw(18402, "POST", "/api/wifi/reset", "", cookie);
+    auto reset = HttpRequestRaw(server.BoundPort(), "POST", "/api/wifi/reset", "", cookie);
     EXPECT_EQ(reset.status_code, 500);
     EXPECT_NE(reset.body.find("reset_failed"), std::string::npos);
 }

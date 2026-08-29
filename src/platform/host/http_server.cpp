@@ -34,6 +34,13 @@ bool HostHttpServer::Start(uint16_t port) {
         return false;
     }
 
+    // With port 0, civetweb binds a kernel-assigned free port; read back
+    // which one so a caller (tests) can address it. For a fixed port
+    // this just echoes it.
+    struct mg_server_port sp[4] = {};
+    int filled = mg_get_server_ports(ctx_, 4, sp);
+    bound_port_ = filled > 0 && sp[0].port > 0 ? static_cast<uint16_t>(sp[0].port) : port;
+
     std::set<std::string> paths;
     for (const auto& [key, handler] : handlers_) {
         paths.insert(key.second);
@@ -49,6 +56,7 @@ void HostHttpServer::Stop() {
         mg_stop(ctx_);
         ctx_ = nullptr;
     }
+    bound_port_ = 0;
 }
 
 int HostHttpServer::DispatchTrampoline(mg_connection* conn, void* cbdata) {

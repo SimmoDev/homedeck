@@ -24,8 +24,17 @@ public:
     HostHttpServer& operator=(const HostHttpServer&) = delete;
 
     void RegisterHandler(HttpMethod method, const std::string& path, Handler handler) override;
+    // Pass 0 to bind a kernel-assigned free port, then read it back with
+    // BoundPort() - the hermetic pattern tests use so parallel/repeated
+    // runs don't collide on a fixed port. A non-zero port behaves as
+    // before.
     bool Start(uint16_t port) override;
     void Stop() override;
+
+    // The port Start() actually bound (0 before a successful Start or
+    // after Stop). Host-only, not on the HttpServer interface - firmware
+    // always binds a fixed port and nothing there needs to ask.
+    uint16_t BoundPort() const { return bound_port_; }
 
 private:
     // civetweb's mg_set_request_handler() registers by URI only, not
@@ -36,6 +45,7 @@ private:
     int Dispatch(mg_connection* conn);
 
     mg_context* ctx_ = nullptr;
+    uint16_t bound_port_ = 0;
     std::map<std::pair<HttpMethod, std::string>, Handler> handlers_;
 };
 
