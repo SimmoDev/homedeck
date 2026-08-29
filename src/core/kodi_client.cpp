@@ -34,7 +34,8 @@ std::string WebSocketUrl(const std::string& host, uint16_t port) {
     // for the manual-override path, but a discovered address bypasses
     // that check.
     std::string authority = host;
-    if (authority.find(':') != std::string::npos && !authority.empty() && authority.front() != '[') {
+    // A found ':' already implies non-empty, so authority.front() is safe.
+    if (authority.find(':') != std::string::npos && authority.front() != '[') {
         authority = "[" + authority + "]";
     }
     return "ws://" + authority + ":" + std::to_string(port) + "/jsonrpc";
