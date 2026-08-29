@@ -108,10 +108,23 @@ plus the generic settings API are its API endpoints;
 `.cpp`) publishes its notifications; and `EventBus` events cover
 connection state, fetched config, and current-activity changes.
 
+`KodiClient` (`src/core/kodi_client.h`/`.cpp`, M4a) is the second —
+Storage-backed settings (a manually-entered host, or an
+mDNS-discovered instance keyed by its `uuid`) plus a background
+`Task`-owned connection loop; `NowPlayingScreen`/`KodiRemoteScreen`
+(`src/ui/screens/`) are its registered screens; `KodiWidget`
+(`src/ui/kodi_widget.h`/`.cpp`) is its dashboard widget;
+`RegisterKodiRoutes` (`src/core/kodi_routes.h`/`.cpp`) plus the generic
+settings API are its API endpoints; and `KodiConnectionStateChangedEvent`/
+`KodiNowPlayingChangedEvent` are its `EventBus` events. It has no
+notification bridge — an unreachable Kodi is a normal resting state on
+Android/Google TV, not a fault (see [kodi.md](kodi.md#connection)).
+
 A module being "enabled" is Core constructing and `Start()`-ing an
-instance of it; "disabled" is simply not doing so. `AppCore` holds exactly
-one `HarmonyConnection` today — the same single-member shape every other
-Core service already has (e.g. `OpenMeteoWeatherProvider`) — which
-generalizes to a per-module-type instance list without redesign once
-a second concurrent instance of the same module type is a genuine need,
-not built speculatively ahead of one.
+instance of it; "disabled" is simply not doing so. `AppCore` holds
+exactly one `HarmonyConnection` and one `KodiClient` today — the same
+single-member shape every other Core service already has (e.g.
+`OpenMeteoWeatherProvider`) — which generalizes to a per-module-type
+instance list without redesign once a second concurrent instance of the
+same module type is a genuine need, not built speculatively ahead of
+one.
