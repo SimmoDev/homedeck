@@ -597,6 +597,36 @@ TEST_F(KodiClientTest, VolumeChangedNotificationUpdatesTheSnapshot) {
     client->Stop();
 }
 
+// A reconcile poll that finds nothing changed (connected, idle, same
+// volume/mute) must not publish KodiNowPlayingChangedEvent - otherwise
+// every widget/screen bound to it re-renders once per reconcile interval
+// forever while idle.
+TEST_F(KodiClientTest, IdleReconcilePollsDoNotRepublishTheNowPlayingEvent) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    std::atomic<int> now_playing_events{0};
+    auto sub = bus.Subscribe<homedeck::KodiNowPlayingChangedEvent>(
+        [&now_playing_events](const homedeck::KodiNowPlayingChangedEvent&) { now_playing_events++; });
+
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptIdleKodi(script);
+
+    auto client = MakeClient(script, browser, storage, bus, kFastReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    // kFastReconcile is 40ms - let a good number of poll cycles run.
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    EXPECT_LE(now_playing_events.load(), 1) << "idle reconcile cycles should not each fire an event";
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, ReconcilePollFillsPositionAndDurationFromPolledProperties) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

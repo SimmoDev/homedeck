@@ -398,11 +398,23 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
         auto result_it = app.is_object() ? app.find("result") : app.end();
         if (result_it != app.end() && result_it->is_object()) {
             std::lock_guard<std::mutex> lock(mutex_);
+            // changed drives KodiNowPlayingChangedEvent, so flip it only
+            // on an actual volume/mute delta - otherwise every reconcile
+            // cycle would re-render the widget/screen while connected and
+            // idle, when nothing about playback has moved.
             if (result_it->contains("volume") && (*result_it)["volume"].is_number_integer()) {
-                state_.volume = (*result_it)["volume"].get<int>();
+                int volume = (*result_it)["volume"].get<int>();
+                if (volume != state_.volume) {
+                    state_.volume = volume;
+                    changed = true;
+                }
             }
             if (result_it->contains("muted") && (*result_it)["muted"].is_boolean()) {
-                state_.muted = (*result_it)["muted"].get<bool>();
+                bool muted = (*result_it)["muted"].get<bool>();
+                if (muted != state_.muted) {
+                    state_.muted = muted;
+                    changed = true;
+                }
             }
             auto version_it = result_it->find("version");
             if (version_it != result_it->end() && version_it->is_object()) {
@@ -410,7 +422,6 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
                                      std::to_string(version_it->value("minor", 0));
             }
             state_.has_status = true;
-            changed = true;
         }
     }
 
