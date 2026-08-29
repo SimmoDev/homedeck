@@ -93,12 +93,13 @@ IR is one-way with nothing to poll.
 from `ActivitiesScreen`'s "Devices" button — one screen with two
 internal view states (device list, then a selected device's commands)
 rather than a second `Navigation` route, since this project's
-`Navigation` has no back-stack. Both screens build their root chrome
-(title, hint label, scrollable list container, home affordance) on
-`HarmonyScreenChrome` (`src/ui/screens/harmony_screen_chrome.h`/`.cpp`),
-a shared helper factored out to avoid duplicating that scaffolding
-between them; each screen still owns its own status label wiring and
-content beyond that. Commands render as a 3-per-row grid by
+`Navigation` has no back-stack. Both screens build their root chrome on
+the shared `ScreenChrome` (`src/ui/screens/screen_chrome.h`/`.cpp` — see
+its own header comment for what it provides), factored out of these two
+screens originally and since generalized once Kodi's screens (M4) needed
+the identical scaffolding — see
+[kodi.md](kodi.md#touch-ui); each screen still owns its own status label
+wiring and content beyond that. Commands render as a 3-per-row grid by
 default; two groups recognized by the hub's own protocol-level
 `HarmonyControlGroup::name` vocabulary get a dedicated layout instead —
 `NumericBasic` as a 1-2-3/4-5-6/7-8-9/Clear-0-Dot keypad, `NavigationBasic`

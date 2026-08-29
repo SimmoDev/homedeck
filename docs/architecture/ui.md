@@ -79,7 +79,7 @@ whether any LVGL object anywhere has ever been deleted:
   `lv_obj_del()` on the owning root recurses through every child
   automatically. This covers most widgets and screen chrome (e.g.
   `DashboardGrid`'s widgets, `StatusBar`, `OnScreenKeyboard`,
-  `HarmonyScreenChrome`), since they take a `parent` and construct
+  `ScreenChrome`), since they take a `parent` and construct
   themselves as its child.
 - A class that creates an LVGL object with no such longer-lived owner —
   a screen's own root via `lv_obj_create(nullptr)`, or a `lv_layer_top()`
