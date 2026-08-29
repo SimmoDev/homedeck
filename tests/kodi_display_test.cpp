@@ -77,6 +77,15 @@ TEST(KodiNowPlayingSubtitleTest, MovieShowsJustTheTitle) {
     EXPECT_EQ(homedeck::KodiNowPlayingSubtitle(np), "A Movie");
 }
 
+TEST(KodiNowPlayingSubtitleTest, PlayingWithNoTitleResolvedYetFallsBackToTheVerb) {
+    // Add-on playback before the first Player.On* notification: playing,
+    // but neither title nor show_title populated. No placeholder name -
+    // the same fallback KodiWidgetLine uses for this state.
+    homedeck::KodiNowPlaying np;
+    np.playback = homedeck::KodiPlaybackState::kPlaying;
+    EXPECT_EQ(homedeck::KodiNowPlayingSubtitle(np), "Playing");
+}
+
 TEST(FormatKodiClockTest, MinutesAndSeconds) {
     EXPECT_EQ(homedeck::FormatKodiClock(0), "0:00");
     EXPECT_EQ(homedeck::FormatKodiClock(9000), "0:09");

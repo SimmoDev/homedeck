@@ -116,7 +116,8 @@ routes (`/api/kodi/status`, `/api/kodi/reconnect`) - auth gating and the
 `kodi_display_test.cpp` covers the LVGL-free display-string helpers the
 Kodi Touch UI renders - the widget's status line for each connection/
 playback state, the Now Playing subtitle (show + `S3E7` / movie title /
-"Nothing playing"), and the `m:ss` / `h:mm:ss` clock formatter.
+bare-verb fallback / "Nothing playing"), and the `m:ss` / `h:mm:ss`
+clock formatter.
 
 Further module tests arrive alongside the modules they test, not before
 they exist.
