@@ -320,16 +320,26 @@ void SendWsServerTextFrame(int fd, const std::string& payload) {
     send(fd, payload.data(), payload.size(), MSG_NOSIGNAL);
 }
 
+// HandshakeUrl()/WebSocketUrl() pin 8088 with no injectable port, so
+// this has to bind the real port. Returns -1 (not a half-open fd) if
+// 8088 is already taken - the two callers GTEST_SKIP() on that rather
+// than accept() on a socket that never listened or, worse, drive
+// HarmonyConnection at whatever else answers there.
 int ListenOnFakeHubPort() {
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listen_fd < 0) {
+        return -1;
+    }
     int reuse = 1;
     setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     addr.sin_port = htons(kFakeHubPort);
-    bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-    listen(listen_fd, 2);
+    if (bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0 || listen(listen_fd, 2) != 0) {
+        close(listen_fd);
+        return -1;
+    }
     return listen_fd;
 }
 
@@ -2374,7 +2384,9 @@ TEST_F(HarmonyConnectionTest, RealBackendConnectsHandshakesAndFetchesConfigOverA
     ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
 
     int listen_fd = ListenOnFakeHubPort();
-    ASSERT_GE(listen_fd, 0);
+    if (listen_fd < 0) {
+        GTEST_SKIP() << "port " << kFakeHubPort << " is already in use";
+    }
     std::jthread hub_thread([listen_fd] { RunFakeHarmonyHub(listen_fd); });
 
     homedeck::EventBus bus;
@@ -2413,7 +2425,9 @@ TEST_F(HarmonyConnectionTest, RealBackendDrainsAStaleFrameBeforeTheNextLivenessP
     ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
 
     int listen_fd = ListenOnFakeHubPort();
-    ASSERT_GE(listen_fd, 0);
+    if (listen_fd < 0) {
+        GTEST_SKIP() << "port " << kFakeHubPort << " is already in use";
+    }
     std::jthread hub_thread([listen_fd] { RunFakeHarmonyHubWithStaleFrame(listen_fd); });
 
     homedeck::EventBus bus;

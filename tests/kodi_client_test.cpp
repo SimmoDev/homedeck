@@ -15,7 +15,10 @@
 
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <unistd.h>
+
+#include <cerrno>
 
 #include <atomic>
 #include <chrono>
@@ -859,11 +862,12 @@ TEST_F(KodiClientTest, StaleNonExemptCommandsAreDroppedButStopIsKept) {
 
 // --- HostWebSocketClient over a loopback JSON-RPC peer -------------------
 
-// WebSocketUrl() (kodi_client.cpp) hardcodes port 9090 - Kodi's own, and
-// the manual-override host carries no port (IsValidKodiHost() rejects
-// ':') - so this fake Kodi has to listen there too, the same way
-// harmony_connection_test.cpp's fake hub pins 8088.
-constexpr int kFakeKodiPort = 9090;
+// This fake Kodi binds an ephemeral port and the test advertises it
+// through FakeMdnsBrowser, so ResolveTarget()'s discovery path carries
+// the real port into WebSocketUrl() (only the port-less manual-override
+// path assumes 9090). Binding 9090 itself would collide with a Kodi
+// actually running on the developer's machine - the exact setup anyone
+// working on this module has.
 
 std::string ReadHttpRequest(int fd) {
     std::string data;
@@ -934,16 +938,25 @@ void SendServerFrame(int fd, const std::string& payload) {
     send(fd, payload.data(), payload.size(), MSG_NOSIGNAL);
 }
 
-int ListenLoopback(int port) {
+// Binds a kernel-assigned loopback port and reports it via *out_port.
+// Returns -1 (not a half-open fd) on any failure so the caller can
+// assert rather than accept() on a socket that never listened.
+int ListenLoopback(uint16_t* out_port) {
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int reuse = 1;
-    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+    if (listen_fd < 0) {
+        return -1;
+    }
     sockaddr_in addr{};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr.sin_port = htons(port);
-    bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-    listen(listen_fd, 2);
+    addr.sin_port = 0;  // kernel picks a free ephemeral port
+    socklen_t addr_len = sizeof(addr);
+    if (bind(listen_fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0 || listen(listen_fd, 2) != 0 ||
+        getsockname(listen_fd, reinterpret_cast<sockaddr*>(&addr), &addr_len) != 0) {
+        close(listen_fd);
+        return -1;
+    }
+    *out_port = ntohs(addr.sin_port);
     return listen_fd;
 }
 
@@ -954,7 +967,18 @@ int ListenLoopback(int port) {
 // Exercises the gap
 // [[feedback-fake-doubles-hide-backend-timing-bugs]] names.
 void RunFakeKodi(int listen_fd, std::atomic<bool>& stop) {
-    int fd = accept(listen_fd, nullptr, nullptr);
+    // Bounded accept() so a test that fails before the client ever
+    // connects still lets this thread observe `stop` and exit, rather
+    // than blocking the join() forever.
+    timeval accept_timeout{.tv_sec = 0, .tv_usec = 100 * 1000};
+    setsockopt(listen_fd, SOL_SOCKET, SO_RCVTIMEO, &accept_timeout, sizeof(accept_timeout));
+    int fd = -1;
+    while (!stop.load()) {
+        fd = accept(listen_fd, nullptr, nullptr);
+        if (fd >= 0) break;
+        if (errno == EAGAIN || errno == EWOULDBLOCK) continue;
+        return;
+    }
     if (fd < 0) return;
     std::string upgrade = ReadHttpRequest(fd);
     std::string key = HeaderValue(upgrade, "Sec-WebSocket-Key");
@@ -990,19 +1014,39 @@ void RunFakeKodi(int listen_fd, std::atomic<bool>& stop) {
 }
 
 TEST_F(KodiClientTest, RealBackendConnectsReconcilesAndHandlesAPushedNotification) {
-    int listen_fd = ListenLoopback(kFakeKodiPort);
+    uint16_t port = 0;
+    int listen_fd = ListenLoopback(&port);
     ASSERT_GE(listen_fd, 0);
+
     std::atomic<bool> stop_server{false};
-    std::thread server([listen_fd, &stop_server] { RunFakeKodi(listen_fd, stop_server); });
+    // Joins the fake-server thread however this scope exits - a bare
+    // std::thread left joinable by an early ASSERT failure would
+    // std::terminate() the whole test binary. Declared before `client`
+    // so `client` (and the socket it holds) tears down first, unblocking
+    // RunFakeKodi's read loop before the join.
+    struct ServerGuard {
+        std::thread thread;
+        std::atomic<bool>& stop;
+        int listen_fd;
+        ~ServerGuard() {
+            stop.store(true);
+            ::shutdown(listen_fd, SHUT_RDWR);
+            if (thread.joinable()) thread.join();
+            close(listen_fd);
+        }
+    } guard{std::thread([listen_fd, &stop_server] { RunFakeKodi(listen_fd, stop_server); }), stop_server, listen_fd};
 
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
     homedeck::Storage storage(settings_store, cache_store, secret_store);
-    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "127.0.0.1"));
 
     homedeck::EventBus bus;
     FakeMdnsBrowser browser;
+    // Discovery, not a manual host override: that carries the ephemeral
+    // port through to WebSocketUrl(), and a single instance is
+    // auto-selected.
+    browser.SetInstances({Instance("Loopback", "127.0.0.1", "uuid-loopback", port)});
 
     KodiClient client([] { return std::make_unique<homedeck::HostWebSocketClient>(); }, browser, storage, bus,
                       kFastBackoff, kFastBackoff, kFastReconcile, kFastPump, kFastBrowse);
@@ -1018,11 +1062,6 @@ TEST_F(KodiClientTest, RealBackendConnectsReconcilesAndHandlesAPushedNotificatio
     // libcurl-backed backend ([[feedback-fake-doubles-hide-backend-timing-bugs]]).
     ASSERT_TRUE(WaitFor([&] { return client.Snapshot().muted; }, 600));
     client.Stop();
-
-    stop_server.store(true);
-    ::shutdown(listen_fd, SHUT_RDWR);
-    close(listen_fd);
-    server.join();
 }
 
 }  // namespace
