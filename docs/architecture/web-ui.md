@@ -303,7 +303,21 @@ into, alongside the existing `DeviceNameValidateFn` above. See
 [modules.md](modules.md#status) for Harmony's module-contract detail
 this settings page is one part of.
 
+**Kodi's module configuration page is also implemented** (M4a) - the
+second consumer of the same "module configuration" scope, following
+`HarmonySettings.svelte`'s pattern. `KodiSettings.svelte` reads/writes
+`host`/`instance_uuid` through the existing generic `/api/settings` API
+(module `kodi`), shows a radio list of discovered instances (or a
+manual-address field) plus live status via `GET /api/kodi/status` with a
+manual Refresh button (same no-live-push reasoning as Harmony above),
+and triggers `POST /api/kodi/reconnect` on save. Both routes
+(`src/core/kodi_routes.h`/`.cpp`) are admin-only via `RequireAuth()`,
+same as every other route on this page. `host` is validated both
+client- and server-side the same way `hub_host` is - see
+[kodi.md](kodi.md#discovery-and-instance-selection) for the mechanism.
+See [modules.md](modules.md#status) for Kodi's module-contract detail
+this settings page is one part of.
+
 Still open, each its own future pass: WebSockets for live updates,
-module configuration *for a second module* (Harmony above is the first,
-not a gap any more), Wi-Fi management (view/change post-provisioning),
-factory-reset, and the NVS-encryption follow-up named above.
+Wi-Fi management (view/change post-provisioning), factory-reset, and
+the NVS-encryption follow-up named above.
