@@ -184,26 +184,15 @@ Implemented for M4a: discovery/selection, connection, Now Playing state
 and the transport/nav Touch UI, the fire-and-forget command surface,
 the two Web UI routes and the settings page.
 
-**Connected-state Touch UI rendering has been visually confirmed
-against a live Kodi instance and a live Harmony hub.** `NowPlayingScreen`/
-`KodiRemoteScreen`'s populated content (the transport row including
-`SetTransportGlyph()`'s double-triangle rewind/fast-forward glyph, the
-volume row, the D-pad) only exists inside `content_`, which stays
-hidden until `KodiClient::Snapshot().state == kConnected` (see
-`NowPlayingScreen::Refresh()`) - so reaching it needs an actual
-reachable Kodi box, not just the simulator's own idle state. Pointed
-the simulator at a LAN Kodi instance and Harmony hub directly (manual
-`host`/`hub_host` settings, bypassing discovery), the double-triangle
-glyph renders cleanly - two flush, non-overlapping triangles, correctly
-mirrored for rewind - on both `NowPlayingScreen`'s transport row and
-`DevicesScreen`'s `RenderGenericGrid()` (confirmed on an NVIDIA Shield
-device's "Transport Basic" group), and every button's icon/label is
-vertically and horizontally centered on both screens plus
-`KodiRemoteScreen`'s D-pad. `simulator/debug_panel.cpp` still has no
-built-in way to reach this state without a device on the LAN to
-connect to - worth a fake-connect debug hook (mirroring the existing
-battery/OTA/power-state test buttons) so this doesn't require hardware
-to verify next time.
+`NowPlayingScreen` / `KodiRemoteScreen`'s populated content (the
+transport row with `SetTransportGlyph()`'s double-triangle rewind/
+fast-forward glyph, the volume row, the D-pad) lives inside `content_`,
+which stays hidden until `KodiClient::Snapshot().state == kConnected`
+(see `NowPlayingScreen::Refresh()`). `simulator/debug_panel.cpp` has no
+fake-connect control, so reaching that state in the simulator requires a
+Kodi instance actually on the LAN; a fake-connect debug hook (alongside
+the existing battery / OTA / power-state test buttons) would let it be
+exercised without one.
 
 **Not yet built (M4b):** library browsing (movies / TV / music / files /
 live TV / recently added / continue watching) and the screens for it.
