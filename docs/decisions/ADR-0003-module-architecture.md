@@ -13,7 +13,14 @@ already-configured hub" characterization, are both superseded by
 reference hub instead speaks a local WebSocket/JSON API on port 8088 with
 no authentication step of any kind — a local connection, not a discovery-
 and-authentication flow. That section's project-context conclusion
-(scoped to local control of an already-paired hub) stands unchanged.
+(scoped to local control of an already-paired hub) stands unchanged. The
+Consequences section's open check — whether a second module fits the
+Harmony-derived contract without a Core change — is answered by M4a:
+`KodiClient` (`src/core/kodi_client.h`) implements `Module`
+(`src/core/module.h`) unchanged; the only Core addition was the
+`MdnsBrowser` platform capability, a peer of `WebSocketClient`, not a
+change to the contract. See
+[modules.md's Status section](../architecture/modules.md#status).
 
 ## Context
 

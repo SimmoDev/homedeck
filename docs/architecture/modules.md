@@ -120,6 +120,15 @@ settings API are its API endpoints; and `KodiConnectionStateChangedEvent`/
 notification bridge — an unreachable Kodi is a normal resting state on
 Android/Google TV, not a fault (see [kodi.md](kodi.md#connection)).
 
+`KodiClient` is the second-module contract check
+[ADR-0003](../decisions/ADR-0003-module-architecture.md) called for: it
+fits without a change to `Module` (`src/core/module.h`) and without a
+Core change beyond the `MdnsBrowser` platform capability (a peer of
+`WebSocketClient`, not part of the module contract), and it reuses the
+shared `RetryBackoff`
+([ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership))
+unchanged.
+
 A module being "enabled" is Core constructing and `Start()`-ing an
 instance of it; "disabled" is simply not doing so. `AppCore` holds
 exactly one `HarmonyConnection` and one `KodiClient` today — the same

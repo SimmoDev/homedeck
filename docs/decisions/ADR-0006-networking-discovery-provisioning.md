@@ -16,7 +16,12 @@ when written; the wrapper (`src/platform/mdns_browser.h`) was built in
 M4 with Kodi as its first consumer - its host backend links
 `libavahi-client` (see
 [DEVELOPMENT.md](../../DEVELOPMENT.md), [kodi.md](../architecture/kodi.md),
-[ADR-0030](ADR-0030-kodi-jsonrpc-transport.md)).
+[ADR-0030](ADR-0030-kodi-jsonrpc-transport.md)). The Retry/backoff
+decision's "worth re-checking once the second module (Kodi) is built"
+note is resolved by M4a: `KodiClient` (`src/core/kodi_client.h`) uses the
+shared `RetryBackoff` unchanged, layering only its own reconcile-poll
+cadence on top - the "shared default, module-specific semantics on top"
+shape the decision anticipated.
 
 ## Context
 
