@@ -182,7 +182,7 @@ inside ESP-IDF's own component system (see
 `core/module.h` is the module lifecycle contract ADR-0003 deferred until
 Harmony (the reference module) needed it - `Start()`/`Stop()`,
 construction as Init, the destructor as teardown. `core/harmony_connection.h`/
-`.cpp` is the first (and so far only) implementation: hub connection over
+`.cpp` is the first implementation: hub connection over
 a new `platform/websocket_client.h` (`HostWebSocketClient`/
 `FirmwareWebSocketClient`, see
 [ADR-0029](../docs/decisions/ADR-0029-harmony-local-protocol.md)), a
@@ -195,3 +195,17 @@ and `devices_screen.h`/`.cpp` are its Touch UI screens,
 `HarmonyConnection::PressDeviceCommand()`/`HoldDeviceCommand()`/
 `ReleaseDeviceCommand()` send commands to the hub - see
 [roadmap.md](../docs/roadmap.md)'s M3 section for the full detail.
+
+`core/kodi_client.h`/`.cpp` is the second `Module` implementation:
+connection over the same `platform/websocket_client.h` (no new platform
+code needed, see
+[ADR-0030](../docs/decisions/ADR-0030-kodi-jsonrpc-transport.md)), plus
+a new `platform/mdns_browser.h` (`HostMdnsBrowser`/`FirmwareMdnsBrowser`)
+for discovering an instance on the LAN, and `core/kodi_routes.h`/`.cpp`
+for its Web UI status/reconnect endpoints. `ui/screens/now_playing_screen.h`/
+`.cpp` and `kodi_remote_screen.h`/`.cpp` are its Touch UI screens (both
+built on the `ScreenChrome` helper generalized out of Harmony's own two
+screens above), `ui/kodi_widget.h`/`.cpp` is its dashboard widget, and
+`ui/kodi_display.h`/`.cpp` holds its LVGL-free, host-tested display-string
+formatting - see [roadmap.md](../docs/roadmap.md)'s M4 section and
+[kodi.md](../docs/architecture/kodi.md) for the full detail.
