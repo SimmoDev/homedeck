@@ -598,9 +598,12 @@ hold.
       optimistic local state. Both build on the shared `ScreenChrome`
       generalised from Harmony's screens.
 
-**M4a exit criteria:** a user can point HomeDeck at a Kodi instance (by
-discovery or manual address), and from the Touch UI see what it is
-playing and drive playback, transport, volume, and menu navigation.
+**M4a exit criteria met:** a user can point HomeDeck at a Kodi instance
+(by discovery or manual address), and from the Touch UI see what it is
+playing and drive playback, transport, volume, and menu navigation. All
+M4a items above are checked; `KodiClient` and its screens run on both
+targets (see [modules.md](architecture/modules.md#status)). M4 as a
+whole stays `(current)` until M4b lands.
 
 **M4b exit criteria:** a user can browse the Kodi library from the Touch
 UI and start playback of a chosen item.
