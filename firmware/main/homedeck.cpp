@@ -213,13 +213,12 @@ std::string ResolveDeviceName(homedeck::Storage& storage) {
 }
 
 // Self-advertisement only - see
-// docs/architecture/networking.md#lan-discovery. Not the Core mDNS
-// *browsing* wrapper that doc also names (for modules discovering
-// Kodi/Home Assistant) - that has no consumer until one of those
-// modules exists (M4/M6 respectively), so building it now would be
-// exactly the kind of speculative Core abstraction ADR-0006 itself
-// rejects. This makes the device reachable at <name>.local instead of
-// requiring the serial-logged IP.
+// docs/architecture/networking.md#lan-discovery. A separate concern from
+// the Core mDNS *browsing* wrapper (`src/platform/firmware/mdns_browser.h`,
+// used by the Kodi module to find instances on the LAN), which shares
+// only the underlying ESP-IDF `mdns` component and its one `mdns_init()`.
+// This makes the device reachable at <name>.local instead of requiring
+// the serial-logged IP.
 void RegisterMdns(const std::string& device_name, homedeck::Logger& logger) {
     esp_err_t mdns_result = mdns_init();
     if (mdns_result == ESP_OK) {
