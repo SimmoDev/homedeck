@@ -126,6 +126,17 @@ between them is the calling module's policy. It is backed by
 when no local mDNS responder is running). Home Assistant (M6) is the
 expected second consumer.
 
+Test coverage sits at the caller's selection policy, not the backend
+adapters: `KodiClient`'s discovery/selection tests
+(`tests/kodi_client_test.cpp`) drive a fake `MdnsBrowser`, and neither
+`HostMdnsBrowser` nor `FirmwareMdnsBrowser` has a unit test of its own
+(a hermetic loopback mDNS responder is impractical to stand up the way
+`websocket_client_test.cpp` stands up a loopback WebSocket server).
+`FirmwareMdnsBrowser` also has no automated firmware target, so its
+`mdns_query_ptr` result walk is exercised only on-device — folded into
+the on-hardware validation M4 (Media) needs before release, not the M4a
+part.
+
 Connectivity status is also implemented: a portable `NetworkStatus`
 interface (`src/platform/network_status.h`) exposes a `Snapshot()` of
 connected/SSID/IP state, backed by `FirmwareNetworkStatus` (updated from

@@ -187,6 +187,15 @@ Implemented for M4a: discovery/selection, connection, Now Playing state
 and the transport/nav Touch UI, the fire-and-forget command surface,
 the two Web UI routes and the settings page.
 
+`KodiClient`'s connect/reconcile/notification loop and its
+discovery/selection policy are host-tested against fake `MdnsBrowser` /
+`WebSocketClient` doubles plus one test over a libcurl-backed
+`HostWebSocketClient` and a raw-socket loopback JSON-RPC peer
+(`tests/kodi_client_test.cpp`). The `MdnsBrowser` backend adapters
+themselves are not unit-tested and the firmware one is on-device only —
+see [networking.md](networking.md#status) for why, and for which part of
+M4 that verification belongs to.
+
 `NowPlayingScreen` / `KodiRemoteScreen`'s populated content (the
 transport row with `SetTransportGlyph()`'s double-triangle rewind/
 fast-forward glyph, the volume row, the D-pad) lives inside `content_`,
