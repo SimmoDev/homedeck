@@ -427,6 +427,36 @@ TEST_F(KodiClientTest, SavedUuidOfflineDoesNotFallBackToAnotherInstance) {
     client->Stop();
 }
 
+// A discovered instance's host is concatenated straight into a ws://
+// URL without IsValidKodiHost() (it never came from the user). A hostile
+// mDNS responder advertising a host with userinfo / a path / whitespace
+// must be dropped, not connected to.
+TEST_F(KodiClientTest, DiscoveredInstanceWithAnUnsafeHostIsIgnored) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    browser.SetInstances({Instance("Evil", "attacker@10.0.0.9", "uuid-evil")});
+    auto script = std::make_shared<WsScript>();
+    ScriptIdleKodi(script);
+
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+
+    ASSERT_TRUE(WaitFor([&] { return browser.BrowseCount() >= 1; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(80));
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kDisconnected);
+    EXPECT_TRUE(client->Snapshot().discovered.empty()) << "an unsafe host must not even reach the pick-one list";
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_TRUE(script->connect_urls.empty());
+    }
+    client->Stop();
+}
+
 // --- "Not reachable" is not a fault ------------------------------------------
 
 TEST_F(KodiClientTest, ConnectFailureEntersErrorWithoutPublishingANotification) {

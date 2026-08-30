@@ -28,6 +28,26 @@ nlohmann::json ParseBoundedJson(const std::string& text) {
     return nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
 }
 
+// A discovered instance's host (mDNS SRV target or resolved address)
+// bypasses IsValidKodiHost() - it never came from the user - yet
+// WebSocketUrl() concatenates it straight into a ws:// authority. A
+// hostile responder on the unauthenticated LAN could otherwise advertise
+// a hostname carrying userinfo ('@'), a path ('/'), a query/fragment, or
+// whitespace/control bytes and redirect the connection. Reject the same
+// byte classes IsValidKodiHost() does, minus ':' (a resolved IPv6
+// literal is legitimate here and WebSocketUrl() brackets it).
+bool HasUnsafeAuthorityChars(const std::string& host) {
+    if (host.find("://") != std::string::npos) {
+        return true;
+    }
+    for (unsigned char c : host) {
+        if (std::isspace(c) || c >= 0x80 || c < 0x20 || c == 0x7F) {
+            return true;
+        }
+    }
+    return host.find_first_of("/#?@") != std::string::npos;
+}
+
 std::string WebSocketUrl(const std::string& host, uint16_t port) {
     // An IPv6 literal (from a discovery result's resolved address) must
     // be bracketed in a URL authority - IsValidKodiHost() rejects ':'
@@ -200,10 +220,13 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
     }
 
     std::vector<MdnsService> instances = mdns_browser_.Browse(kServiceType, browse_timeout_);
-    // Keep only instances we could actually connect to.
+    // Keep only instances we could actually connect to: a usable host,
+    // a non-zero port, and a host string safe to concatenate into a
+    // ws:// authority (see HasUnsafeAuthorityChars()).
     instances.erase(std::remove_if(instances.begin(), instances.end(),
                                    [](const MdnsService& s) {
-                                       return (s.address.empty() && s.hostname.empty()) || s.port == 0;
+                                       const std::string& host = !s.address.empty() ? s.address : s.hostname;
+                                       return host.empty() || s.port == 0 || HasUnsafeAuthorityChars(host);
                                    }),
                     instances.end());
 

@@ -48,7 +48,15 @@ Kodi is its first consumer.
 
 - A manually-entered **`host` override** (module `kodi`, key `host`,
   validated by `IsValidKodiHost()` - same shape as `IsValidHubHost()`)
-  wins and skips discovery entirely.
+  wins and skips discovery entirely. The override always connects on port
+  9090 - `IsValidKodiHost()` rejects `:`, so a non-default port can't be
+  entered this way; a Kodi on a custom RPC port has to be reached through
+  discovery.
+- A discovered instance's host never passes through `IsValidKodiHost()`
+  (it didn't come from the user), so `ResolveTarget()` drops any whose
+  host carries userinfo, a path, or whitespace/control bytes before it
+  can reach the `ws://` URL - a hostile mDNS responder on the
+  unauthenticated LAN otherwise redirects the connection.
 - Otherwise the browse result is matched against the saved
   **`instance_uuid`** (module `kodi`, key `instance_uuid`) - the `uuid`
   from the instance's mDNS TXT record, **not its IP**, so a DHCP lease
