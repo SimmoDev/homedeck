@@ -164,11 +164,12 @@ error reporting) remains unbuilt — see
 are the standard interface modules will contribute dashboard content
 through — see [dashboard.md](dashboard.md#status) for the widgets built
 on it so far (clock, network status, weather, notifications).
-Module-contributed widgets: `HarmonyWidget` (`src/ui/`) is the first,
+Module-contributed widgets: `HarmonyWidget` (`src/ui/`) was the first,
 showing the current activity and reached by tap into Harmony's
-Activities screen — see [dashboard.md](dashboard.md#status). Kodi/Uptime
-Kuma/Home Assistant's own widgets remain a follow-up pending those
-modules existing.
+Activities screen; `KodiWidget` (`src/ui/`, M4a) is the second, tapping
+through to the Now Playing screen — see
+[dashboard.md](dashboard.md#status). Uptime Kuma / Home Assistant's own
+widgets remain a follow-up pending those modules existing.
 
 **Notifications** are implemented: the urgency concept ADR-0005 requires
 (`NotificationSeverity`, `src/core/notification.h`), the `EventBus`-based
@@ -180,10 +181,10 @@ mechanism gates any of this — see
 [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md).
 
 **Networking** is partly implemented: Wi-Fi provisioning and mDNS
-self-advertisement both work on hardware (see
-[networking.md](networking.md#status)); the mDNS *browsing* wrapper for
-modules to discover Home Assistant/Kodi remains unbuilt, with no
-consumer until one of those modules exists.
+self-advertisement both work on hardware, and the mDNS *browsing*
+wrapper for modules to discover their external service is implemented as
+of M4a, with `KodiClient` as its first consumer (Home Assistant will be
+the second) — see [networking.md](networking.md#status).
 
 **OTA updates** are implemented: `POST /api/ota/upload`/`POST /api/ota/reboot`
 (`src/core/ota_routes.h`/`.cpp`), gated by `EvaluateOtaGate()`
@@ -206,8 +207,10 @@ the direct implementation feeding `WeatherWidget` — see
 [dashboard.md](dashboard.md#weather-source).
 
 **Application lifecycle**: `core/module.h`'s `Start()`/`Stop()` contract
-(see [ADR-0003](../decisions/ADR-0003-module-architecture.md)) has its
+(see [ADR-0003](../decisions/ADR-0003-module-architecture.md)) had its
 first implementation in `HarmonyConnection : public Module` — the
 interface was deliberately left unfinalized until Harmony's concrete
 needs shaped it, per that ADR, rather than designed speculatively ahead
-of them.
+of them. `KodiClient` (M4a) is the second implementation and fits the
+contract unchanged — the second-module check ADR-0003 called for — see
+[modules.md](modules.md#status).
