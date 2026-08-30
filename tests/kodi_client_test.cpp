@@ -890,6 +890,115 @@ TEST_F(KodiClientTest, StaleNonExemptCommandsAreDroppedButStopIsKept) {
     client->Stop();
 }
 
+// The pending-command queue is capped at KodiClient::kMaxPendingCommands
+// (20). Enqueue past that while no target can be resolved - the loop
+// sits in its no-target wait, which doesn't watch pending_commands_, so
+// every enqueue lands before any drain - then confirm the oldest were
+// dropped and the newest survived once a host is configured. Mirrors
+// HarmonyConnection's EnqueueingPastTheCapDropsTheOldestEntriesFirst.
+TEST_F(KodiClientTest, PendingQueueDropsTheOldestCommandsPastItsCap) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    // No host set, no instances discovered: ResolveTarget() returns
+    // nullopt and the loop waits in kDisconnected without watching
+    // commands.
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptIdleKodi(script);
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kDisconnected; }));
+
+    constexpr int kEnqueued = 25;
+    constexpr int kCap = 20;
+    for (int volume = 0; volume < kEnqueued; ++volume) {
+        client->SetVolume(volume);  // global command; distinct "volume":N payload each
+    }
+
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+    client->TriggerReconnect();
+
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "Application.SetVolume") >= kCap; }));
+
+    // Anything above the cap would have been sent in the same drain.
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    EXPECT_EQ(CountSent(script, "Application.SetVolume"), kCap);
+    for (int volume = 0; volume < kEnqueued - kCap; ++volume) {
+        EXPECT_EQ(CountSent(script, "\"volume\":" + std::to_string(volume) + "}"), 0)
+            << "dropped volume " << volume << " should never have been sent";
+    }
+    EXPECT_EQ(CountSent(script, "\"volume\":24}"), 1) << "the newest command must survive";
+    client->Stop();
+}
+
+// PumpNotifications() bounds its own non-blocking drain at
+// kMaxPumpIterations (32, kodi_client.cpp) so a peer that keeps the
+// receive buffer full can't turn one pump into an unbounded loop. Queue
+// more than the cap as one atomic batch after connecting (so
+// ConnectAndPrime()'s own Call()s don't consume it first), with a long
+// pump interval so the first drain's stopping point is observable
+// before the next cycle. Mirrors HarmonyConnection's
+// DrainStaleMessagesStopsAtItsOwnIterationCap.
+TEST_F(KodiClientTest, PumpNotificationDrainStopsAtItsIterationCap) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptIdleKodi(script);
+
+    // Constructed directly rather than via MakeClient(): a 200 ms pump
+    // interval (vs. the shared 10 ms) leaves a clear window between the
+    // first drain and the next to check where it stopped.
+    KodiClient client([script] { return std::make_unique<FakeWebSocketClient>(script); }, browser, storage, bus,
+                      kFastBackoff, kFastBackoff, /*reconcile_interval=*/std::chrono::seconds(30),
+                      /*pump_interval=*/std::chrono::milliseconds(200), kFastBrowse,
+                      /*max_pending_command_age=*/std::chrono::seconds(5));
+    client.Start();
+    ASSERT_TRUE(WaitFor([&] { return client.Snapshot().state == KodiConnectionState::kConnected; }));
+
+    constexpr int kQueued = 40;             // > kMaxPumpIterations (32)
+    constexpr size_t kLeftAfterOneDrain = 8;  // kQueued - 32
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        for (int v = 1; v <= kQueued; ++v) {
+            script->pushed.push_back(
+                R"({"jsonrpc":"2.0","method":"Application.OnVolumeChanged","params":{"data":{"volume":)" +
+                std::to_string(v) + R"(}}})");
+        }
+    }
+
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->pushed.size() <= kLeftAfterOneDrain;
+    }));
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->pushed.size(), kLeftAfterOneDrain)
+            << "one pump must stop at kMaxPumpIterations, not drain the whole backlog";
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->pushed.size(), kLeftAfterOneDrain) << "and must not resume before the next pump cycle";
+    }
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->pushed.empty();
+    }));
+    client.Stop();
+}
+
 // --- HostWebSocketClient over a loopback JSON-RPC peer -------------------
 
 // This fake Kodi binds an ephemeral port and the test advertises it

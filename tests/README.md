@@ -104,8 +104,11 @@ notification rather than a later `Player.GetItem`, the
 "unreachable Kodi raises no notification" path, and the fire-and-forget
 command surface (playback/`Input.*`/`Player.Open` queued onto the
 connection thread, the active-player-id resolved at send time, stale
-non-exempt entries dropped on reconnect while a stop is kept) - against
-fake `MdnsBrowser`/`WebSocketClient` doubles, plus
+non-exempt entries dropped on reconnect while a stop is kept, the
+pending-command queue dropping its oldest entries past
+`kMaxPendingCommands`, and `PumpNotifications()` stopping its drain at
+`kMaxPumpIterations` rather than following an unbounded backlog) -
+against fake `MdnsBrowser`/`WebSocketClient` doubles, plus
 `RealBackendConnectsReconcilesAndHandlesAPushedNotification` driving the
 libcurl-backed `HostWebSocketClient` against a raw-socket loopback
 JSON-RPC peer, the same reasoning `harmony_connection_test.cpp` and
