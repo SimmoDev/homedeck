@@ -217,7 +217,10 @@
       {/if}
     </fieldset>
     <div class="row">
-      <button onclick={save} disabled={saving || choice === ""}>
+      <button
+        onclick={save}
+        disabled={saving || choice === "" || (choice === kManualChoice && manualHost.trim() === "")}
+      >
         {saving ? "Saving..." : "Save"}
       </button>
     </div>
