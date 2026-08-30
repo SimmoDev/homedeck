@@ -232,7 +232,8 @@ which stays hidden until `KodiClient::Snapshot().state == kConnected`
 (see `NowPlayingScreen::Refresh()`). In the simulator that state needs
 either a Kodi instance on the LAN or the "Test: toggle fake Kodi
 connection" debug control (see
-[simulator.md](simulator.md#status), `simulator/debug_kodi_backend.cpp`).
+[simulator.md](simulator.md#how-it-works),
+`simulator/debug_kodi_backend.cpp`).
 
 **Not yet built (M4b):** library browsing (movies / TV / music / files /
 live TV / recently added / continue watching) and the screens for it.
