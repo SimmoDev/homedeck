@@ -13,6 +13,7 @@ namespace {
 // this; bounds the result walk against a misbehaving or hostile
 // responder, the same defensive posture kMaxWebSocketMessageBytes takes
 // (platform/websocket_client.h) for an unauthenticated LAN peer.
+// HostMdnsBrowser uses the same cap.
 constexpr size_t kMaxResults = 20;
 
 }  // namespace

@@ -15,10 +15,12 @@ namespace homedeck {
 
 namespace {
 
-// Bounds the work against a misbehaving or hostile responder on an
-// unauthenticated LAN, the same posture kMaxWebSocketMessageBytes
-// (platform/websocket_client.h) takes.
-constexpr size_t kMaxResults = 50;
+// A LAN will not sanely run more instances of one service type than
+// this; bounds the work against a misbehaving or hostile responder on
+// an unauthenticated LAN, the same posture kMaxWebSocketMessageBytes
+// (platform/websocket_client.h) takes. Matches FirmwareMdnsBrowser's
+// own cap so both backends truncate a flood identically.
+constexpr size_t kMaxResults = 20;
 
 struct BrowseContext {
     std::vector<MdnsService> results;
