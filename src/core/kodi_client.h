@@ -187,9 +187,16 @@ public:
     // stuck by a lost command.
     void PlayPause();
     void StopPlayback();
-    void SeekPercent(double percent);   // 0..100
+    // Coarse relative seek / volume nudge - Kodi's own "smallforward"/
+    // "smallbackward" and "increment"/"decrement" step verbs, so rapid
+    // repeated taps stack server-side instead of every one computing the
+    // same target from a snapshot that only refreshes on a Kodi push.
+    // NowPlayingScreen's transport row uses these.
+    void SeekStep(bool forward);
+    void VolumeStep(bool up);
+    void SeekPercent(double percent);   // 0..100, absolute
     void SetSpeed(int speed);           // Kodi's speed ladder: -32..-2, 1, 2..32
-    void SetVolume(int volume);         // 0..100
+    void SetVolume(int volume);         // 0..100, absolute
     void ToggleMute();
     void SendInput(KodiInput input);
     // Starts playback of a library item, e.g. OpenLibraryItem("movieid",
@@ -212,9 +219,10 @@ private:
     // needs no playerid, so its method/params are pre-built at enqueue
     // and player_command stays empty.
     struct PlayerCommand {
-        enum class Kind { kPlayPause, kStop, kSeekPercent, kSetSpeed };
+        enum class Kind { kPlayPause, kStop, kSeekPercent, kSeekStep, kSetSpeed };
         Kind kind;
-        double value = 0;  // percent for kSeekPercent, speed for kSetSpeed
+        double value = 0;  // percent for kSeekPercent, speed for kSetSpeed,
+                           // sign only (>0 forward) for kSeekStep
     };
     struct PendingCommand {
         std::optional<PlayerCommand> player_command;

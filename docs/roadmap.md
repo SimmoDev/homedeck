@@ -587,15 +587,17 @@ hold.
       `KodiClient::OpenLibraryItem()` is the plumbing already in place.
       Artwork stays out of scope until M7 (the `image://` URLs resolve
       only through Kodi's authenticated port 8080 — see ADR-0030).
-- [x] (M4a) Playback control — `PlayPause`/`StopPlayback`/`SeekPercent`/
-      `SetSpeed`/`SetVolume`/`ToggleMute`/`SendInput`, fire-and-forget
-      onto the connection loop with the same bounded pending-queue +
-      staleness-drop shape as Harmony's command path. `SetSpeed` (the
-      fast-forward / rewind *speed ladder*) is a connection-loop
-      primitive with no Touch UI affordance of its own yet — the
-      transport row's outer buttons do a coarse seek, not a speed
-      change; a speed-ladder control belongs with the M7 smooth-progress
-      work.
+- [x] (M4a) Playback control — `PlayPause`/`StopPlayback`/`SeekStep`/
+      `SeekPercent`/`SetSpeed`/`VolumeStep`/`SetVolume`/`ToggleMute`/
+      `SendInput`, fire-and-forget onto the connection loop with the same
+      bounded pending-queue + staleness-drop shape as Harmony's command
+      path. The transport row's coarse rewind/fast-forward and volume ±
+      buttons use `SeekStep`/`VolumeStep` — Kodi's own relative step
+      verbs — so rapid taps stack server-side. `SetSpeed` (the
+      fast-forward / rewind *speed ladder*) and `SeekPercent` are the
+      absolute primitives underneath, with no Touch UI affordance of
+      their own yet — a speed-ladder control belongs with the M7
+      smooth-progress work, and a drag-to-seek bar is M7 polish.
 - [x] (M4a) Now Playing widget/screen — `KodiWidget` on the dashboard →
       `NowPlayingScreen` (subtitle, `lv_bar` progress, transport
       controls) and `KodiRemoteScreen` (a D-pad plus Back/Home/Info/

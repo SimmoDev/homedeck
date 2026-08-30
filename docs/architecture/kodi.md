@@ -136,12 +136,21 @@ polish.
 
 ## Commands
 
-`PlayPause()` / `StopPlayback()` / `SeekPercent()` / `SetSpeed()` /
-`SetVolume()` / `ToggleMute()` / `SendInput()` / `OpenLibraryItem()` are
-safe to call from any thread. They queue the intent onto the connection
-loop, which owns the socket, and are **fire-and-forget** - Kodi's own
-pushed notification, not the reply, is what refreshes the snapshot; the
-reply frame is discarded by the notification pump.
+`PlayPause()` / `StopPlayback()` / `SeekStep()` / `SeekPercent()` /
+`SetSpeed()` / `VolumeStep()` / `SetVolume()` / `ToggleMute()` /
+`SendInput()` / `OpenLibraryItem()` are safe to call from any thread.
+They queue the intent onto the connection loop, which owns the socket,
+and are **fire-and-forget** - Kodi's own pushed notification, not the
+reply, is what refreshes the snapshot; the reply frame is discarded by
+the notification pump.
+
+`SeekStep(forward)` and `VolumeStep(up)` send Kodi's own relative step
+verbs (`Player.Seek` with `"smallforward"`/`"smallbackward"`,
+`Application.SetVolume` with `"increment"`/`"decrement"`), so rapid
+repeated taps of the Touch UI's ± buttons stack server-side.
+`SeekPercent()` / `SetVolume()` are the absolute primitives underneath;
+nothing in the Touch UI computes an absolute target from a snapshot
+that only refreshes on a Kodi push.
 
 The queue is bounded (drop-oldest when full) and drops entries older
 than `max_pending_command_age`, mirroring

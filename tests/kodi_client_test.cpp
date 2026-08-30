@@ -849,6 +849,31 @@ TEST_F(KodiClientTest, PlaybackCommandsSendTheRightMethodWithTheResolvedPlayerId
     client->Stop();
 }
 
+// The Touch UI's rewind/fast-forward and volume +/- buttons use Kodi's
+// own relative step verbs (not an absolute value computed from a
+// possibly-stale snapshot), so rapid repeated taps stack server-side.
+TEST_F(KodiClientTest, RelativeSeekAndVolumeStepsUseKodiStepVerbs) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->SeekStep(/*forward=*/true);
+    ASSERT_TRUE(WaitFor(
+        [&] { return SentFrameHasAll(script, {"Player.Seek", "\"playerid\":1", "\"value\":\"smallforward\""}); }));
+
+    client->SeekStep(/*forward=*/false);
+    ASSERT_TRUE(WaitFor(
+        [&] { return SentFrameHasAll(script, {"Player.Seek", "\"playerid\":1", "\"value\":\"smallbackward\""}); }));
+
+    client->VolumeStep(/*up=*/true);
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Application.SetVolume", "\"volume\":\"increment\""}); }));
+
+    client->VolumeStep(/*up=*/false);
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Application.SetVolume", "\"volume\":\"decrement\""}); }));
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, GlobalCommandsNeedNoPlayerId) {
     KODI_COMMAND_RIG();
     auto client = MakeClient(script, browser, storage, bus, kNoReconcile);

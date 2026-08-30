@@ -11,8 +11,6 @@ namespace homedeck {
 
 namespace {
 
-constexpr int kSeekStepPercent = 5;
-constexpr int kVolumeStep = 5;
 constexpr int32_t kBarRange = 1000;
 
 lv_obj_t* CreateRow(lv_obj_t* parent) {
@@ -58,10 +56,11 @@ NowPlayingScreen::NowPlayingScreen(EventBus& event_bus, BatteryReader& battery_r
         return button;
     };
 
-    // The two outer buttons are a coarse rewind / fast-forward (a
-    // percentage seek), drawn as a double-triangle by SetTransportGlyph
-    // (remote_button.h). LV_SYMBOL_PREV/NEXT stay reserved for genuine
-    // skip-track (DevicesScreen maps SkipBackward/SkipForward to them).
+    // The two outer buttons are a coarse rewind / fast-forward (Kodi's
+    // own relative "smallbackward"/"smallforward" step seek), drawn as a
+    // double-triangle by SetTransportGlyph (remote_button.h).
+    // LV_SYMBOL_PREV/NEXT stay reserved for genuine skip-track
+    // (DevicesScreen maps SkipBackward/SkipForward to them).
     lv_obj_t* transport_row = CreateRow(content_);
 
     rewind_button_ = add_button(transport_row, "", Action::kSeekBack, LV_PCT(23));
@@ -152,7 +151,6 @@ void NowPlayingScreen::OnActionClicked(lv_event_t* e) {
     auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
     auto action = static_cast<Action>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(button)));
 
-    KodiSnapshot snapshot = self->kodi_client_.Snapshot();
     switch (action) {
         case Action::kPlayPause:
             self->kodi_client_.PlayPause();
@@ -161,16 +159,16 @@ void NowPlayingScreen::OnActionClicked(lv_event_t* e) {
             self->kodi_client_.StopPlayback();
             break;
         case Action::kSeekBack:
-            self->kodi_client_.SeekPercent(std::clamp(snapshot.now_playing.percent - kSeekStepPercent, 0.0, 100.0));
+            self->kodi_client_.SeekStep(/*forward=*/false);
             break;
         case Action::kSeekForward:
-            self->kodi_client_.SeekPercent(std::clamp(snapshot.now_playing.percent + kSeekStepPercent, 0.0, 100.0));
+            self->kodi_client_.SeekStep(/*forward=*/true);
             break;
         case Action::kVolumeDown:
-            self->kodi_client_.SetVolume(std::clamp(snapshot.volume - kVolumeStep, 0, 100));
+            self->kodi_client_.VolumeStep(/*up=*/false);
             break;
         case Action::kVolumeUp:
-            self->kodi_client_.SetVolume(std::clamp(snapshot.volume + kVolumeStep, 0, 100));
+            self->kodi_client_.VolumeStep(/*up=*/true);
             break;
         case Action::kMute:
             self->kodi_client_.ToggleMute();

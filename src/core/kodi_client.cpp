@@ -649,6 +649,16 @@ void KodiClient::SeekPercent(double percent) {
     EnqueueCommand(PendingCommand{PlayerCommand{PlayerCommand::Kind::kSeekPercent, percent}, "", "", false, {}});
 }
 
+void KodiClient::SeekStep(bool forward) {
+    EnqueueCommand(
+        PendingCommand{PlayerCommand{PlayerCommand::Kind::kSeekStep, forward ? 1.0 : -1.0}, "", "", false, {}});
+}
+
+void KodiClient::VolumeStep(bool up) {
+    EnqueueCommand(PendingCommand{std::nullopt, "Application.SetVolume",
+                                  up ? R"({"volume":"increment"})" : R"({"volume":"decrement"})", false, {}});
+}
+
 void KodiClient::SetSpeed(int speed) {
     EnqueueCommand(
         PendingCommand{PlayerCommand{PlayerCommand::Kind::kSetSpeed, static_cast<double>(speed)}, "", "", false, {}});
@@ -734,6 +744,10 @@ bool KodiClient::SendPendingCommands(std::stop_token stop) {
                 case PlayerCommand::Kind::kSeekPercent:
                     method = "Player.Seek";
                     params["value"] = {{"percentage", pc.value}};
+                    break;
+                case PlayerCommand::Kind::kSeekStep:
+                    method = "Player.Seek";
+                    params["value"] = pc.value > 0 ? "smallforward" : "smallbackward";
                     break;
                 case PlayerCommand::Kind::kSetSpeed:
                     method = "Player.SetSpeed";
