@@ -578,6 +578,21 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
             if (data.is_object()) {
                 auto item_it = data.find("item");
                 if (item_it != data.end()) {
+                    // OnPlay marks a new item starting. ApplyItemFields()
+                    // is merge-only (it never clears a field), so without
+                    // this a movie started straight after an episode -
+                    // no intervening OnStop - would keep the episode's
+                    // stale show_title / season / episode. Reset first,
+                    // then let the notification's own item repopulate.
+                    // OnAVChange / OnResume etc. are the *same* item and
+                    // must not reset.
+                    if (method == "Player.OnPlay") {
+                        state_.now_playing.title.clear();
+                        state_.now_playing.show_title.clear();
+                        state_.now_playing.season = -1;
+                        state_.now_playing.episode = -1;
+                        state_.now_playing.media_type.clear();
+                    }
                     ApplyItemFields(*item_it, state_.now_playing);
                     identity_from_notification_ = true;
                 }

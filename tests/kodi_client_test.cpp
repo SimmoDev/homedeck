@@ -527,6 +527,45 @@ TEST_F(KodiClientTest, PlayNotificationPopulatesNowPlayingIdentityAndState) {
     client->Stop();
 }
 
+// ApplyItemFields() is merge-only, so a new item starting without an
+// intervening Player.OnStop (a playlist advance, or just starting a
+// movie mid-episode) would otherwise keep the previous item's stale
+// show/season/episode. Player.OnPlay must clear identity before applying
+// the new notification's own item.
+TEST_F(KodiClientTest, OnPlayForANewItemClearsThePreviousItemsStaleIdentity) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);  // an active player exists, so the immediate
+                                // post-notification reconcile poll doesn't wipe identity
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    Push(script, R"({"jsonrpc":"2.0","method":"Player.OnPlay","params":{"data":{"item":{"title":"An Ep",)"
+                 R"("showtitle":"The Show","season":10,"episode":7,"type":"episode"},"player":{"playerid":1,)"
+                 R"("speed":1}}}})");
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.season == 10; }));
+
+    // A movie now starts - no OnStop, and its item has no show/season/episode.
+    Push(script, R"({"jsonrpc":"2.0","method":"Player.OnPlay","params":{"data":{"item":{"title":"A Movie",)"
+                 R"("type":"movie"},"player":{"playerid":1,"speed":1}}}})");
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.title == "A Movie"; }));
+    auto np = client->Snapshot().now_playing;
+    EXPECT_TRUE(np.show_title.empty()) << "the episode's show title must not survive into the movie";
+    EXPECT_EQ(np.season, -1);
+    EXPECT_EQ(np.episode, -1);
+    EXPECT_EQ(np.media_type, "movie");
+    client->Stop();
+}
+
 // Per kodi.md's "Identity vs. timing" (ADR-0030 records the underlying
 // protocol facts): once a Player.On* notification supplies identity, a
 // later reconcile poll's Player.GetItem must not overwrite it - the

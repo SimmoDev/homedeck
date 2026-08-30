@@ -108,6 +108,13 @@ notification seen yet); once any `Player.On*` notification supplies an
 identity, the poll stops overwriting it. Progress / duration / speed
 always come from `Player.GetProperties`.
 
+Identity fields are merged, never individually cleared, so a
+`Player.OnPlay` for a new item - a playlist advancing, or a movie
+started without an intervening `Player.OnStop` - first resets
+title / show / season / episode / type, then applies the new
+notification's `item`. `OnAVChange` / `OnResume` and the rest are the
+*same* item and don't reset.
+
 ### Progress freshness
 
 Kodi pushes nothing as playback simply advances - a notification fires
