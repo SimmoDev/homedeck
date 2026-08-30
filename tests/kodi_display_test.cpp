@@ -59,7 +59,14 @@ TEST(KodiNowPlayingSubtitleTest, InactiveSaysNothingPlaying) {
 }
 
 TEST(KodiNowPlayingSubtitleTest, EpisodeShowsShowSeasonEpisodeAndTitle) {
-    EXPECT_EQ(homedeck::KodiNowPlayingSubtitle(Episode()), "The Show   S3E7  -  The One With The Test");
+    EXPECT_EQ(homedeck::KodiNowPlayingSubtitle(Episode()), "The Show   S03E07  -  The One With The Test");
+}
+
+TEST(KodiNowPlayingSubtitleTest, SeasonEpisodeCodeKeepsWidthPastNinetyNine) {
+    homedeck::KodiNowPlaying np = Episode();
+    np.season = 12;
+    np.episode = 134;
+    EXPECT_EQ(homedeck::KodiNowPlayingSubtitle(np), "The Show   S12E134  -  The One With The Test");
 }
 
 TEST(KodiNowPlayingSubtitleTest, EpisodeWithoutSeasonEpisodeOmitsTheCode) {

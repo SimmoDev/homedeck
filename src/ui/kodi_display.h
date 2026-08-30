@@ -14,7 +14,7 @@ namespace homedeck {
 // The dashboard KodiWidget's single status line.
 std::string KodiWidgetLine(const KodiSnapshot& snapshot);
 
-// NowPlayingScreen's subtitle: "Show Name   S3E7" for an episode, the
+// NowPlayingScreen's subtitle: "Show Name   S03E07" for an episode, the
 // title for a movie/song, "Nothing playing" when inactive.
 std::string KodiNowPlayingSubtitle(const KodiNowPlaying& now_playing);
 

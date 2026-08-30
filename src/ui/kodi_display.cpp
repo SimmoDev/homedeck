@@ -11,6 +11,14 @@ std::string PrimaryTitle(const KodiNowPlaying& np) {
     return !np.show_title.empty() ? np.show_title : np.title;
 }
 
+// Zero-padded to at least two digits, so the season/episode code reads
+// "S03E07" like every other media UI. Larger numbers keep their own
+// width.
+std::string TwoDigit(int value) {
+    std::string digits = std::to_string(value);
+    return digits.size() < 2 ? "0" + digits : digits;
+}
+
 }  // namespace
 
 std::string KodiWidgetLine(const KodiSnapshot& snapshot) {
@@ -46,7 +54,7 @@ std::string KodiNowPlayingSubtitle(const KodiNowPlaying& np) {
     if (!np.show_title.empty()) {
         std::string line = np.show_title;
         if (np.season >= 0 && np.episode >= 0) {
-            line += "   S" + std::to_string(np.season) + "E" + std::to_string(np.episode);
+            line += "   S" + TwoDigit(np.season) + "E" + TwoDigit(np.episode);
         }
         if (!np.title.empty() && np.title != np.show_title) {
             line += "  -  " + np.title;
