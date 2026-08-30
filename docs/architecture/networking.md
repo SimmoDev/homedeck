@@ -175,5 +175,7 @@ libcurl's own native `curl_ws_send()`/`curl_ws_recv()` API — see
 ADR-0029's Consequences section for why. `FirmwareWebSocketClient`
 bridges `espressif/esp_websocket_client`'s event-callback API to the same
 blocking shape on firmware. `HarmonyConnection`
-(`src/core/harmony_connection.h`) is the first (and so far only)
-consumer — see ADR-0029.
+(`src/core/harmony_connection.h`) was the first consumer (see ADR-0029);
+`KodiClient` (`src/core/kodi_client.h`, M4a) is the second, reusing it
+unchanged for Kodi's JSON-RPC WebSocket (see
+[ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)).
