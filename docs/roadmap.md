@@ -587,6 +587,17 @@ hold.
       `KodiClient::OpenLibraryItem()` is the plumbing already in place.
       Artwork stays out of scope until M7 (the `image://` URLs resolve
       only through Kodi's authenticated port 8080 — see ADR-0030).
+- [ ] (M4b) On-hardware Kodi verification — discovery
+      (`FirmwareMdnsBrowser`'s `mdns_query_ptr` result walk, which has no
+      automated firmware target — see
+      [networking.md](architecture/networking.md#status)) and every Kodi
+      Touch UI screen driven against a live instance on a Tab5. Covers
+      the M4a-built pieces too: the simulator and unit tests exercise the
+      portable logic, but per
+      [simulator.md](architecture/simulator.md#what-the-simulator-is-not)
+      a milestone is only releasable after an on-hardware pass, and M4a
+      shipped without one (deliberately — it is the M4-release gate, not
+      the M4a part).
 - [x] (M4a) Playback control — `PlayPause`/`StopPlayback`/`SeekStep`/
       `SeekPercent`/`SetSpeed`/`VolumeStep`/`SetVolume`/`ToggleMute`/
       `SendInput`, fire-and-forget onto the connection loop with the same
@@ -613,7 +624,8 @@ targets (see [modules.md](architecture/modules.md#status)). M4 as a
 whole stays `(current)` until M4b lands.
 
 **M4b exit criteria:** a user can browse the Kodi library from the Touch
-UI and start playback of a chosen item.
+UI and start playback of a chosen item, and the whole Kodi module
+(discovery plus every screen, M4a and M4b) has been verified on a Tab5.
 
 ## M5 — Monitoring
 
