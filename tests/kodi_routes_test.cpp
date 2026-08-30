@@ -173,6 +173,9 @@ TEST_F(KodiRoutesTest, StatusReportsPopulatedSnapshotOnceConnected) {
     EXPECT_NE(result.body.find(R"("resolvedHost":"127.0.0.1")"), std::string::npos);
     EXPECT_NE(result.body.find(R"("appVersion":"21.2")"), std::string::npos);
     EXPECT_NE(result.body.find(R"("nowPlaying")"), std::string::npos);
+    // canSeek is serialised even when idle - the Touch UI reads it to
+    // gate its seek buttons.
+    EXPECT_NE(result.body.find(R"("canSeek":false)"), std::string::npos);
 
     client->Stop();
 }

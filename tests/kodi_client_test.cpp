@@ -654,6 +654,44 @@ TEST_F(KodiClientTest, ReconcilePollFillsPositionAndDurationFromPolledProperties
     client->Stop();
 }
 
+// canseek comes only from the reconcile poll's Player.GetProperties (no
+// Player.On* notification carries it), and gates NowPlayingScreen's seek
+// buttons. Prove the poll actually threads it onto the snapshot for both
+// values.
+TEST_F(KodiClientTest, ReconcilePollCarriesCanSeekFromPlayerProperties) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Player.GetProperties"] =
+            R"({"speed":1,"percentage":25.0,"time":{"hours":0,"minutes":5,"seconds":0,"milliseconds":0},)"
+            R"("totaltime":{"hours":0,"minutes":20,"seconds":0,"milliseconds":0},"canseek":true})";
+    }
+
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.can_seek; }))
+        << "a seekable source must report can_seek true after a reconcile poll";
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Player.GetProperties"] =
+            R"({"speed":1,"percentage":25.0,"time":{"hours":0,"minutes":5,"seconds":0,"milliseconds":0},)"
+            R"("totaltime":{"hours":0,"minutes":20,"seconds":0,"milliseconds":0},"canseek":false})";
+    }
+    ASSERT_TRUE(WaitFor([&] { return !client->Snapshot().now_playing.can_seek; }))
+        << "a later poll seeing canseek:false must clear it again";
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, InterleavedNotificationDuringAPollIsHandledAndThePollStillCompletes) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
