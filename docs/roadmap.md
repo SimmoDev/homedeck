@@ -765,6 +765,14 @@ UI and start playback of a chosen item.
       designed in isolation. `NumericBasic`/`NavigationBasic`'s own fixed
       keypad/D-pad layouts (see the M3 Remote control item) already fit
       one screen and aren't in scope for paging
+- [ ] Smooth `NowPlayingScreen` progress (`src/ui/screens/now_playing_screen.cpp`)
+      - Kodi pushes nothing as playback merely advances, so the time
+      label and `lv_bar` currently step forward only on `KodiClient`'s
+      10 s reconcile poll (see
+      [kodi.md](architecture/kodi.md#progress-freshness)). A local
+      interpolation timer, seeded from the last polled position/speed and
+      corrected on each reconcile, would make the bar tick smoothly
+      without extra Kodi traffic
 - [ ] Icon pair for the brightness/volume quick-settings panel's sliders
       (`src/ui/quick_settings_panel.cpp`), replacing the current
       text-label-above-slider styling for both - LVGL's bundled symbol

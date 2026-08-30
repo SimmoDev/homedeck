@@ -100,6 +100,18 @@ notification seen yet); once any `Player.On*` notification supplies an
 identity, the poll stops overwriting it. Progress / duration / speed
 always come from `Player.GetProperties`.
 
+### Progress freshness
+
+Kodi pushes nothing as playback simply advances - a notification fires
+only on a state change (play / pause / seek / speed). So during
+uninterrupted playback the position, the `NowPlayingScreen` time label,
+and its `lv_bar` only move on the `reconcile_interval` poll: they step
+forward every 10 s rather than ticking smoothly, then re-sync
+immediately after any transport action (a seek notification sets
+`needs_immediate_poll_`). This is a deliberate tradeoff against a
+local interpolation timer, not a bug; a smoother bar is left to M7
+polish.
+
 ### Notes on the reference build (Kodi 21 "Omega", Android)
 
 - Every `Player.On*` notification's `params.data.player.playerid` is
