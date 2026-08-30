@@ -34,10 +34,11 @@ maintain themselves.
 Two distinct things share this name and shouldn't be conflated: device-level
 Wi-Fi connectivity (see [networking.md](networking.md#responsibilities)) and
 each module's connection to *its* external service (e.g. "Harmony Hub:
-connected," "Kodi: reconnecting"). Both are surfaced in Web UI diagnostics,
+connected," "Kodi: reconnecting"). Both should be surfaced in the Web UI,
 but they're independent — a module can be disconnected from its service
 while the device is fully online, and the UI needs to distinguish which is
-which.
+which. Where module connection state is shown today, and what is still
+missing, is in the [Status](#status) section below.
 
 ## Requirement: error reporting
 
@@ -132,10 +133,11 @@ internal tier's bounded retention - the one concrete use
 - is not built.
 
 Still not implemented: the generic Web UI Diagnostics page doesn't yet
-surface per-module status/connection state — Harmony's own connection
-status is shown on its own Web UI settings page
-(`webui/src/lib/HarmonySettings.svelte`), not the shared Diagnostics
-page, see [web-ui.md](web-ui.md#status). Error reporting's mechanism is
+surface per-module status/connection state — each module's connection
+status is shown on its own Web UI settings page instead
+(`webui/src/lib/HarmonySettings.svelte` via `GET /api/harmony/status`,
+`webui/src/lib/KodiSettings.svelte` via `GET /api/kodi/status`), not the
+shared Diagnostics page, see [web-ui.md](web-ui.md#status). Error reporting's mechanism is
 implemented, not just ready: `HarmonyNotificationBridge`
 (`src/core/harmony_notification_bridge.h`/`.cpp`) publishes a
 `NotificationEvent` when Harmony's connection enters `kError`, the same
