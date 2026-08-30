@@ -590,7 +590,12 @@ hold.
 - [x] (M4a) Playback control — `PlayPause`/`StopPlayback`/`SeekPercent`/
       `SetSpeed`/`SetVolume`/`ToggleMute`/`SendInput`, fire-and-forget
       onto the connection loop with the same bounded pending-queue +
-      staleness-drop shape as Harmony's command path.
+      staleness-drop shape as Harmony's command path. `SetSpeed` (the
+      fast-forward / rewind *speed ladder*) is a connection-loop
+      primitive with no Touch UI affordance of its own yet — the
+      transport row's outer buttons do a coarse seek, not a speed
+      change; a speed-ladder control belongs with the M7 smooth-progress
+      work.
 - [x] (M4a) Now Playing widget/screen — `KodiWidget` on the dashboard →
       `NowPlayingScreen` (subtitle, `lv_bar` progress, transport
       controls) and `KodiRemoteScreen` (a D-pad plus Back/Home/Info/
