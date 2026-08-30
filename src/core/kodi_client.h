@@ -72,6 +72,11 @@ struct KodiNowPlaying {
     // position/duration by up to one reconcile cycle; resets to false with
     // the rest of this struct once playback stops.
     bool can_seek = false;
+
+    // Lets ReconcilePoll() tell a poll that actually moved something from
+    // one that found the exact same state (a long pause), so it only
+    // republishes KodiNowPlayingChangedEvent on an actual delta.
+    bool operator==(const KodiNowPlaying&) const = default;
 };
 
 // One Kodi instance seen by the most recent discovery browse - enough

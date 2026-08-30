@@ -506,6 +506,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         KodiNowPlaying& np = state_.now_playing;
+        const KodiNowPlaying before = np;
 
         nlohmann::json props = ParseBoundedJson(*props_text);
         auto props_result = props.is_object() ? props.find("result") : props.end();
@@ -531,7 +532,15 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
             }
         }
         state_.has_status = true;
-        changed = true;
+        // Only a genuine change republishes: during uninterrupted playback
+        // position_ms advances every poll so this holds, but a poll that
+        // lands on an unchanged paused snapshot must not re-render every
+        // bound widget/screen once per reconcile interval forever - the
+        // same guard the volume/mute block above and the idle path below
+        // already apply.
+        if (np != before) {
+            changed = true;
+        }
     }
     if (changed) {
         event_bus_.Publish(KodiNowPlayingChangedEvent{});

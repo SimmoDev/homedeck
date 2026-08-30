@@ -696,6 +696,48 @@ TEST_F(KodiClientTest, IdleReconcilePollsDoNotRepublishTheNowPlayingEvent) {
     client->Stop();
 }
 
+// The same guard for a paused player: position/duration/percent are
+// frozen while paused, so a reconcile poll that re-reads the identical
+// snapshot must not fire KodiNowPlayingChangedEvent every cycle. (During
+// uninterrupted playback position_ms advances, so the event still fires
+// then - that path is covered by the tests above.)
+TEST_F(KodiClientTest, PausedReconcilePollsDoNotRepublishWhenNothingChanged) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    std::atomic<int> now_playing_events{0};
+    auto sub = bus.Subscribe<homedeck::KodiNowPlayingChangedEvent>(
+        [&now_playing_events](const homedeck::KodiNowPlayingChangedEvent&) { now_playing_events++; });
+
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        // Paused: speed 0 and a fixed position that never advances.
+        script->results["Player.GetProperties"] =
+            R"({"speed":0,"percentage":25.0,"time":{"hours":0,"minutes":5,"seconds":0,"milliseconds":0},)"
+            R"("totaltime":{"hours":0,"minutes":20,"seconds":0,"milliseconds":0},"canseek":true})";
+    }
+
+    auto client = MakeClient(script, browser, storage, bus, kFastReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.duration_ms == 20 * 60 * 1000; }));
+    ASSERT_EQ(client->Snapshot().now_playing.playback, KodiPlaybackState::kPaused);
+
+    // Let the initial poll's event settle, then measure across many cycles.
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    const int settled = now_playing_events.load();
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    EXPECT_EQ(now_playing_events.load(), settled)
+        << "an unchanging paused snapshot must not fire an event every reconcile cycle";
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, ReconcilePollFillsPositionAndDurationFromPolledProperties) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
