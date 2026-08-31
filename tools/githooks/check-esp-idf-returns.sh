@@ -8,6 +8,13 @@ set -uo pipefail
 
 status=0
 
+# A handful of esp_*/mdns_* calls in this prefix set return void or are
+# noreturn - there is no value to check, assign, or wrap, so a bare call
+# is the only way to call them. Filtered out of all three passes below so
+# they don't produce a finding no one can action. Extend as new ones turn
+# up; keep it to functions genuinely declared void/noreturn in ESP-IDF.
+void_returning='(esp_restart|esp_chip_info|esp_deep_sleep_start|esp_system_abort|mdns_query_results_free|mdns_free)\('
+
 for f in "$@"; do
     [ -f "$f" ] || continue
     # httpd_resp_* (response-writing calls) are excluded: checking every one
@@ -27,6 +34,7 @@ for f in "$@"; do
     # not flag.
     matches=$(grep -nE '(^|[{};])[[:space:]]*(esp_|mdns_|httpd_)[A-Za-z0-9_]+\(.*\);[[:space:]]*\}?[[:space:]]*$' "$f" \
         | grep -vE 'httpd_resp_' \
+        | grep -vE "$void_returning" \
         | awk -F: '{
             line = $0
             sub(/^[0-9]+:/, "", line)
@@ -89,7 +97,7 @@ for f in "$@"; do
                 i++
             }
         }
-    ' "$f" || true)
+    ' "$f" | grep -vE "$void_returning" || true)
     if [ -n "$ml_matches" ]; then
         echo "[esp-idf-return] $f: bare multi-line call, return value not checked/logged:"
         echo "$ml_matches" | sed 's/^/    /'
@@ -132,7 +140,7 @@ for f in "$@"; do
                 }
             }
         }
-    ' "$f" || true)
+    ' "$f" | grep -vE "$void_returning" || true)
     if [ -n "$cf_matches" ]; then
         echo "[esp-idf-return] $f: bare call as an unbraced if/while/for body, return value not checked/logged:"
         echo "$cf_matches" | sed 's/^/    /'
