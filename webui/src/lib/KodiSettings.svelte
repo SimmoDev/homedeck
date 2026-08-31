@@ -235,7 +235,7 @@
     {#if statusError}
       <p class="error" aria-live="polite">Status error: {statusError}</p>
     {:else if status}
-      <p>
+      <p aria-live="polite">
         Status: <strong>{stateLabel(status.state)}</strong>
         {#if status.state === "connected"}
           {#if status.resolvedHost}&mdash; {status.resolvedHost}{/if}

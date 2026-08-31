@@ -209,7 +209,7 @@
     {#if statusError}
       <p class="error" aria-live="polite">Status error: {statusError}</p>
     {:else if status}
-      <p>
+      <p aria-live="polite">
         Status: <strong>{stateLabel(status.state)}</strong>
         {#if status.hasConfig}
           &mdash; {status.devices.length} device{status.devices.length === 1 ? "" : "s"}, {status.activities.length}
