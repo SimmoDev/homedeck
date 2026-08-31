@@ -193,7 +193,7 @@
       {:else}
         <p class="hint">
           No Kodi found on the network yet. Open Kodi on the device (its remote-control API is only reachable while
-          it's running), or enter an address below. Discovery refreshes every few seconds.
+          it's running), or enter an address below. The device keeps looking - use Refresh below to update this list.
         </p>
       {/if}
       <label class="choice">
