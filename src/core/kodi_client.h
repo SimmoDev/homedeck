@@ -89,11 +89,10 @@ struct KodiDiscoveredInstance {
 };
 
 struct KodiSnapshot {
+    // state == kConnected is only ever published after ConnectAndPrime()'s
+    // initial ReconcilePoll() has populated the fields below, so it doubles
+    // as "a snapshot is available" - no separate flag needed.
     KodiConnectionState state = KodiConnectionState::kDisconnected;
-    // True once any poll or notification has populated the fields below
-    // this session - lets the UI tell "connected, nothing playing" from
-    // "not connected yet."
-    bool has_status = false;
     // The host:port the connection loop last resolved a target to (from
     // the `host` override, or the chosen discovered instance) - shown on
     // the Web UI settings page. Empty when no target could be resolved.

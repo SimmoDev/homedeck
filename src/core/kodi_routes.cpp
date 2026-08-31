@@ -33,7 +33,6 @@ nlohmann::json SnapshotToJson(const KodiSnapshot& s) {
     const KodiNowPlaying& np = s.now_playing;
     return {
         {"state", StateToString(s.state)},
-        {"hasStatus", s.has_status},
         {"resolvedHost", s.resolved_host},
         {"discovered", std::move(instances)},
         {"appVersion", s.app_version},

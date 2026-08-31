@@ -411,7 +411,6 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
                 state_.app_version = std::to_string(version_it->value("major", 0)) + "." +
                                      std::to_string(version_it->value("minor", 0));
             }
-            state_.has_status = true;
         }
     }
 
@@ -432,7 +431,6 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
                 state_.now_playing = KodiNowPlaying{};
                 changed = true;
             }
-            state_.has_status = true;
         }
         identity_from_notification_ = false;
         if (changed) {
@@ -497,7 +495,6 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
                 }
             }
         }
-        state_.has_status = true;
         // Only a genuine change republishes: during uninterrupted playback
         // position_ms advances every poll so this holds, but a poll that
         // lands on an unchanged paused snapshot must not re-render every
@@ -580,9 +577,6 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
                 needs_immediate_poll_ = true;  // refresh position/duration now, not at the next interval
                 changed = true;
             }
-        }
-        if (changed) {
-            state_.has_status = true;
         }
     }
     if (changed) {

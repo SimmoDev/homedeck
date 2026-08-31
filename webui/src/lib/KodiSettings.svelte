@@ -24,7 +24,6 @@
 
   interface KodiStatus {
     state: "disconnected" | "connecting" | "connected" | "error";
-    hasStatus: boolean;
     resolvedHost: string;
     discovered: KodiDiscovered[];
     appVersion: string;

@@ -151,7 +151,6 @@ TEST_F(KodiRoutesTest, StatusReportsDisconnectedBeforeAnyInstanceIsConfigured) {
     auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "", cookie);
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("state":"disconnected")"), std::string::npos);
-    EXPECT_NE(result.body.find(R"("hasStatus":false)"), std::string::npos);
     EXPECT_NE(result.body.find(R"("discovered":[])"), std::string::npos);
 }
 
