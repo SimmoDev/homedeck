@@ -100,12 +100,15 @@ match, single-instance auto-select, and the ambiguous/offline cases that
 must stay disconnected rather than guess), the JSON-RPC `id`-correlation
 loop dispatching interleaved pushed notifications, notification-driven
 Now Playing state (play/pause/stop, volume) with identity taken from the
-notification rather than a later `Player.GetItem`, the
-"unreachable Kodi raises no notification" path, and the fire-and-forget
-command surface (playback/`Input.*`/`Player.Open` queued onto the
-connection thread, the active-player-id resolved at send time, stale
-non-exempt entries dropped on reconnect while a stop is kept, the
-pending-command queue dropping its oldest entries past
+notification rather than a later `Player.GetItem`, `can_seek` threaded
+from the reconcile poll into the snapshot, an idle or paused reconcile
+not republishing an unchanged snapshot, the "unreachable Kodi raises no
+notification" path, and the fire-and-forget command surface
+(playback/`Input.*`/`Player.Open` queued onto the connection thread, the
+transport row's relative seek/volume steps sent as Kodi's own
+`smallforward`/`increment` step verbs, the active-player-id resolved at
+send time, stale non-exempt entries dropped on reconnect while a stop is
+kept, the pending-command queue dropping its oldest entries past
 `kMaxPendingCommands`, and `PumpNotifications()` stopping its drain at
 `kMaxPumpIterations` rather than following an unbounded backlog) -
 against fake `MdnsBrowser`/`WebSocketClient` doubles, plus
