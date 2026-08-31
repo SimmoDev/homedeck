@@ -212,14 +212,35 @@ std::string ResolveDeviceName(homedeck::Storage& storage) {
     return device_name_setting.has_value() ? device_name_setting->value : "homedeck";
 }
 
+// Brings the ESP-IDF `mdns` component up once, on the single-threaded
+// boot path, before app_main starts any task that touches it. Both the
+// Kodi module's browse Task (`src/platform/firmware/mdns_browser.cpp`)
+// and RegisterMdns() call mdns_init() themselves; it is idempotent, but
+// espressif/mdns's own mdns_init() checks its static server pointer
+// without a lock, so two *first* callers racing would double-initialise
+// (leaking the first server/queue/task). Doing it here makes both of
+// those the unambiguous idempotent second caller. A failure here is only
+// logged - RegisterMdns() logs the self-advertisement consequence, and
+// the browse Task degrades to "nothing discovered" on its own.
+void StartMdns(homedeck::Logger& logger) {
+    esp_err_t mdns_result = mdns_init();
+    if (mdns_result != ESP_OK) {
+        printf("mDNS init failed: %s\n", esp_err_to_name(mdns_result));
+        logger.Log(homedeck::LogLevel::kError, "mdns", std::string("Init failed: ") + esp_err_to_name(mdns_result));
+    }
+}
+
 // Self-advertisement only - see
 // docs/architecture/networking.md#lan-discovery. A separate concern from
 // the Core mDNS *browsing* wrapper (`src/platform/firmware/mdns_browser.h`,
 // used by the Kodi module to find instances on the LAN): both bring up
 // the same ESP-IDF `mdns` component via `mdns_init()`, which is
-// idempotent, so neither depends on the other having run first. This
-// makes the device reachable at <name>.local instead of requiring the
-// serial-logged IP.
+// idempotent, so neither depends on the other having run first. app_main
+// itself calls mdns_init() once, before starting any task that browses
+// (see StartMdns()), so by the time this runs the component is already
+// up and this mdns_init() is just the defensive idempotent second call.
+// This makes the device reachable at <name>.local instead of requiring
+// the serial-logged IP.
 void RegisterMdns(const std::string& device_name, homedeck::Logger& logger) {
     esp_err_t mdns_result = mdns_init();
     if (mdns_result == ESP_OK) {
@@ -609,6 +630,11 @@ extern "C" void app_main(void) {
     } else {
         printf("Wi-Fi setup screen loaded\n");
     }
+
+    // Ahead of app_core.Start() so the Kodi browse Task it launches finds
+    // the `mdns` component already up rather than racing RegisterMdns()
+    // (below) to be its first initialiser - see StartMdns()'s own comment.
+    StartMdns(app_core.GetLogger());
 
     // Every ClockTickEvent subscriber above is already constructed, so
     // this can't miss the first tick regardless of the order they were

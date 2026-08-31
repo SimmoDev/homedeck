@@ -23,12 +23,16 @@ std::vector<MdnsService> FirmwareMdnsBrowser::Browse(const std::string& service_
     std::vector<MdnsService> out;
 
     // mdns_init() is idempotent - it returns ESP_OK once the mDNS server
-    // is up, and firmware/main brings the same component up separately to
-    // advertise the device. Calling it here removes the ordering
-    // dependency on that: this backend's own Task starts before Wi-Fi
-    // bring-up runs the advertisement path, and a browse before then would
+    // is up. Calling it here removes any ordering dependency on the
+    // advertisement path: this backend's own Task can browse before
+    // Wi-Fi bring-up runs that path, and a browse before then would
     // otherwise get ESP_ERR_INVALID_STATE back from mdns_query_ptr() with
     // no way for the caller to tell that from "nothing on the LAN."
+    // firmware/main's StartMdns() already brings the component up once on
+    // the single-threaded boot path before this Task starts, so this is
+    // the idempotent second call, not a first initialiser racing another
+    // (espressif/mdns's mdns_init() has no internal lock around that
+    // check).
     if (mdns_init() != ESP_OK) {
         return out;
     }

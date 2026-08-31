@@ -12,9 +12,10 @@ namespace homedeck {
 // docs/architecture/networking.md).
 //
 // Stateless: each Browse() calls mdns_init() itself (idempotent - the
-// entry point also brings the same component up to advertise the device)
-// and then runs one independent bounded query, so it works regardless of
-// whether the advertisement path has run yet.
+// entry point's StartMdns() already brings the same component up once on
+// the boot path, and RegisterMdns() calls it again to advertise the
+// device) and then runs one independent bounded query, so it works
+// regardless of whether the advertisement path has run yet.
 class FirmwareMdnsBrowser : public MdnsBrowser {
 public:
     std::vector<MdnsService> Browse(const std::string& service_type,
