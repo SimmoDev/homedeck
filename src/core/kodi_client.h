@@ -40,12 +40,12 @@ enum class KodiPlaybackState { kInactive, kPlaying, kPaused };
 // inconsistent on the reference build).
 enum class KodiInput { kUp, kDown, kLeft, kRight, kSelect, kBack, kHome, kInfo, kContextMenu, kShowOsd };
 
-// Rejects the same shapes IsValidHubHost() does (scheme prefix, embedded
-// whitespace/control bytes, a path, `#`/`?`/`@`, a bare IPv6 literal) and
-// for the same reasons - WebSocketUrl() below concatenates this value
-// straight into a URL. Empty is accepted: an empty `host` override means
-// "use discovery instead," not a malformed address (see
-// ConnectionLoop()). Mirrors webui/src/lib/kodiValidation.ts.
+// The manual `host` override's server-side check: thin wrapper over
+// HasUnsafeHostChars(value, /*allow_colon=*/false) (see
+// core/host_validation.h), same as Harmony's IsValidHubHost(). Empty is
+// accepted - an empty override means "use discovery instead," not a
+// malformed address (see ConnectionLoop()). Mirrors
+// webui/src/lib/kodiValidation.ts.
 bool IsValidKodiHost(const std::string& value);
 
 // What's playing right now, merged from two sources per ADR-0030:

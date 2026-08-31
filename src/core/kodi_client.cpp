@@ -1,10 +1,10 @@
 #include "core/kodi_client.h"
 
+#include "core/host_validation.h"
 #include "core/json_request.h"
 #include "third_party/nlohmann/json.hpp"
 
 #include <algorithm>
-#include <cctype>
 
 namespace homedeck {
 
@@ -26,26 +26,6 @@ nlohmann::json ParseBoundedJson(const std::string& text) {
         return nlohmann::json(nlohmann::json::value_t::discarded);
     }
     return nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
-}
-
-// A discovered instance's host (mDNS SRV target or resolved address)
-// bypasses IsValidKodiHost() - it never came from the user - yet
-// WebSocketUrl() concatenates it straight into a ws:// authority. A
-// hostile responder on the unauthenticated LAN could otherwise advertise
-// a hostname carrying userinfo ('@'), a path ('/'), a query/fragment, or
-// whitespace/control bytes and redirect the connection. Reject the same
-// byte classes IsValidKodiHost() does, minus ':' (a resolved IPv6
-// literal is legitimate here and WebSocketUrl() brackets it).
-bool HasUnsafeAuthorityChars(const std::string& host) {
-    if (host.find("://") != std::string::npos) {
-        return true;
-    }
-    for (unsigned char c : host) {
-        if (std::isspace(c) || c >= 0x80 || c < 0x20 || c == 0x7F) {
-            return true;
-        }
-    }
-    return host.find_first_of("/#?@") != std::string::npos;
 }
 
 std::string WebSocketUrl(const std::string& host, uint16_t port) {
@@ -114,30 +94,13 @@ void ApplyItemFields(const nlohmann::json& item, KodiNowPlaying& now_playing) {
 }  // namespace
 
 bool IsValidKodiHost(const std::string& value) {
-    if (value.find("://") != std::string::npos) {
-        return false;
-    }
-    for (unsigned char c : value) {
-        // Same byte class IsValidHubHost() rejects, and for the same
-        // reasons - see harmony_connection.cpp's own comment.
-        if (std::isspace(c) || c >= 0x80 || c < 0x20 || c == 0x7F) {
-            return false;
-        }
-    }
-    if (value.find('/') != std::string::npos) {
-        return false;
-    }
-    if (value.find_first_of("#?@") != std::string::npos) {
-        return false;
-    }
-    // A bare (unbracketed) IPv6 literal would reach WebSocketUrl()'s raw
-    // concatenation - rejected here for the manual-override path exactly
-    // as IsValidHubHost() does; a discovered address is bracketed by
-    // WebSocketUrl() itself instead.
-    if (value.find(':') != std::string::npos) {
-        return false;
-    }
-    return true;
+    // The manual-override path only: WebSocketUrl() concatenates this
+    // value in without bracketing, so a bare IPv6 literal is rejected
+    // (allow_colon=false), exactly as IsValidHubHost() does. A discovered
+    // address bypasses this and is screened by
+    // HasUnsafeHostChars(host, /*allow_colon=*/true) in ResolveTarget()
+    // instead, since WebSocketUrl() brackets it. See host_validation.h.
+    return !HasUnsafeHostChars(value, /*allow_colon=*/false);
 }
 
 KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser& mdns_browser, Storage& storage,
@@ -222,11 +185,14 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
     std::vector<MdnsService> instances = mdns_browser_.Browse(kServiceType, browse_timeout_);
     // Keep only instances we could actually connect to: a usable host,
     // a non-zero port, and a host string safe to concatenate into a
-    // ws:// authority (see HasUnsafeAuthorityChars()).
+    // ws:// authority. A discovered host never came from the user, so it
+    // bypasses IsValidKodiHost() - screen it here instead, allowing ':'
+    // since WebSocketUrl() brackets a resolved IPv6 literal itself.
     instances.erase(std::remove_if(instances.begin(), instances.end(),
                                    [](const MdnsService& s) {
                                        const std::string& host = !s.address.empty() ? s.address : s.hostname;
-                                       return host.empty() || s.port == 0 || HasUnsafeAuthorityChars(host);
+                                       return host.empty() || s.port == 0 ||
+                                              HasUnsafeHostChars(host, /*allow_colon=*/true);
                                    }),
                     instances.end());
 

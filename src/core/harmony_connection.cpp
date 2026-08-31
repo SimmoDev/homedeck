@@ -1,5 +1,6 @@
 #include "core/harmony_connection.h"
 
+#include "core/host_validation.h"
 #include "core/json_request.h"
 #include "third_party/nlohmann/json.hpp"
 
@@ -188,39 +189,12 @@ bool IsValidHubId(const std::string& value) {
 }
 
 bool IsValidHubHost(const std::string& value) {
-    if (value.find("://") != std::string::npos) {
-        return false;
-    }
-    for (unsigned char c : value) {
-        // Rejects ASCII whitespace, every other C0 control character and
-        // DEL, and every non-ASCII byte outright - a hostname/IP has no
-        // legitimate use for any of them, and it sidesteps having to
-        // enumerate every multi-byte UTF-8 whitespace codepoint (e.g.
-        // U+00A0 NBSP) the frontend's `/\s/` regex already rejects that a
-        // byte-wise std::isspace() alone can't see. Mirrors
-        // webui/src/lib/harmonyValidation.ts's control-character check.
-        if (std::isspace(c) || c >= 0x80 || c < 0x20 || c == 0x7F) {
-            return false;
-        }
-    }
-    if (value.find('/') != std::string::npos) {
-        return false;
-    }
-    // See HandshakeUrl()/WebSocketUrl()'s own comment on why these three
-    // specifically, not just any non-hostname character.
-    if (value.find_first_of("#?@") != std::string::npos) {
-        return false;
-    }
-    // A bare (unbracketed) IPv6 literal, e.g. "::1" or "fe80::1", would
-    // otherwise pass every check above and reach HandshakeUrl()/
-    // WebSocketUrl()'s own raw concatenation - RFC 3986 requires an IPv6
-    // literal to be bracketed in a URL authority, and this project has no
-    // stated need for IPv6 hub addresses, so ':' is rejected outright
-    // rather than adding bracket-aware parsing for a case nothing needs.
-    if (value.find(':') != std::string::npos) {
-        return false;
-    }
-    return true;
+    // The manual-entry path: HandshakeUrl()/WebSocketUrl() concatenate
+    // this value into a URL authority without bracketing, so a bare IPv6
+    // literal is rejected too (allow_colon=false). See host_validation.h
+    // for the full byte-class rationale. Empty passes (no unsafe bytes) -
+    // ConnectionLoop() reads it as "not yet configured," not malformed.
+    return !HasUnsafeHostChars(value, /*allow_colon=*/false);
 }
 
 HarmonyConnection::HarmonyConnection(HttpClient& http_client, WebSocketClientFactory make_websocket_client,

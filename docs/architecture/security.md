@@ -179,10 +179,14 @@ The outbound direction is admin-controlled the same way: `host`
 (validated by `IsValidKodiHost()`, `src/core/kodi_client.cpp`) is an
 arbitrary LAN host HomeDeck connects to, settable only through
 `POST /api/settings`, gated by `AdminAuthService` like every other
-write. `instance_uuid`, the alternative selection key, is never used to
-build a URL - it's only matched against discovered mDNS TXT records -
-so it carries none of `host`'s injection risk and needs no equivalent
-validation.
+write. `IsValidKodiHost()`, Harmony's `IsValidHubHost()`, and the
+screen applied to a discovered mDNS host all delegate to one
+`HasUnsafeHostChars()` (`src/core/host_validation.h`), so the byte
+classes rejected before a value reaches URL concatenation are defined
+once, not re-derived per module. `instance_uuid`, the alternative
+selection key, is never used to build a URL - it's only matched against
+discovered mDNS TXT records - so it carries none of `host`'s injection
+risk and needs no equivalent validation.
 
 ## Status
 
