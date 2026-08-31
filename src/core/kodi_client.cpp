@@ -28,17 +28,22 @@ nlohmann::json ParseBoundedJson(const std::string& text) {
     return nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
 }
 
-std::string WebSocketUrl(const std::string& host, uint16_t port) {
-    // An IPv6 literal (from a discovery result's resolved address) must
-    // be bracketed in a URL authority - IsValidKodiHost() rejects ':'
-    // for the manual-override path, but a discovered address bypasses
-    // that check.
+// Brackets a bare IPv6 literal so it is a valid URL authority. A
+// discovered address (the only source of a ':' here - IsValidKodiHost()
+// rejects one on the manual-override path) reaches both the ws:// URL
+// and the resolved_host string shown on the Web UI settings page, and
+// both need "host:port" to parse the way it reads.
+std::string HostPortAuthority(const std::string& host, uint16_t port) {
     std::string authority = host;
     // A found ':' already implies non-empty, so authority.front() is safe.
     if (authority.find(':') != std::string::npos && authority.front() != '[') {
         authority = "[" + authority + "]";
     }
-    return "ws://" + authority + ":" + std::to_string(port) + "/jsonrpc";
+    return authority + ":" + std::to_string(port);
+}
+
+std::string WebSocketUrl(const std::string& host, uint16_t port) {
+    return "ws://" + HostPortAuthority(host, port) + "/jsonrpc";
 }
 
 long long MillisFromTimeObject(const nlohmann::json& t) {
@@ -220,7 +225,7 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
     if (chosen != nullptr) {
         const std::string& host = !chosen->address.empty() ? chosen->address : chosen->hostname;
         target = Target{host, chosen->port};
-        resolved_host = host + ":" + std::to_string(chosen->port);
+        resolved_host = HostPortAuthority(host, chosen->port);
     }
 
     std::vector<KodiDiscoveredInstance> discovered;
