@@ -215,10 +215,11 @@ std::string ResolveDeviceName(homedeck::Storage& storage) {
 // Self-advertisement only - see
 // docs/architecture/networking.md#lan-discovery. A separate concern from
 // the Core mDNS *browsing* wrapper (`src/platform/firmware/mdns_browser.h`,
-// used by the Kodi module to find instances on the LAN), which shares
-// only the underlying ESP-IDF `mdns` component and its one `mdns_init()`.
-// This makes the device reachable at <name>.local instead of requiring
-// the serial-logged IP.
+// used by the Kodi module to find instances on the LAN): both bring up
+// the same ESP-IDF `mdns` component via `mdns_init()`, which is
+// idempotent, so neither depends on the other having run first. This
+// makes the device reachable at <name>.local instead of requiring the
+// serial-logged IP.
 void RegisterMdns(const std::string& device_name, homedeck::Logger& logger) {
     esp_err_t mdns_result = mdns_init();
     if (mdns_result == ESP_OK) {

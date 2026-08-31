@@ -120,8 +120,10 @@ rejected building ahead of one). A portable `MdnsBrowser` interface
 instance — never a single "the" result, since multiple instances of one
 service type on a LAN (a media box per room) is expected, and choosing
 between them is the calling module's policy. It is backed by
-`FirmwareMdnsBrowser` (ESP-IDF's `mdns` component, `mdns_query_ptr`) and
-`HostMdnsBrowser` (libavahi-client, simulator only — see
+`FirmwareMdnsBrowser` (ESP-IDF's `mdns` component, `mdns_query_ptr`;
+calls the idempotent `mdns_init()` itself, so it does not depend on the
+self-advertisement path above having run first) and `HostMdnsBrowser`
+(libavahi-client, simulator only — see
 [DEVELOPMENT.md](../../DEVELOPMENT.md); returns empty rather than failing
 when no local mDNS responder is running). Home Assistant (M6) is the
 expected second consumer.

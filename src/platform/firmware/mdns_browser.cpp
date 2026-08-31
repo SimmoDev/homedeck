@@ -22,6 +22,17 @@ std::vector<MdnsService> FirmwareMdnsBrowser::Browse(const std::string& service_
                                                     std::chrono::milliseconds timeout) {
     std::vector<MdnsService> out;
 
+    // mdns_init() is idempotent - it returns ESP_OK once the mDNS server
+    // is up, and firmware/main brings the same component up separately to
+    // advertise the device. Calling it here removes the ordering
+    // dependency on that: this backend's own Task starts before Wi-Fi
+    // bring-up runs the advertisement path, and a browse before then would
+    // otherwise get ESP_ERR_INVALID_STATE back from mdns_query_ptr() with
+    // no way for the caller to tell that from "nothing on the LAN."
+    if (mdns_init() != ESP_OK) {
+        return out;
+    }
+
     // mdns_query_ptr() takes the service and protocol as separate
     // labels ("_xbmc-jsonrpc", "_tcp"); the interface takes the joined
     // DNS-SD form ("_xbmc-jsonrpc._tcp"). Split at the last '.'.

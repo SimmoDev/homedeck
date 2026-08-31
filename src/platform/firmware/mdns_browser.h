@@ -11,9 +11,10 @@ namespace homedeck {
 // M2's LAN discovery item until a module needed it (Kodi, M4 - see
 // docs/architecture/networking.md).
 //
-// Stateless: no lifecycle of its own beyond mdns_init(), which the
-// entry point already calls once at startup. Each Browse() is an
-// independent bounded query.
+// Stateless: each Browse() calls mdns_init() itself (idempotent - the
+// entry point also brings the same component up to advertise the device)
+// and then runs one independent bounded query, so it works regardless of
+// whether the advertisement path has run yet.
 class FirmwareMdnsBrowser : public MdnsBrowser {
 public:
     std::vector<MdnsService> Browse(const std::string& service_type,
