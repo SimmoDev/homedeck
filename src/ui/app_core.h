@@ -87,11 +87,13 @@ public:
         HttpClient& http_client;
         HttpServer& http_server;
         // A fresh WebSocketClient per (re)connect attempt, not a shared
-        // instance - HarmonyConnection (the only caller) owns exactly one
-        // at a time and replaces it on every reconnect, the same shape
+        // instance - HarmonyConnection and KodiClient each own exactly one
+        // at a time and replace it on every reconnect, the same shape
         // HttpClient's stateless-per-call Get()/Post() doesn't need but a
         // stateful connection genuinely does. Firmware passes a factory
         // returning FirmwareWebSocketClient, the simulator HostWebSocketClient.
+        // (Typedef'd on HarmonyConnection, but KodiClient's is the same
+        // std::function type - one factory serves both.)
         HarmonyConnection::WebSocketClientFactory make_websocket_client;
         // One-shot mDNS service browser - the Kodi module (M4) is the
         // first consumer. Firmware passes FirmwareMdnsBrowser, the
