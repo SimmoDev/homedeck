@@ -602,7 +602,7 @@ hold.
       the simulator's own canned doubles. Artwork stays out of scope
       until M7 (the `image://` URLs resolve only through Kodi's
       authenticated port 8080 — see ADR-0030).
-- [ ] (M4b) On-hardware Kodi verification — discovery
+- [x] (M4b) On-hardware Kodi verification — discovery
       (`FirmwareMdnsBrowser`'s `mdns_query_ptr` result walk, which has no
       automated firmware target — see
       [networking.md](architecture/networking.md#status)) and every Kodi
@@ -612,7 +612,23 @@ hold.
       [simulator.md](architecture/simulator.md#what-the-simulator-is-not)
       a milestone is only releasable after an on-hardware pass, and M4a
       shipped without one (deliberately — it is the M4-release gate, not
-      the M4a part).
+      the M4a part). Connection, Now Playing/Remote, and all five browse
+      screens (Movies/TV Shows/Music/Files/Live TV) driven against a
+      live instance on the K145 reference unit; mDNS discovery itself
+      ran on real hardware too (found a real instance rather than
+      nothing). That run surfaced a real defect, not a simulator-only
+      gap: `ResolveTarget()` was falling back to a discovered instance's
+      raw mDNS `hostname` with no check that it's actually resolvable,
+      and at least one real device advertises a non-resolvable hostname
+      — fixed by requiring a resolved IP address before auto-selecting
+      or matching a saved instance (see
+      [kodi.md](architecture/kodi.md#discovery-and-instance-selection)),
+      an address-less instance still shown in the discovered list for
+      manual entry, just never auto-connected to. After the fix, the
+      `instance_uuid`-based selection path itself (not just manual host
+      entry) was also confirmed on hardware: picking a discovered,
+      address-backed instance from the Web UI's radio list and saving
+      connected correctly on its resolved address.
 - [x] (M4a) Playback control — `PlayPause`/`StopPlayback`/`SeekStep`/
       `SeekPercent`/`SetSpeed`/`VolumeStep`/`SetVolume`/`ToggleMute`/
       `SendInput`, fire-and-forget onto the connection loop with the same

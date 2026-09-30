@@ -456,12 +456,27 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
     // else: nothing discovered, or >1 with no saved selection - the
     // "ask the user to choose in settings" case; leave chosen null.
 
+    // A chosen instance with no resolved IP address falls back to its
+    // bare mDNS hostname only for display in `discovered` below, never
+    // as an actual connect target - MdnsService's own header warns
+    // ".local" resolution isn't guaranteed on either target's outbound
+    // path, and at least one real device advertises a hostname with no
+    // domain suffix at all ("Android", not "Android.local") that can
+    // never resolve. Auto-connecting to it would mean silently retrying
+    // a target already known to be unusable forever; nulling `chosen`
+    // here routes it through the same "ask the user to choose" state as
+    // nothing being resolvable at all, and (for the saved-uuid path)
+    // the same reasoning ADR-0030 already applies to a saved-but-offline
+    // instance - don't fall back to guessing.
+    if (chosen != nullptr && chosen->address.empty()) {
+        chosen = nullptr;
+    }
+
     std::string resolved_host;
     std::optional<Target> target;
     if (chosen != nullptr) {
-        const std::string& host = !chosen->address.empty() ? chosen->address : chosen->hostname;
-        target = Target{host, chosen->port};
-        resolved_host = HostPortAuthority(host, chosen->port);
+        target = Target{chosen->address, chosen->port};
+        resolved_host = HostPortAuthority(chosen->address, chosen->port);
     }
 
     std::vector<KodiDiscoveredInstance> discovered;

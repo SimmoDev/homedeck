@@ -68,6 +68,16 @@ Kodi is its first consumer.
 - A saved-but-offline instance does **not** fall back to another
   discovered instance; silently controlling a different room's Kodi
   would be worse than doing nothing.
+- An instance with no resolved IP address - only `MdnsService`'s own
+  `hostname` fallback field - is never auto-selected or matched against
+  a saved `instance_uuid`, for either of the above. `hostname` is a
+  best-effort display value only (its own header warns `.local`
+  resolution isn't guaranteed on either target); at least one real
+  device advertises a hostname with no domain suffix at all ("Android",
+  not "Android.local"), which can never resolve through a generic
+  connect. Still shown in the Web UI's discovered-instance list so the
+  user can enter its real address manually - just never connected to
+  automatically.
 
 The `host` and `instance_uuid` keys are mutually exclusive; the Web UI
 writes one and clears the other.

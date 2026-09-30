@@ -2,7 +2,12 @@
 
 ## Status
 
-Accepted.
+Accepted. The Decision section's "one instance discovered → auto-select
+it" (and the equivalent saved-`instance_uuid` match) is narrowed to
+instances with a resolved IP address - see
+[kodi.md](../architecture/kodi.md#discovery-and-instance-selection) for
+why (a real device was found advertising an unresolvable mDNS
+hostname).
 
 ## Context
 

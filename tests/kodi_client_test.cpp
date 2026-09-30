@@ -427,6 +427,79 @@ TEST_F(KodiClientTest, SavedUuidOfflineDoesNotFallBackToAnotherInstance) {
     client->Stop();
 }
 
+// Same address-less guard as DiscoveredInstanceWithNoAddressIsNotAutoSelected,
+// exercised through the saved-uuid match path instead of auto-select -
+// a saved selection matching a hostname-only instance must not connect,
+// the same "don't silently guess" reasoning as an offline saved uuid.
+TEST_F(KodiClientTest, SavedUuidMatchingAnAddresslessInstanceIsNotConnected) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kInstanceUuidKey, 1, "shield-uuid"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    MdnsService hostname_only;
+    hostname_only.instance_name = "Shield";
+    hostname_only.hostname = "Android";
+    hostname_only.port = 9090;
+    hostname_only.txt["uuid"] = "shield-uuid";
+    browser.SetInstances({hostname_only});
+    auto script = std::make_shared<WsScript>();
+
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+
+    ASSERT_TRUE(WaitFor([&] { return browser.BrowseCount() >= 1; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(80));
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kDisconnected);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_TRUE(script->connect_urls.empty());
+    }
+    client->Stop();
+}
+
+// A discovered instance with no resolved IP address - just a bare mDNS
+// hostname, e.g. a real device that advertises "Android" with no domain
+// suffix at all - must not be auto-selected or connected to: MdnsService's
+// own header warns ".local" resolution isn't guaranteed on either target,
+// and this specific case can never resolve at all. Still shown in
+// `discovered` so the Web UI can display it (and the user can enter its
+// real address manually), just never used as a connect target.
+TEST_F(KodiClientTest, DiscoveredInstanceWithNoAddressIsNotAutoSelected) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    MdnsService hostname_only;
+    hostname_only.instance_name = "Shield";
+    hostname_only.hostname = "Android";  // no `address` - the real-world failure case
+    hostname_only.port = 9090;
+    hostname_only.txt["uuid"] = "shield-uuid";
+    browser.SetInstances({hostname_only});
+    auto script = std::make_shared<WsScript>();
+
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+
+    ASSERT_TRUE(WaitFor([&] { return browser.BrowseCount() >= 1; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(80));
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kDisconnected);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_TRUE(script->connect_urls.empty())
+            << "a hostname with no address must never be auto-connected to";
+    }
+    ASSERT_EQ(client->Snapshot().discovered.size(), 1u) << "still shown for the user to see/pick manually";
+    EXPECT_EQ(client->Snapshot().discovered[0].host, "Android");
+    client->Stop();
+}
+
 // A discovered instance's host is concatenated straight into a ws://
 // URL without IsValidKodiHost() (it never came from the user). A hostile
 // mDNS responder advertising a host with userinfo / a path / whitespace
