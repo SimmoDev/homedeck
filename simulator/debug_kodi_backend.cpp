@@ -34,6 +34,56 @@ std::string CannedResult(const std::string& method) {
         return R"({"item":{"title":"The One With The Simulator","showtitle":"Simulated Show",)"
                R"("season":3,"episode":7,"type":"episode"}})";
     }
+    // M4b library-browse screens (KodiMoviesScreen/KodiTvShowsScreen) -
+    // enough canned data to check layout/reachability for each level,
+    // same "not a Kodi stand-in" scope as the player state above.
+    if (method == "VideoLibrary.GetMovies") {
+        return R"({"movies":[)"
+               R"({"movieid":1,"title":"Simulated Movie One","year":2021,"resume":{"position":0,"total":0}},)"
+               R"({"movieid":2,"title":"Simulated Movie Two","year":2019,)"
+               R"("resume":{"position":1830.0,"total":5400.0}}]})";
+    }
+    if (method == "VideoLibrary.GetTVShows") {
+        return R"({"tvshows":[{"tvshowid":1,"title":"Simulated Show","year":2020,)"
+               R"("episode":16,"watchedepisodes":7}]})";
+    }
+    if (method == "VideoLibrary.GetSeasons") {
+        return R"({"seasons":[)"
+               R"({"season":1,"label":"Season 1","episode":8,"watchedepisodes":8},)"
+               R"({"season":2,"label":"Season 2","episode":8,"watchedepisodes":0}]})";
+    }
+    if (method == "VideoLibrary.GetEpisodes") {
+        return R"({"episodes":[)"
+               R"({"episodeid":1,"episode":1,"title":"Simulated Pilot","resume":{"position":0,"total":0}},)"
+               R"({"episodeid":2,"episode":2,"title":"Simulated Episode Two",)"
+               R"("resume":{"position":600.0,"total":1320.0}}]})";
+    }
+    if (method == "AudioLibrary.GetArtists") {
+        return R"({"artists":[{"artistid":1,"artist":"Simulated Artist","label":"Simulated Artist"}]})";
+    }
+    if (method == "AudioLibrary.GetAlbums") {
+        return R"({"albums":[{"albumid":1,"title":"Simulated Album","label":"Simulated Album","year":2022}]})";
+    }
+    if (method == "AudioLibrary.GetSongs") {
+        return R"({"songs":[)"
+               R"({"songid":1,"track":1,"title":"Simulated Track One","label":"Simulated Track One","duration":210},)"
+               R"({"songid":2,"track":2,"title":"Simulated Track Two","label":"Simulated Track Two","duration":185}]})";
+    }
+    if (method == "Files.GetSources") {
+        return R"({"sources":[{"file":"/simulated/media/","label":"Simulated Media"}]})";
+    }
+    if (method == "Files.GetDirectory") {
+        return R"({"files":[)"
+               R"({"file":"/simulated/media/Simulated Folder/","filetype":"directory","label":"Simulated Folder"},)"
+               R"({"file":"/simulated/media/Simulated File.mkv","filetype":"file","label":"Simulated File"}]})";
+    }
+    if (method == "PVR.GetChannelGroups") {
+        return R"({"channelgroups":[{"channelgroupid":1,"channeltype":"tv","label":"Simulated Channels"}]})";
+    }
+    if (method == "PVR.GetChannels") {
+        return R"({"channels":[{"channelid":1,"channeltype":"tv","label":"Simulated Channel One"},)"
+               R"({"channelid":2,"channeltype":"tv","label":"Simulated Channel Two"}]})";
+    }
     return "";
 }
 

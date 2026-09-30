@@ -46,7 +46,12 @@
 #include "ui/screens/activities_screen.h"
 #include "ui/screens/dashboard_screen.h"
 #include "ui/screens/devices_screen.h"
+#include "ui/screens/kodi_files_screen.h"
+#include "ui/screens/kodi_live_tv_screen.h"
+#include "ui/screens/kodi_movies_screen.h"
+#include "ui/screens/kodi_music_screen.h"
 #include "ui/screens/kodi_remote_screen.h"
+#include "ui/screens/kodi_tv_shows_screen.h"
 #include "ui/screens/now_playing_screen.h"
 #include "ui/screens/wifi_setup_screen.h"
 #include "ui/weather_widget.h"
@@ -189,6 +194,11 @@ private:
     KodiWidget kodi_widget_;
     NowPlayingScreen now_playing_screen_;
     KodiRemoteScreen kodi_remote_screen_;
+    KodiMoviesScreen kodi_movies_screen_;
+    KodiTvShowsScreen kodi_tv_shows_screen_;
+    KodiMusicScreen kodi_music_screen_;
+    KodiFilesScreen kodi_files_screen_;
+    KodiLiveTvScreen kodi_live_tv_screen_;
 
     Clock clock_;
     Logger logger_;

@@ -155,6 +155,11 @@ if(TARGET lvgl)
     ui/screens/devices_screen.cpp
     ui/screens/now_playing_screen.cpp
     ui/screens/kodi_remote_screen.cpp
+    ui/screens/kodi_movies_screen.cpp
+    ui/screens/kodi_tv_shows_screen.cpp
+    ui/screens/kodi_music_screen.cpp
+    ui/screens/kodi_files_screen.cpp
+    ui/screens/kodi_live_tv_screen.cpp
     ui/screens/screen_chrome.cpp
     ui/lvgl_user_activity_source.cpp
     ui/app_core.cpp

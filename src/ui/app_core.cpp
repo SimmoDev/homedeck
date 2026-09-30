@@ -53,6 +53,11 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
       kodi_widget_(dashboard_.Grid().Container(), event_bus, kodi_client_, navigation_),
       now_playing_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
       kodi_remote_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
+      kodi_movies_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
+      kodi_tv_shows_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
+      kodi_music_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
+      kodi_files_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
+      kodi_live_tv_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
       clock_(deps.time_source, event_bus),
       logger_(storage_, deps.time_source),
       admin_auth_(storage_, auth_time_source_) {
@@ -72,6 +77,11 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
     navigation_.Register("harmony-devices", devices_screen_.Root());
     navigation_.Register("kodi-now-playing", now_playing_screen_.Root());
     navigation_.Register("kodi-remote", kodi_remote_screen_.Root());
+    navigation_.Register("kodi-movies", kodi_movies_screen_.Root());
+    navigation_.Register("kodi-tv-shows", kodi_tv_shows_screen_.Root());
+    navigation_.Register("kodi-music", kodi_music_screen_.Root());
+    navigation_.Register("kodi-files", kodi_files_screen_.Root());
+    navigation_.Register("kodi-live-tv", kodi_live_tv_screen_.Root());
 
     RegisterAdminAuthRoutes(deps.http_server, admin_auth_);
     RegisterDiagnosticsRoutes(deps.http_server, storage_, admin_auth_, deps.battery_reader, logger_,

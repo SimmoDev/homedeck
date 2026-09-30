@@ -583,10 +583,25 @@ hold.
       `KodiSettings.svelte` plus `GET /api/kodi/status` /
       `POST /api/kodi/reconnect` (`src/core/kodi_routes.h`/`.cpp`) are
       the Web UI surface.
-- [ ] (M4b) Media browsing — video/music/files/live-TV library screens;
-      `KodiClient::OpenLibraryItem()` is the plumbing already in place.
-      Artwork stays out of scope until M7 (the `image://` URLs resolve
-      only through Kodi's authenticated port 8080 — see ADR-0030).
+- [x] (M4b) Media browsing — video/music/files/live-TV library screens,
+      built on `KodiClient::OpenLibraryItem()`'s existing plumbing plus a
+      new request/response query mechanism (`RequestX()`/
+      `KodiXFetchedEvent`, alongside the fire-and-forget command path -
+      see [kodi.md](architecture/kodi.md#library-browsing-m4b)).
+      `KodiMoviesScreen` (list → Play/Resume detail),
+      `KodiTvShowsScreen` (shows → seasons → episodes → detail),
+      `KodiMusicScreen` (artists → albums → songs, no detail level - no
+      resume concept for music), `KodiFilesScreen` (a video source list,
+      then `Files.GetDirectory` at whatever depth the filesystem has -
+      the one screen with unbounded rather than fixed depth), and
+      `KodiLiveTvScreen` (channel groups → channels, no detail level - no
+      resume concept for a live broadcast) are all reachable from
+      `NowPlayingScreen`. Every `VideoLibrary.Get*`/`AudioLibrary.Get*`/
+      `Files.Get*`/`PVR.Get*` response shape `KodiClient` parses was
+      confirmed field-for-field against a live Kodi 21 instance, not just
+      the simulator's own canned doubles. Artwork stays out of scope
+      until M7 (the `image://` URLs resolve only through Kodi's
+      authenticated port 8080 — see ADR-0030).
 - [ ] (M4b) On-hardware Kodi verification — discovery
       (`FirmwareMdnsBrowser`'s `mdns_query_ptr` result walk, which has no
       automated firmware target — see

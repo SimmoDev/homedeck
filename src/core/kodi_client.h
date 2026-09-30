@@ -107,8 +107,154 @@ struct KodiSnapshot {
     KodiNowPlaying now_playing;
 };
 
+// One library entry per M4b's video-browsing screens (movies / TV shows /
+// seasons / episodes). Deliberately thin - just enough for a list button
+// and a Play/Resume choice; artwork stays out of scope (ADR-0030).
+struct KodiMovie {
+    long long movieid = -1;
+    std::string title;
+    int year = 0;
+    // > 0 => Kodi has a stored resume point (VideoLibrary's own "resume"
+    // property, {position, total} in seconds) - the browse screen offers
+    // Resume as well as Play when this is set.
+    long long resume_position_ms = 0;
+};
+
+struct KodiTvShow {
+    long long tvshowid = -1;
+    std::string title;
+    int year = 0;
+    int episode_count = 0;
+    int watched_episode_count = 0;
+};
+
+struct KodiSeason {
+    // Kodi's own season number, not a database seasonid - what
+    // RequestEpisodes() filters by (0 == Specials).
+    int season = 0;
+    std::string label;  // e.g. "Season 1" - Kodi's own formatted label
+    int episode_count = 0;
+    int watched_episode_count = 0;
+};
+
+struct KodiEpisode {
+    long long episodeid = -1;
+    int episode = 0;
+    std::string title;
+    long long resume_position_ms = 0;
+};
+
+// Music library browsing (also M4b): Artists -> Albums -> Songs, no
+// fourth Play/Resume detail level unlike the video screens above -
+// AudioLibrary.GetSongs has no "resume" property at all (confirmed
+// against a live Kodi 21 instance: requesting one is rejected with
+// "Invalid params"), so a song plays directly on tap.
+struct KodiArtist {
+    long long artistid = -1;
+    std::string name;
+};
+
+struct KodiAlbum {
+    long long albumid = -1;
+    std::string title;
+    int year = 0;
+};
+
+struct KodiSong {
+    long long songid = -1;
+    int track = 0;
+    std::string title;
+    int duration_seconds = 0;
+};
+
+// Raw filesystem browsing (also M4b) - the fallback view for content not
+// (yet) scraped into the video library, mirroring Kodi's own Videos >
+// Files menu: Files.GetSources("video") for the configured source list,
+// then Files.GetDirectory(path, "video") at arbitrary depth (a show's
+// season folders, a season's episode files, ...). Unlike the fixed-depth
+// screens above, folder depth is unbounded, so KodiFilesScreen keeps its
+// own path stack rather than a fixed set of sibling containers. No
+// Play/Resume choice, same reasoning as music - a file plays directly on
+// tap via PlayFile(), Player.Open with a raw {"file": path} item instead
+// of a library id.
+struct KodiFileItem {
+    // Kodi's own "file" field - an opaque path string, re-passed
+    // verbatim to Files.GetDirectory (to descend) or PlayFile() (to
+    // play); never parsed or displayed itself, only `label` is shown.
+    std::string path;
+    std::string label;
+    bool is_folder = false;
+};
+
+// Live TV browsing (also M4b): channel groups -> channels, two levels -
+// shallower than every other browse type since there's nothing to
+// scope a channel by beyond its group. Scoped to channeltype "tv" only
+// (radio is a separate PVR channel type Kodi also supports but this
+// pass doesn't browse). No Play/Resume choice - a live broadcast has no
+// resume point - so a channel plays directly on tap via the existing
+// OpenLibraryItem("channelid", id, /*resume=*/false), the same
+// generic-id_field mechanism the video screens use for movieid/
+// episodeid.
+struct KodiChannelGroup {
+    long long channelgroupid = -1;
+    std::string label;
+};
+
+struct KodiChannel {
+    long long channelid = -1;
+    std::string label;
+};
+
 struct KodiConnectionStateChangedEvent {
     KodiConnectionState state;
+};
+
+// Published once RequestMovies()/RequestTvShows()/RequestSeasons()/
+// RequestEpisodes()'s query completes - see each request method's own
+// comment. Unlike KodiNowPlayingChangedEvent these carry the data itself
+// (there is no standing "library snapshot" to re-read via Snapshot() -
+// the library is too large to hold in full, and a browse screen only
+// ever wants the one list it just asked for).
+struct KodiMoviesFetchedEvent {
+    std::vector<KodiMovie> movies;
+};
+struct KodiTvShowsFetchedEvent {
+    std::vector<KodiTvShow> shows;
+};
+struct KodiSeasonsFetchedEvent {
+    long long tvshowid;
+    std::vector<KodiSeason> seasons;
+};
+struct KodiEpisodesFetchedEvent {
+    long long tvshowid;
+    int season;
+    std::vector<KodiEpisode> episodes;
+};
+struct KodiArtistsFetchedEvent {
+    std::vector<KodiArtist> artists;
+};
+struct KodiAlbumsFetchedEvent {
+    long long artistid;
+    std::vector<KodiAlbum> albums;
+};
+struct KodiSongsFetchedEvent {
+    long long albumid;
+    std::vector<KodiSong> songs;
+};
+// path is "" for the top-level sources list (RequestFileSources()), or
+// the directory just listed (RequestDirectory()) - lets a screen ignore
+// a reply for a directory it's since navigated away from, same
+// filtering KodiSeasonsFetchedEvent/KodiEpisodesFetchedEvent use.
+struct KodiFilesFetchedEvent {
+    std::string path;
+    std::vector<KodiFileItem> items;
+};
+struct KodiChannelGroupsFetchedEvent {
+    std::vector<KodiChannelGroup> groups;
+};
+struct KodiChannelsFetchedEvent {
+    long long channelgroupid;
+    std::vector<KodiChannel> channels;
 };
 
 // Marker only - handlers call Snapshot(), same shape as
@@ -208,6 +354,37 @@ public:
     // resume point. Player.Open (ADR-0030) - the browse screens (M4b)
     // are the caller.
     void OpenLibraryItem(const std::string& id_field, long long id, bool resume);
+    // Starts playback of a raw filesystem item by its Kodi "file" path
+    // string (KodiFileItem::path) rather than a library id - the
+    // Files-browse screen's own Player.Open shape, no resume choice (see
+    // KodiFileItem's own comment).
+    void PlayFile(const std::string& path);
+
+    // Library browse queries (M4b). Unlike the commands above these are
+    // request/response, not fire-and-forget: each queues onto the
+    // connection loop, which issues the matching VideoLibrary.Get*/
+    // AudioLibrary.Get* call via Call() (not SendText - a reply is the
+    // entire point) and publishes the corresponding KodiXFetchedEvent
+    // with the parsed result. Safe to call from any thread; queues until
+    // a connection exists rather than failing outright (same
+    // bounded/drop-oldest shape as pending_commands_, see
+    // kMaxPendingLibraryRequests) - a screen calls these once, on
+    // becoming visible, not on a timer, so there is no separate retry if
+    // it's still queued when the screen navigates away.
+    void RequestMovies();
+    void RequestTvShows();
+    void RequestSeasons(long long tvshowid);
+    void RequestEpisodes(long long tvshowid, int season);
+    void RequestArtists();
+    void RequestAlbums(long long artistid);
+    void RequestSongs(long long albumid);
+    // "" lists Files.GetSources("video") (the top-level source list);
+    // any other value lists Files.GetDirectory(path, "video") - both
+    // publish KodiFilesFetchedEvent.
+    void RequestFileSources();
+    void RequestDirectory(const std::string& path);
+    void RequestChannelGroups();
+    void RequestChannels(long long channelgroupid);
 
 private:
     struct Target {
@@ -241,6 +418,30 @@ private:
     // dropped first once full, same policy and reasoning as
     // HarmonyConnection::kMaxPendingCommands.
     static constexpr size_t kMaxPendingCommands = 20;
+
+    // One queued library browse query (RequestMovies() etc.) - unlike
+    // PendingCommand these are drained via Call() (request/response),
+    // not SendText(), since the whole point is the reply. tvshowid/season
+    // are unused for kMovies/kTvShows.
+    struct LibraryRequest {
+        enum class Kind { kMovies, kTvShows, kSeasons, kEpisodes, kArtists, kAlbums, kSongs, kFileSources,
+                          kDirectory, kChannelGroups, kChannels };
+        Kind kind;
+        // The parent id a query is scoped to - tvshowid for
+        // kSeasons/kEpisodes, artistid for kAlbums, albumid for kSongs,
+        // channelgroupid for kChannels; unused for kMovies/kTvShows/
+        // kArtists/kFileSources/kDirectory/kChannelGroups (nothing to
+        // scope by, or scoped by `path` instead).
+        long long parent_id = 0;
+        int season = 0;      // kEpisodes only - the second id it needs alongside parent_id
+        std::string path;    // kDirectory only - the Files.GetDirectory path to list
+    };
+    // Lower than kMaxPendingCommands - a browse screen issues at most one
+    // request per user action (a tap into a show/season), so a deep
+    // backlog only happens while disconnected, and nothing needs more
+    // than a handful of the most recent taps preserved for when a
+    // connection returns.
+    static constexpr size_t kMaxPendingLibraryRequests = 8;
 
     void ConnectionLoop(std::stop_token stop);
     // Reads the `host`/`instance_uuid` settings and, if discovery is in
@@ -281,12 +482,21 @@ private:
     void HandleNotification(const std::string& frame_text);
     void SetState(KodiConnectionState state);
     // watch_commands: only the connected inner loop watches
-    // pending_commands_ (ws_client_ exists only then) - the
-    // no-target/backoff waits leave commands queued rather than
+    // pending_commands_/pending_library_requests_ (ws_client_ exists only
+    // then) - the no-target/backoff waits leave both queued rather than
     // busy-waking on them, same as HarmonyConnection::Sleep().
     WakeReason Sleep(std::chrono::milliseconds delay, std::stop_token stop, bool watch_commands);
 
     void EnqueueCommand(PendingCommand command);
+    void EnqueueLibraryRequest(LibraryRequest request);
+    // Drains pending_library_requests_ and, for each, issues the matching
+    // VideoLibrary.Get* Call() and publishes its KodiXFetchedEvent.
+    // Unlike SendPendingCommands() a send failure or timeout is fatal to
+    // the whole batch (false => reconnect) rather than something later
+    // entries can route around - a query is worthless without its reply,
+    // so there is no "keep_when_stale"-style partial-success case to
+    // preserve. Loop-thread only, same ws_client_ ownership as Call().
+    bool SendPendingLibraryRequests(std::stop_token stop);
     // Drains pending_commands_ and sends each - fire-and-forget SendText,
     // not Call(): a command's reply carries no state this class needs
     // (Kodi pushes the resulting state change separately), and the pump
@@ -336,6 +546,9 @@ private:
     // and a queued command - Sleep() tells them apart), same as
     // HarmonyConnection::pending_commands_.
     std::deque<PendingCommand> pending_commands_;
+    // Same wake channel/mutex as pending_commands_ above - Sleep()
+    // watches both, and the connected loop drains both every wake.
+    std::deque<LibraryRequest> pending_library_requests_;
 
     std::unique_ptr<Task> task_;
 };

@@ -204,6 +204,97 @@ D-pad plus Back / Home / Info / OSD / Menu, each a plain-tap
 `DevicesScreen`'s D-pad: Harmony's D-pad cells are press/hold/release
 command buttons, Kodi's are a single tap.
 
+### Library browsing (M4b)
+
+Two buttons below Remote, visible whenever Kodi is connected (not gated
+on anything currently playing): `KodiMoviesScreen` and
+`KodiTvShowsScreen` (`src/ui/screens/`), both reached from
+`NowPlayingScreen`.
+
+Unlike every command above, a library browse is request/response, not
+fire-and-forget - `KodiClient::RequestMovies()`/`RequestTvShows()`/
+`RequestSeasons(tvshowid)`/`RequestEpisodes(tvshowid, season)` each queue
+onto the connection loop, which issues the matching
+`VideoLibrary.Get*` call via `Call()` (not the notification-driven push
+path everything else on this page relies on - a library listing has no
+push notification of its own) and publishes the parsed result as
+`KodiMoviesFetchedEvent`/`KodiTvShowsFetchedEvent`/
+`KodiSeasonsFetchedEvent`/`KodiEpisodesFetchedEvent`. These share
+`pending_commands_`' bounded/drop-oldest queue shape
+(`pending_library_requests_`, `kMaxPendingLibraryRequests`) but not its
+fire-and-forget send: a query is worthless without its reply, so
+`SendPendingLibraryRequests()` treats a failed/timed-out `Call()` as
+fatal to the whole batch, the same as a dead transport anywhere else in
+this module.
+
+`KodiMoviesScreen` is list-then-detail (movie list, then a selected
+movie's Play/Resume choice), matching `DevicesScreen`'s own no-back-stack
+shape. `KodiTvShowsScreen` is four levels deep (shows -> seasons ->
+episodes -> an episode's Play/Resume choice); each screen's own "back"
+button goes up exactly one level, never straight to the top or Home.
+Resume is offered only when Kodi's own `resume` property on a movie/
+episode has a non-zero position - `KodiMovie`/`KodiEpisode`'s
+`resume_position_ms`, converted from that property's own `{position,
+total}`-in-seconds shape (distinct from `Player.GetProperties`' `time`/
+`totaltime` objects, which `MillisFromTimeObject()` parses instead).
+Playback always starts through the existing `OpenLibraryItem()`
+(`Player.Open`), landing on `NowPlayingScreen` immediately after.
+
+Each screen requests its own top-level list on construction and again on
+every transition into `KodiConnectionState::kConnected` (covers the
+first connect and any later reconnect while the screen exists); a
+show's seasons/episodes aren't known until that show/season is chosen,
+so those queries fire only when that level is entered. Kodi's database
+order has no relation to how a user browses, so every query sorts by
+label (`VideoLibrary.GetMovies`/`GetTVShows`) or by season/episode
+number, not left at Kodi's own insertion order.
+
+`KodiMusicScreen` follows the video screens' `RequestX()`/
+`KodiXFetchedEvent` pattern for its own `AudioLibrary.GetArtists`/
+`GetAlbums(artistid)`/`GetSongs(albumid)` - Artists -> Albums -> Songs,
+one level shallower than TV Shows. It has no fourth Play/Resume detail
+level: `AudioLibrary.GetSongs` has no `resume` property at all
+(confirmed against a live Kodi 21 instance - requesting one is rejected
+with "Invalid params"), so a song plays directly on tap, the same
+`OpenLibraryItem("songid", id, /*resume=*/false)` call with a different
+`id_field` string. `KodiSong::duration_seconds` (Kodi's own `duration`
+property, plain seconds - not the `{position, total}` shape movie/
+episode `resume` carries) formats through the same `FormatKodiClock()`
+`NowPlayingScreen`'s time label uses.
+
+`KodiFilesScreen` browses the raw filesystem instead of scraped library
+metadata - the fallback view Kodi's own Videos > Files menu offers for
+content the library hasn't (or can't) match, e.g. home videos or a
+folder with unrecognized naming. `RequestFileSources()` lists
+`Files.GetSources("video")` (the configured source list); tapping a
+folder pushes it and calls `RequestDirectory(path)`
+(`Files.GetDirectory(path, "video")`) - both publish
+`KodiFilesFetchedEvent`. Folder depth is unbounded here, unlike every
+fixed-depth screen above, so the screen keeps its own `path_stack_` of
+`{path, label}` and reuses one list container rather than allocating a
+sibling per level; "back" pops one entry, or returns to the source list
+once the stack is empty (hiding the back button - nothing is above the
+source list). A source item carries no `filetype` field at all
+(confirmed against a live Kodi 21 instance) since it's a folder by
+definition, unlike a `Files.GetDirectory` item, which always has one;
+`ParseFileItems()`'s `all_folders` parameter is what tells the two
+shapes apart. A tapped file plays directly via `PlayFile()` (`Player.Open`
+with a raw `{"file": path}` item, not a library id) - same no-Play/
+Resume-choice reasoning as music.
+
+`KodiLiveTvScreen` is the shallowest browse screen - channel groups
+(`RequestChannelGroups()`, `PVR.GetChannelGroups` scoped to
+`channeltype: "tv"`; radio, a separate PVR channel type, isn't browsed
+here) then channels (`RequestChannels(channelgroupid)`,
+`PVR.GetChannels`), publishing `KodiChannelGroupsFetchedEvent`/
+`KodiChannelsFetchedEvent`. There's nothing to scope a channel by beyond
+its group, so it stops at two levels rather than three or four. A live
+broadcast has no resume point, so a tapped channel plays directly - not
+through a new command, but the existing
+`OpenLibraryItem("channelid", id, /*resume=*/false)` (`Player.Open`
+accepts `channelid` as a valid item identifier alongside `movieid`/
+`episodeid`/`songid`).
+
 The display-string formatting (widget line, Now Playing subtitle,
 `m:ss` clock) is `src/ui/kodi_display.h`/`.cpp` - LVGL-free and
 host-tested, the same split `ui/text_format.h` uses.
@@ -221,30 +312,48 @@ live-push mechanism exists for the Web UI yet). Saving triggers
 
 Implemented for M4a: discovery/selection, connection, Now Playing state
 and the transport/nav Touch UI, the fire-and-forget command surface,
-the two Web UI routes and the settings page.
+the two Web UI routes and the settings page. Implemented for M4b: movie,
+TV show/season/episode, artist/album/song, raw-filesystem, and live-TV
+channel-group/channel library browsing (see Library browsing above) -
+video/music/files/live-TV, the full set the roadmap's Media browsing
+item names. The `VideoLibrary.GetMovies`/`GetTVShows`/`GetSeasons`/
+`GetEpisodes`, `AudioLibrary.GetArtists`/`GetAlbums`/`GetSongs`,
+`Files.GetSources`/`GetDirectory`, and `PVR.GetChannelGroups`/
+`GetChannels` response shapes `KodiClient` parses were all confirmed
+field-for-field against a live Kodi 21 instance, resolving the "library-
+browse response shapes are only partially verified" caveat
+[ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md) flagged.
 
 `KodiClient`'s connect/reconcile/notification loop and its
 discovery/selection policy are host-tested against fake `MdnsBrowser` /
 `WebSocketClient` doubles plus one test over a libcurl-backed
 `HostWebSocketClient` and a raw-socket loopback JSON-RPC peer
-(`tests/kodi_client_test.cpp`). The `MdnsBrowser` backend adapters
-themselves are not unit-tested and the firmware one is on-device only —
-see [networking.md](networking.md#status) for why, and for which part of
-M4 that verification belongs to.
+(`tests/kodi_client_test.cpp`), which also covers the eleven
+`VideoLibrary.Get*`/`AudioLibrary.Get*`/`Files.Get*`/`PVR.Get*`
+request/parse/publish paths and the queued-while-disconnected case. The
+`MdnsBrowser` backend adapters themselves are not unit-tested and the
+firmware one is on-device only — see
+[networking.md](networking.md#status) for why, and for which part of M4
+that verification belongs to.
 
-`NowPlayingScreen` / `KodiRemoteScreen`'s populated content (the
-transport row with `SetTransportGlyph()`'s double-triangle rewind/
-fast-forward glyph, the volume row, the D-pad) lives inside `content_`,
-which stays hidden until `KodiClient::Snapshot().state == kConnected`
-(see `NowPlayingScreen::Refresh()`). In the simulator that state needs
-either a Kodi instance on the LAN or the "Test: toggle fake Kodi
-connection" debug control (see
+`NowPlayingScreen` / `KodiRemoteScreen` / `KodiMoviesScreen` /
+`KodiTvShowsScreen` / `KodiMusicScreen` / `KodiFilesScreen` /
+`KodiLiveTvScreen`'s populated content (the transport row with
+`SetTransportGlyph()`'s double-triangle rewind/fast-forward glyph, the
+volume row, the D-pad, and the movie/show/season/episode/artist/album/
+song/file/channel lists) each lives inside a `content_`/list container
+that stays hidden until `KodiClient::Snapshot().state == kConnected`
+(see `NowPlayingScreen::Refresh()` and each browse screen's own
+`Refresh()`). In the simulator that state needs either a Kodi instance
+on the LAN or the "Test: toggle fake Kodi connection" debug control (see
 [simulator.md](simulator.md#how-it-works),
-`simulator/debug_kodi_backend.cpp`).
+`simulator/debug_kodi_backend.cpp`, which also cans a two-movie/
+one-show/one-artist/one-source/one-channel-group library so every browse
+screen renders something once armed).
 
-**Not yet built (M4b):** library browsing (movies / TV / music / files /
-live TV / recently added / continue watching) and the screens for it.
-`OpenLibraryItem()` is the plumbing already in place for it. Artwork is
+**Not yet built (M4b):** recently-added/continue-watching. Artwork is
 out of scope until M7 - the `image://…` URLs Kodi returns resolve only
 through its HTTP endpoint on the authenticated port 8080
-([ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)).
+([ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)). M4's
+on-hardware verification pass across every module/screen above (see
+roadmap.md's M4b items) is still outstanding - the M4-release gate.

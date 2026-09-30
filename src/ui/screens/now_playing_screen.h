@@ -31,7 +31,21 @@ public:
     lv_obj_t* Root() const { return root_; }
 
 private:
-    enum class Action { kPlayPause, kStop, kSeekBack, kSeekForward, kVolumeDown, kVolumeUp, kMute, kOpenRemote };
+    enum class Action {
+        kPlayPause,
+        kStop,
+        kSeekBack,
+        kSeekForward,
+        kVolumeDown,
+        kVolumeUp,
+        kMute,
+        kOpenRemote,
+        kOpenMovies,
+        kOpenTvShows,
+        kOpenMusic,
+        kOpenFiles,
+        kOpenLiveTv
+    };
 
     void Refresh();
     static void OnActionClicked(lv_event_t* e);

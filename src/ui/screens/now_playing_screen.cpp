@@ -23,6 +23,24 @@ lv_obj_t* CreateRow(lv_obj_t* parent) {
     return row;
 }
 
+// The library-browse buttons (M4b) wrap 2-per-row rather than sharing
+// one row like the transport/volume rows above - four of them (Movies/
+// TV Shows/Music/Files) at a readable width no longer fit one row the
+// way three did.
+lv_obj_t* CreateWrapRow(lv_obj_t* parent) {
+    lv_obj_t* row = lv_obj_create(parent);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_size(row, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW_WRAP);
+    // Centered, not the flex default (start) - an odd final button (five
+    // library entries wrapping 2-per-row) would otherwise sit flush left
+    // on its own row instead of centered like every full row above it.
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(row, 12, 0);
+    lv_obj_set_style_pad_column(row, 12, 0);
+    return row;
+}
+
 }  // namespace
 
 NowPlayingScreen::NowPlayingScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
@@ -83,6 +101,18 @@ NowPlayingScreen::NowPlayingScreen(EventBus& event_bus, BatteryReader& battery_r
     add_button(volume_row, LV_SYMBOL_PLUS, Action::kVolumeUp, LV_PCT(31));
 
     add_button(content_, "Remote", Action::kOpenRemote, LV_PCT(100));
+
+    // Library browsing (M4b) - reachable whenever Kodi is connected, not
+    // gated on anything currently playing (unlike the transport row
+    // above), so it sits below Remote rather than inside it. 2 per row -
+    // labels here are longer/less predictable than DevicesScreen's
+    // command grid, so 48% width is a better fit than that grid's 31%.
+    lv_obj_t* library_row = CreateWrapRow(content_);
+    add_button(library_row, "Movies", Action::kOpenMovies, LV_PCT(48));
+    add_button(library_row, "TV Shows", Action::kOpenTvShows, LV_PCT(48));
+    add_button(library_row, "Music", Action::kOpenMusic, LV_PCT(48));
+    add_button(library_row, "Files", Action::kOpenFiles, LV_PCT(48));
+    add_button(library_row, "Live TV", Action::kOpenLiveTv, LV_PCT(48));
 
     Refresh();
 
@@ -175,6 +205,21 @@ void NowPlayingScreen::OnActionClicked(lv_event_t* e) {
             break;
         case Action::kOpenRemote:
             self->navigation_.GoTo("kodi-remote");
+            break;
+        case Action::kOpenMovies:
+            self->navigation_.GoTo("kodi-movies");
+            break;
+        case Action::kOpenTvShows:
+            self->navigation_.GoTo("kodi-tv-shows");
+            break;
+        case Action::kOpenMusic:
+            self->navigation_.GoTo("kodi-music");
+            break;
+        case Action::kOpenFiles:
+            self->navigation_.GoTo("kodi-files");
+            break;
+        case Action::kOpenLiveTv:
+            self->navigation_.GoTo("kodi-live-tv");
             break;
     }
 }

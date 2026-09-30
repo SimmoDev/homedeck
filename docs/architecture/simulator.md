@@ -72,8 +72,11 @@ for why this ruled out a separate web-based mock UI.
     render. `DebugKodiBackend` (`simulator/debug_kodi_backend.cpp`) is
     the `MdnsBrowser` and WebSocket factory handed to `KodiClient`; the
     "Test: toggle fake Kodi connection" control arms it to answer with
-    canned JSON-RPC (a seekable episode part-way through), so Now Playing
-    / Remote can be exercised without one. Disarmed it is transparent — a
+    canned JSON-RPC (a seekable episode part-way through, plus a small
+    movie/TV show/music/filesystem/live-TV library), so Now Playing /
+    Remote / the Movies, TV Shows, Music, Files, and Live TV browse
+    screens can all be exercised without one. Disarmed it is
+    transparent — a
     Kodi on the LAN and Harmony's own connection are unaffected. It
     renders state, not a Kodi: a transport/nav tap sends its command but
     nothing on screen moves in response.

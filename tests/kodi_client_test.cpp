@@ -978,6 +978,381 @@ TEST_F(KodiClientTest, GlobalCommandsNeedNoPlayerId) {
     client->Stop();
 }
 
+// --- Library browse queries (M4b) ----------------------------------------
+
+TEST_F(KodiClientTest, RequestMoviesFetchesAndParsesTheLibrary) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["VideoLibrary.GetMovies"] =
+            R"({"movies":[{"movieid":1,"title":"Alpha","year":2020,"resume":{"position":0,"total":0}},)"
+            R"({"movieid":2,"title":"Beta","year":2022,"resume":{"position":120.5,"total":6000.0}}]})";
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiMovie>> received;
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.movies;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    std::lock_guard<std::mutex> lock(result_mutex);
+    ASSERT_EQ(received->size(), 2u);
+    EXPECT_EQ((*received)[0].title, "Alpha");
+    EXPECT_EQ((*received)[0].year, 2020);
+    EXPECT_EQ((*received)[0].resume_position_ms, 0);
+    EXPECT_EQ((*received)[1].title, "Beta");
+    EXPECT_EQ((*received)[1].resume_position_ms, 120500)
+        << "resume.position is seconds (float) - not the {hours,minutes,...} shape MillisFromTimeObject() parses";
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, RequestTvShowsFetchesAndParsesTheLibrary) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["VideoLibrary.GetTVShows"] =
+            R"({"tvshows":[{"tvshowid":5,"title":"Some Show","year":2018,"episode":24,"watchedepisodes":10}]})";
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiTvShow>> received;
+    auto sub = bus.Subscribe<homedeck::KodiTvShowsFetchedEvent>([&](const homedeck::KodiTvShowsFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.shows;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->RequestTvShows();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    std::lock_guard<std::mutex> lock(result_mutex);
+    ASSERT_EQ(received->size(), 1u);
+    EXPECT_EQ((*received)[0].tvshowid, 5);
+    EXPECT_EQ((*received)[0].title, "Some Show");
+    EXPECT_EQ((*received)[0].episode_count, 24);
+    EXPECT_EQ((*received)[0].watched_episode_count, 10);
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, RequestSeasonsAndEpisodesSendTheRightParamsAndParseTheReply) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["VideoLibrary.GetSeasons"] =
+            R"({"seasons":[{"season":1,"label":"Season 1","episode":8,"watchedepisodes":8}]})";
+        script->results["VideoLibrary.GetEpisodes"] =
+            R"({"episodes":[{"episodeid":42,"episode":3,"title":"Ep Three",)"
+            R"("resume":{"position":90.0,"total":1200.0}}]})";
+    }
+
+    std::mutex result_mutex;
+    std::optional<homedeck::KodiSeasonsFetchedEvent> seasons_event;
+    std::optional<homedeck::KodiEpisodesFetchedEvent> episodes_event;
+    auto seasons_sub = bus.Subscribe<homedeck::KodiSeasonsFetchedEvent>(
+        [&](const homedeck::KodiSeasonsFetchedEvent& event) {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            seasons_event = event;
+        });
+    auto episodes_sub = bus.Subscribe<homedeck::KodiEpisodesFetchedEvent>(
+        [&](const homedeck::KodiEpisodesFetchedEvent& event) {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            episodes_event = event;
+        });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->RequestSeasons(7);
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return seasons_event.has_value();
+    }));
+    EXPECT_TRUE(SentFrameHasAll(script, {"VideoLibrary.GetSeasons", "\"tvshowid\":7"}));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        EXPECT_EQ(seasons_event->tvshowid, 7);
+        ASSERT_EQ(seasons_event->seasons.size(), 1u);
+        EXPECT_EQ(seasons_event->seasons[0].season, 1);
+        EXPECT_EQ(seasons_event->seasons[0].label, "Season 1");
+        EXPECT_EQ(seasons_event->seasons[0].episode_count, 8);
+    }
+
+    client->RequestEpisodes(7, 1);
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return episodes_event.has_value();
+    }));
+    EXPECT_TRUE(SentFrameHasAll(script, {"VideoLibrary.GetEpisodes", "\"tvshowid\":7", "\"season\":1"}));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        EXPECT_EQ(episodes_event->tvshowid, 7);
+        EXPECT_EQ(episodes_event->season, 1);
+        ASSERT_EQ(episodes_event->episodes.size(), 1u);
+        EXPECT_EQ(episodes_event->episodes[0].episodeid, 42);
+        EXPECT_EQ(episodes_event->episodes[0].title, "Ep Three");
+        EXPECT_EQ(episodes_event->episodes[0].resume_position_ms, 90000);
+    }
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, ALibraryRequestQueuedWhileDisconnectedIsSentOnceConnected) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["VideoLibrary.GetMovies"] = R"({"movies":[]})";
+        script->connect_ok = false;
+    }
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kError; }));
+
+    client->RequestMovies();  // queued against a dead connection
+    std::this_thread::sleep_for(std::chrono::milliseconds(40));
+    EXPECT_EQ(CountSent(script, "VideoLibrary.GetMovies"), 0);
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->connect_ok = true;
+    }
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "VideoLibrary.GetMovies") == 1; }))
+        << "the queued request must go out once a connection exists";
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, RequestArtistsAlbumsAndSongsSendTheRightParamsAndParseTheReply) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["AudioLibrary.GetArtists"] =
+            R"({"artists":[{"artistid":2,"artist":"3 Daft Monkeys","label":"3 Daft Monkeys"}]})";
+        script->results["AudioLibrary.GetAlbums"] =
+            R"({"albums":[{"albumid":1,"title":"Brouhaha","label":"Brouhaha","year":2000}]})";
+        script->results["AudioLibrary.GetSongs"] =
+            R"({"songs":[{"songid":1,"track":1,"title":"Wonderful","label":"Wonderful","duration":272}]})";
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiArtist>> artists;
+    std::optional<homedeck::KodiAlbumsFetchedEvent> albums_event;
+    std::optional<homedeck::KodiSongsFetchedEvent> songs_event;
+    auto artists_sub = bus.Subscribe<homedeck::KodiArtistsFetchedEvent>(
+        [&](const homedeck::KodiArtistsFetchedEvent& event) {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            artists = event.artists;
+        });
+    auto albums_sub = bus.Subscribe<homedeck::KodiAlbumsFetchedEvent>(
+        [&](const homedeck::KodiAlbumsFetchedEvent& event) {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            albums_event = event;
+        });
+    auto songs_sub = bus.Subscribe<homedeck::KodiSongsFetchedEvent>(
+        [&](const homedeck::KodiSongsFetchedEvent& event) {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            songs_event = event;
+        });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->RequestArtists();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return artists.has_value();
+    }));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        ASSERT_EQ(artists->size(), 1u);
+        EXPECT_EQ((*artists)[0].artistid, 2);
+        EXPECT_EQ((*artists)[0].name, "3 Daft Monkeys");
+    }
+
+    client->RequestAlbums(2);
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return albums_event.has_value();
+    }));
+    EXPECT_TRUE(SentFrameHasAll(script, {"AudioLibrary.GetAlbums", "\"artistid\":2"}));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        EXPECT_EQ(albums_event->artistid, 2);
+        ASSERT_EQ(albums_event->albums.size(), 1u);
+        EXPECT_EQ(albums_event->albums[0].albumid, 1);
+        EXPECT_EQ(albums_event->albums[0].title, "Brouhaha");
+        EXPECT_EQ(albums_event->albums[0].year, 2000);
+    }
+
+    client->RequestSongs(1);
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return songs_event.has_value();
+    }));
+    EXPECT_TRUE(SentFrameHasAll(script, {"AudioLibrary.GetSongs", "\"albumid\":1"}));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        EXPECT_EQ(songs_event->albumid, 1);
+        ASSERT_EQ(songs_event->songs.size(), 1u);
+        EXPECT_EQ(songs_event->songs[0].songid, 1);
+        EXPECT_EQ(songs_event->songs[0].track, 1);
+        EXPECT_EQ(songs_event->songs[0].title, "Wonderful");
+        EXPECT_EQ(songs_event->songs[0].duration_seconds, 272);
+    }
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, RequestFileSourcesAndDirectorySendTheRightParamsAndParseTheReply) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Files.GetSources"] = R"({"sources":[{"file":"/mnt/nas/Media/Movies/","label":"Movies"}]})";
+        script->results["Files.GetDirectory"] =
+            R"({"files":[)"
+            R"({"file":"/mnt/nas/Media/Movies/Show/","filetype":"directory","label":"Show"},)"
+            R"({"file":"/mnt/nas/Media/Movies/Movie.mkv","filetype":"file","label":"Movie"}]})";
+    }
+
+    std::mutex result_mutex;
+    std::optional<homedeck::KodiFilesFetchedEvent> sources_event;
+    std::optional<homedeck::KodiFilesFetchedEvent> directory_event;
+    auto files_sub = bus.Subscribe<homedeck::KodiFilesFetchedEvent>([&](const homedeck::KodiFilesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        if (event.path.empty()) {
+            sources_event = event;
+        } else {
+            directory_event = event;
+        }
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->RequestFileSources();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return sources_event.has_value();
+    }));
+    EXPECT_TRUE(SentFrameHasAll(script, {"Files.GetSources", "\"media\":\"video\""}));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        ASSERT_EQ(sources_event->items.size(), 1u);
+        EXPECT_EQ(sources_event->items[0].path, "/mnt/nas/Media/Movies/");
+        EXPECT_EQ(sources_event->items[0].label, "Movies");
+        EXPECT_TRUE(sources_event->items[0].is_folder) << "a source is always a folder, filetype absent or not";
+    }
+
+    client->RequestDirectory("/mnt/nas/Media/Movies/");
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return directory_event.has_value();
+    }));
+    EXPECT_TRUE(SentFrameHasAll(
+        script, {"Files.GetDirectory", "\"directory\":\"/mnt/nas/Media/Movies/\"", "\"media\":\"video\""}));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        EXPECT_EQ(directory_event->path, "/mnt/nas/Media/Movies/");
+        ASSERT_EQ(directory_event->items.size(), 2u);
+        EXPECT_EQ(directory_event->items[0].label, "Show");
+        EXPECT_TRUE(directory_event->items[0].is_folder);
+        EXPECT_EQ(directory_event->items[1].label, "Movie");
+        EXPECT_FALSE(directory_event->items[1].is_folder);
+    }
+
+    client->PlayFile("/mnt/nas/Media/Movies/Movie.mkv");
+    ASSERT_TRUE(WaitFor([&] {
+        return SentFrameHasAll(script, {"Player.Open", "\"file\":\"/mnt/nas/Media/Movies/Movie.mkv\""});
+    }));
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, RequestChannelGroupsAndChannelsSendTheRightParamsAndParseTheReply) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["PVR.GetChannelGroups"] =
+            R"({"channelgroups":[{"channelgroupid":2,"channeltype":"tv","label":"All channels"}]})";
+        script->results["PVR.GetChannels"] =
+            R"({"channels":[{"channelid":34,"channeltype":"tv","label":"BBC One NW HD"}]})";
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiChannelGroup>> groups;
+    std::optional<homedeck::KodiChannelsFetchedEvent> channels_event;
+    auto groups_sub = bus.Subscribe<homedeck::KodiChannelGroupsFetchedEvent>(
+        [&](const homedeck::KodiChannelGroupsFetchedEvent& event) {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            groups = event.groups;
+        });
+    auto channels_sub = bus.Subscribe<homedeck::KodiChannelsFetchedEvent>(
+        [&](const homedeck::KodiChannelsFetchedEvent& event) {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            channels_event = event;
+        });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->RequestChannelGroups();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return groups.has_value();
+    }));
+    EXPECT_TRUE(SentFrameHasAll(script, {"PVR.GetChannelGroups", "\"channeltype\":\"tv\""}));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        ASSERT_EQ(groups->size(), 1u);
+        EXPECT_EQ((*groups)[0].channelgroupid, 2);
+        EXPECT_EQ((*groups)[0].label, "All channels");
+    }
+
+    client->RequestChannels(2);
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return channels_event.has_value();
+    }));
+    EXPECT_TRUE(SentFrameHasAll(script, {"PVR.GetChannels", "\"channelgroupid\":2"}));
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        EXPECT_EQ(channels_event->channelgroupid, 2);
+        ASSERT_EQ(channels_event->channels.size(), 1u);
+        EXPECT_EQ(channels_event->channels[0].channelid, 34);
+        EXPECT_EQ(channels_event->channels[0].label, "BBC One NW HD");
+    }
+
+    client->OpenLibraryItem("channelid", 34, /*resume=*/false);
+    ASSERT_TRUE(WaitFor([&] { return SentFrameHasAll(script, {"Player.Open", "\"channelid\":34"}); }));
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, ACommandReplyFrameDoesNotDisturbTheSnapshot) {
     KODI_COMMAND_RIG();
     auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
