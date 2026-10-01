@@ -28,6 +28,40 @@ nlohmann::json ParseBoundedJson(const std::string& text) {
     return nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
 }
 
+// nlohmann::json::value()/get<T>() throw json::type_error when a present
+// field (or the receiver itself) is not the requested type - and firmware
+// builds with C++ exceptions disabled (CONFIG_COMPILER_CXX_EXCEPTIONS is
+// unset), so json.hpp's JSON_THROW resolves to std::abort() there instead
+// of throw. Kodi's 9090 API has no authentication (ADR-0030), so any
+// device on the LAN can trigger this with a malformed reply. These three
+// helpers check both the receiver's and the field's type before
+// extracting, the same hazard weather_routes.cpp's geocode parsing
+// already guards against - never reach for j.value(key, default) on data
+// from an external response.
+long long GetInt(const nlohmann::json& j, const char* key, long long fallback) {
+    if (!j.is_object()) {
+        return fallback;
+    }
+    auto it = j.find(key);
+    return (it != j.end() && it->is_number_integer()) ? it->get<long long>() : fallback;
+}
+
+double GetDouble(const nlohmann::json& j, const char* key, double fallback) {
+    if (!j.is_object()) {
+        return fallback;
+    }
+    auto it = j.find(key);
+    return (it != j.end() && it->is_number()) ? it->get<double>() : fallback;
+}
+
+std::string GetString(const nlohmann::json& j, const char* key, const std::string& fallback) {
+    if (!j.is_object()) {
+        return fallback;
+    }
+    auto it = j.find(key);
+    return (it != j.end() && it->is_string()) ? it->get<std::string>() : fallback;
+}
+
 // Brackets a bare IPv6 literal so it is a valid URL authority. A
 // discovered address (the only source of a ':' here - IsValidKodiHost()
 // rejects one on the manual-override path) reaches both the ws:// URL
@@ -47,11 +81,8 @@ std::string WebSocketUrl(const std::string& host, uint16_t port) {
 }
 
 long long MillisFromTimeObject(const nlohmann::json& t) {
-    if (!t.is_object()) {
-        return 0;
-    }
-    long long seconds = t.value("hours", 0) * 3600LL + t.value("minutes", 0) * 60LL + t.value("seconds", 0);
-    return seconds * 1000LL + t.value("milliseconds", 0);
+    long long seconds = GetInt(t, "hours", 0) * 3600LL + GetInt(t, "minutes", 0) * 60LL + GetInt(t, "seconds", 0);
+    return seconds * 1000LL + GetInt(t, "milliseconds", 0);
 }
 
 KodiPlaybackState PlaybackFromSpeed(int speed) {
@@ -63,19 +94,22 @@ KodiPlaybackState PlaybackFromSpeed(int speed) {
 // milliseconds} shape MillisFromTimeObject() parses. 0 (no resume point)
 // if absent/malformed.
 long long ResumePositionMs(const nlohmann::json& item) {
-    auto resume_it = item.find("resume");
-    if (resume_it == item.end() || !resume_it->is_object()) {
+    if (!item.is_object()) {
         return 0;
     }
-    return static_cast<long long>(resume_it->value("position", 0.0) * 1000.0);
+    auto resume_it = item.find("resume");
+    if (resume_it == item.end()) {
+        return 0;
+    }
+    return static_cast<long long>(GetDouble(*resume_it, "position", 0.0) * 1000.0);
 }
 
 // title, falling back to Kodi's own always-present `label` when the
 // requested `title` property comes back blank - same fallback
 // ApplyItemFields() uses for Now Playing's add-on-playback case.
 std::string TitleOrLabel(const nlohmann::json& item) {
-    std::string title = item.value("title", "");
-    return !title.empty() ? title : item.value("label", "");
+    std::string title = GetString(item, "title", "");
+    return !title.empty() ? title : GetString(item, "label", "");
 }
 
 // Pulls the named array out of a VideoLibrary.Get*'s "result" object
@@ -108,9 +142,9 @@ std::vector<KodiMovie> ParseMovies(const std::string& text) {
     movies.reserve(array->size());
     for (const auto& m : *array) {
         KodiMovie movie;
-        movie.movieid = m.value("movieid", -1LL);
+        movie.movieid = GetInt(m, "movieid", -1);
         movie.title = TitleOrLabel(m);
-        movie.year = m.value("year", 0);
+        movie.year = static_cast<int>(GetInt(m, "year", 0));
         movie.resume_position_ms = ResumePositionMs(m);
         movies.push_back(std::move(movie));
     }
@@ -127,11 +161,11 @@ std::vector<KodiTvShow> ParseTvShows(const std::string& text) {
     shows.reserve(array->size());
     for (const auto& s : *array) {
         KodiTvShow show;
-        show.tvshowid = s.value("tvshowid", -1LL);
+        show.tvshowid = GetInt(s, "tvshowid", -1);
         show.title = TitleOrLabel(s);
-        show.year = s.value("year", 0);
-        show.episode_count = s.value("episode", 0);
-        show.watched_episode_count = s.value("watchedepisodes", 0);
+        show.year = static_cast<int>(GetInt(s, "year", 0));
+        show.episode_count = static_cast<int>(GetInt(s, "episode", 0));
+        show.watched_episode_count = static_cast<int>(GetInt(s, "watchedepisodes", 0));
         shows.push_back(std::move(show));
     }
     return shows;
@@ -147,10 +181,10 @@ std::vector<KodiSeason> ParseSeasons(const std::string& text) {
     seasons.reserve(array->size());
     for (const auto& s : *array) {
         KodiSeason season;
-        season.season = s.value("season", 0);
+        season.season = static_cast<int>(GetInt(s, "season", 0));
         season.label = TitleOrLabel(s);
-        season.episode_count = s.value("episode", 0);
-        season.watched_episode_count = s.value("watchedepisodes", 0);
+        season.episode_count = static_cast<int>(GetInt(s, "episode", 0));
+        season.watched_episode_count = static_cast<int>(GetInt(s, "watchedepisodes", 0));
         seasons.push_back(std::move(season));
     }
     return seasons;
@@ -166,8 +200,8 @@ std::vector<KodiEpisode> ParseEpisodes(const std::string& text) {
     episodes.reserve(array->size());
     for (const auto& e : *array) {
         KodiEpisode episode;
-        episode.episodeid = e.value("episodeid", -1LL);
-        episode.episode = e.value("episode", 0);
+        episode.episodeid = GetInt(e, "episodeid", -1);
+        episode.episode = static_cast<int>(GetInt(e, "episode", 0));
         episode.title = TitleOrLabel(e);
         episode.resume_position_ms = ResumePositionMs(e);
         episodes.push_back(std::move(episode));
@@ -185,12 +219,12 @@ std::vector<KodiArtist> ParseArtists(const std::string& text) {
     artists.reserve(array->size());
     for (const auto& a : *array) {
         KodiArtist artist;
-        artist.artistid = a.value("artistid", -1LL);
+        artist.artistid = GetInt(a, "artistid", -1);
         // "artist" (Kodi's own artist-name field), falling back to the
         // always-present `label` - same fallback shape as TitleOrLabel(),
         // just a different primary field name (artists have no "title").
-        std::string name = a.value("artist", "");
-        artist.name = !name.empty() ? name : a.value("label", "");
+        std::string name = GetString(a, "artist", "");
+        artist.name = !name.empty() ? name : GetString(a, "label", "");
         artists.push_back(std::move(artist));
     }
     return artists;
@@ -206,9 +240,9 @@ std::vector<KodiAlbum> ParseAlbums(const std::string& text) {
     albums.reserve(array->size());
     for (const auto& a : *array) {
         KodiAlbum album;
-        album.albumid = a.value("albumid", -1LL);
+        album.albumid = GetInt(a, "albumid", -1);
         album.title = TitleOrLabel(a);
-        album.year = a.value("year", 0);
+        album.year = static_cast<int>(GetInt(a, "year", 0));
         albums.push_back(std::move(album));
     }
     return albums;
@@ -224,10 +258,10 @@ std::vector<KodiSong> ParseSongs(const std::string& text) {
     songs.reserve(array->size());
     for (const auto& s : *array) {
         KodiSong song;
-        song.songid = s.value("songid", -1LL);
-        song.track = s.value("track", 0);
+        song.songid = GetInt(s, "songid", -1);
+        song.track = static_cast<int>(GetInt(s, "track", 0));
         song.title = TitleOrLabel(s);
-        song.duration_seconds = s.value("duration", 0);
+        song.duration_seconds = static_cast<int>(GetInt(s, "duration", 0));
         songs.push_back(std::move(song));
     }
     return songs;
@@ -250,9 +284,9 @@ std::vector<KodiFileItem> ParseFileItems(const std::string& text, const char* re
     items.reserve(array->size());
     for (const auto& f : *array) {
         KodiFileItem item;
-        item.path = f.value("file", "");
+        item.path = GetString(f, "file", "");
         item.label = TitleOrLabel(f);
-        item.is_folder = all_folders || f.value("filetype", "") == "directory";
+        item.is_folder = all_folders || GetString(f, "filetype", "") == "directory";
         items.push_back(std::move(item));
     }
     return items;
@@ -268,7 +302,7 @@ std::vector<KodiChannelGroup> ParseChannelGroups(const std::string& text) {
     groups.reserve(array->size());
     for (const auto& g : *array) {
         KodiChannelGroup group;
-        group.channelgroupid = g.value("channelgroupid", -1LL);
+        group.channelgroupid = GetInt(g, "channelgroupid", -1);
         group.label = TitleOrLabel(g);
         groups.push_back(std::move(group));
     }
@@ -285,7 +319,7 @@ std::vector<KodiChannel> ParseChannels(const std::string& text) {
     channels.reserve(array->size());
     for (const auto& c : *array) {
         KodiChannel channel;
-        channel.channelid = c.value("channelid", -1LL);
+        channel.channelid = GetInt(c, "channelid", -1);
         channel.label = TitleOrLabel(c);
         channels.push_back(std::move(channel));
     }
@@ -300,9 +334,9 @@ void ApplyItemFields(const nlohmann::json& item, KodiNowPlaying& now_playing) {
     if (!item.is_object()) {
         return;
     }
-    std::string title = item.value("title", "");
+    std::string title = GetString(item, "title", "");
     if (title.empty()) {
-        title = item.value("label", "");  // add-on playback: `title` blank, `label` usable
+        title = GetString(item, "label", "");  // add-on playback: `title` blank, `label` usable
     }
     if (!title.empty()) {
         now_playing.title = title;
@@ -667,8 +701,8 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
             }
             auto version_it = result_it->find("version");
             if (version_it != result_it->end() && version_it->is_object()) {
-                state_.app_version = std::to_string(version_it->value("major", 0)) + "." +
-                                     std::to_string(version_it->value("minor", 0));
+                state_.app_version = std::to_string(GetInt(*version_it, "major", 0)) + "." +
+                                     std::to_string(GetInt(*version_it, "minor", 0));
             }
         }
     }
@@ -698,7 +732,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
         return true;
     }
 
-    int player_id = players_result->front().value("playerid", -1);
+    int player_id = static_cast<int>(GetInt(players_result->front(), "playerid", -1));
     if (player_id < 0) {
         // A -1 playerid comes back in notifications on some builds
         // (ADR-0030); GetActivePlayers itself should never return one,
@@ -780,7 +814,18 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
         return;
     }
     const std::string method = method_it->get<std::string>();
-    nlohmann::json data = frame.value("params", nlohmann::json::object()).value("data", nlohmann::json::object());
+    // Not frame.value("params", {}).value("data", {}): .value() throws if
+    // its *receiver* isn't an object, regardless of the requested type, so
+    // a "params" field present but not itself an object (e.g. a string)
+    // would still abort via the chained call - see GetInt()'s own comment.
+    nlohmann::json data = nlohmann::json::object();
+    auto params_it = frame.find("params");
+    if (params_it != frame.end() && params_it->is_object()) {
+        auto data_it = params_it->find("data");
+        if (data_it != params_it->end() && data_it->is_object()) {
+            data = *data_it;
+        }
+    }
 
     bool changed = false;
     {
@@ -1002,7 +1047,7 @@ int KodiClient::ResolveActivePlayerId(std::stop_token stop) {
     if (result_it == parsed.end() || !result_it->is_array() || result_it->empty()) {
         return -1;
     }
-    return result_it->front().value("playerid", -1);
+    return static_cast<int>(GetInt(result_it->front(), "playerid", -1));
 }
 
 bool KodiClient::SendPendingCommands(std::stop_token stop) {

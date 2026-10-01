@@ -1090,6 +1090,48 @@ TEST_F(KodiClientTest, RequestMoviesFetchesAndParsesTheLibrary) {
     client->Stop();
 }
 
+// Kodi's 9090 API has no authentication (ADR-0030), so a type-mismatched
+// field isn't just a hypothetical - any device on the LAN can send one.
+// nlohmann::json::value()/get<T>() throw on a type mismatch, which is
+// std::abort() on firmware (exceptions are disabled there - see GetInt()'s
+// own comment in kodi_client.cpp): without the fix this test crashes the
+// whole binary rather than failing an assertion.
+TEST_F(KodiClientTest, RequestMoviesWithATypeMismatchedFieldFallsBackToDefaultsInsteadOfCrashing) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["VideoLibrary.GetMovies"] =
+            R"({"movies":[{"movieid":"not-a-number","title":42,"year":"two-thousand","resume":"oops"},)"
+            R"({"movieid":2,"title":"Beta","year":2022,"resume":{"position":0,"total":0}}]})";
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiMovie>> received;
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.movies;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    std::lock_guard<std::mutex> lock(result_mutex);
+    ASSERT_EQ(received->size(), 2u);
+    EXPECT_EQ((*received)[0].movieid, -1) << "wrong-typed movieid falls back to the default, not a crash";
+    EXPECT_EQ((*received)[0].title, "") << "title (42, not a string) and label (absent) both fall back to empty";
+    EXPECT_EQ((*received)[0].year, 0) << "wrong-typed year falls back to 0";
+    EXPECT_EQ((*received)[0].resume_position_ms, 0) << "non-object resume falls back to no resume point";
+    EXPECT_EQ((*received)[1].title, "Beta") << "a well-formed sibling entry still parses correctly";
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, RequestTvShowsFetchesAndParsesTheLibrary) {
     KODI_COMMAND_RIG();
     {
