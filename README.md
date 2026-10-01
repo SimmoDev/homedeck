@@ -48,9 +48,10 @@ possible, but none is planned or committed to.
 M3 (Harmony) is complete — HomeDeck can fully replace a Harmony Hub
 remote's day-to-day usage. M4 (Media) is the current milestone,
 delivered in two parts: M4a (Kodi connection, playback/transport, and
-the Now Playing / remote Touch UI) is complete; M4b (Kodi library
-browsing) is next. See [docs/roadmap.md](docs/roadmap.md) for what's
-built, what's in progress, and the architectural decisions index.
+the Now Playing / remote Touch UI) and M4b (Kodi library browsing) are
+both complete, including an on-hardware verification pass on a Tab5.
+See [docs/roadmap.md](docs/roadmap.md) for what's built, what's in
+progress, and the architectural decisions index.
 
 ## Architecture
 

@@ -7,7 +7,10 @@ it" (and the equivalent saved-`instance_uuid` match) is narrowed to
 instances with a resolved IP address - see
 [kodi.md](../architecture/kodi.md#discovery-and-instance-selection) for
 why (a real device was found advertising an unresolvable mDNS
-hostname).
+hostname). The Consequences section's "library-browse response shapes
+are only partially verified" caveat is also resolved - M4b's field-for-
+field verification against a live Kodi 21 instance is complete, see
+[kodi.md](../architecture/kodi.md#status).
 
 ## Context
 

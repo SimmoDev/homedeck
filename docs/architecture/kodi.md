@@ -366,4 +366,7 @@ out of scope until M7 - the `image://…` URLs Kodi returns resolve only
 through its HTTP endpoint on the authenticated port 8080
 ([ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)). M4's
 on-hardware verification pass across every module/screen above (see
-roadmap.md's M4b items) is still outstanding - the M4-release gate.
+[roadmap.md](../roadmap.md)'s M4b items) is complete - it found and fixed
+the `ResolveTarget()` defect described in [Discovery and instance
+selection](#discovery-and-instance-selection) above, not just a
+simulator-only gap.

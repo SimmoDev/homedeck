@@ -73,7 +73,7 @@ the module boundary does for it.
 | Module | Milestone | Status |
 |---|---|---|
 | Harmony Hub | M3 | M3 roadmap items complete — see [roadmap.md](../roadmap.md) and [harmony.md](harmony.md) |
-| Kodi | M4 | M4a items complete (connection, Now Playing, remote) — see [roadmap.md](../roadmap.md) and [kodi.md](kodi.md); library browsing is M4b |
+| Kodi | M4 | M4a and M4b roadmap items complete (connection, Now Playing, remote, library browsing) — see [roadmap.md](../roadmap.md) and [kodi.md](kodi.md) |
 | Uptime Kuma | M5 | Not started |
 | Home Assistant | M6 | Not started |
 | MQTT, Jellyfin, Plex, Spotify, Prometheus, Grafana, ESPHome, Shelly, Gotify | Future | Not scoped |
