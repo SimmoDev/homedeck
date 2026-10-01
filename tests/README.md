@@ -110,7 +110,16 @@ transport row's relative seek/volume steps sent as Kodi's own
 send time, stale non-exempt entries dropped on reconnect while a stop is
 kept, the pending-command queue dropping its oldest entries past
 `kMaxPendingCommands`, and `PumpNotifications()` stopping its drain at
-`kMaxPumpIterations` rather than following an unbounded backlog) -
+`kMaxPumpIterations` rather than following an unbounded backlog). It
+also covers the M4b library-browse queries - all eleven
+`VideoLibrary.Get*`/`AudioLibrary.Get*`/`Files.Get*`/`PVR.Get*`
+request/parse/publish paths (movies, TV shows, seasons, episodes,
+artists, albums, songs, file sources, directories, channel groups,
+channels), each sending the right JSON-RPC params and publishing the
+matching `KodiXFetchedEvent` - and a type-mismatched field in one of
+those responses falling back to its struct default instead of
+crashing the whole process, the hazard `weather_routes.cpp`'s own
+geocode parsing already guards against. All of the above runs
 against fake `MdnsBrowser`/`WebSocketClient` doubles, plus
 `RealBackendConnectsReconcilesAndHandlesAPushedNotification` driving the
 libcurl-backed `HostWebSocketClient` against a raw-socket loopback
