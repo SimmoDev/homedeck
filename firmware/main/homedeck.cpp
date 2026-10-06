@@ -65,6 +65,17 @@ extern const uint8_t webui_app_js_end[] asm("_binary_app_js_end");
 extern const uint8_t webui_app_css_start[] asm("_binary_app_css_start");
 extern const uint8_t webui_app_css_end[] asm("_binary_app_css_end");
 
+// Task stacks and the websocket client's per-connection allocations can only
+// come from internal RAM, so its headroom - not total free heap, which is
+// dominated by PSRAM - is what decides whether a reconnect succeeds.
+constexpr uint32_t kHeapLogIntervalHeartbeats = 30;
+
+void LogInternalHeap() {
+    printf("  Internal heap: free %zu, largest block %zu, low-water mark %zu bytes\n",
+           heap_caps_get_free_size(MALLOC_CAP_INTERNAL), heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+           heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
+}
+
 // The first thing app_main() does, before anything else can fail and
 // leave no trace of what was even running.
 void PrintBootBanner() {
@@ -673,6 +684,9 @@ extern "C" void app_main(void) {
     uint32_t heartbeat = 0;
     while (true) {
         printf("HomeDeck heartbeat #%lu\n", (unsigned long)heartbeat++);
+        if (heartbeat % kHeapLogIntervalHeartbeats == 0) {
+            LogInternalHeap();
+        }
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
