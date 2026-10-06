@@ -23,10 +23,9 @@ lv_obj_t* CreateRow(lv_obj_t* parent) {
     return row;
 }
 
-// The library-browse buttons (M4b) wrap 2-per-row rather than sharing
-// one row like the transport/volume rows above - four of them (Movies/
-// TV Shows/Music/Files) at a readable width no longer fit one row the
-// way three did.
+// The five library-browse buttons wrap 2-per-row rather than sharing one
+// row like the transport/volume rows above - at a readable width they
+// don't fit on one.
 lv_obj_t* CreateWrapRow(lv_obj_t* parent) {
     lv_obj_t* row = lv_obj_create(parent);
     lv_obj_remove_style_all(row);

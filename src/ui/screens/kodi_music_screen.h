@@ -20,8 +20,8 @@ namespace homedeck {
 // songs), not three Navigation routes - same no-back-stack reasoning as
 // DevicesScreen/KodiMoviesScreen/KodiTvShowsScreen. Unlike the video
 // browse screens there is no fourth Play/Resume detail level:
-// AudioLibrary.GetSongs has no "resume" property at all (confirmed
-// against a live Kodi 21 instance), so a song plays directly on tap via
+// AudioLibrary.GetSongs has no "resume" property at all, so a song plays
+// directly on tap via
 // OpenLibraryItem("songid", id, /*resume=*/false).
 //
 // An album's songs aren't known until that album is chosen, so

@@ -173,7 +173,7 @@ std::vector<KodiMovie> ParseMovies(const std::string& text) {
 
 std::vector<KodiTvShow> ParseTvShows(const std::string& text) {
     std::vector<KodiTvShow> shows;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, "tvshows");
     if (array == nullptr) {
         return shows;
@@ -193,7 +193,7 @@ std::vector<KodiTvShow> ParseTvShows(const std::string& text) {
 
 std::vector<KodiSeason> ParseSeasons(const std::string& text) {
     std::vector<KodiSeason> seasons;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, "seasons");
     if (array == nullptr) {
         return seasons;
@@ -212,7 +212,7 @@ std::vector<KodiSeason> ParseSeasons(const std::string& text) {
 
 std::vector<KodiEpisode> ParseEpisodes(const std::string& text) {
     std::vector<KodiEpisode> episodes;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, "episodes");
     if (array == nullptr) {
         return episodes;
@@ -231,7 +231,7 @@ std::vector<KodiEpisode> ParseEpisodes(const std::string& text) {
 
 std::vector<KodiArtist> ParseArtists(const std::string& text) {
     std::vector<KodiArtist> artists;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, "artists");
     if (array == nullptr) {
         return artists;
@@ -252,7 +252,7 @@ std::vector<KodiArtist> ParseArtists(const std::string& text) {
 
 std::vector<KodiAlbum> ParseAlbums(const std::string& text) {
     std::vector<KodiAlbum> albums;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, "albums");
     if (array == nullptr) {
         return albums;
@@ -270,7 +270,7 @@ std::vector<KodiAlbum> ParseAlbums(const std::string& text) {
 
 std::vector<KodiSong> ParseSongs(const std::string& text) {
     std::vector<KodiSong> songs;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, "songs");
     if (array == nullptr) {
         return songs;
@@ -290,13 +290,12 @@ std::vector<KodiSong> ParseSongs(const std::string& text) {
 // Shared by Files.GetSources' reply ("sources") and Files.GetDirectory's
 // ("files") - result_key and all_folders are the only differences
 // between the two shapes. A source item carries no "filetype" field at
-// all (confirmed against a live Kodi 21 instance) - it's always a
-// folder by definition (a configured root), so all_folders=true skips
+// all - it's always a folder by definition (a configured root), so all_folders=true skips
 // the "filetype" check entirely rather than reading a field that isn't
 // there and misreading every source as a file.
 std::vector<KodiFileItem> ParseFileItems(const std::string& text, const char* result_key, bool all_folders) {
     std::vector<KodiFileItem> items;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, result_key);
     if (array == nullptr) {
         return items;
@@ -314,7 +313,7 @@ std::vector<KodiFileItem> ParseFileItems(const std::string& text, const char* re
 
 std::vector<KodiChannelGroup> ParseChannelGroups(const std::string& text) {
     std::vector<KodiChannelGroup> groups;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, "channelgroups");
     if (array == nullptr) {
         return groups;
@@ -331,7 +330,7 @@ std::vector<KodiChannelGroup> ParseChannelGroups(const std::string& text) {
 
 std::vector<KodiChannel> ParseChannels(const std::string& text) {
     std::vector<KodiChannel> channels;
-    nlohmann::json parsed = ParseBoundedJson(text);  // see ParseMovies()'s own comment on why this is named
+    nlohmann::json parsed = ParseBoundedJson(text);
     const nlohmann::json* array = ResultArray(parsed, "channels");
     if (array == nullptr) {
         return channels;
@@ -510,18 +509,14 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
     // else: nothing discovered, or >1 with no saved selection - the
     // "ask the user to choose in settings" case; leave chosen null.
 
-    // A chosen instance with no resolved IP address falls back to its
-    // bare mDNS hostname only for display in `discovered` below, never
-    // as an actual connect target - MdnsService's own header warns
-    // ".local" resolution isn't guaranteed on either target's outbound
-    // path, and at least one real device advertises a hostname with no
-    // domain suffix at all ("Android", not "Android.local") that can
-    // never resolve. Auto-connecting to it would mean silently retrying
-    // a target already known to be unusable forever; nulling `chosen`
-    // here routes it through the same "ask the user to choose" state as
-    // nothing being resolvable at all, and (for the saved-uuid path)
-    // the same reasoning ADR-0030 already applies to a saved-but-offline
-    // instance - don't fall back to guessing.
+    // An instance with no resolved IP address is listed in `discovered`
+    // (by its bare mDNS hostname, for manual entry) but never connected
+    // to: MdnsService's header notes ".local" resolution isn't guaranteed
+    // on either target, and a device can advertise a hostname with no
+    // domain suffix at all ("Android", not "Android.local") that can never
+    // resolve. Auto-connecting would retry an unusable target forever, so
+    // `chosen` is nulled and the "ask the user to choose" state applies,
+    // as for a saved-but-offline instance (ADR-0030) - no guessing.
     if (chosen != nullptr && chosen->address.empty()) {
         chosen = nullptr;
     }
@@ -1289,9 +1284,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
             }
             case LibraryRequest::Kind::kArtists: {
                 // No "properties" needed - artistid/artist/label are all
-                // returned by default (confirmed against a live Kodi 21
-                // instance), the same as movieid/label elsewhere on this
-                // page.
+                // returned by default, the same as movieid/label elsewhere.
                 nlohmann::json params = {{"sort", kSortByLabel}};
                 std::optional<std::string> text =
                     CallLibrary("AudioLibrary.GetArtists", params.dump(), "artists", stop);

@@ -13,8 +13,8 @@ namespace homedeck {
 // itself, based on its own module's connection snapshot), a scrollable
 // content_container, and the persistent home affordance.
 //
-// Factored out of Harmony's ActivitiesScreen/DevicesScreen (M3) and
-// reused by Kodi's screens (M4) - nothing here is module-specific.
+// Shared by Harmony's and Kodi's screens - nothing here is
+// module-specific.
 struct ScreenChrome {
     lv_obj_t* container;
     lv_obj_t* hint_label;
@@ -36,17 +36,13 @@ ScreenChrome CreateScreenChrome(lv_obj_t* root, const char* title, const char* h
 // each screen owns its own event-subscription wiring and status text.
 lv_obj_t* CreateChromeStatusLabel(lv_obj_t* container);
 
-// A hidden-until-shown detail/list-level view container - every Kodi
-// M4b browse screen's non-top-level view (KodiTvShowsScreen's
-// seasons_container_, KodiMusicScreen's albums_container_, ...) was
-// hand-copying this same object setup (CLAUDE.md's "avoid duplicate
-// code"), one as an inline block, two as a byte-identical local helper.
-// 90% width, flex column, horizontally centered/vertically top-aligned
-// content, hidden until the owning screen clears LV_OBJ_FLAG_HIDDEN.
-// pad_row is passed explicitly, not normalized to one value, because
-// existing call sites split 8 (DevicesScreen's original, KodiLiveTvScreen)
-// vs. 12 (the others) - this only removes the duplicated object-setup
-// code, not any screen's existing spacing.
+// A hidden-until-shown detail/list-level view container, as used by every
+// Kodi browse screen's non-top-level view (KodiTvShowsScreen's
+// seasons_container_, KodiMusicScreen's albums_container_, ...): 90% width,
+// flex column, horizontally centered/vertically top-aligned content,
+// hidden until the owning screen clears LV_OBJ_FLAG_HIDDEN. pad_row is
+// passed explicitly because call sites use different spacing (8 for
+// DevicesScreen and KodiLiveTvScreen, 12 for the others).
 lv_obj_t* CreateChromeDetailContainer(lv_obj_t* parent, int32_t pad_row);
 
 // A left-aligned, word-wrapping heading label (e.g. a selected show's
@@ -56,9 +52,8 @@ lv_obj_t* CreateChromeDetailContainer(lv_obj_t* parent, int32_t pad_row);
 lv_obj_t* CreateChromeHeadingLabel(lv_obj_t* parent);
 
 // A full-width flex-column sub-list inside a detail container (e.g.
-// KodiTvShowsScreen's seasons_list_ inside seasons_container_) - same
-// duplication reasoning as CreateChromeDetailContainer() above; pad_row
-// is likewise passed through rather than normalized.
+// KodiTvShowsScreen's seasons_list_ inside seasons_container_); pad_row is
+// passed per call site, as for CreateChromeDetailContainer().
 lv_obj_t* CreateChromeListSubcontainer(lv_obj_t* parent, int32_t pad_row);
 
 }  // namespace homedeck

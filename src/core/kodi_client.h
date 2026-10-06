@@ -146,9 +146,8 @@ struct KodiEpisode {
 
 // Music library browsing (also M4b): Artists -> Albums -> Songs, no
 // fourth Play/Resume detail level unlike the video screens above -
-// AudioLibrary.GetSongs has no "resume" property at all (confirmed
-// against a live Kodi 21 instance: requesting one is rejected with
-// "Invalid params"), so a song plays directly on tap.
+// AudioLibrary.GetSongs has no "resume" property at all (requesting one
+// is rejected with "Invalid params"), so a song plays directly on tap.
 struct KodiArtist {
     long long artistid = -1;
     std::string name;

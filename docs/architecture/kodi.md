@@ -72,12 +72,11 @@ Kodi is its first consumer.
   `hostname` fallback field - is never auto-selected or matched against
   a saved `instance_uuid`, for either of the above. `hostname` is a
   best-effort display value only (its own header warns `.local`
-  resolution isn't guaranteed on either target); at least one real
-  device advertises a hostname with no domain suffix at all ("Android",
-  not "Android.local"), which can never resolve through a generic
-  connect. Still shown in the Web UI's discovered-instance list so the
-  user can enter its real address manually - just never connected to
-  automatically.
+  resolution isn't guaranteed on either target); a device can
+  advertise a hostname with no domain suffix at all ("Android", not
+  "Android.local"), which can never resolve through a generic connect.
+  Still shown in the Web UI's discovered-instance list so the user can
+  enter its address manually - just never connected to automatically.
 
 The `host` and `instance_uuid` keys are mutually exclusive; the Web UI
 writes one and clears the other.
@@ -273,8 +272,7 @@ number, not left at Kodi's own insertion order.
 `GetAlbums(artistid)`/`GetSongs(albumid)` - Artists -> Albums -> Songs,
 one level shallower than TV Shows. It has no fourth Play/Resume detail
 level: `AudioLibrary.GetSongs` has no `resume` property at all
-(confirmed against a live Kodi 21 instance - requesting one is rejected
-with "Invalid params"), so a song plays directly on tap, the same
+(requesting one is rejected with "Invalid params"), so a song plays directly on tap, the same
 `OpenLibraryItem("songid", id, /*resume=*/false)` call with a different
 `id_field` string. `KodiSong::duration_seconds` (Kodi's own `duration`
 property, plain seconds - not the `{position, total}` shape movie/
@@ -294,7 +292,7 @@ fixed-depth screen above, so the screen keeps its own `path_stack_` of
 sibling per level; "back" pops one entry, or returns to the source list
 once the stack is empty (hiding the back button - nothing is above the
 source list). A source item carries no `filetype` field at all
-(confirmed against a live Kodi 21 instance) since it's a folder by
+since it's a folder by
 definition, unlike a `Files.GetDirectory` item, which always has one;
 `ParseFileItems()`'s `all_folders` parameter is what tells the two
 shapes apart. A tapped file plays directly via `PlayFile()` (`Player.Open`
