@@ -45,7 +45,9 @@ public:
     void SetItems(size_t count, LabelFn label_at, SelectFn on_select);
 
     // Shows a note below the rows that the list is incomplete (the data
-    // source stopped at its size cap). Call after SetItems(), which clears it.
+    // source stopped at its size cap or timed out), or, for a list with no
+    // rows, that Kodi took too long instead of the empty text. Call after
+    // SetItems(), which clears it.
     void SetTruncated(bool truncated);
 
     // Shows nothing at all: for a list waiting on a reply, where the

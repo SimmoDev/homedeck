@@ -691,9 +691,13 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
 std::optional<std::string> KodiClient::CallLibrary(const std::string& method, const std::string& params_json,
                                                     const char* result_key, std::stop_token stop, bool& truncated) {
     truncated = false;
-    // A reply no listing parser finds a list in, so a slow listing shows as
-    // an empty one (the same as any other error reply) while the link stays up.
-    const auto timed_out_reply = [] { return std::string(R"({"error":{"code":-1,"message":"timed out"}})"); };
+    // A reply no listing parser finds a list in, so a slow listing parses to
+    // an empty one while the link stays up; `truncated` tells the screen it
+    // is incomplete rather than empty.
+    const auto timed_out_reply = [&truncated] {
+        truncated = true;
+        return std::string(R"({"error":{"code":-1,"message":"timed out"}})");
+    };
     // Call()'s nullopt is fatal only when the transport is dead.
     const auto survive_timeout = [&](std::optional<std::string> text) {
         return (!text.has_value() && last_call_timed_out_) ? std::optional<std::string>(timed_out_reply()) : text;

@@ -67,10 +67,14 @@ void VirtualList::SetItems(size_t count, LabelFn label_at, SelectFn on_select) {
 }
 
 void VirtualList::SetTruncated(bool truncated) {
-    if (truncated && count_ != 0) {
-        lv_label_set_text(truncated_label_, ("Only the first " + std::to_string(count_) + " items are shown.").c_str());
+    if (truncated) {
+        lv_label_set_text(truncated_label_, count_ != 0
+                                                ? ("Only the first " + std::to_string(count_) + " items are shown.").c_str()
+                                                : "Kodi took too long to list this.");
+        // An incomplete empty list is not an empty library.
+        lv_obj_set_hidden(empty_label_, true);
     }
-    lv_obj_set_hidden(truncated_label_, !(truncated && count_ != 0));
+    lv_obj_set_hidden(truncated_label_, !truncated);
 }
 
 void VirtualList::Clear() {

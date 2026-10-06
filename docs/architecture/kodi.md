@@ -237,8 +237,7 @@ as fatal to the whole batch, the same as anywhere else in this module. A
 call that merely times out on a connection that is still open
 (`WebSocketClient::IsOpen()`) is not: the late reply is dropped by id when
 it arrives, the screen gets what had arrived (an empty list when nothing
-had, shown as "Nothing here.", the same as an error reply), and a partial
-listing is flagged `truncated`.
+had), and the listing is flagged `truncated`.
 
 Listings are fetched through `CallLibrary()`: a 30 s timeout (a cold
 network share can list slowly) and, for every list except file sources and
@@ -247,9 +246,10 @@ into the one event the screen receives. Paging keeps each reply far below
 `kMaxWebSocketMessageBytes` (1 MiB), which closes the connection when
 exceeded, so library size is bounded by `kMaxLibraryItems` (10,000; the
 list is truncated beyond that), not by the frame cap. A listing that
-stops short - at that cap, or because a later page failed - sets
-`truncated` on its `Kodi*FetchedEvent`, and the screen shows "Only the first
-N items are shown." below the rows. A Kodi that answers
+stops short - at that cap, because a later page failed, or because a call
+timed out - sets `truncated` on its `Kodi*FetchedEvent`. The screen shows
+"Only the first N items are shown." below the rows, or "Kodi took too long
+to list this." when nothing arrived. A Kodi that answers
 `limits` with a JSON-RPC error gets one unpaged retry. Every browse list is
 rendered by `VirtualList`, which binds only the rows near the screen, so a
 10,000-item list costs what one screenful does (see
@@ -257,8 +257,8 @@ rendered by `VirtualList`, which binds only the rows near the screen, so a
 
 A JSON-RPC `error` reply to a listing (for example PVR disabled on that
 Kodi) parses to an empty list, so the screen shows its "Nothing here."
-text rather than an error; only a transport failure or timeout is
-reported as a connection problem.
+text rather than an error; only a transport failure is reported as a
+connection problem.
 
 `KodiMoviesScreen` is list-then-detail (movie list, then a selected
 movie's Play/Resume choice), matching `DevicesScreen`'s own no-back-stack

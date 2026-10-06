@@ -1429,7 +1429,7 @@ TEST_F(KodiClientTest, RequestMoviesReportsTruncationWhenALaterPageFails) {
 
 // A library call that gets no reply in time on a connection that is still
 // open (a cold network share) must not drop the link: the screen gets an
-// empty list and Now Playing stays connected.
+// empty list flagged as incomplete and Now Playing stays connected.
 TEST_F(KodiClientTest, ALibraryCallThatTimesOutOnAnOpenConnectionKeepsTheLink) {
     KODI_COMMAND_RIG();
     {
@@ -1441,9 +1441,11 @@ TEST_F(KodiClientTest, ALibraryCallThatTimesOutOnAnOpenConnectionKeepsTheLink) {
 
     std::mutex result_mutex;
     std::optional<std::vector<homedeck::KodiMovie>> received;
+    bool truncated = false;
     auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
         std::lock_guard<std::mutex> lock(result_mutex);
         received = event.movies;
+        truncated = event.truncated;
     });
 
     auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
@@ -1458,6 +1460,7 @@ TEST_F(KodiClientTest, ALibraryCallThatTimesOutOnAnOpenConnectionKeepsTheLink) {
     {
         std::lock_guard<std::mutex> lock(result_mutex);
         EXPECT_TRUE(received->empty());
+        EXPECT_TRUE(truncated);  // a timed-out listing is not an empty library
     }
     EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
     {
