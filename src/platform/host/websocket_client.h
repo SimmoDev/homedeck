@@ -46,6 +46,7 @@ public:
     bool Connect(const std::string& url) override;
     bool SendText(const std::string& text) override;
     std::optional<std::string> ReceiveText(int timeout_ms) override;
+    bool IsOpen() const override;
     void Close() override;
 
 private:

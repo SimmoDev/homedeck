@@ -96,6 +96,9 @@ struct WsScript {
     // method -> builds the whole reply body ("result" or "error" member) from
     // the request, for tests that depend on the request's params (paging).
     std::map<std::string, std::function<nlohmann::json(const nlohmann::json&)>> handlers;
+    // When set and true for a request, the fake sends no reply at all (a
+    // slow server), so the caller times out on a connection that stays open.
+    std::function<bool(const nlohmann::json&)> drop_request;
     std::deque<std::string> pushed;
     std::deque<std::string> ready;
     int close_count = 0;
@@ -119,6 +122,9 @@ public:
         }
         nlohmann::json request = nlohmann::json::parse(text, nullptr, false);
         if (request.is_object() && request.contains("id") && request.contains("method")) {
+            if (script_->drop_request && script_->drop_request(request)) {
+                return true;
+            }
             const std::string method = request["method"].get<std::string>();
             auto handler = script_->handlers.find(method);
             if (handler != script_->handlers.end()) {
@@ -153,6 +159,11 @@ public:
             return frame;
         }
         return std::nullopt;
+    }
+
+    bool IsOpen() const override {
+        std::lock_guard<std::mutex> lock(script_->mutex);
+        return !script_->dead;
     }
 
     void Close() override {
@@ -1413,6 +1424,89 @@ TEST_F(KodiClientTest, RequestMoviesReportsTruncationWhenALaterPageFails) {
     std::lock_guard<std::mutex> lock(result_mutex);
     EXPECT_EQ(received->size(), 500u);
     EXPECT_TRUE(truncated);
+    client->Stop();
+}
+
+// A library call that gets no reply in time on a connection that is still
+// open (a cold network share) must not drop the link: the screen gets an
+// empty list and Now Playing stays connected.
+TEST_F(KodiClientTest, ALibraryCallThatTimesOutOnAnOpenConnectionKeepsTheLink) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->drop_request = [](const nlohmann::json& request) {
+            return request["method"].get<std::string>() == "VideoLibrary.GetMovies";
+        };
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiMovie>> received;
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.movies;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        EXPECT_TRUE(received->empty());
+    }
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->connect_urls.size(), 1u);  // never reconnected
+    }
+    client->Stop();
+}
+
+// Pages that arrived before a timeout are kept and flagged as incomplete.
+TEST_F(KodiClientTest, ALibraryCallThatTimesOutAfterTheFirstPageKeepsThatPageAsTruncated) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->handlers["VideoLibrary.GetMovies"] = [](const nlohmann::json&) {
+            nlohmann::json movies = nlohmann::json::array();
+            for (long long i = 0; i < 500; ++i) {
+                movies.push_back({{"movieid", i}, {"title", "M"}});
+            }
+            return nlohmann::json{{"result", {{"movies", movies}, {"limits", {{"total", 1200}}}}}};
+        };
+        script->drop_request = [](const nlohmann::json& request) {
+            return request["method"].get<std::string>() == "VideoLibrary.GetMovies" &&
+                   request["params"]["limits"]["start"].get<long long>() > 0;
+        };
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiMovie>> received;
+    bool truncated = false;
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.movies;
+        truncated = event.truncated;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    std::lock_guard<std::mutex> lock(result_mutex);
+    EXPECT_EQ(received->size(), 500u);
+    EXPECT_TRUE(truncated);
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
     client->Stop();
 }
 

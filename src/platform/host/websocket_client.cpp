@@ -3,10 +3,12 @@
 #include <curl/curl.h>
 
 #include <poll.h>
+#include <sys/socket.h>
 
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cerrno>
 #include <chrono>
 #include <cstdint>
 #include <random>
@@ -474,6 +476,10 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
     }
 
     std::string accumulated;
+    auto Fail = [this]() -> std::optional<std::string> {
+        closed_ = true;
+        return std::nullopt;
+    };
     // RemainingMs() (used by ReadExact()'s own poll() calls) already
     // clamps a non-positive remaining duration to 0 rather than skipping
     // the poll call entirely - timeout_ms=0 (DrainStaleMessages()'s own
@@ -482,8 +488,17 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
     auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
 
     for (;;) {
+        // No byte of a frame yet: a timeout here leaves the stream at a
+        // message boundary, so the connection stays usable. A failure
+        // anywhere after the first byte (or between frames of one
+        // message) has consumed part of a message, losing the framing, so
+        // the connection is closed instead.
         unsigned char header[2];
-        if (!ReadExact(curl, sockfd, header, sizeof(header), deadline)) return std::nullopt;
+        if (!ReadExact(curl, sockfd, header, 1, deadline)) {
+            if (!accumulated.empty()) closed_ = true;
+            return std::nullopt;
+        }
+        if (!ReadExact(curl, sockfd, header + 1, 1, deadline)) return Fail();
 
         bool fin = (header[0] & 0x80) != 0;
         uint8_t opcode = header[0] & 0x0F;
@@ -497,7 +512,7 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         // (ADR-0029), so a hostile/misbehaving LAN peer sending one is a
         // real possibility, not just a spec technicality.
         if (opcode != 0x0 && opcode != 0x1 && opcode != 0x8 && opcode != 0x9 && opcode != 0xA) {
-            return std::nullopt;
+            return Fail();
         }
         // Real WS servers never mask frames sent to a client (RFC 6455),
         // but this transport has no authentication at all (ADR-0029) - a
@@ -508,17 +523,17 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         uint64_t len = header[1] & 0x7F;
         if (len == 126) {
             unsigned char ext[2];
-            if (!ReadExact(curl, sockfd, ext, sizeof(ext), deadline)) return std::nullopt;
+            if (!ReadExact(curl, sockfd, ext, sizeof(ext), deadline)) return Fail();
             len = (static_cast<uint64_t>(ext[0]) << 8) | ext[1];
         } else if (len == 127) {
             unsigned char ext[8];
-            if (!ReadExact(curl, sockfd, ext, sizeof(ext), deadline)) return std::nullopt;
+            if (!ReadExact(curl, sockfd, ext, sizeof(ext), deadline)) return Fail();
             len = 0;
             for (unsigned char b : ext) len = (len << 8) | b;
         }
         unsigned char mask[4] = {};
         if (masked) {
-            if (!ReadExact(curl, sockfd, mask, sizeof(mask), deadline)) return std::nullopt;
+            if (!ReadExact(curl, sockfd, mask, sizeof(mask), deadline)) return Fail();
         }
 
         if (opcode == 0x8) {  // CLOSE - echo a bare close frame back per
@@ -540,7 +555,7 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
             closed_ = true;
             std::vector<unsigned char> close_frame = BuildMaskedFrame(0x8, "");
             WriteExact(curl, sockfd, close_frame.data(), close_frame.size(), deadline);
-            return std::nullopt;
+            return Fail();
         }
 
         // See kMaxWebSocketMessageBytes's own comment for why. Checked
@@ -549,12 +564,12 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         // check, which only matters once a multi-frame message is
         // actually in progress.
         if (len > kMaxWebSocketMessageBytes || accumulated.size() + len > kMaxWebSocketMessageBytes) {
-            return std::nullopt;
+            return Fail();
         }
 
         std::string payload(len, '\0');
         if (len > 0) {
-            if (!ReadExact(curl, sockfd, reinterpret_cast<unsigned char*>(payload.data()), len, deadline)) return std::nullopt;
+            if (!ReadExact(curl, sockfd, reinterpret_cast<unsigned char*>(payload.data()), len, deadline)) return Fail();
             if (masked) {
                 for (size_t i = 0; i < payload.size(); ++i) {
                     payload[i] = static_cast<char>(static_cast<unsigned char>(payload[i]) ^ mask[i % 4]);
@@ -593,6 +608,25 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         // frame regardless (see ADR-0029's Consequences), but nothing
         // here depends on that being permanent.
     }
+}
+
+bool HostWebSocketClient::IsOpen() const {
+    if (curl_ == nullptr || closed_) {
+        return false;
+    }
+    curl_socket_t sockfd = CURL_SOCKET_BAD;
+    if (curl_easy_getinfo(static_cast<CURL*>(curl_), CURLINFO_ACTIVESOCKET, &sockfd) != CURLE_OK ||
+        sockfd == CURL_SOCKET_BAD) {
+        return false;
+    }
+    // Peek without consuming: 0 bytes is an orderly close by the peer,
+    // EAGAIN is an idle but open connection, pending data means open.
+    char byte;
+    const ssize_t n = recv(sockfd, &byte, 1, MSG_PEEK | MSG_DONTWAIT);
+    if (n == 0) {
+        return false;
+    }
+    return n > 0 || errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR;
 }
 
 void HostWebSocketClient::Close() {

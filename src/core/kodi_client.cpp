@@ -643,6 +643,7 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
     if (!ws_client_) {
         return std::nullopt;
     }
+    last_call_timed_out_ = false;
     const int id = ++next_rpc_id_;
     nlohmann::json request = {{"jsonrpc", "2.0"}, {"id", id}, {"method", method}};
     if (!params_json.empty()) {
@@ -659,13 +660,16 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
     while (!stop.stop_requested()) {
         const auto now = std::chrono::steady_clock::now();
         if (now >= deadline) {
+            last_call_timed_out_ = ws_client_->IsOpen();
             return std::nullopt;
         }
         const int remaining =
             static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
         std::optional<std::string> text = ws_client_->ReceiveText(std::max(remaining, 1));
         if (!text.has_value()) {
-            return std::nullopt;  // timeout / closed / error - transport is done
+            // A timeout (link still open) or a closed/failed transport.
+            last_call_timed_out_ = ws_client_->IsOpen();
+            return std::nullopt;
         }
         nlohmann::json frame = ParseBoundedJson(*text);
         if (frame.is_discarded() || !frame.is_object()) {
@@ -687,8 +691,16 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
 std::optional<std::string> KodiClient::CallLibrary(const std::string& method, const std::string& params_json,
                                                     const char* result_key, std::stop_token stop, bool& truncated) {
     truncated = false;
+    // A reply no listing parser finds a list in, so a slow listing shows as
+    // an empty one (the same as any other error reply) while the link stays up.
+    const auto timed_out_reply = [] { return std::string(R"({"error":{"code":-1,"message":"timed out"}})"); };
+    // Call()'s nullopt is fatal only when the transport is dead.
+    const auto survive_timeout = [&](std::optional<std::string> text) {
+        return (!text.has_value() && last_call_timed_out_) ? std::optional<std::string>(timed_out_reply()) : text;
+    };
+
     if (result_key == nullptr) {
-        return Call(method, params_json, kLibraryCallTimeoutMs, stop);
+        return survive_timeout(Call(method, params_json, kLibraryCallTimeoutMs, stop));
     }
     nlohmann::json params = ParseBoundedJson(params_json);
     if (!params.is_object()) {
@@ -700,7 +712,14 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
         params["limits"] = {{"start", start}, {"end", start + kLibraryPageSize}};
         std::optional<std::string> text = Call(method, params.dump(), kLibraryCallTimeoutMs, stop);
         if (!text.has_value()) {
-            return std::nullopt;
+            if (!last_call_timed_out_) {
+                return std::nullopt;  // dead transport
+            }
+            if (merged.empty()) {
+                return timed_out_reply();
+            }
+            truncated = true;  // keep what arrived; the rest timed out
+            break;
         }
         nlohmann::json parsed = ParseBoundedJson(*text);
         const nlohmann::json* page = ResultArray(parsed, result_key);
@@ -708,7 +727,7 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
             if (start == 0) {
                 if (parsed.is_object() && parsed.contains("error")) {
                     params.erase("limits");
-                    return Call(method, params.dump(), kLibraryCallTimeoutMs, stop);
+                    return survive_timeout(Call(method, params.dump(), kLibraryCallTimeoutMs, stop));
                 }
                 return text;  // not a listing at all - the parser yields an empty list
             }

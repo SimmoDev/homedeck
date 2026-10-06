@@ -144,6 +144,8 @@ public:
         return response;
     }
 
+    bool IsOpen() const override { return true; }
+
     void Close() override {
         std::lock_guard<std::mutex> lock(script_->mutex);
         script_->close_count++;

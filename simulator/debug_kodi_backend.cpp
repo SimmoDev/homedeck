@@ -155,6 +155,13 @@ public:
         return std::nullopt;
     }
 
+    bool IsOpen() const override {
+        if (!fake_) {
+            return real_ && real_->IsOpen();
+        }
+        return open_ && armed_.load();
+    }
+
     void Close() override {
         if (real_) {
             real_->Close();

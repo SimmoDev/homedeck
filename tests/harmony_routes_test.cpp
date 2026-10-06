@@ -41,6 +41,7 @@ public:
     bool Connect(const std::string&) override { return false; }
     bool SendText(const std::string&) override { return false; }
     std::optional<std::string> ReceiveText(int) override { return std::nullopt; }
+    bool IsOpen() const override { return false; }
     void Close() override {}
 };
 
@@ -91,6 +92,7 @@ public:
             R"("result":"-1")"
             R"(}})");
     }
+    bool IsOpen() const override { return true; }
     void Close() override {}
 };
 

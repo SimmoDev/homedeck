@@ -45,12 +45,18 @@ public:
     virtual bool SendText(const std::string& text) = 0;
 
     // Blocks up to timeout_ms for the next complete text frame; returns
-    // std::nullopt on timeout, connection close, or error - callers can't
-    // distinguish those cases yet (nothing needs to). A bounded timeout,
-    // not indefinite blocking, so a caller's Task can still notice
-    // std::stop_token requests promptly (see Task's own destructor
-    // contract).
+    // std::nullopt on timeout, connection close, or error - IsOpen()
+    // afterwards says which. A bounded timeout, not indefinite blocking, so
+    // a caller's Task can still notice std::stop_token requests promptly
+    // (see Task's own destructor contract). A timeout leaves the stream
+    // usable: the next ReceiveText() starts at a message boundary.
     virtual std::optional<std::string> ReceiveText(int timeout_ms) = 0;
+
+    // Whether the connection can still carry messages: false before
+    // Connect(), after Close(), and once the peer closed it or it failed.
+    // A caller that got std::nullopt from ReceiveText() with IsOpen() true
+    // saw a timeout, not a dead transport.
+    virtual bool IsOpen() const = 0;
 
     virtual void Close() = 0;
 };

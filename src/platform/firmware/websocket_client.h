@@ -30,6 +30,7 @@ public:
     bool Connect(const std::string& url) override;
     bool SendText(const std::string& text) override;
     std::optional<std::string> ReceiveText(int timeout_ms) override;
+    bool IsOpen() const override;
     void Close() override;
 
     // Called from the ESP-IDF event handler registered in Connect() (see
@@ -52,7 +53,7 @@ private:
     bool connect_pending_ = false;
     bool connect_succeeded_ = false;
 
-    std::mutex queue_mutex_;
+    mutable std::mutex queue_mutex_;
     std::condition_variable queue_cv_;
     std::deque<std::string> message_queue_;
     std::string in_progress_message_;

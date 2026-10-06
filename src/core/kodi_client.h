@@ -502,7 +502,11 @@ private:
     // kMaxWebSocketMessageBytes however large the library is, and a slow
     // source can't hold one reply past the timeout. Capped at
     // kMaxLibraryItems items. A Kodi that rejects `limits` with a JSON-RPC
-    // error gets one unpaged retry. `truncated` is set when the listing is
+    // error gets one unpaged retry. A call that times out on a connection
+    // that is still open (a slow share) does not tear the link down: the
+    // pages merged so far are returned as a truncated listing, or an error
+    // reply when there are none, and the late reply is ignored by id.
+    // `truncated` is set when the listing is
     // incomplete (see KodiMoviesFetchedEvent::truncated). nullopt on the
     // same conditions as Call().
     std::optional<std::string> CallLibrary(const std::string& method, const std::string& params_json,
@@ -564,6 +568,10 @@ private:
     // mutex, same single-owner reasoning as HarmonyConnection::ws_client_.
     std::unique_ptr<WebSocketClient> ws_client_;
     int next_rpc_id_ = 0;
+    // Set by Call() when it returned nullopt because no reply arrived in
+    // time on a connection that is still open, as opposed to a dead
+    // transport. Only meaningful right after a Call() that returned nullopt.
+    bool last_call_timed_out_ = false;
     bool needs_immediate_poll_ = false;
     // Once a Player.On* notification has supplied identity for the
     // current playback, the reconcile poll's Player.GetItem result does

@@ -163,6 +163,11 @@ std::optional<std::string> FirmwareWebSocketClient::ReceiveText(int timeout_ms) 
     return message;
 }
 
+bool FirmwareWebSocketClient::IsOpen() const {
+    std::lock_guard<std::mutex> lock(queue_mutex_);
+    return client_ != nullptr && !closed_;
+}
+
 void FirmwareWebSocketClient::Close() {
     if (client_ != nullptr) {
         // Failures here are logged, not otherwise acted upon - client_ is
