@@ -1006,50 +1006,62 @@ void KodiClient::EnqueueLibraryRequest(LibraryRequest request) {
     wake_cv_.notify_one();
 }
 
+// Every field named explicitly below, even when a Kind leaves it at its
+// struct default - a partial aggregate-init (e.g. just {kind, parent_id})
+// still triggers -Wmissing-field-initializers under ESP-IDF's stricter
+// default warning set (not under this project's host/simulator build
+// flags, which is how this went unnoticed) for any field left out,
+// designated or not.
 void KodiClient::RequestMovies() {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kMovies});
+    EnqueueLibraryRequest(LibraryRequest{.kind = LibraryRequest::Kind::kMovies, .parent_id = 0, .season = 0, .path = ""});
 }
 
 void KodiClient::RequestTvShows() {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kTvShows});
+    EnqueueLibraryRequest(LibraryRequest{.kind = LibraryRequest::Kind::kTvShows, .parent_id = 0, .season = 0, .path = ""});
 }
 
 void KodiClient::RequestSeasons(long long tvshowid) {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kSeasons, tvshowid});
+    EnqueueLibraryRequest(
+        LibraryRequest{.kind = LibraryRequest::Kind::kSeasons, .parent_id = tvshowid, .season = 0, .path = ""});
 }
 
 void KodiClient::RequestEpisodes(long long tvshowid, int season) {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kEpisodes, tvshowid, season});
+    EnqueueLibraryRequest(
+        LibraryRequest{.kind = LibraryRequest::Kind::kEpisodes, .parent_id = tvshowid, .season = season, .path = ""});
 }
 
 void KodiClient::RequestArtists() {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kArtists});
+    EnqueueLibraryRequest(LibraryRequest{.kind = LibraryRequest::Kind::kArtists, .parent_id = 0, .season = 0, .path = ""});
 }
 
 void KodiClient::RequestAlbums(long long artistid) {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kAlbums, artistid});
+    EnqueueLibraryRequest(
+        LibraryRequest{.kind = LibraryRequest::Kind::kAlbums, .parent_id = artistid, .season = 0, .path = ""});
 }
 
 void KodiClient::RequestSongs(long long albumid) {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kSongs, albumid});
+    EnqueueLibraryRequest(
+        LibraryRequest{.kind = LibraryRequest::Kind::kSongs, .parent_id = albumid, .season = 0, .path = ""});
 }
 
 void KodiClient::RequestFileSources() {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kFileSources});
+    EnqueueLibraryRequest(
+        LibraryRequest{.kind = LibraryRequest::Kind::kFileSources, .parent_id = 0, .season = 0, .path = ""});
 }
 
 void KodiClient::RequestDirectory(const std::string& path) {
-    LibraryRequest request{LibraryRequest::Kind::kDirectory};
-    request.path = path;
-    EnqueueLibraryRequest(std::move(request));
+    EnqueueLibraryRequest(
+        LibraryRequest{.kind = LibraryRequest::Kind::kDirectory, .parent_id = 0, .season = 0, .path = path});
 }
 
 void KodiClient::RequestChannelGroups() {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kChannelGroups});
+    EnqueueLibraryRequest(
+        LibraryRequest{.kind = LibraryRequest::Kind::kChannelGroups, .parent_id = 0, .season = 0, .path = ""});
 }
 
 void KodiClient::RequestChannels(long long channelgroupid) {
-    EnqueueLibraryRequest(LibraryRequest{LibraryRequest::Kind::kChannels, channelgroupid});
+    EnqueueLibraryRequest(
+        LibraryRequest{.kind = LibraryRequest::Kind::kChannels, .parent_id = channelgroupid, .season = 0, .path = ""});
 }
 
 int KodiClient::ResolveActivePlayerId(std::stop_token stop) {
