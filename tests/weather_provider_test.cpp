@@ -191,6 +191,67 @@ TEST_F(WeatherProviderTest, ExcessivelyNestedForecastResponseReportsNoReading) {
     EXPECT_FALSE(state.live);
 }
 
+// Open-Meteo is a single trusted HTTPS endpoint, not an unauthenticated
+// LAN peer, but a type-mismatched field in its response is still not
+// just a hypothetical (an API change, a differently-shaped error payload,
+// a proxy) - and nlohmann::json::get<T>() throws json::type_error on a
+// type mismatch, which is std::abort() on firmware (exceptions are
+// compiled out there, same hazard kodi_client.cpp's GetInt()/GetDouble()/
+// GetBool() guard against). Without is_number() checked before
+// temperature_2m/weather_code are extracted, this test crashes the whole
+// process rather than failing an assertion.
+TEST_F(WeatherProviderTest, TypeMismatchedForecastFieldReportsNoReadingInsteadOfCrashing) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(
+        homedeck::HttpClientResponse{true, 200, R"({"current":{"temperature_2m":"warm","weather_code":0}})"});
+
+    homedeck::OpenMeteoWeatherProvider provider(http_client, storage, bus, kFastPollInterval);
+
+    ASSERT_TRUE(WaitFor([&] { return http_client.GetCount() > 0; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    homedeck::WeatherState state = provider.Snapshot();
+    EXPECT_TRUE(state.configured);
+    EXPECT_FALSE(state.has_reading) << "a type-mismatched field must not crash, nor be treated as a live reading";
+    EXPECT_FALSE(state.live);
+}
+
+// Same hazard as the live-fetch case above, for the restart-persisted
+// cache-read path - a future schema change or on-disk corruption must
+// not crash on read either, just fall through to "no reading."
+TEST_F(WeatherProviderTest, TypeMismatchedCachedReadingFallsBackToNoReadingInsteadOfCrashing) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
+    ASSERT_TRUE(storage.WriteCache("weather", "last_reading", 1,
+                                   R"({"temperature_c":"warm","weather_code":0,"display_name":""})"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{false, 0, ""});  // force the cache-fallback path
+
+    homedeck::OpenMeteoWeatherProvider provider(http_client, storage, bus, kFastPollInterval);
+
+    ASSERT_TRUE(WaitFor([&] { return http_client.GetCount() > 0; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    homedeck::WeatherState state = provider.Snapshot();
+    EXPECT_TRUE(state.configured);
+    EXPECT_FALSE(state.has_reading) << "a type-mismatched cached field must not crash, nor be treated as a reading";
+    EXPECT_FALSE(state.live);
+}
+
 TEST_F(WeatherProviderTest, FetchFailureFallsBackToPriorCache) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

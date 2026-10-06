@@ -116,8 +116,16 @@ void OpenMeteoWeatherProvider::PollOnce() {
     if (response.success && response.status_code == 200) {
         std::optional<nlohmann::json> parsed = TryParseJsonObject(response.body);
         auto current = parsed.has_value() ? parsed->find("current") : nlohmann::json::iterator{};
+        // is_number(), not just contains() - .get<T>() throws
+        // json::type_error on a type-mismatched field (not just a missing
+        // one), which is std::abort() on firmware (exceptions disabled -
+        // see kodi_client.cpp's GetInt()/GetDouble()/GetBool() for the
+        // full hazard). Open-Meteo is a single trusted HTTPS endpoint, not
+        // an unauthenticated LAN peer, but a differently-shaped response
+        // (an API change, a proxy, an error payload) still reaches here.
         if (parsed.has_value() && current != parsed->end() && current->is_object() &&
-            current->contains("temperature_2m") && current->contains("weather_code")) {
+            current->contains("temperature_2m") && current->at("temperature_2m").is_number() &&
+            current->contains("weather_code") && current->at("weather_code").is_number()) {
             double temperature_c = current->at("temperature_2m").get<double>();
             int weather_code = current->at("weather_code").get<int>();
 
@@ -150,7 +158,11 @@ void OpenMeteoWeatherProvider::PollOnce() {
     auto cached = storage_.ReadCache(kModuleId, kCacheKey);
     if (cached.has_value()) {
         std::optional<nlohmann::json> parsed = TryParseJsonObject(cached->value);
-        if (parsed.has_value() && parsed->contains("temperature_c") && parsed->contains("weather_code")) {
+        // Same is_number() reasoning as the live-fetch parse above - a
+        // future schema change or on-disk corruption must not crash on
+        // read, just fall through to "no reading" below.
+        if (parsed.has_value() && parsed->contains("temperature_c") && parsed->at("temperature_c").is_number() &&
+            parsed->contains("weather_code") && parsed->at("weather_code").is_number()) {
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 state_ = WeatherState{true, true, false, parsed->at("temperature_c").get<double>(),
