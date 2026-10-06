@@ -627,8 +627,10 @@ extern "C" void app_main(void) {
     bsp_display_unlock();
     if (wifi_check.has_stored_credentials) {
         printf("Dashboard loaded\n");
+        app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "boot", "Dashboard loaded");
     } else {
         printf("Wi-Fi setup screen loaded\n");
+        app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "boot", "Wi-Fi setup screen loaded");
     }
 
     // Ahead of app_core.Start() so the Kodi browse Task it launches finds
