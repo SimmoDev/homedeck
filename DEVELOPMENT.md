@@ -312,12 +312,11 @@ Once the simulator target exists (M1):
   GoogleTest+GoogleMock (see
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#5-test-framework)),
   its own host-native CMake project — see [tests/README.md](tests/README.md).
-  Now covers `Task`/`Queue`/`Timer` (the Core Concurrency Abstraction) and
-  `EventBus` for real, not just a smoke test; further Core/module tests
-  arrive alongside the code they test. No separate on-target test
-  framework is used — hardware-dependent behavior (deep sleep/wake,
-  display, OTA, real Wi-Fi reconnect) is validated by manual bring-up
-  checks on real hardware instead, not automated on-target tests.
+  The suite covers Core services, the modules and their Web UI routes, and
+  the host platform backends. No separate on-target test framework is
+  used — hardware-dependent behavior (deep sleep/wake, display, OTA, Wi-Fi
+  reconnect, mDNS discovery) is validated by manual bring-up checks on
+  hardware instead, not automated on-target tests.
 
 ## Continuous integration
 
