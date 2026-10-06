@@ -70,10 +70,15 @@ extern const uint8_t webui_app_css_end[] asm("_binary_app_css_end");
 // dominated by PSRAM - is what decides whether a reconnect succeeds.
 constexpr uint32_t kHeapLogIntervalHeartbeats = 30;
 
+homedeck::MemoryStats ReadMemoryStats() {
+    return {heap_caps_get_free_size(MALLOC_CAP_INTERNAL), heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+            heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL), heap_caps_get_free_size(MALLOC_CAP_SPIRAM)};
+}
+
 void LogInternalHeap() {
-    printf("  Internal heap: free %zu, largest block %zu, low-water mark %zu bytes\n",
-           heap_caps_get_free_size(MALLOC_CAP_INTERNAL), heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
-           heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL));
+    const homedeck::MemoryStats stats = ReadMemoryStats();
+    printf("  Internal heap: free %zu, largest block %zu, low-water mark %zu bytes\n", stats.internal_free_bytes,
+           stats.internal_largest_block_bytes, stats.internal_low_water_bytes);
 }
 
 // The first thing app_main() does, before anything else can fail and
@@ -625,6 +630,7 @@ extern "C" void app_main(void) {
                     }
                     return buffer;
                 },
+            .read_memory_stats = ReadMemoryStats,
         });
     // wifi_check (above) already knows whether setup is needed, so the
     // correct screen loads immediately - never the dashboard first,

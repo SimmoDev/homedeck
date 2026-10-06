@@ -50,6 +50,8 @@ protected:
     homedeck::HostBatteryReader battery_reader_;
 };
 
+homedeck::MemoryStats FakeMemoryStats() { return {111, 22, 33, 4444}; }
+
 }  // namespace
 
 TEST_F(DiagnosticsRoutesTest, RequiresAuthenticationAndReflectsStoredValues) {
@@ -61,7 +63,8 @@ TEST_F(DiagnosticsRoutesTest, RequiresAuthenticationAndReflectsStoredValues) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, *logger_,
-                                         []() -> std::optional<std::string> { return std::string("dump bytes"); });
+                                         []() -> std::optional<std::string> { return std::string("dump bytes"); },
+                                         FakeMemoryStats);
     ASSERT_TRUE(server.Start(0));
 
     // Unauthenticated, no password set yet - 403 setup_required.
@@ -83,13 +86,18 @@ TEST_F(DiagnosticsRoutesTest, RequiresAuthenticationAndReflectsStoredValues) {
     EXPECT_NE(authenticated.body.find("\"batteryPercent\":42"), std::string::npos);
     EXPECT_NE(authenticated.body.find("\"externalPowerConnected\":true"), std::string::npos);
     EXPECT_NE(authenticated.body.find("\"batteryPresent\":true"), std::string::npos);
+    EXPECT_NE(authenticated.body.find("\"internalFreeBytes\":111"), std::string::npos);
+    EXPECT_NE(authenticated.body.find("\"internalLargestBlockBytes\":22"), std::string::npos);
+    EXPECT_NE(authenticated.body.find("\"internalLowWaterBytes\":33"), std::string::npos);
+    EXPECT_NE(authenticated.body.find("\"psramFreeBytes\":4444"), std::string::npos);
 }
 
 TEST_F(DiagnosticsRoutesTest, CoreDumpDownloadsRawBytesWithCorrectHeadersWhenPresent) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, *logger_,
-                                         []() -> std::optional<std::string> { return std::string("dump bytes"); });
+                                         []() -> std::optional<std::string> { return std::string("dump bytes"); },
+                                         FakeMemoryStats);
     ASSERT_TRUE(server.Start(0));
 
     auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
@@ -107,7 +115,8 @@ TEST_F(DiagnosticsRoutesTest, CoreDumpReturns404WhenAbsent) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, *logger_,
-                                         []() -> std::optional<std::string> { return std::nullopt; });
+                                         []() -> std::optional<std::string> { return std::nullopt; },
+                                         FakeMemoryStats);
     ASSERT_TRUE(server.Start(0));
 
     auto setup = HttpRequestRaw(server.BoundPort(), "POST", "/api/auth/setup", R"({"password":"correct horse battery"})");
@@ -123,7 +132,8 @@ TEST_F(DiagnosticsRoutesTest, LogsEndpointRequiresAuthAndReturnsRealEntries) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterDiagnosticsRoutes(server, *storage_, *auth_, battery_reader_, *logger_,
-                                         []() -> std::optional<std::string> { return std::nullopt; });
+                                         []() -> std::optional<std::string> { return std::nullopt; },
+                                         FakeMemoryStats);
     ASSERT_TRUE(server.Start(0));
 
     // No password set yet - 403 setup_required, matching this file's

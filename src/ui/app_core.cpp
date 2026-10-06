@@ -85,7 +85,7 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
 
     RegisterAdminAuthRoutes(deps.http_server, admin_auth_);
     RegisterDiagnosticsRoutes(deps.http_server, storage_, admin_auth_, deps.battery_reader, logger_,
-                               deps.read_core_dump);
+                               deps.read_core_dump, deps.read_memory_stats);
     RegisterOtaRoutes(deps.http_server, event_bus, admin_auth_, deps.battery_reader, deps.ota_writer,
                        deps.ota_reboot);
     // Forwards to on_device_name_validate_/on_device_name_committed_ so

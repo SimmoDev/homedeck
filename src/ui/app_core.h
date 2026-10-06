@@ -112,6 +112,7 @@ public:
         OtaWriter ota_writer;
         OtaRebootFn ota_reboot;
         CoreDumpReader read_core_dump;
+        MemoryStatsReader read_memory_stats;
     };
 
     // Builds the full object graph and registers every Web UI route

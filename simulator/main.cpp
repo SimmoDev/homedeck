@@ -194,6 +194,8 @@ int main() {
                         "This is a simulator-only stub core dump for Web UI development - "
                         "see docs/architecture/diagnostics.md.");
                 },
+            // Fixed mock values - the simulator has no internal-RAM budget.
+            .read_memory_stats = []() { return homedeck::MemoryStats{150000, 64000, 140000, 30000000}; },
             // No device-name callbacks - there's no mDNS to re-announce
             // and no hostname rules to check on the simulator, so a
             // device name change just persists to storage like any other

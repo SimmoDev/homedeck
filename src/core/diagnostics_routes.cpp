@@ -11,18 +11,25 @@ constexpr const char* kModuleId = "core";
 }  // namespace
 
 void RegisterDiagnosticsRoutes(HttpServer& server, Storage& storage, AdminAuthService& auth,
-                                BatteryReader& battery_reader, Logger& logger, CoreDumpReader read_core_dump) {
+                                BatteryReader& battery_reader, Logger& logger, CoreDumpReader read_core_dump,
+                                MemoryStatsReader read_memory_stats) {
     server.RegisterHandler(
         HttpMethod::kGet, "/api/diagnostics",
-        auth.RequireAuth([&storage, &battery_reader](const HttpRequest&) {
+        auth.RequireAuth([&storage, &battery_reader, read_memory_stats](const HttpRequest&) {
             auto reset_reason = storage.GetSetting(kModuleId, "reset_reason");
             auto has_core_dump = storage.GetSetting(kModuleId, "has_core_dump");
+            const MemoryStats memory = read_memory_stats();
             nlohmann::json body = {
                 {"resetReason", reset_reason.has_value() ? reset_reason->value : "unknown"},
                 {"hasCoreDump", has_core_dump.has_value() && has_core_dump->value == "true"},
                 {"batteryPercent", battery_reader.ReadPercent()},
                 {"externalPowerConnected", battery_reader.IsExternalPowerConnected()},
                 {"batteryPresent", battery_reader.IsBatteryPresent()},
+                {"memory",
+                 {{"internalFreeBytes", memory.internal_free_bytes},
+                  {"internalLargestBlockBytes", memory.internal_largest_block_bytes},
+                  {"internalLowWaterBytes", memory.internal_low_water_bytes},
+                  {"psramFreeBytes", memory.psram_free_bytes}}},
             };
             return HttpResponse{200, "application/json", body.dump(), {}};
         }));

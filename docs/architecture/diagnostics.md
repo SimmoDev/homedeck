@@ -99,9 +99,12 @@ connection can start: task stacks and the WebSocket client's per-connection
 allocations cannot come from PSRAM, and total free heap is dominated by the
 30 MB of idle PSRAM. The firmware logs `Internal heap: free, largest block,
 low-water mark` to the serial console every 30 seconds
-(`firmware/main/homedeck.cpp`). `malloc()` placement and the resulting
-budget are in [ADR-0031](../decisions/ADR-0031-internal-ram-budget.md).
-The figures are not yet exposed through `GET /api/diagnostics`.
+(`firmware/main/homedeck.cpp`). `GET /api/diagnostics` returns the same
+figures plus free PSRAM as a `memory` object, injected per target as a
+`MemoryStatsReader` (firmware: ESP-IDF heap caps; simulator: fixed mock
+values), and the Web UI's Status section shows them. `malloc()` placement
+and the resulting budget are in
+[ADR-0031](../decisions/ADR-0031-internal-ram-budget.md).
 
 ## Status
 
@@ -113,7 +116,7 @@ see [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md).
 
 **Web UI presentation of crash/reboot diagnostics is also implemented**
 (`src/core/diagnostics_routes.h`/`.cpp`, `webui/src/lib/Diagnostics.svelte`)
-— `GET /api/diagnostics` (reset reason, core dump presence, plus live
+— `GET /api/diagnostics` (reset reason, core dump presence, heap figures, plus live
 battery/external-power state - see [hardware.md](hardware.md#power) -
 added to this same endpoint for convenience rather than a separate one,
 not itself part of crash/reboot diagnostics) and

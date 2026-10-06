@@ -1,6 +1,7 @@
 <script lang="ts">
   import { downloadFile, loadJson, type BatteryStatus } from "./api";
   import { tripGuard } from "./guardedAction";
+  import { formatKib, formatMib } from "./memoryFormat";
 
   // Crash/reboot diagnostics (see docs/architecture/diagnostics.md and
   // ADR-0013) and live battery/power state (see
@@ -11,6 +12,14 @@
   interface DiagnosticsStatus extends BatteryStatus {
     resetReason: string;
     hasCoreDump: boolean;
+    // Internal RAM, not total heap, limits whether a new task or connection
+    // can start - see docs/architecture/diagnostics.md#memory.
+    memory: {
+      internalFreeBytes: number;
+      internalLargestBlockBytes: number;
+      internalLowWaterBytes: number;
+      psramFreeBytes: number;
+    };
   }
 
   let status: DiagnosticsStatus | undefined = $state<DiagnosticsStatus | undefined>(undefined);
@@ -65,6 +74,11 @@
         ({status.externalPowerConnected ? "running on external power" : "no power source detected"})
       </p>
     {/if}
+    <p>
+      Internal RAM: <strong>{formatKib(status.memory.internalFreeBytes)}</strong> free
+      (largest block {formatKib(status.memory.internalLargestBlockBytes)}, lowest since boot
+      {formatKib(status.memory.internalLowWaterBytes)}); PSRAM {formatMib(status.memory.psramFreeBytes)} free
+    </p>
     <p>Last reset reason: <strong>{status.resetReason}</strong></p>
     {#if status.hasCoreDump}
       <p>
