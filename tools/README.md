@@ -46,10 +46,18 @@ why that split exists. Checking for the following defect classes:
   call with no `RequireAuth(...)` wrapper within 5 lines, in any staged
   `.cpp` file, excluding the auth routes themselves and static asset
   serving - the two known-legitimate unauthenticated route registrations
-  (`githooks/check-unauthenticated-routes.sh`); and, against every staged
-  file regardless of extension, private-key blocks, cloud-provider/API-token
-  credential shapes, and a staged `.env` file - the one check that
-  actually blocks the commit
+  (`githooks/check-unauthenticated-routes.sh`); an `nlohmann::json`
+  `.value(key, default)` call whose default isn't itself a json value
+  (a type conversion to the default's own type, not an identity one), or
+  an `.at(key).get<T>()`
+  call with no `is_number()`/`is_string()`/`is_boolean()`/`is_object()`/
+  `is_array()` check for that same key anywhere else in the file - both
+  throw `json::type_error` on a type-mismatched field, which is
+  `std::abort()` on firmware since exceptions are compiled out there
+  (`githooks/check-unchecked-json-field-access.sh`); and, against every
+  staged file regardless of extension, private-key blocks,
+  cloud-provider/API-token credential shapes, and a staged `.env` file -
+  the one check that actually blocks the commit
   (`githooks/check-secrets.sh`).
 - `githooks/commit-msg` runs against the commit message itself, once
   written - the same narration patterns check-docs.sh checks in files
