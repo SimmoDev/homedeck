@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.22)
 project(homedeck_tests LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -72,4 +72,10 @@ add_executable(homedeck_tests
 )
 target_link_libraries(homedeck_tests PRIVATE homedeck_core GTest::gtest_main GTest::gmock)
 
-gtest_discover_tests(homedeck_tests)
+# The two Harmony real-backend tests bind HarmonyConnection's fixed hub port,
+# so they must not run at the same time under `ctest -j` (the loser skips,
+# silently losing coverage). A shared resource lock serialises just those two.
+set(HARMONY_HUB_PORT_TESTS "HarmonyConnectionTest.RealBackend*")
+gtest_discover_tests(homedeck_tests TEST_FILTER "-${HARMONY_HUB_PORT_TESTS}")
+gtest_discover_tests(homedeck_tests TEST_FILTER "${HARMONY_HUB_PORT_TESTS}"
+                     PROPERTIES RESOURCE_LOCK harmony_hub_port)
