@@ -7,34 +7,10 @@ namespace homedeck {
 
 namespace {
 
-lv_obj_t* CreateDetailContainer(lv_obj_t* parent) {
-    lv_obj_t* container = lv_obj_create(parent);
-    lv_obj_remove_style_all(container);
-    lv_obj_set_size(container, LV_PCT(90), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(container, 12, 0);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
-    return container;
-}
-
-lv_obj_t* CreateHeadingLabel(lv_obj_t* parent) {
-    lv_obj_t* label = lv_label_create(parent);
-    lv_obj_set_width(label, LV_PCT(100));
-    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_style_margin_top(label, 16, 0);
-    return label;
-}
-
-lv_obj_t* CreateListSubcontainer(lv_obj_t* parent) {
-    lv_obj_t* list = lv_obj_create(parent);
-    lv_obj_remove_style_all(list);
-    lv_obj_set_size(list, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(list, 12, 0);
-    return list;
-}
+// CreateChromeDetailContainer()/CreateChromeHeadingLabel()/
+// CreateChromeListSubcontainer() (screen_chrome.h) cover the object
+// setup this used to duplicate locally - this screen's own pad_row (12)
+// is passed through unchanged.
 
 std::string SeasonHeading(const std::string& show_title, int season) {
     return show_title + (season == 0 ? " - Specials" : " - Season " + std::to_string(season));
@@ -58,22 +34,22 @@ KodiTvShowsScreen::KodiTvShowsScreen(EventBus& event_bus, BatteryReader& battery
     // not nested inside it - same shape as DevicesScreen's
     // detail_container_ (see its own comment): views replace each other
     // via hidden flags rather than one containing the other.
-    seasons_container_ = CreateDetailContainer(container);
+    seasons_container_ = CreateChromeDetailContainer(container, 12);
     lv_obj_t* seasons_back = CreateNavChromeButton(seasons_container_, LV_SYMBOL_LEFT " TV Shows");
     lv_obj_add_event_cb(seasons_back, OnSeasonsBackClicked, LV_EVENT_CLICKED, this);
-    seasons_title_label_ = CreateHeadingLabel(seasons_container_);
-    seasons_list_ = CreateListSubcontainer(seasons_container_);
+    seasons_title_label_ = CreateChromeHeadingLabel(seasons_container_);
+    seasons_list_ = CreateChromeListSubcontainer(seasons_container_, 12);
 
-    episodes_container_ = CreateDetailContainer(container);
+    episodes_container_ = CreateChromeDetailContainer(container, 12);
     lv_obj_t* episodes_back = CreateNavChromeButton(episodes_container_, LV_SYMBOL_LEFT " Seasons");
     lv_obj_add_event_cb(episodes_back, OnEpisodesBackClicked, LV_EVENT_CLICKED, this);
-    episodes_title_label_ = CreateHeadingLabel(episodes_container_);
-    episodes_list_ = CreateListSubcontainer(episodes_container_);
+    episodes_title_label_ = CreateChromeHeadingLabel(episodes_container_);
+    episodes_list_ = CreateChromeListSubcontainer(episodes_container_, 12);
 
-    episode_detail_container_ = CreateDetailContainer(container);
+    episode_detail_container_ = CreateChromeDetailContainer(container, 12);
     lv_obj_t* episode_detail_back = CreateNavChromeButton(episode_detail_container_, LV_SYMBOL_LEFT " Episodes");
     lv_obj_add_event_cb(episode_detail_back, OnEpisodeDetailBackClicked, LV_EVENT_CLICKED, this);
-    episode_title_label_ = CreateHeadingLabel(episode_detail_container_);
+    episode_title_label_ = CreateChromeHeadingLabel(episode_detail_container_);
 
     lv_obj_t* play_button = CreateRemoteButton(episode_detail_container_, "Play");
     lv_obj_add_event_cb(play_button, OnPlayClicked, LV_EVENT_CLICKED, this);

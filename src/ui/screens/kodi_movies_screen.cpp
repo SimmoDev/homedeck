@@ -21,22 +21,12 @@ KodiMoviesScreen::KodiMoviesScreen(EventBus& event_bus, BatteryReader& battery_r
     // same shape as DevicesScreen's detail_container_ (see its own
     // comment): the two views replace each other via hidden flags rather
     // than one containing the other.
-    detail_container_ = lv_obj_create(container);
-    lv_obj_remove_style_all(detail_container_);
-    lv_obj_set_size(detail_container_, LV_PCT(90), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(detail_container_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(detail_container_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(detail_container_, 12, 0);
-    lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
+    detail_container_ = CreateChromeDetailContainer(container, 12);
 
     lv_obj_t* back_button = CreateNavChromeButton(detail_container_, LV_SYMBOL_LEFT " Movies");
     lv_obj_add_event_cb(back_button, OnBackButtonClicked, LV_EVENT_CLICKED, this);
 
-    movie_title_label_ = lv_label_create(detail_container_);
-    lv_obj_set_width(movie_title_label_, LV_PCT(100));
-    lv_label_set_long_mode(movie_title_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_align(movie_title_label_, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_style_margin_top(movie_title_label_, 16, 0);
+    movie_title_label_ = CreateChromeHeadingLabel(detail_container_);
 
     lv_obj_t* play_button = CreateRemoteButton(detail_container_, "Play");
     lv_obj_add_event_cb(play_button, OnPlayClicked, LV_EVENT_CLICKED, this);

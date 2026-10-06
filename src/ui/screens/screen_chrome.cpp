@@ -51,4 +51,33 @@ lv_obj_t* CreateChromeStatusLabel(lv_obj_t* container) {
     return status_label;
 }
 
+lv_obj_t* CreateChromeDetailContainer(lv_obj_t* parent, int32_t pad_row) {
+    lv_obj_t* container = lv_obj_create(parent);
+    lv_obj_remove_style_all(container);
+    lv_obj_set_size(container, LV_PCT(90), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(container, pad_row, 0);
+    lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
+    return container;
+}
+
+lv_obj_t* CreateChromeHeadingLabel(lv_obj_t* parent) {
+    lv_obj_t* label = lv_label_create(parent);
+    lv_obj_set_width(label, LV_PCT(100));
+    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_LEFT, 0);
+    lv_obj_set_style_margin_top(label, 16, 0);
+    return label;
+}
+
+lv_obj_t* CreateChromeListSubcontainer(lv_obj_t* parent, int32_t pad_row) {
+    lv_obj_t* list = lv_obj_create(parent);
+    lv_obj_remove_style_all(list);
+    lv_obj_set_size(list, LV_PCT(100), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(list, pad_row, 0);
+    return list;
+}
+
 }  // namespace homedeck

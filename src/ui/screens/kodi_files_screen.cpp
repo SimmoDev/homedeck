@@ -23,17 +23,9 @@ KodiFilesScreen::KodiFilesScreen(EventBus& event_bus, BatteryReader& battery_rea
     lv_obj_add_event_cb(back_button_, OnBackButtonClicked, LV_EVENT_CLICKED, this);
     lv_obj_add_flag(back_button_, LV_OBJ_FLAG_HIDDEN);  // hidden at the source-list level
 
-    heading_label_ = lv_label_create(content_);
-    lv_obj_set_width(heading_label_, LV_PCT(100));
-    lv_label_set_long_mode(heading_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_align(heading_label_, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_style_margin_top(heading_label_, 16, 0);
+    heading_label_ = CreateChromeHeadingLabel(content_);
 
-    list_ = lv_obj_create(content_);
-    lv_obj_remove_style_all(list_);
-    lv_obj_set_size(list_, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(list_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(list_, 12, 0);
+    list_ = CreateChromeListSubcontainer(content_, 12);
 
     Refresh();
 

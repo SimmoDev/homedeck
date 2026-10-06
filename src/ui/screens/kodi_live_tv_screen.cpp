@@ -5,18 +5,9 @@
 
 namespace homedeck {
 
-namespace {
-
-lv_obj_t* CreateListSubcontainer(lv_obj_t* parent) {
-    lv_obj_t* list = lv_obj_create(parent);
-    lv_obj_remove_style_all(list);
-    lv_obj_set_size(list, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(list, 12, 0);
-    return list;
-}
-
-}  // namespace
+// CreateChromeDetailContainer()/CreateChromeHeadingLabel()/
+// CreateChromeListSubcontainer() (screen_chrome.h) cover the object
+// setup this used to duplicate locally.
 
 KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_reader,
                                     NetworkStatus& network_status, KodiClient& kodi_client, Navigation& navigation)
@@ -34,24 +25,14 @@ KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_r
     // it - same shape as DevicesScreen's detail_container_ (see its own
     // comment): the two views replace each other via hidden flags
     // rather than one containing the other.
-    channels_container_ = lv_obj_create(container);
-    lv_obj_remove_style_all(channels_container_);
-    lv_obj_set_size(channels_container_, LV_PCT(90), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(channels_container_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(channels_container_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(channels_container_, 8, 0);
-    lv_obj_add_flag(channels_container_, LV_OBJ_FLAG_HIDDEN);
+    channels_container_ = CreateChromeDetailContainer(container, 8);
 
     lv_obj_t* back_button = CreateNavChromeButton(channels_container_, LV_SYMBOL_LEFT " Live TV");
     lv_obj_add_event_cb(back_button, OnBackButtonClicked, LV_EVENT_CLICKED, this);
 
-    channels_title_label_ = lv_label_create(channels_container_);
-    lv_obj_set_width(channels_title_label_, LV_PCT(100));
-    lv_label_set_long_mode(channels_title_label_, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_align(channels_title_label_, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_style_margin_top(channels_title_label_, 16, 0);
+    channels_title_label_ = CreateChromeHeadingLabel(channels_container_);
 
-    channels_list_ = CreateListSubcontainer(channels_container_);
+    channels_list_ = CreateChromeListSubcontainer(channels_container_, 12);
 
     Refresh();
 

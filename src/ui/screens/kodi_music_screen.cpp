@@ -6,38 +6,10 @@
 
 namespace homedeck {
 
-namespace {
-
-lv_obj_t* CreateDetailContainer(lv_obj_t* parent) {
-    lv_obj_t* container = lv_obj_create(parent);
-    lv_obj_remove_style_all(container);
-    lv_obj_set_size(container, LV_PCT(90), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(container, 12, 0);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
-    return container;
-}
-
-lv_obj_t* CreateHeadingLabel(lv_obj_t* parent) {
-    lv_obj_t* label = lv_label_create(parent);
-    lv_obj_set_width(label, LV_PCT(100));
-    lv_label_set_long_mode(label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_LEFT, 0);
-    lv_obj_set_style_margin_top(label, 16, 0);
-    return label;
-}
-
-lv_obj_t* CreateListSubcontainer(lv_obj_t* parent) {
-    lv_obj_t* list = lv_obj_create(parent);
-    lv_obj_remove_style_all(list);
-    lv_obj_set_size(list, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(list, 12, 0);
-    return list;
-}
-
-}  // namespace
+// CreateChromeDetailContainer()/CreateChromeHeadingLabel()/
+// CreateChromeListSubcontainer() (screen_chrome.h) cover the object
+// setup this used to duplicate locally - this screen's own pad_row (12)
+// is passed through unchanged.
 
 KodiMusicScreen::KodiMusicScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                                   KodiClient& kodi_client, Navigation& navigation)
@@ -55,17 +27,17 @@ KodiMusicScreen::KodiMusicScreen(EventBus& event_bus, BatteryReader& battery_rea
     // container, not nested inside it - same shape as DevicesScreen's
     // detail_container_ (see its own comment): views replace each other
     // via hidden flags rather than one containing the other.
-    albums_container_ = CreateDetailContainer(container);
+    albums_container_ = CreateChromeDetailContainer(container, 12);
     lv_obj_t* albums_back = CreateNavChromeButton(albums_container_, LV_SYMBOL_LEFT " Artists");
     lv_obj_add_event_cb(albums_back, OnAlbumsBackClicked, LV_EVENT_CLICKED, this);
-    albums_title_label_ = CreateHeadingLabel(albums_container_);
-    albums_list_ = CreateListSubcontainer(albums_container_);
+    albums_title_label_ = CreateChromeHeadingLabel(albums_container_);
+    albums_list_ = CreateChromeListSubcontainer(albums_container_, 12);
 
-    songs_container_ = CreateDetailContainer(container);
+    songs_container_ = CreateChromeDetailContainer(container, 12);
     lv_obj_t* songs_back = CreateNavChromeButton(songs_container_, LV_SYMBOL_LEFT " Albums");
     lv_obj_add_event_cb(songs_back, OnSongsBackClicked, LV_EVENT_CLICKED, this);
-    songs_title_label_ = CreateHeadingLabel(songs_container_);
-    songs_list_ = CreateListSubcontainer(songs_container_);
+    songs_title_label_ = CreateChromeHeadingLabel(songs_container_);
+    songs_list_ = CreateChromeListSubcontainer(songs_container_, 12);
 
     Refresh();
 
