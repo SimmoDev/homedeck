@@ -695,6 +695,15 @@ UI and start playback of a chosen item, and the whole Kodi module
       replacing the current text-only WMO condition mapping - custom
       icon assets, out of scope for the widget's first pass (see
       [dashboard.md](architecture/dashboard.md#status))
+- [ ] Kodi continue-watching and recently-added lists - M4 delivers
+      resume as a per-item choice (the Resume button on a movie/episode
+      with a stored resume point, see
+      [kodi.md](architecture/kodi.md#library-browsing-m4b)), not an
+      in-progress list
+- [ ] Kodi artwork - Kodi's `image://` URLs resolve only through its
+      authenticated HTTP port 8080, so this needs a stored credential
+      (see [ADR-0030](decisions/ADR-0030-kodi-jsonrpc-transport.md) and
+      [ADR-0018](decisions/ADR-0018-staged-security-hardening.md))
 - [ ] Celsius/Fahrenheit unit selection for `WeatherWidget` - currently
       hardcoded to Celsius (`OpenMeteoWeatherProvider`,
       `src/core/weather_provider.cpp`)

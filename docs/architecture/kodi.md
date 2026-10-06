@@ -368,7 +368,8 @@ on the LAN or the "Test: toggle fake Kodi connection" debug control (see
 one-show/one-artist/one-source/one-channel-group library so every browse
 screen renders something once armed).
 
-**Not yet built (M4b):** recently-added/continue-watching. Artwork is
-out of scope until M7 - the `image://…` URLs Kodi returns resolve only
-through its HTTP endpoint on the authenticated port 8080
-([ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)).
+**Not built:** continue-watching/recently-added lists (resume is a
+per-item choice only - see Library browsing above) and artwork, which
+resolves only through Kodi's HTTP endpoint on the authenticated port 8080
+([ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)). Both are
+M7 items in [roadmap.md](../roadmap.md).
