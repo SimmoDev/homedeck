@@ -609,7 +609,10 @@ hold.
       Touch UI screen run against a live instance on a Tab5 (the K145
       reference unit): connection, Now Playing/Remote, all five browse
       screens (Movies/TV Shows/Music/Files/Live TV), mDNS discovery, and
-      `instance_uuid`-based selection from the Web UI's radio list. Per
+      `instance_uuid`-based selection from the Web UI's radio list, plus
+      reconnecting after the Kodi server restarts and scrolling and
+      selecting in every browse list (see
+      [ui.md](architecture/ui.md#long-lists)). Per
       [simulator.md](architecture/simulator.md#what-the-simulator-is-not)
       a milestone is only releasable after an on-hardware pass.
       `ResolveTarget()` requires a resolved IP address before
