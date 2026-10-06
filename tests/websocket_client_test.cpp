@@ -10,6 +10,7 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <cerrno>
 #include <chrono>
 #include <cstdint>
@@ -627,4 +628,125 @@ TEST(HostWebSocketClient, ReceiveTextZeroDoesNotBlockWhenNothingIsPending) {
 
     EXPECT_FALSE(response.has_value());
     EXPECT_LT(elapsed, std::chrono::milliseconds(200));
+}
+
+// The server side of the IsOpen() tests: accepts one connection, completes
+// the handshake, runs `script` on it, then holds the connection open until
+// `release` is set so a client-side timeout is not confused with a close.
+class HeldConnectionServer {
+public:
+    template <typename Script>
+    explicit HeldConnectionServer(Script script) {
+        listen_fd_ = ListenOnLoopback(&port_);
+        if (listen_fd_ < 0) return;
+        thread_ = std::jthread([this, script] {
+            int conn_fd = accept(listen_fd_, nullptr, nullptr);
+            if (conn_fd < 0) return;
+            PerformServerHandshake(conn_fd);
+            script(conn_fd);
+            while (!release_) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            close(conn_fd);
+        });
+    }
+    ~HeldConnectionServer() {
+        Release();
+        if (listen_fd_ >= 0) close(listen_fd_);
+    }
+    bool ok() const { return listen_fd_ >= 0; }
+    std::string url() const { return "ws://127.0.0.1:" + std::to_string(port_) + "/"; }
+    void Release() {
+        release_ = true;
+        if (thread_.joinable()) thread_.join();
+    }
+
+private:
+    int listen_fd_ = -1;
+    uint16_t port_ = 0;
+    std::atomic<bool> release_{false};
+    std::jthread thread_;
+};
+
+TEST(HostWebSocketClient, IsOpenIsFalseBeforeConnectAndAfterClose) {
+    HeldConnectionServer server([](int) {});
+    ASSERT_TRUE(server.ok());
+
+    homedeck::HostWebSocketClient client;
+    EXPECT_FALSE(client.IsOpen());
+    ASSERT_TRUE(client.Connect(server.url()));
+    EXPECT_TRUE(client.IsOpen());
+    client.Close();
+    EXPECT_FALSE(client.IsOpen());
+}
+
+TEST(HostWebSocketClient, ATimeoutBeforeAnyFrameByteLeavesTheLinkOpenAndUsable) {
+    std::atomic<bool> send_now{false};
+    HeldConnectionServer server([&send_now](int fd) {
+        while (!send_now) std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        SendServerTextFrame(fd, R"({"late":true})");
+    });
+    ASSERT_TRUE(server.ok());
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect(server.url()));
+
+    EXPECT_FALSE(client.ReceiveText(100).has_value());
+    EXPECT_TRUE(client.IsOpen());
+
+    send_now = true;
+    std::optional<std::string> reply = client.ReceiveText(2000);
+    server.Release();
+    ASSERT_TRUE(reply.has_value());
+    EXPECT_EQ(*reply, R"({"late":true})");
+}
+
+TEST(HostWebSocketClient, ATimeoutPartWayThroughAFrameClosesTheLink) {
+    // The frame promises 10 payload bytes and delivers 3, so the framing is
+    // lost once the client gives up; the link must not be reused.
+    HeldConnectionServer server([](int fd) {
+        std::vector<unsigned char> header = BuildServerFrameHeader(/*fin=*/true, /*opcode=*/0x1, 10);
+        send(fd, header.data(), header.size(), MSG_NOSIGNAL);
+        send(fd, "abc", 3, MSG_NOSIGNAL);
+    });
+    ASSERT_TRUE(server.ok());
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect(server.url()));
+
+    EXPECT_FALSE(client.ReceiveText(150).has_value());
+    EXPECT_FALSE(client.IsOpen());
+}
+
+TEST(HostWebSocketClient, ATimeoutBetweenFramesOfOneMessageClosesTheLink) {
+    HeldConnectionServer server([](int fd) {
+        std::vector<unsigned char> header = BuildServerFrameHeader(/*fin=*/false, /*opcode=*/0x1, 3);
+        send(fd, header.data(), header.size(), MSG_NOSIGNAL);
+        send(fd, "abc", 3, MSG_NOSIGNAL);
+    });
+    ASSERT_TRUE(server.ok());
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect(server.url()));
+
+    EXPECT_FALSE(client.ReceiveText(150).has_value());
+    EXPECT_FALSE(client.IsOpen());
+}
+
+TEST(HostWebSocketClient, IsOpenIsFalseOnceThePeerCloses) {
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
+    std::jthread server_thread([listen_fd] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        PerformServerHandshake(conn_fd);
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
+    server_thread.join();
+    close(listen_fd);
+
+    EXPECT_FALSE(client.ReceiveText(1000).has_value());
+    EXPECT_FALSE(client.IsOpen());
 }

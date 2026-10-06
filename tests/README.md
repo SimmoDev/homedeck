@@ -88,8 +88,10 @@ HTTP, covering a single frame reassembled across multiple reads,
 multi-frame continuation reassembly, ping/pong keepalive interleaved
 with a fragmented message, a close frame echoed back, reserved/
 unexpected opcode rejection, `Sec-WebSocket-Accept` handshake
-validation, the message-size cap, and the zero-timeout non-blocking
-`ReceiveText(0)` case.
+validation, the message-size cap, the zero-timeout non-blocking
+`ReceiveText(0)` case, and `IsOpen()` - a timeout before any frame byte
+leaves the link open, a timeout part-way through a frame or between
+frames of one message closes it, as does a peer close.
 `harmony_notification_bridge_test.cpp` covers `HarmonyNotificationBridge`'s
 notify-once-per-outage latch, and `harmony_routes_test.cpp` covers its two
 Web UI routes.
