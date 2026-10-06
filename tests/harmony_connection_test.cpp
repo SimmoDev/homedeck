@@ -224,8 +224,7 @@ constexpr std::chrono::milliseconds kFastBackoff = std::chrono::milliseconds(30)
 // 0ms ReceiveText() poll, which depends on what a real backend actually
 // does with a zero timeout - see HostWebSocketClient's own
 // ReceiveTextZeroDoesNotBlockWhenNothingIsPending regression test in
-// websocket_client_test.cpp, added after that exact gap let a real bug
-// through undetected). Deliberately minimal - just enough of HTTP/1.1
+// websocket_client_test.cpp). Deliberately minimal - just enough of HTTP/1.1
 // and RFC 6455 framing to complete one connect pipeline, not a general-
 // purpose test server - same scope websocket_client_test.cpp's own
 // helpers keep. Not shared with that file: each raw-socket test file in
@@ -385,14 +384,12 @@ void RunFakeHarmonyHub(int listen_fd) {
 // earlier request with no matching receive of its own - see
 // DrainStaleMessages()'s own comment) sent with no reader waiting on the
 // other end, then a real getCurrentActivity reply for the liveness
-// probe that follows. Exercises the exact gap
-// [[feedback-fake-doubles-hide-backend-timing-bugs]] names:
-// FakeWebSocketClient's own ReceiveText(0) always modeled "0ms = check
-// what's already buffered" correctly by construction, which proved
-// nothing about whether the real backend's 0ms receive actually behaves
-// that way against a real kernel socket buffer (it didn't, once - see
-// HostWebSocketClient's own ReceiveTextZeroDoesNotBlockWhenNothingIsPending
-// regression test in websocket_client_test.cpp). If DrainStaleMessages()
+// probe that follows. FakeWebSocketClient's ReceiveText(0) models "0ms =
+// check what's already buffered" by construction, which says nothing
+// about whether the real backend's 0ms receive behaves that way against
+// a kernel socket buffer (see HostWebSocketClient's own
+// ReceiveTextZeroDoesNotBlockWhenNothingIsPending test in
+// websocket_client_test.cpp). If DrainStaleMessages()
 // failed to drain this stray frame against the real backend, the next
 // liveness probe's own bounded-timeout receive would read it instead of
 // the real reply below.

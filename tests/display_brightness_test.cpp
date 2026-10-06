@@ -4,10 +4,8 @@
 
 // ClampBrightnessPercent() is the one piece of DisplayBrightness's two
 // implementations (Host/FirmwareDisplayBrightness) that's actually
-// portable - both previously duplicated an identical, untested
-// std::clamp(percent, 0, 100) inline; this exercises the shared version
-// directly, which neither LVGL- nor ESP-IDF-coupled implementation could
-// be tested through in this suite.
+// portable; this exercises it directly, which neither LVGL- nor
+// ESP-IDF-coupled implementation could be tested through in this suite.
 
 TEST(DisplayBrightnessTest, ClampsBelowZeroUpToZero) {
     EXPECT_EQ(homedeck::ClampBrightnessPercent(-5), 0);

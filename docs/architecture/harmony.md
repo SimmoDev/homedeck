@@ -95,9 +95,8 @@ internal view states (device list, then a selected device's commands)
 rather than a second `Navigation` route, since this project's
 `Navigation` has no back-stack. Both screens build their root chrome on
 the shared `ScreenChrome` (`src/ui/screens/screen_chrome.h`/`.cpp` — see
-its own header comment for what it provides), factored out of these two
-screens originally and since generalized once Kodi's screens (M4) needed
-the identical scaffolding — see
+its own header comment for what it provides), which Kodi's screens (M4)
+also use — see
 [kodi.md](kodi.md#touch-ui); each screen still owns its own status label
 wiring and content beyond that. Commands render as a 3-per-row grid by
 default; two groups recognized by the hub's own protocol-level

@@ -6,11 +6,6 @@
 
 namespace homedeck {
 
-// CreateChromeDetailContainer()/CreateChromeHeadingLabel()/
-// CreateChromeListSubcontainer() (screen_chrome.h) cover the object
-// setup this used to duplicate locally - this screen's own pad_row (12)
-// is passed through unchanged.
-
 KodiMusicScreen::KodiMusicScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                                   KodiClient& kodi_client, Navigation& navigation)
     : kodi_client_(kodi_client),

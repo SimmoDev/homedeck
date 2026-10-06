@@ -1371,8 +1371,8 @@ TEST_F(KodiClientTest, RequestMoviesTruncatesAtTheLibraryItemCap) {
 // field isn't just a hypothetical - any device on the LAN can send one.
 // nlohmann::json::value()/get<T>() throw on a type mismatch, which is
 // std::abort() on firmware (exceptions are disabled there - see GetInt()'s
-// own comment in kodi_client.cpp): without the fix this test crashes the
-// whole binary rather than failing an assertion.
+// own comment in kodi_client.cpp): a regression aborts the whole test
+// binary rather than failing one assertion.
 TEST_F(KodiClientTest, RequestMoviesWithATypeMismatchedFieldFallsBackToDefaultsInsteadOfCrashing) {
     KODI_COMMAND_RIG();
     {
@@ -2044,8 +2044,8 @@ int ListenLoopback(uint16_t* out_port) {
 // unsolicited notification - enough to prove KodiClient drives the
 // libcurl-backed HostWebSocketClient (id correlation across genuine
 // frames, a 0ms drain that actually sees a buffered push) end to end.
-// Exercises the gap
-// [[feedback-fake-doubles-hide-backend-timing-bugs]] names.
+// A scripted FakeWebSocketClient cannot show whether the real backend's
+// zero-timeout receive behaves as modelled, so this one runs over sockets.
 void RunFakeKodi(int listen_fd, std::atomic<bool>& stop) {
     // Bounded accept() so a test that fails before the client ever
     // connects still lets this thread observe `stop` and exit, rather
@@ -2139,7 +2139,7 @@ TEST_F(KodiClientTest, RealBackendConnectsReconcilesAndHandlesAPushedNotificatio
     EXPECT_EQ(client.Snapshot().app_version, "21.2");
     // muted comes only from the pushed Application.OnVolumeChanged - proof
     // the 0ms drain saw a genuinely buffered frame through the
-    // libcurl-backed backend ([[feedback-fake-doubles-hide-backend-timing-bugs]]).
+    // libcurl-backed backend.
     ASSERT_TRUE(WaitFor([&] { return client.Snapshot().muted; }, 600));
     client.Stop();
 }

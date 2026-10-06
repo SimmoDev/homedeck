@@ -537,8 +537,8 @@ private:
     int next_rpc_id_ = 0;
     bool needs_immediate_poll_ = false;
     // Once a Player.On* notification has supplied identity for the
-    // current playback, the reconcile poll's Player.GetItem result is
-    // no longer used to overwrite it - the notification's `item` is the
+    // current playback, the reconcile poll's Player.GetItem result does
+    // not overwrite it - the notification's `item` is the
     // authoritative identity source, and for add-on playback GetItem
     // returns blanks (ADR-0030). Reset when playback stops. GetItem is
     // still polled and used as the *initial* identity when a client

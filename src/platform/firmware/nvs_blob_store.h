@@ -9,7 +9,7 @@ namespace homedeck {
 // FirmwareSettingsStore - both map (ns, key) onto an NVS blob and differ
 // only in which physical NVS partition they open (see
 // docs/decisions/ADR-0027-secret-store-partition-separation.md - the two
-// are no longer the same partition) and the log tag used for failures, so
+// are separate partitions) and the log tag used for failures, so
 // the actual NVS calls are factored out rather than duplicated (mirroring
 // platform/host/file_backed_store.h's role for the host-side stores).
 bool NvsSetBlob(const char* partition_name, const char* tag, const std::string& ns, const std::string& key,

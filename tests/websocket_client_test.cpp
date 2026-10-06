@@ -415,14 +415,12 @@ TEST(HostWebSocketClient, ReceiveTextEchoesACloseFrameBack) {
 }
 
 TEST(HostWebSocketClient, SendTextFailsAfterReceivingACloseFrame) {
-    // Regression test: ReceiveText() observing a peer CLOSE frame used to
-    // leave curl_ untouched, so a SendText() call landing right afterward
-    // (e.g. HarmonyConnection::DrainStaleMessages()'s own 0ms poll running
-    // just before a send) could attempt - and, since the underlying TCP
-    // socket often stays briefly writable past a WS-level close, even
-    // succeed - a write on a connection the peer has already ended,
-    // instead of failing outright the way a caller already treats a dead
-    // connection.
+    // After ReceiveText() observes a peer CLOSE frame, a SendText() landing
+    // right afterward (e.g. HarmonyConnection::DrainStaleMessages()'s own
+    // 0ms poll running just before a send) must fail outright, the way a
+    // caller treats a dead connection. The underlying TCP socket often
+    // stays briefly writable past a WS-level close, so a write attempted
+    // anyway could even succeed on a connection the peer has ended.
     uint16_t port = 0;
     int listen_fd = ListenOnLoopback(&port);
     ASSERT_GE(listen_fd, 0);

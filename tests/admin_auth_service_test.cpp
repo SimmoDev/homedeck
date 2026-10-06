@@ -232,14 +232,12 @@ private:
 }  // namespace
 
 TEST_F(AdminAuthServiceTest, ConcurrentWrongPasswordAttemptsNeverExceedTheLockoutThresholdBeforeLockingOut) {
-    // Regression test: the attempt used to be recorded against
-    // failed_login_attempts_ only *after* PBKDF2 ran (see Login()'s own
-    // comment), so concurrent callers could all pass the "not locked out"
-    // check before any of them registered as a failure - letting an
-    // unbounded number of concurrent guesses reach the real password
-    // comparison within one lockout window, regardless of
-    // kMaxFailedLoginAttempts. The attempt is now reserved up front,
-    // before hashing, closing that gap.
+    // The attempt is reserved against failed_login_attempts_ before
+    // PBKDF2 runs (see Login()'s own comment). Recording it afterwards
+    // would let concurrent callers all pass the "not locked out" check
+    // before any of them registered as a failure, so an unbounded number
+    // of concurrent guesses could reach the real password comparison
+    // within one lockout window, regardless of kMaxFailedLoginAttempts.
     CountingSecretStore counting_secret_store(*secret_store_);
     homedeck::Storage storage(*settings_store_, *cache_store_, counting_secret_store);
     homedeck::AdminAuthService auth(storage, time_source_);

@@ -7,7 +7,7 @@
 namespace homedeck {
 
 // Mounts the `storage` FAT partition (reserved by
-// docs/decisions/ADR-0017-partition-table.md, not previously used) via
+// docs/decisions/ADR-0017-partition-table.md) via
 // esp_vfs_fat_spiflash_mount_rw_wl(), once at construction, then does
 // plain file I/O against it - the internal flash filesystem tier of
 // docs/decisions/ADR-0012-storage-tiers.md. `ns` maps onto a

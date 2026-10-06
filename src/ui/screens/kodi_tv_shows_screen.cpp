@@ -7,11 +7,6 @@ namespace homedeck {
 
 namespace {
 
-// CreateChromeDetailContainer()/CreateChromeHeadingLabel()/
-// CreateChromeListSubcontainer() (screen_chrome.h) cover the object
-// setup this used to duplicate locally - this screen's own pad_row (12)
-// is passed through unchanged.
-
 std::string SeasonHeading(const std::string& show_title, int season) {
     return show_title + (season == 0 ? " - Specials" : " - Season " + std::to_string(season));
 }

@@ -852,8 +852,7 @@ UI and start playback of a chosen item, and the whole Kodi module
 
 ## Architectural Decisions Index
 
-M0's job was resolving the open questions this list used to itemize in
-full; that reasoning now lives in the ADRs themselves
+The reasoning behind each decision lives in the ADRs themselves
 ([docs/decisions/](decisions/)), not duplicated here. This is just an
 index — decision name, ADR, one-line outcome.
 

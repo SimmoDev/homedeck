@@ -23,9 +23,8 @@ constexpr int kSendTimeoutMs = 10000;
 // library's own 10s default, so a PING/PONG keepalive round-trip happens
 // on this schedule for as long as the connection stays open. Left
 // unfiltered, a PONG's empty-payload WEBSOCKET_EVENT_DATA would be queued
-// in message_queue_ as if it were a real application message, corrupting
-// the strict one-request/one-reply pairing HarmonyConnection's transport
-// model depends on (see its own header comment).
+// in message_queue_ as if it were an application message, corrupting
+// the request/reply pairing every consumer relies on.
 // op_code never carries the FIN bit - tcp_transport's transport_ws.c parses
 // it into a separate frame_state.fin bool and masks the opcode byte to its
 // low 4 bits (frame_state.opcode = *data_ptr & 0x0F) before
@@ -216,13 +215,10 @@ void FirmwareWebSocketClient::HandleClosed() {
 void FirmwareWebSocketClient::HandleData(const void* event_data) {
     // esp_websocket_event_data_t - payload_offset/payload_len/data_len
     // describe one chunk of a possibly-fragmented message, per ESP-IDF's
-    // own websocket example. Exercised on-device against the reference
-    // hub, not just the host backend - see roadmap.md's M3 Devices item,
-    // whose 8-device config fetch (and the many-command-buttons LVGL bug
-    // it surfaced) went through this exact path.
+    // own websocket example.
     const auto* data = static_cast<const esp_websocket_event_data_t*>(event_data);
     if (!IsApplicationDataOpcode(data->op_code)) {
-        // PING/PONG/CLOSE - not a reply to anything HarmonyConnection
+        // PING/PONG/CLOSE - not a reply to anything a consumer
         // sent. The library already auto-PONGs a received PING and
         // reports a close via WEBSOCKET_EVENT_CLOSED/_DISCONNECTED
         // separately (see OnWebSocketEvent()); nothing to do here.
@@ -255,10 +251,9 @@ void FirmwareWebSocketClient::HandleData(const void* event_data) {
     }
     if (oversized) {
         // Same treatment as a transport-level close - ReceiveText()'s
-        // caller (ConnectAndFetchConfig()/FetchCurrentActivity()) already
-        // handles "connection dropped mid-receive" as a failed attempt,
-        // which is the correct outcome here: an oversized message can't
-        // be a well-formed hub response.
+        // callers already handle "connection dropped mid-receive" as a
+        // failed attempt, which is the correct outcome here: an oversized
+        // message can't be a well-formed response.
         HandleClosed();
         return;
     }

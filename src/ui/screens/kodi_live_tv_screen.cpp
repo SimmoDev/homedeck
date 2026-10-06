@@ -5,10 +5,6 @@
 
 namespace homedeck {
 
-// CreateChromeDetailContainer()/CreateChromeHeadingLabel()/
-// CreateChromeListSubcontainer() (screen_chrome.h) cover the object
-// setup this used to duplicate locally.
-
 KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_reader,
                                     NetworkStatus& network_status, KodiClient& kodi_client, Navigation& navigation)
     : kodi_client_(kodi_client),

@@ -6,9 +6,8 @@
 
 // The shape of this server's own JSON error responses (e.g.
 // core/settings_routes.cpp's {"error":"invalid_value"} bodies) - not
-// exhaustive across every endpoint's exact error codes, so this
-// replaces what was previously an implicit `any`. Most callers only
-// read .error; reason is specific to core/ota_routes.cpp's
+// exhaustive across every endpoint's exact error codes. Most callers
+// only read .error; reason is specific to core/ota_routes.cpp's
 // {"error":"gate_closed","reason":...} body.
 export interface ApiErrorBody {
   error?: string;

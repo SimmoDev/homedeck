@@ -8,7 +8,7 @@ namespace homedeck {
 // The generic exponential-backoff utility ADR-0006 already decided as
 // the default for module reconnect logic ("a shared Core utility, with
 // modules allowed to layer service-specific reconnection semantics on
-// top") - nothing generic existed yet before this; WifiReconnectPolicy
+// top"). WifiReconnectPolicy
 // (wifi_reconnect_policy.h) is Wi-Fi-radio-specific (fixed interval, by
 // its own documented design), not this. HarmonyConnection
 // (harmony_connection.h) is the first consumer.

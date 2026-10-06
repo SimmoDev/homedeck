@@ -56,11 +56,9 @@ bool FirmwareCacheStore::Write(const std::string& ns, const std::string& key, co
     }
     std::string dir = std::string(kMountPoint) + "/" + ns;
     // EEXIST is the expected/common case once a module has written
-    // anything before - not an error. Anything else was previously
-    // ignored outright, which meant a genuine mkdir failure (leaving the
-    // fopen below guaranteed to fail too, since the directory it needs
-    // doesn't exist) surfaced only as that fopen's own bare "failed to
-    // open," with no way to tell why - logged now instead of discarded.
+    // anything before - not an error. Any other mkdir failure is logged
+    // here: the fopen below is guaranteed to fail too (its directory does
+    // not exist) and would report only a bare "failed to open".
     if (mkdir(dir.c_str(), 0777) != 0 && errno != EEXIST) {
         ESP_LOGE(kTag, "Failed to create directory '%s': %s", dir.c_str(), strerror(errno));
     }
