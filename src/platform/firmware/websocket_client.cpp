@@ -214,8 +214,9 @@ void FirmwareWebSocketClient::HandleClosed() {
 
 void FirmwareWebSocketClient::HandleData(const void* event_data) {
     // esp_websocket_event_data_t - payload_offset/payload_len/data_len
-    // describe one chunk of a possibly-fragmented message, per ESP-IDF's
-    // own websocket example.
+    // describe one chunk of a frame, per ESP-IDF's own websocket example;
+    // `fin` marks the last frame of a message that may span several
+    // frames (a CONT opcode follows a frame with fin unset).
     const auto* data = static_cast<const esp_websocket_event_data_t*>(event_data);
     if (!IsApplicationDataOpcode(data->op_code)) {
         // PING/PONG/CLOSE - not a reply to anything a consumer
@@ -238,7 +239,7 @@ void FirmwareWebSocketClient::HandleData(const void* event_data) {
             oversized = true;
         } else {
             in_progress_message_.append(static_cast<const char*>(data->data_ptr), data->data_len);
-            if (data->payload_offset + data->data_len >= data->payload_len) {
+            if (data->fin && data->payload_offset + data->data_len >= data->payload_len) {
                 message_queue_.push_back(std::move(in_progress_message_));
                 in_progress_message_.clear();
                 // See kMaxQueuedMessages's own comment.
