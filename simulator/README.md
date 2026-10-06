@@ -35,7 +35,7 @@ sharpness, but the window then exceeds a typical 1080p desktop's usable
 height). Real hardware is unaffected either way; it always renders
 LVGL's own anti-aliasing untouched, at native resolution, with no
 scaling step. LVGL is pinned via CMake `FetchContent` to release
-`v9.5.0`.
+`v9.6.0`.
 
 Links against the portable Core/UI source in [../src/](../src/) —
 `main.cpp` is wiring: `DashboardScreen` (the home screen — see

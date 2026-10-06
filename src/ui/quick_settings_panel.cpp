@@ -106,8 +106,8 @@ QuickSettingsPanel::QuickSettingsPanel(EventBus& event_bus, PowerManager& power_
     lv_obj_align(scrim_, LV_ALIGN_TOP_LEFT, 0, 0);
     lv_obj_set_style_bg_opa(scrim_, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_width(scrim_, 0, 0);
-    lv_obj_clear_flag(scrim_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(scrim_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(scrim_, false);
+    lv_obj_set_hidden(scrim_, true);
     lv_obj_add_event_cb(scrim_, OnScrimClicked, LV_EVENT_CLICKED, this);
 
     panel_ = lv_obj_create(lv_layer_top());
@@ -124,8 +124,8 @@ QuickSettingsPanel::QuickSettingsPanel(EventBus& event_bus, PowerManager& power_
     // pair of children.
     lv_obj_set_style_pad_row(panel_, kLabelToSliderGap, 0);
     lv_obj_set_flex_flow(panel_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_clear_flag(panel_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(panel_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_scrollable(panel_, false);
+    lv_obj_set_hidden(panel_, true);
 
     brightness_slider_ = CreateLabeledSlider(panel_, "Brightness");
     lv_slider_set_range(brightness_slider_, PowerManager::kMinActiveBrightnessPercent, 100);
@@ -154,13 +154,13 @@ QuickSettingsPanel::~QuickSettingsPanel() {
 void QuickSettingsPanel::Show() {
     lv_slider_set_value(brightness_slider_, power_manager_.ActiveBrightnessPercent(), LV_ANIM_OFF);
     lv_slider_set_value(volume_slider_, notification_sound_.VolumePercent(), LV_ANIM_OFF);
-    lv_obj_clear_flag(scrim_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(panel_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(scrim_, false);
+    lv_obj_set_hidden(panel_, false);
 }
 
 void QuickSettingsPanel::Hide() {
-    lv_obj_add_flag(scrim_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(panel_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(scrim_, true);
+    lv_obj_set_hidden(panel_, true);
 }
 
 }  // namespace homedeck

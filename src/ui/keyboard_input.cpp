@@ -10,7 +10,7 @@ void OnTextAreaFocused(lv_event_t* e) {
     auto* keyboard = static_cast<lv_obj_t*>(lv_event_get_user_data(e));
     auto* textarea = static_cast<lv_obj_t*>(lv_event_get_target(e));
     lv_keyboard_set_textarea(keyboard, textarea);
-    lv_obj_clear_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(keyboard, false);
 }
 
 // The keyboard widget sends READY/CANCEL to both itself and its attached
@@ -19,7 +19,7 @@ void OnTextAreaFocused(lv_event_t* e) {
 void OnKeyboardReadyOrCancel(lv_event_t* e) {
     auto* keyboard = static_cast<lv_obj_t*>(lv_event_get_target(e));
     lv_keyboard_set_textarea(keyboard, nullptr);
-    lv_obj_add_flag(keyboard, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(keyboard, true);
 }
 
 }  // namespace
@@ -34,7 +34,7 @@ OnScreenKeyboard::OnScreenKeyboard(lv_obj_t* parent) {
     // be set here directly rather than left to whatever screen owns this
     // instance.
     lv_obj_set_style_text_font(keyboard_, kBodyFont, LV_PART_ITEMS);
-    lv_obj_add_flag(keyboard_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(keyboard_, true);
     lv_obj_add_event_cb(keyboard_, OnKeyboardReadyOrCancel, LV_EVENT_READY, nullptr);
     lv_obj_add_event_cb(keyboard_, OnKeyboardReadyOrCancel, LV_EVENT_CANCEL, nullptr);
 }

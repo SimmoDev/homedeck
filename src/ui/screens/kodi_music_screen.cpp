@@ -82,20 +82,20 @@ KodiMusicScreen::~KodiMusicScreen() {
 void KodiMusicScreen::Refresh() {
     const bool connected = kodi_client_.Snapshot().state == KodiConnectionState::kConnected;
     if (connected) {
-        lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(hint_label_, true);
         // Every deeper level's own visibility is deliberately untouched -
         // a brief reconnect blip while browsing albums/songs must not
         // snap the user back to the top level.
-        const bool nothing_deeper_showing = lv_obj_has_flag(albums_container_, LV_OBJ_FLAG_HIDDEN) &&
-                                            lv_obj_has_flag(songs_container_, LV_OBJ_FLAG_HIDDEN);
+        const bool nothing_deeper_showing = lv_obj_is_hidden(albums_container_) &&
+                                            lv_obj_is_hidden(songs_container_);
         if (nothing_deeper_showing) {
-            lv_obj_clear_flag(artists_container_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(artists_container_, false);
         }
     } else {
-        lv_obj_add_flag(artists_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(albums_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(songs_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(artists_container_, true);
+        lv_obj_set_hidden(albums_container_, true);
+        lv_obj_set_hidden(songs_container_, true);
+        lv_obj_set_hidden(hint_label_, false);
     }
 }
 
@@ -158,9 +158,9 @@ void KodiMusicScreen::RebuildSongList(const std::vector<KodiSong>& songs) {
 }
 
 void KodiMusicScreen::ShowArtistList() {
-    lv_obj_add_flag(albums_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(albums_container_, true);
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        lv_obj_clear_flag(artists_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(artists_container_, false);
     }
 }
 
@@ -185,8 +185,8 @@ void KodiMusicScreen::ShowAlbumList(long long artistid) {
     lv_obj_clean(albums_list_);
     album_button_ids_.clear();
 
-    lv_obj_add_flag(artists_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(albums_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(artists_container_, true);
+    lv_obj_set_hidden(albums_container_, false);
     kodi_client_.RequestAlbums(artistid);
 }
 
@@ -200,8 +200,8 @@ void KodiMusicScreen::ShowSongList(long long albumid) {
     // clear from its track listing.
     lv_label_set_text(songs_title_label_, selected_artist_name_.c_str());
 
-    lv_obj_add_flag(albums_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(songs_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(albums_container_, true);
+    lv_obj_set_hidden(songs_container_, false);
     kodi_client_.RequestSongs(albumid);
 }
 
@@ -249,9 +249,9 @@ void KodiMusicScreen::OnAlbumsBackClicked(lv_event_t* e) {
 
 void KodiMusicScreen::OnSongsBackClicked(lv_event_t* e) {
     auto* self = static_cast<KodiMusicScreen*>(lv_event_get_user_data(e));
-    lv_obj_add_flag(self->songs_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(self->songs_container_, true);
     if (self->kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        lv_obj_clear_flag(self->albums_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(self->albums_container_, false);
     }
 }
 

@@ -57,7 +57,7 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     // it, this button scrolls away with list_container_'s content and
     // drags with root_'s overscroll bounce instead of staying put as
     // fixed chrome.
-    lv_obj_add_flag(devices_button, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(devices_button, true);
     lv_obj_add_event_cb(devices_button, OnDevicesButtonClicked, LV_EVENT_CLICKED, this);
 
     config_sub_ = event_bus.SubscribeUi<HarmonyConfigUpdatedEvent>(
@@ -160,12 +160,12 @@ void ActivitiesScreen::Rebuild() {
     button_activity_ids_.clear();
 
     if (!snapshot.has_config) {
-        lv_obj_add_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(list_container_, true);
+        lv_obj_set_hidden(hint_label_, false);
         return;
     }
-    lv_obj_clear_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(list_container_, false);
+    lv_obj_set_hidden(hint_label_, true);
 
     for (const HarmonyActivity& activity : snapshot.activities) {
         lv_obj_t* button = CreateRemoteButton(list_container_, activity.label);

@@ -21,7 +21,7 @@ KodiFilesScreen::KodiFilesScreen(EventBus& event_bus, BatteryReader& battery_rea
     // rather than one container per level.
     back_button_ = CreateNavChromeButton(content_, LV_SYMBOL_LEFT " Back");
     lv_obj_add_event_cb(back_button_, OnBackButtonClicked, LV_EVENT_CLICKED, this);
-    lv_obj_add_flag(back_button_, LV_OBJ_FLAG_HIDDEN);  // hidden at the source-list level
+    lv_obj_set_hidden(back_button_, true);  // hidden at the source-list level
 
     heading_label_ = CreateChromeHeadingLabel(content_);
 
@@ -66,11 +66,11 @@ KodiFilesScreen::~KodiFilesScreen() {
 void KodiFilesScreen::Refresh() {
     const bool connected = kodi_client_.Snapshot().state == KodiConnectionState::kConnected;
     if (connected) {
-        lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(content_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(hint_label_, true);
+        lv_obj_set_hidden(content_, false);
     } else {
-        lv_obj_add_flag(content_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(content_, true);
+        lv_obj_set_hidden(hint_label_, false);
         // path_stack_ deliberately untouched - a brief reconnect blip
         // while browsing must not snap the user back to the source
         // list, same reasoning as the fixed-depth screens.
@@ -83,10 +83,10 @@ void KodiFilesScreen::RequestCurrentLevel() {
     lv_obj_clean(list_);  // cleared until the fresh KodiFilesFetchedEvent arrives
     item_button_indices_.clear();
     if (path_stack_.empty()) {
-        lv_obj_add_flag(back_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(back_button_, true);
         kodi_client_.RequestFileSources();
     } else {
-        lv_obj_clear_flag(back_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(back_button_, false);
         kodi_client_.RequestDirectory(requested_path_);
     }
 }

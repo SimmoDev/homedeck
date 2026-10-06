@@ -74,17 +74,17 @@ KodiLiveTvScreen::~KodiLiveTvScreen() {
 void KodiLiveTvScreen::Refresh() {
     const bool connected = kodi_client_.Snapshot().state == KodiConnectionState::kConnected;
     if (connected) {
-        lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(hint_label_, true);
         // channels_container_'s own visibility is deliberately untouched
         // - a brief reconnect blip while browsing channels must not snap
         // the user back to the group list.
-        if (lv_obj_has_flag(channels_container_, LV_OBJ_FLAG_HIDDEN)) {
-            lv_obj_clear_flag(groups_container_, LV_OBJ_FLAG_HIDDEN);
+        if (lv_obj_is_hidden(channels_container_)) {
+            lv_obj_set_hidden(groups_container_, false);
         }
     } else {
-        lv_obj_add_flag(groups_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(channels_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(groups_container_, true);
+        lv_obj_set_hidden(channels_container_, true);
+        lv_obj_set_hidden(hint_label_, false);
     }
 }
 
@@ -124,9 +124,9 @@ void KodiLiveTvScreen::RebuildChannelList(const std::vector<KodiChannel>& channe
 }
 
 void KodiLiveTvScreen::ShowGroupList() {
-    lv_obj_add_flag(channels_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(channels_container_, true);
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        lv_obj_clear_flag(groups_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(groups_container_, false);
     }
 }
 
@@ -150,8 +150,8 @@ void KodiLiveTvScreen::ShowChannelList(long long channelgroupid) {
     lv_obj_clean(channels_list_);
     channel_button_ids_.clear();
 
-    lv_obj_add_flag(groups_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(channels_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(groups_container_, true);
+    lv_obj_set_hidden(channels_container_, false);
     kodi_client_.RequestChannels(channelgroupid);
 }
 

@@ -94,7 +94,7 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     // containers); a fixed-height status bar should never itself scroll -
     // leaving it enabled produces a visible scrollbar and drag-to-scroll
     // on what's meant to be static chrome.
-    lv_obj_clear_flag(bar_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(bar_, false);
     // Without this, `bar_` is just a normal child of `parent` (each
     // screen's own scrolling root_) - it scrolls out of view with the
     // rest of the content on a screen tall enough to scroll, and drags
@@ -102,7 +102,7 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     // FLOATING keeps it pinned at its aligned position regardless of
     // root_'s scroll offset, the standard LVGL idiom for a fixed status
     // bar over scrollable content.
-    lv_obj_add_flag(bar_, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(bar_, true);
 
     clock_label_ = lv_label_create(bar_);
     lv_obj_set_style_text_font(clock_label_, kBodyFont, 0);
@@ -131,7 +131,7 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     lv_obj_set_style_border_width(right_cluster, 0, 0);
     lv_obj_set_style_pad_all(right_cluster, 0, 0);
     lv_obj_set_style_pad_column(right_cluster, 8, 0);
-    lv_obj_clear_flag(right_cluster, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(right_cluster, false);
     lv_obj_set_flex_flow(right_cluster, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(right_cluster, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_align(right_cluster, LV_ALIGN_RIGHT_MID, -12, 0);
@@ -140,7 +140,7 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     lv_obj_set_style_text_font(settings_icon, kBodyFont, 0);
     lv_obj_set_style_text_color(settings_icon, lv_color_white(), 0);
     lv_label_set_text(settings_icon, LV_SYMBOL_SETTINGS);
-    lv_obj_add_flag(settings_icon, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_clickable(settings_icon, true);
     // See kMinNavTouchTarget's own comment (remote_button.h) - this icon
     // opens Quick Settings and is the most frequently reachable tap target
     // in the app (present on every screen, dashboard included), but

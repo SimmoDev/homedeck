@@ -58,7 +58,7 @@ lv_obj_t* CreateChromeDetailContainer(lv_obj_t* parent, int32_t pad_row) {
     lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_row(container, pad_row, 0);
-    lv_obj_add_flag(container, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(container, true);
     return container;
 }
 

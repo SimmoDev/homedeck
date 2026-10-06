@@ -92,11 +92,11 @@ KodiRemoteScreen::~KodiRemoteScreen() {
 
 void KodiRemoteScreen::Refresh() {
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        lv_obj_clear_flag(content_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(content_, false);
+        lv_obj_set_hidden(hint_label_, true);
     } else {
-        lv_obj_add_flag(content_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(content_, true);
+        lv_obj_set_hidden(hint_label_, false);
     }
 }
 

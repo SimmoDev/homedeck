@@ -22,7 +22,7 @@ lv_obj_t* CreateHomeAffordance(lv_obj_t* parent, Navigation& navigation) {
     // button is a child of each screen's scrolling root_, and without
     // this it scrolls out of view/drags with overscroll instead of
     // staying pinned as a fixed affordance.
-    lv_obj_add_flag(button, LV_OBJ_FLAG_FLOATING);
+    lv_obj_set_floating(button, true);
     // Grey, not the default theme blue every action/remote button already
     // uses (CreateRemoteButton, ActivitiesScreen's activity buttons) -
     // this is navigation chrome, not an action, and blended in against

@@ -14,7 +14,7 @@ lv_obj_t* CreateTestButtonPanel(lv_obj_t* parent) {
     lv_obj_set_flex_flow(panel, LV_FLEX_FLOW_COLUMN_REVERSE);
     lv_obj_set_flex_align(panel, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_row(panel, 8, 0);
-    lv_obj_clear_flag(panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(panel, false);
     return panel;
 }
 

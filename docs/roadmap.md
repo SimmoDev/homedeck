@@ -41,7 +41,7 @@ stay associated while the P4 sleeps), tracked under M2's "Power
 management state model" item instead.
 
 - [x] Simulator scaffold — a host-native CMake project with LVGL's SDL2
-      driver, LVGL pinned to `v9.5.0` via `FetchContent` (see
+      driver, LVGL pinned to `v9.6.0` via `FetchContent` (see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system)
       and [simulator/README.md](../simulator/README.md)).
 - [x] CI and unit test framework — independent GitHub Actions workflows,

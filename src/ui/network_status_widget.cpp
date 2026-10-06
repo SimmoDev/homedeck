@@ -13,15 +13,15 @@ void RefreshNetworkLabels(lv_obj_t* state_label, lv_obj_t* ssid_label, lv_obj_t*
         lv_label_set_text(state_label, LV_SYMBOL_WIFI "  Connected");
         lv_label_set_text(ssid_label, state.ssid.c_str());
         lv_label_set_text(ip_label, state.ip_address.c_str());
-        lv_obj_clear_flag(ssid_label, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(ip_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(ssid_label, false);
+        lv_obj_set_hidden(ip_label, false);
     } else {
         // SSID/IP hidden rather than blanked - an empty flex child still
         // reserves its line height, leaving dead space under a lone
         // "Disconnected" line instead of centering it in the tile.
         lv_label_set_text(state_label, LV_SYMBOL_WIFI "  Disconnected");
-        lv_obj_add_flag(ssid_label, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(ip_label, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(ssid_label, true);
+        lv_obj_set_hidden(ip_label, true);
     }
 }
 

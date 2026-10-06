@@ -11,7 +11,7 @@ constexpr uint32_t kAutoDismissMs = 4000;
 
 void OnAutoDismiss(lv_timer_t* timer) {
     auto* banner = static_cast<lv_obj_t*>(lv_timer_get_user_data(timer));
-    lv_obj_add_flag(banner, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(banner, true);
 }
 
 }  // namespace
@@ -29,8 +29,8 @@ NotificationBanner::NotificationBanner(EventBus& event_bus) {
     // (see docs/architecture/dashboard.md#status).
     lv_obj_set_style_bg_color(banner_, lv_palette_main(LV_PALETTE_ORANGE), 0);
     lv_obj_set_style_bg_opa(banner_, LV_OPA_COVER, 0);
-    lv_obj_clear_flag(banner_, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(banner_, LV_OBJ_FLAG_HIDDEN);  // nothing to show until the first notification
+    lv_obj_set_scrollable(banner_, false);
+    lv_obj_set_hidden(banner_, true);  // nothing to show until the first notification
 
     label_ = lv_label_create(banner_);
     lv_obj_set_style_text_color(label_, lv_color_white(), 0);
@@ -61,7 +61,7 @@ NotificationBanner::~NotificationBanner() {
 
 void NotificationBanner::Show(const std::string& message) {
     lv_label_set_text(label_, message.c_str());
-    lv_obj_clear_flag(banner_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(banner_, false);
     // A notification must never end up silently hidden behind whatever
     // else is on lv_layer_top() at the time (e.g. the quick-settings
     // panel) - move_foreground guarantees this regardless of what else

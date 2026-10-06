@@ -56,7 +56,7 @@ KodiTvShowsScreen::KodiTvShowsScreen(EventBus& event_bus, BatteryReader& battery
 
     resume_button_ = CreateRemoteButton(episode_detail_container_, "Resume");
     lv_obj_add_event_cb(resume_button_, OnResumeClicked, LV_EVENT_CLICKED, this);
-    lv_obj_add_flag(resume_button_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(resume_button_, true);
 
     Refresh();
 
@@ -104,22 +104,22 @@ KodiTvShowsScreen::~KodiTvShowsScreen() {
 void KodiTvShowsScreen::Refresh() {
     const bool connected = kodi_client_.Snapshot().state == KodiConnectionState::kConnected;
     if (connected) {
-        lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(hint_label_, true);
         // Every deeper level's own visibility is deliberately untouched -
         // a brief reconnect blip while browsing seasons/episodes must not
         // snap the user back to the top level.
-        const bool nothing_deeper_showing = lv_obj_has_flag(seasons_container_, LV_OBJ_FLAG_HIDDEN) &&
-                                            lv_obj_has_flag(episodes_container_, LV_OBJ_FLAG_HIDDEN) &&
-                                            lv_obj_has_flag(episode_detail_container_, LV_OBJ_FLAG_HIDDEN);
+        const bool nothing_deeper_showing = lv_obj_is_hidden(seasons_container_) &&
+                                            lv_obj_is_hidden(episodes_container_) &&
+                                            lv_obj_is_hidden(episode_detail_container_);
         if (nothing_deeper_showing) {
-            lv_obj_clear_flag(shows_container_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_hidden(shows_container_, false);
         }
     } else {
-        lv_obj_add_flag(shows_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(seasons_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(episodes_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(episode_detail_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(shows_container_, true);
+        lv_obj_set_hidden(seasons_container_, true);
+        lv_obj_set_hidden(episodes_container_, true);
+        lv_obj_set_hidden(episode_detail_container_, true);
+        lv_obj_set_hidden(hint_label_, false);
     }
 }
 
@@ -182,9 +182,9 @@ void KodiTvShowsScreen::RebuildEpisodeList(const std::vector<KodiEpisode>& episo
 }
 
 void KodiTvShowsScreen::ShowShowList() {
-    lv_obj_add_flag(seasons_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(seasons_container_, true);
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        lv_obj_clear_flag(shows_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(shows_container_, false);
     }
 }
 
@@ -209,8 +209,8 @@ void KodiTvShowsScreen::ShowSeasonList(long long tvshowid) {
     lv_obj_clean(seasons_list_);
     season_button_numbers_.clear();
 
-    lv_obj_add_flag(shows_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(seasons_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(shows_container_, true);
+    lv_obj_set_hidden(seasons_container_, false);
     kodi_client_.RequestSeasons(tvshowid);
 }
 
@@ -220,8 +220,8 @@ void KodiTvShowsScreen::ShowEpisodeList(int season) {
     lv_obj_clean(episodes_list_);
     episode_button_ids_.clear();
 
-    lv_obj_add_flag(seasons_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(episodes_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(seasons_container_, true);
+    lv_obj_set_hidden(episodes_container_, false);
     kodi_client_.RequestEpisodes(selected_tvshowid_, season);
 }
 
@@ -240,13 +240,13 @@ void KodiTvShowsScreen::ShowEpisodeDetail(long long episodeid) {
     selected_episode_id_ = episodeid;
     lv_label_set_text(episode_title_label_, episode->title.c_str());
     if (episode->resume_position_ms > 0) {
-        lv_obj_clear_flag(resume_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(resume_button_, false);
     } else {
-        lv_obj_add_flag(resume_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(resume_button_, true);
     }
 
-    lv_obj_add_flag(episodes_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(episode_detail_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(episodes_container_, true);
+    lv_obj_set_hidden(episode_detail_container_, false);
 }
 
 void KodiTvShowsScreen::OnShowButtonClicked(lv_event_t* e) {
@@ -301,17 +301,17 @@ void KodiTvShowsScreen::OnSeasonsBackClicked(lv_event_t* e) {
 
 void KodiTvShowsScreen::OnEpisodesBackClicked(lv_event_t* e) {
     auto* self = static_cast<KodiTvShowsScreen*>(lv_event_get_user_data(e));
-    lv_obj_add_flag(self->episodes_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(self->episodes_container_, true);
     if (self->kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        lv_obj_clear_flag(self->seasons_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(self->seasons_container_, false);
     }
 }
 
 void KodiTvShowsScreen::OnEpisodeDetailBackClicked(lv_event_t* e) {
     auto* self = static_cast<KodiTvShowsScreen*>(lv_event_get_user_data(e));
-    lv_obj_add_flag(self->episode_detail_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(self->episode_detail_container_, true);
     if (self->kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        lv_obj_clear_flag(self->episodes_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(self->episodes_container_, false);
     }
 }
 

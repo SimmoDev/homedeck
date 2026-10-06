@@ -100,7 +100,7 @@ void DashboardGrid::AddWidget(Widget& widget) {
     // implementation to remember it - an internally-scrollable widget can
     // still nest its own scrollable child inside Root(), since this only
     // affects Root() itself.
-    lv_obj_clear_flag(widget.Root(), LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scrollable(widget.Root(), false);
     // Registered for every widget uniformly - see Widget::OnTap()'s own
     // comment. Root() is already LVGL-clickable by default (plain
     // lv_obj_create() containers are), so this adds behavior, not a new

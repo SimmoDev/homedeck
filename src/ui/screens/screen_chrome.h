@@ -40,7 +40,7 @@ lv_obj_t* CreateChromeStatusLabel(lv_obj_t* container);
 // Kodi browse screen's non-top-level view (KodiTvShowsScreen's
 // seasons_container_, KodiMusicScreen's albums_container_, ...): 90% width,
 // flex column, horizontally centered/vertically top-aligned content,
-// hidden until the owning screen clears LV_OBJ_FLAG_HIDDEN. pad_row is
+// hidden until the owning screen shows it. pad_row is
 // passed explicitly because call sites use different spacing (8 for
 // DevicesScreen and KodiLiveTvScreen, 12 for the others).
 lv_obj_t* CreateChromeDetailContainer(lv_obj_t* parent, int32_t pad_row);

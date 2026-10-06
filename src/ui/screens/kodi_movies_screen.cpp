@@ -33,7 +33,7 @@ KodiMoviesScreen::KodiMoviesScreen(EventBus& event_bus, BatteryReader& battery_r
 
     resume_button_ = CreateRemoteButton(detail_container_, "Resume");
     lv_obj_add_event_cb(resume_button_, OnResumeClicked, LV_EVENT_CLICKED, this);
-    lv_obj_add_flag(resume_button_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(resume_button_, true);
 
     Refresh();
 
@@ -66,17 +66,17 @@ KodiMoviesScreen::~KodiMoviesScreen() {
 void KodiMoviesScreen::Refresh() {
     const bool connected = kodi_client_.Snapshot().state == KodiConnectionState::kConnected;
     if (connected) {
-        lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(hint_label_, true);
         // detail_container_'s own visibility is deliberately untouched -
         // a brief reconnect blip while a movie's Play/Resume choice is
         // showing must not snap the user back to the list.
-        if (lv_obj_has_flag(detail_container_, LV_OBJ_FLAG_HIDDEN)) {
-            lv_obj_clear_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
+        if (lv_obj_is_hidden(detail_container_)) {
+            lv_obj_set_hidden(list_container_, false);
         }
     } else {
-        lv_obj_add_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(list_container_, true);
+        lv_obj_set_hidden(detail_container_, true);
+        lv_obj_set_hidden(hint_label_, false);
     }
 }
 
@@ -117,19 +117,19 @@ void KodiMoviesScreen::ShowMovieDetail(long long movieid) {
     selected_movie_id_ = movieid;
     lv_label_set_text(movie_title_label_, movie->title.c_str());
     if (movie->resume_position_ms > 0) {
-        lv_obj_clear_flag(resume_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(resume_button_, false);
     } else {
-        lv_obj_add_flag(resume_button_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(resume_button_, true);
     }
 
-    lv_obj_add_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(list_container_, true);
+    lv_obj_set_hidden(detail_container_, false);
 }
 
 void KodiMoviesScreen::ShowMovieList() {
-    lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(detail_container_, true);
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        lv_obj_clear_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(list_container_, false);
     }
 }
 

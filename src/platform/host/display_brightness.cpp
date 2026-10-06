@@ -11,8 +11,8 @@ HostDisplayBrightness::HostDisplayBrightness() {
     // Idle dims the screen, it doesn't lock touch - real input still
     // needs to reach the dashboard underneath for Idle->Active to have
     // anything to detect (see ui/lvgl_user_activity_source.h).
-    lv_obj_clear_flag(overlay_, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_clear_flag(overlay_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_clickable(overlay_, false);
+    lv_obj_set_scrollable(overlay_, false);
 }
 
 void HostDisplayBrightness::SetPercent(int percent) {

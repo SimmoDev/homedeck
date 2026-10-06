@@ -109,7 +109,7 @@ DevicesScreen::DevicesScreen(EventBus& event_bus, BatteryReader& battery_reader,
     // Hidden until ShowDeviceDetail() - RebuildDeviceList() never touches
     // this flag itself, only ShowDeviceDetail()/ShowDeviceList() do (see
     // their own comments).
-    lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(detail_container_, true);
 
     // Same nav-chrome button as the home affordance and ActivitiesScreen's
     // own "Devices" button (CreateNavChromeButton, remote_button.h) -
@@ -187,19 +187,19 @@ void DevicesScreen::RebuildDeviceList() {
     device_button_ids_.clear();
 
     if (!snapshot.has_config) {
-        lv_obj_add_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(list_container_, true);
         // Also hide detail_container_ (a command view might currently be
         // showing) - otherwise hint_label_ and a now-orphaned screen of
         // command buttons would both be visible at once.
-        lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_clear_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(detail_container_, true);
+        lv_obj_set_hidden(hint_label_, false);
         return;
     }
-    lv_obj_add_flag(hint_label_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(hint_label_, true);
     // detail_container_'s own visibility is deliberately untouched here -
     // see this function's own header comment.
-    if (lv_obj_has_flag(detail_container_, LV_OBJ_FLAG_HIDDEN)) {
-        lv_obj_clear_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
+    if (lv_obj_is_hidden(detail_container_)) {
+        lv_obj_set_hidden(list_container_, false);
     }
 
     for (const HarmonyDevice& device : snapshot.devices) {
@@ -253,8 +253,8 @@ void DevicesScreen::ShowDeviceDetail(const std::string& device_id) {
         lv_label_set_text(empty_label, "No commands available for this device.");
     }
 
-    lv_obj_add_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_clear_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(list_container_, true);
+    lv_obj_set_hidden(detail_container_, false);
 }
 
 void DevicesScreen::RenderControlGroup(const HarmonyControlGroup& group) {
@@ -384,14 +384,14 @@ void DevicesScreen::RenderUnmatchedCommands(lv_obj_t* parent, const std::vector<
 }
 
 void DevicesScreen::ShowDeviceList() {
-    lv_obj_add_flag(detail_container_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(detail_container_, true);
     // Only show list_container_ if the hub is still configured -
     // RebuildDeviceList() already hides detail_container_ (and thus this
     // screen's own Back button) the moment the hub becomes unconfigured,
     // so this guard only matters for an already-in-flight tap event
     // racing that transition.
     if (harmony_connection_.Snapshot().has_config) {
-        lv_obj_clear_flag(list_container_, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_hidden(list_container_, false);
     }
 }
 
