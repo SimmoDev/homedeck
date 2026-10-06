@@ -55,7 +55,7 @@ private:
     // Rebinds list_ to a fetch reply - path_stack_ already reflects
     // the level this reply is for (Enter()/GoBack() push/pop before
     // requesting), so this only needs the items themselves.
-    void RebuildList(const std::vector<KodiFileItem>& items);
+    void RebuildList(const std::vector<KodiFileItem>& items, bool truncated);
     // Requests the source list (path_stack_ empty) or the directory at
     // the top of path_stack_ - whichever the stack's current state
     // means, called after every push/pop.

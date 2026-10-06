@@ -1270,9 +1270,11 @@ TEST_F(KodiClientTest, RequestMoviesFetchesALargeLibraryInPagesAndMergesThem) {
 
     std::mutex result_mutex;
     std::optional<std::vector<homedeck::KodiMovie>> received;
+    bool truncated = true;  // overwritten by the event
     auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
         std::lock_guard<std::mutex> lock(result_mutex);
         received = event.movies;
+        truncated = event.truncated;
     });
 
     auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
@@ -1289,6 +1291,7 @@ TEST_F(KodiClientTest, RequestMoviesFetchesALargeLibraryInPagesAndMergesThem) {
         ASSERT_EQ(received->size(), static_cast<size_t>(kTotal));
         EXPECT_EQ(received->front().title, "Movie 0");
         EXPECT_EQ(received->back().title, "Movie 1199");
+    EXPECT_FALSE(truncated);
     }
     EXPECT_EQ(CountSent(script, "VideoLibrary.GetMovies"), 3);
     client->Stop();
@@ -1348,9 +1351,11 @@ TEST_F(KodiClientTest, RequestMoviesTruncatesAtTheLibraryItemCap) {
 
     std::mutex result_mutex;
     std::optional<std::vector<homedeck::KodiMovie>> received;
+    bool truncated = false;  // overwritten by the event
     auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
         std::lock_guard<std::mutex> lock(result_mutex);
         received = event.movies;
+        truncated = event.truncated;
     });
 
     auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
@@ -1364,6 +1369,50 @@ TEST_F(KodiClientTest, RequestMoviesTruncatesAtTheLibraryItemCap) {
 
     std::lock_guard<std::mutex> lock(result_mutex);
     EXPECT_EQ(received->size(), 10000u);
+    EXPECT_TRUE(truncated);
+    client->Stop();
+}
+
+// A page that fails after the first leaves an incomplete list, which the
+// screen must be able to say so.
+TEST_F(KodiClientTest, RequestMoviesReportsTruncationWhenALaterPageFails) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->handlers["VideoLibrary.GetMovies"] = [](const nlohmann::json& request) {
+            const long long start = request["params"]["limits"]["start"].get<long long>();
+            if (start > 0) {
+                return nlohmann::json{{"error", {{"code", -32000}, {"message", "Failed."}}}};
+            }
+            nlohmann::json movies = nlohmann::json::array();
+            for (long long i = 0; i < 500; ++i) {
+                movies.push_back({{"movieid", i}, {"title", "M"}});
+            }
+            return nlohmann::json{{"result", {{"movies", movies}, {"limits", {{"total", 1200}}}}}};
+        };
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiMovie>> received;
+    bool truncated = false;
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.movies;
+        truncated = event.truncated;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    std::lock_guard<std::mutex> lock(result_mutex);
+    EXPECT_EQ(received->size(), 500u);
+    EXPECT_TRUE(truncated);
     client->Stop();
 }
 

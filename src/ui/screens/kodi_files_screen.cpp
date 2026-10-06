@@ -43,7 +43,7 @@ KodiFilesScreen::KodiFilesScreen(EventBus& event_bus, BatteryReader& battery_rea
     // season checks.
     files_sub_ = event_bus.SubscribeUi<KodiFilesFetchedEvent>([this](const KodiFilesFetchedEvent& event) {
         if (event.path == requested_path_) {
-            RebuildList(event.items);
+            RebuildList(event.items, event.truncated);
         }
     });
 
@@ -91,7 +91,7 @@ void KodiFilesScreen::RequestCurrentLevel() {
     }
 }
 
-void KodiFilesScreen::RebuildList(const std::vector<KodiFileItem>& items) {
+void KodiFilesScreen::RebuildList(const std::vector<KodiFileItem>& items, bool truncated) {
     items_ = items;
     list_->SetItems(
         items_.size(),
@@ -100,6 +100,7 @@ void KodiFilesScreen::RebuildList(const std::vector<KodiFileItem>& items) {
             return std::string(item.is_folder ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_FILE) + " " + item.label;
         },
         [this](size_t row) { Enter(items_[row]); });
+    list_->SetTruncated(truncated);
 }
 
 void KodiFilesScreen::Enter(const KodiFileItem& item) {

@@ -44,6 +44,10 @@ public:
     // typically keeps the fetched vector as a member and indexes it.
     void SetItems(size_t count, LabelFn label_at, SelectFn on_select);
 
+    // Shows a note below the rows that the list is incomplete (the data
+    // source stopped at its size cap). Call after SetItems(), which clears it.
+    void SetTruncated(bool truncated);
+
     // Shows nothing at all: for a list waiting on a reply, where the
     // previous list's rows or an "empty" message would both mislead.
     void Clear();
@@ -65,6 +69,7 @@ private:
 
     lv_obj_t* list_;
     lv_obj_t* empty_label_;
+    lv_obj_t* truncated_label_;
     lv_obj_t* screen_;
 
     std::vector<lv_obj_t*> pool_;

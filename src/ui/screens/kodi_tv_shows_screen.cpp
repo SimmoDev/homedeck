@@ -65,18 +65,18 @@ KodiTvShowsScreen::KodiTvShowsScreen(EventBus& event_bus, BatteryReader& battery
             }
         });
     shows_sub_ = event_bus.SubscribeUi<KodiTvShowsFetchedEvent>(
-        [this](const KodiTvShowsFetchedEvent& event) { RebuildShowList(event.shows); });
+        [this](const KodiTvShowsFetchedEvent& event) { RebuildShowList(event.shows, event.truncated); });
     // Filtered by the currently-open show/season - a reply for a show the
     // user has since backed out of (a slow query racing a fast back tap)
     // must not repopulate a list that's no longer showing.
     seasons_sub_ = event_bus.SubscribeUi<KodiSeasonsFetchedEvent>([this](const KodiSeasonsFetchedEvent& event) {
         if (event.tvshowid == selected_tvshowid_) {
-            RebuildSeasonList(event.seasons);
+            RebuildSeasonList(event.seasons, event.truncated);
         }
     });
     episodes_sub_ = event_bus.SubscribeUi<KodiEpisodesFetchedEvent>([this](const KodiEpisodesFetchedEvent& event) {
         if (event.tvshowid == selected_tvshowid_ && event.season == selected_season_) {
-            RebuildEpisodeList(event.episodes);
+            RebuildEpisodeList(event.episodes, event.truncated);
         }
     });
 
@@ -121,7 +121,7 @@ void KodiTvShowsScreen::Refresh() {
     }
 }
 
-void KodiTvShowsScreen::RebuildShowList(const std::vector<KodiTvShow>& shows) {
+void KodiTvShowsScreen::RebuildShowList(const std::vector<KodiTvShow>& shows, bool truncated) {
     shows_ = shows;
     shows_list_->SetItems(
         shows_.size(),
@@ -130,21 +130,24 @@ void KodiTvShowsScreen::RebuildShowList(const std::vector<KodiTvShow>& shows) {
             return show.year > 0 ? show.title + " (" + std::to_string(show.year) + ")" : show.title;
         },
         [this](size_t row) { ShowSeasonList(shows_[row].tvshowid); });
+    shows_list_->SetTruncated(truncated);
 }
 
-void KodiTvShowsScreen::RebuildSeasonList(const std::vector<KodiSeason>& seasons) {
+void KodiTvShowsScreen::RebuildSeasonList(const std::vector<KodiSeason>& seasons, bool truncated) {
     seasons_ = seasons;
     seasons_list_->SetItems(
         seasons_.size(), [this](size_t row) { return seasons_[row].label; },
         [this](size_t row) { ShowEpisodeList(seasons_[row].season); });
+    seasons_list_->SetTruncated(truncated);
 }
 
-void KodiTvShowsScreen::RebuildEpisodeList(const std::vector<KodiEpisode>& episodes) {
+void KodiTvShowsScreen::RebuildEpisodeList(const std::vector<KodiEpisode>& episodes, bool truncated) {
     episodes_ = episodes;
     episodes_list_->SetItems(
         episodes_.size(),
         [this](size_t row) { return std::to_string(episodes_[row].episode) + ". " + episodes_[row].title; },
         [this](size_t row) { ShowEpisodeDetail(episodes_[row].episodeid); });
+    episodes_list_->SetTruncated(truncated);
 }
 
 void KodiTvShowsScreen::ShowShowList() {

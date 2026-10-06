@@ -685,7 +685,8 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
 }
 
 std::optional<std::string> KodiClient::CallLibrary(const std::string& method, const std::string& params_json,
-                                                    const char* result_key, std::stop_token stop) {
+                                                    const char* result_key, std::stop_token stop, bool& truncated) {
+    truncated = false;
     if (result_key == nullptr) {
         return Call(method, params_json, kLibraryCallTimeoutMs, stop);
     }
@@ -711,6 +712,7 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
                 }
                 return text;  // not a listing at all - the parser yields an empty list
             }
+            truncated = true;  // a later page was an error or malformed
             break;
         }
         const size_t page_size = page->size();
@@ -730,6 +732,8 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
         if (page_size != static_cast<size_t>(kLibraryPageSize) || (total >= 0 && start >= total)) {
             break;
         }
+        // Another full page exists but the cap stops the next request.
+        truncated = merged.size() >= kMaxLibraryItems;
     }
     nlohmann::json result = {{"result", {{result_key, std::move(merged)}}}};
     return result.dump();
@@ -1234,26 +1238,27 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
         if (stop.stop_requested()) {
             return false;
         }
+        bool truncated = false;
         switch (request.kind) {
             case LibraryRequest::Kind::kMovies: {
                 nlohmann::json params = {{"properties", {"title", "year", "resume"}}, {"sort", kSortByLabel}};
                 std::optional<std::string> text =
-                    CallLibrary("VideoLibrary.GetMovies", params.dump(), "movies", stop);
+                    CallLibrary("VideoLibrary.GetMovies", params.dump(), "movies", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiMoviesFetchedEvent{ParseMovies(*text)});
+                event_bus_.Publish(KodiMoviesFetchedEvent{ParseMovies(*text), truncated});
                 break;
             }
             case LibraryRequest::Kind::kTvShows: {
                 nlohmann::json params = {{"properties", {"title", "year", "episode", "watchedepisodes"}},
                                          {"sort", kSortByLabel}};
                 std::optional<std::string> text =
-                    CallLibrary("VideoLibrary.GetTVShows", params.dump(), "tvshows", stop);
+                    CallLibrary("VideoLibrary.GetTVShows", params.dump(), "tvshows", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiTvShowsFetchedEvent{ParseTvShows(*text)});
+                event_bus_.Publish(KodiTvShowsFetchedEvent{ParseTvShows(*text), truncated});
                 break;
             }
             case LibraryRequest::Kind::kSeasons: {
@@ -1261,11 +1266,11 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                                          {"properties", {"season", "episode", "watchedepisodes"}},
                                          {"sort", {{"method", "season"}, {"order", "ascending"}}}};
                 std::optional<std::string> text =
-                    CallLibrary("VideoLibrary.GetSeasons", params.dump(), "seasons", stop);
+                    CallLibrary("VideoLibrary.GetSeasons", params.dump(), "seasons", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiSeasonsFetchedEvent{request.parent_id, ParseSeasons(*text)});
+                event_bus_.Publish(KodiSeasonsFetchedEvent{request.parent_id, ParseSeasons(*text), truncated});
                 break;
             }
             case LibraryRequest::Kind::kEpisodes: {
@@ -1274,12 +1279,12 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                                          {"properties", {"episode", "title", "resume"}},
                                          {"sort", {{"method", "episode"}, {"order", "ascending"}}}};
                 std::optional<std::string> text =
-                    CallLibrary("VideoLibrary.GetEpisodes", params.dump(), "episodes", stop);
+                    CallLibrary("VideoLibrary.GetEpisodes", params.dump(), "episodes", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
                 event_bus_.Publish(
-                    KodiEpisodesFetchedEvent{request.parent_id, request.season, ParseEpisodes(*text)});
+                    KodiEpisodesFetchedEvent{request.parent_id, request.season, ParseEpisodes(*text), truncated});
                 break;
             }
             case LibraryRequest::Kind::kArtists: {
@@ -1287,11 +1292,11 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                 // returned by default, the same as movieid/label elsewhere.
                 nlohmann::json params = {{"sort", kSortByLabel}};
                 std::optional<std::string> text =
-                    CallLibrary("AudioLibrary.GetArtists", params.dump(), "artists", stop);
+                    CallLibrary("AudioLibrary.GetArtists", params.dump(), "artists", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiArtistsFetchedEvent{ParseArtists(*text)});
+                event_bus_.Publish(KodiArtistsFetchedEvent{ParseArtists(*text), truncated});
                 break;
             }
             case LibraryRequest::Kind::kAlbums: {
@@ -1299,11 +1304,11 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                                          {"properties", {"title", "year"}},
                                          {"sort", {{"method", "year"}, {"order", "ascending"}}}};
                 std::optional<std::string> text =
-                    CallLibrary("AudioLibrary.GetAlbums", params.dump(), "albums", stop);
+                    CallLibrary("AudioLibrary.GetAlbums", params.dump(), "albums", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiAlbumsFetchedEvent{request.parent_id, ParseAlbums(*text)});
+                event_bus_.Publish(KodiAlbumsFetchedEvent{request.parent_id, ParseAlbums(*text), truncated});
                 break;
             }
             case LibraryRequest::Kind::kSongs: {
@@ -1311,38 +1316,38 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                                          {"properties", {"title", "track", "duration"}},
                                          {"sort", {{"method", "track"}, {"order", "ascending"}}}};
                 std::optional<std::string> text =
-                    CallLibrary("AudioLibrary.GetSongs", params.dump(), "songs", stop);
+                    CallLibrary("AudioLibrary.GetSongs", params.dump(), "songs", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiSongsFetchedEvent{request.parent_id, ParseSongs(*text)});
+                event_bus_.Publish(KodiSongsFetchedEvent{request.parent_id, ParseSongs(*text), truncated});
                 break;
             }
             case LibraryRequest::Kind::kFileSources: {
                 nlohmann::json params = {{"media", "video"}};
                 std::optional<std::string> text =
-                    CallLibrary("Files.GetSources", params.dump(), nullptr, stop);
+                    CallLibrary("Files.GetSources", params.dump(), nullptr, stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiFilesFetchedEvent{"", ParseFileItems(*text, "sources", /*all_folders=*/true)});
+                event_bus_.Publish(KodiFilesFetchedEvent{"", ParseFileItems(*text, "sources", /*all_folders=*/true), truncated});
                 break;
             }
             case LibraryRequest::Kind::kDirectory: {
                 nlohmann::json params = {{"directory", request.path}, {"media", "video"}};
                 std::optional<std::string> text =
-                    CallLibrary("Files.GetDirectory", params.dump(), "files", stop);
+                    CallLibrary("Files.GetDirectory", params.dump(), "files", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
                 event_bus_.Publish(
-                    KodiFilesFetchedEvent{request.path, ParseFileItems(*text, "files", /*all_folders=*/false)});
+                    KodiFilesFetchedEvent{request.path, ParseFileItems(*text, "files", /*all_folders=*/false), truncated});
                 break;
             }
             case LibraryRequest::Kind::kChannelGroups: {
                 nlohmann::json params = {{"channeltype", "tv"}};
                 std::optional<std::string> text =
-                    CallLibrary("PVR.GetChannelGroups", params.dump(), nullptr, stop);
+                    CallLibrary("PVR.GetChannelGroups", params.dump(), nullptr, stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1352,11 +1357,11 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
             case LibraryRequest::Kind::kChannels: {
                 nlohmann::json params = {{"channelgroupid", request.parent_id}};
                 std::optional<std::string> text =
-                    CallLibrary("PVR.GetChannels", params.dump(), "channels", stop);
+                    CallLibrary("PVR.GetChannels", params.dump(), "channels", stop, truncated);
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiChannelsFetchedEvent{request.parent_id, ParseChannels(*text)});
+                event_bus_.Publish(KodiChannelsFetchedEvent{request.parent_id, ParseChannels(*text), truncated});
                 break;
             }
         }

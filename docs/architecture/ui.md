@@ -110,7 +110,9 @@ Kodi library-browse list.
 - The caller owns the row data. `SetItems()` takes callables that read a
   row's label and handle its tap on demand, so they typically index a
   vector the screen keeps as a member. `Clear()` shows nothing (waiting
-  for a reply); `SetItems()` with zero items shows the empty text.
+  for a reply); `SetItems()` with zero items shows the empty text;
+  `SetTruncated()` adds a note below the rows that the data source stopped
+  at its size cap.
 - A list inside a hidden container has no layout, so a screen calls
   `Refresh()` after showing the container.
 - It must be destroyed no later than its screen: screens hold it as a

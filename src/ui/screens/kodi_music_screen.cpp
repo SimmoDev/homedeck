@@ -45,17 +45,17 @@ KodiMusicScreen::KodiMusicScreen(EventBus& event_bus, BatteryReader& battery_rea
             }
         });
     artists_sub_ = event_bus.SubscribeUi<KodiArtistsFetchedEvent>(
-        [this](const KodiArtistsFetchedEvent& event) { RebuildArtistList(event.artists); });
+        [this](const KodiArtistsFetchedEvent& event) { RebuildArtistList(event.artists, event.truncated); });
     // Filtered by the currently-open artist/album - a reply for an artist
     // the user has since backed out of (a slow query racing a fast back
     // tap) must not repopulate a list that's no longer showing.
     albums_sub_ = event_bus.SubscribeUi<KodiAlbumsFetchedEvent>([this](const KodiAlbumsFetchedEvent& event) {
         if (event.artistid == selected_artistid_) {
-            RebuildAlbumList(event.albums);
+            RebuildAlbumList(event.albums, event.truncated);
         }
     });
     songs_sub_ = event_bus.SubscribeUi<KodiSongsFetchedEvent>(
-        [this](const KodiSongsFetchedEvent& event) { RebuildSongList(event.songs); });
+        [this](const KodiSongsFetchedEvent& event) { RebuildSongList(event.songs, event.truncated); });
 
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         kodi_client_.RequestArtists();
@@ -96,14 +96,15 @@ void KodiMusicScreen::Refresh() {
     }
 }
 
-void KodiMusicScreen::RebuildArtistList(const std::vector<KodiArtist>& artists) {
+void KodiMusicScreen::RebuildArtistList(const std::vector<KodiArtist>& artists, bool truncated) {
     artists_ = artists;
     artists_list_->SetItems(
         artists_.size(), [this](size_t row) { return artists_[row].name; },
         [this](size_t row) { ShowAlbumList(artists_[row].artistid); });
+    artists_list_->SetTruncated(truncated);
 }
 
-void KodiMusicScreen::RebuildAlbumList(const std::vector<KodiAlbum>& albums) {
+void KodiMusicScreen::RebuildAlbumList(const std::vector<KodiAlbum>& albums, bool truncated) {
     albums_ = albums;
     albums_list_->SetItems(
         albums_.size(),
@@ -112,9 +113,10 @@ void KodiMusicScreen::RebuildAlbumList(const std::vector<KodiAlbum>& albums) {
             return album.year > 0 ? album.title + " (" + std::to_string(album.year) + ")" : album.title;
         },
         [this](size_t row) { ShowSongList(albums_[row].albumid); });
+    albums_list_->SetTruncated(truncated);
 }
 
-void KodiMusicScreen::RebuildSongList(const std::vector<KodiSong>& songs) {
+void KodiMusicScreen::RebuildSongList(const std::vector<KodiSong>& songs, bool truncated) {
     songs_ = songs;
     // No Play/Resume choice - AudioLibrary.GetSongs has no resume
     // property (see this class's own header comment), so a tap plays
@@ -130,6 +132,7 @@ void KodiMusicScreen::RebuildSongList(const std::vector<KodiSong>& songs) {
             kodi_client_.OpenLibraryItem("songid", songs_[row].songid, /*resume=*/false);
             navigation_.GoTo("kodi-now-playing");
         });
+    songs_list_->SetTruncated(truncated);
 }
 
 void KodiMusicScreen::ShowArtistList() {

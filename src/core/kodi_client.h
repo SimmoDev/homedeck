@@ -216,29 +216,50 @@ struct KodiConnectionStateChangedEvent {
 // ever wants the one list it just asked for).
 struct KodiMoviesFetchedEvent {
     std::vector<KodiMovie> movies;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 struct KodiTvShowsFetchedEvent {
     std::vector<KodiTvShow> shows;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 struct KodiSeasonsFetchedEvent {
     long long tvshowid;
     std::vector<KodiSeason> seasons;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 struct KodiEpisodesFetchedEvent {
     long long tvshowid;
     int season;
     std::vector<KodiEpisode> episodes;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 struct KodiArtistsFetchedEvent {
     std::vector<KodiArtist> artists;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 struct KodiAlbumsFetchedEvent {
     long long artistid;
     std::vector<KodiAlbum> albums;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 struct KodiSongsFetchedEvent {
     long long albumid;
     std::vector<KodiSong> songs;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 // path is "" for the top-level sources list (RequestFileSources()), or
 // the directory just listed (RequestDirectory()) - lets a screen ignore
@@ -247,6 +268,9 @@ struct KodiSongsFetchedEvent {
 struct KodiFilesFetchedEvent {
     std::string path;
     std::vector<KodiFileItem> items;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 struct KodiChannelGroupsFetchedEvent {
     std::vector<KodiChannelGroup> groups;
@@ -254,6 +278,9 @@ struct KodiChannelGroupsFetchedEvent {
 struct KodiChannelsFetchedEvent {
     long long channelgroupid;
     std::vector<KodiChannel> channels;
+    // The listing is incomplete: it reached kMaxLibraryItems with more
+    // available, or a page failed partway through.
+    bool truncated = false;
 };
 
 // Marker only - handlers call Snapshot(), same shape as
@@ -475,9 +502,11 @@ private:
     // kMaxWebSocketMessageBytes however large the library is, and a slow
     // source can't hold one reply past the timeout. Capped at
     // kMaxLibraryItems items. A Kodi that rejects `limits` with a JSON-RPC
-    // error gets one unpaged retry. nullopt on the same conditions as Call().
+    // error gets one unpaged retry. `truncated` is set when the listing is
+    // incomplete (see KodiMoviesFetchedEvent::truncated). nullopt on the
+    // same conditions as Call().
     std::optional<std::string> CallLibrary(const std::string& method, const std::string& params_json,
-                                           const char* result_key, std::stop_token stop);
+                                           const char* result_key, std::stop_token stop, bool& truncated);
     // Application.GetProperties + Player.GetActivePlayers (+ GetProperties
     // /GetItem when something is playing). Refreshes the snapshot and is
     // the periodic liveness probe. false => transport dead, reconnect.

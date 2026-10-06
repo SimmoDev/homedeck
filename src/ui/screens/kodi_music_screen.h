@@ -45,9 +45,9 @@ public:
 
 private:
     void Refresh();  // hint_label_ vs whichever level was showing, per KodiClient::Snapshot()
-    void RebuildArtistList(const std::vector<KodiArtist>& artists);
-    void RebuildAlbumList(const std::vector<KodiAlbum>& albums);
-    void RebuildSongList(const std::vector<KodiSong>& songs);
+    void RebuildArtistList(const std::vector<KodiArtist>& artists, bool truncated);
+    void RebuildAlbumList(const std::vector<KodiAlbum>& albums, bool truncated);
+    void RebuildSongList(const std::vector<KodiSong>& songs, bool truncated);
 
     void ShowArtistList();
     // Requests fresh albums and switches to albums_container_ - a stale

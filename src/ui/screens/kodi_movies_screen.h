@@ -43,7 +43,7 @@ public:
 
 private:
     void Refresh();  // hint_label_ vs the rest, per KodiClient::Snapshot()
-    void RebuildMovieList(const std::vector<KodiMovie>& movies);
+    void RebuildMovieList(const std::vector<KodiMovie>& movies, bool truncated);
     // Looks the id up in movies_ (the last fetched list) - a stale tap
     // (movies_ changed underneath) is a defensive no-op, not observed.
     void ShowMovieDetail(long long movieid);

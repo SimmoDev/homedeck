@@ -49,7 +49,7 @@ KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_r
     // tap) must not repopulate a list that's no longer showing.
     channels_sub_ = event_bus.SubscribeUi<KodiChannelsFetchedEvent>([this](const KodiChannelsFetchedEvent& event) {
         if (event.channelgroupid == selected_channelgroupid_) {
-            RebuildChannelList(event.channels);
+            RebuildChannelList(event.channels, event.truncated);
         }
     });
 
@@ -95,7 +95,7 @@ void KodiLiveTvScreen::RebuildGroupList(const std::vector<KodiChannelGroup>& gro
         [this](size_t row) { ShowChannelList(groups_[row].channelgroupid); });
 }
 
-void KodiLiveTvScreen::RebuildChannelList(const std::vector<KodiChannel>& channels) {
+void KodiLiveTvScreen::RebuildChannelList(const std::vector<KodiChannel>& channels, bool truncated) {
     channels_ = channels;
     // No Play/Resume choice - a live broadcast has no resume point (see
     // this class's own header comment).
@@ -105,6 +105,7 @@ void KodiLiveTvScreen::RebuildChannelList(const std::vector<KodiChannel>& channe
             kodi_client_.OpenLibraryItem("channelid", channels_[row].channelid, /*resume=*/false);
             navigation_.GoTo("kodi-now-playing");
         });
+    channels_list_->SetTruncated(truncated);
 }
 
 void KodiLiveTvScreen::ShowGroupList() {

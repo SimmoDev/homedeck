@@ -47,7 +47,7 @@ KodiMoviesScreen::KodiMoviesScreen(EventBus& event_bus, BatteryReader& battery_r
             }
         });
     movies_sub_ = event_bus.SubscribeUi<KodiMoviesFetchedEvent>(
-        [this](const KodiMoviesFetchedEvent& event) { RebuildMovieList(event.movies); });
+        [this](const KodiMoviesFetchedEvent& event) { RebuildMovieList(event.movies, event.truncated); });
 
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         kodi_client_.RequestMovies();
@@ -83,7 +83,7 @@ void KodiMoviesScreen::Refresh() {
     }
 }
 
-void KodiMoviesScreen::RebuildMovieList(const std::vector<KodiMovie>& movies) {
+void KodiMoviesScreen::RebuildMovieList(const std::vector<KodiMovie>& movies, bool truncated) {
     movies_ = movies;
     movie_list_->SetItems(
         movies_.size(),
@@ -92,6 +92,7 @@ void KodiMoviesScreen::RebuildMovieList(const std::vector<KodiMovie>& movies) {
             return movie.year > 0 ? movie.title + " (" + std::to_string(movie.year) + ")" : movie.title;
         },
         [this](size_t row) { ShowMovieDetail(movies_[row].movieid); });
+    movie_list_->SetTruncated(truncated);
 }
 
 void KodiMoviesScreen::ShowMovieDetail(long long movieid) {

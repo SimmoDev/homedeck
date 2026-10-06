@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <utility>
 
 namespace homedeck {
@@ -23,7 +24,10 @@ constexpr int32_t kRowPitch = kRemoteButtonHeight + VirtualList::kRowGap;
 }  // namespace
 
 VirtualList::VirtualList(lv_obj_t* parent, const char* empty_text)
-    : list_(lv_obj_create(parent)), empty_label_(lv_label_create(parent)), screen_(lv_obj_get_screen(parent)) {
+    : list_(lv_obj_create(parent)),
+      empty_label_(lv_label_create(parent)),
+      truncated_label_(lv_label_create(parent)),
+      screen_(lv_obj_get_screen(parent)) {
     lv_obj_remove_style_all(list_);
     lv_obj_set_width(list_, LV_PCT(100));
     lv_obj_set_height(list_, 0);
@@ -34,6 +38,8 @@ VirtualList::VirtualList(lv_obj_t* parent, const char* empty_text)
 
     lv_label_set_text(empty_label_, empty_text);
     lv_obj_set_hidden(empty_label_, true);
+
+    lv_obj_set_hidden(truncated_label_, true);
 
     lv_obj_add_event_cb(screen_, OnScreenScrolled, LV_EVENT_SCROLL, this);
 }
@@ -51,6 +57,7 @@ void VirtualList::SetItems(size_t count, LabelFn label_at, SelectFn on_select) {
     label_at_ = std::move(label_at);
     on_select_ = std::move(on_select);
 
+    lv_obj_set_hidden(truncated_label_, true);
     lv_obj_set_hidden(empty_label_, count != 0);
     lv_obj_set_hidden(list_, count == 0);
     lv_obj_set_height(list_, count == 0 ? 0 : static_cast<int32_t>(count) * kRowPitch - kRowGap);
@@ -59,8 +66,16 @@ void VirtualList::SetItems(size_t count, LabelFn label_at, SelectFn on_select) {
     Rebind(/*force=*/true);
 }
 
+void VirtualList::SetTruncated(bool truncated) {
+    if (truncated && count_ != 0) {
+        lv_label_set_text(truncated_label_, ("Only the first " + std::to_string(count_) + " items are shown.").c_str());
+    }
+    lv_obj_set_hidden(truncated_label_, !(truncated && count_ != 0));
+}
+
 void VirtualList::Clear() {
     count_ = 0;
+    lv_obj_set_hidden(truncated_label_, true);
     label_at_ = nullptr;
     on_select_ = nullptr;
     lv_obj_set_hidden(empty_label_, true);

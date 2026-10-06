@@ -43,9 +43,9 @@ public:
 
 private:
     void Refresh();  // hint_label_ vs whichever level was showing, per KodiClient::Snapshot()
-    void RebuildShowList(const std::vector<KodiTvShow>& shows);
-    void RebuildSeasonList(const std::vector<KodiSeason>& seasons);
-    void RebuildEpisodeList(const std::vector<KodiEpisode>& episodes);
+    void RebuildShowList(const std::vector<KodiTvShow>& shows, bool truncated);
+    void RebuildSeasonList(const std::vector<KodiSeason>& seasons, bool truncated);
+    void RebuildEpisodeList(const std::vector<KodiEpisode>& episodes, bool truncated);
 
     void ShowShowList();
     // Requests fresh seasons and switches to seasons_container_ - a
