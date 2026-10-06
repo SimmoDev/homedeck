@@ -178,6 +178,12 @@ than surfacing broken state or, on firmware, aborting the process -
 `nlohmann::json::value()`/`get<T>()` throw on a type mismatch, which is
 `std::abort()` with exceptions disabled).
 
+The same hazard exists on the output side for strings that are not parsed
+JSON: discovered instance names, hosts and TXT `uuid`s are raw mDNS bytes
+from an unauthenticated responder and may be invalid UTF-8, which
+`nlohmann::json::dump()` rejects the same way. `GET /api/kodi/status`
+therefore serialises with `error_handler_t::replace`.
+
 The outbound direction is admin-controlled the same way: `host`
 (validated by `IsValidKodiHost()`, `src/core/kodi_client.cpp`) is an
 arbitrary LAN host HomeDeck connects to, settable only through

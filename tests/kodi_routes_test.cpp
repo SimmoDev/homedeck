@@ -37,6 +37,17 @@ public:
     std::vector<homedeck::MdnsService> Browse(const std::string&, std::chrono::milliseconds) override { return {}; }
 };
 
+class FixedMdnsBrowser : public homedeck::MdnsBrowser {
+public:
+    explicit FixedMdnsBrowser(std::vector<homedeck::MdnsService> instances) : instances_(std::move(instances)) {}
+    std::vector<homedeck::MdnsService> Browse(const std::string&, std::chrono::milliseconds) override {
+        return instances_;
+    }
+
+private:
+    std::vector<homedeck::MdnsService> instances_;
+};
+
 // KodiClient needs a WebSocketClient factory even for tests that never
 // configure a host and so never connect.
 class UnusedWebSocketClient : public homedeck::WebSocketClient {
@@ -188,4 +199,40 @@ TEST_F(KodiRoutesTest, ReconnectReturnsOk) {
     std::string cookie = Login(server.BoundPort());
 
     EXPECT_EQ(HttpRequestRaw(server.BoundPort(), "POST", "/api/kodi/reconnect", "", cookie).status_code, 200);
+}
+
+// mDNS strings are raw bytes from an unauthenticated LAN responder, not
+// parsed JSON, so they can be invalid UTF-8; the route must still answer.
+TEST_F(KodiRoutesTest, StatusSurvivesDiscoveredInstanceStringsThatAreNotValidUtf8) {
+    auto make_instance = [](const std::string& name, const std::string& address, const std::string& uuid) {
+        homedeck::MdnsService service;
+        service.instance_name = name;
+        service.address = address;
+        service.port = 9090;
+        service.txt["uuid"] = uuid;
+        return service;
+    };
+    // Two instances and no saved selection: stays disconnected with both
+    // listed, which is the state the Web UI settings page polls.
+    FixedMdnsBrowser browser({make_instance("Kodi \xff\xfe room", "10.0.0.5", "bad-\xc3\x28-uuid"),
+                              make_instance("Den", "10.0.0.6", "den-uuid")});
+    homedeck::KodiClient client([] { return std::make_unique<UnusedWebSocketClient>(); }, browser, *storage_,
+                                *event_bus_);
+    client.Start();
+    ASSERT_TRUE(WaitFor([&] { return client.Snapshot().discovered.size() == 2; }));
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterKodiRoutes(server, client, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "", cookie);
+    EXPECT_EQ(result.status_code, 200);
+    nlohmann::json body = nlohmann::json::parse(result.body, nullptr, false);
+    ASSERT_TRUE(body.is_object());
+    EXPECT_EQ(body["discovered"].size(), 2u);
+    EXPECT_EQ(body["discovered"][1]["name"], "Den");
+
+    client.Stop();
 }

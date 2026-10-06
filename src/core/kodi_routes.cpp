@@ -60,8 +60,16 @@ nlohmann::json SnapshotToJson(const KodiSnapshot& s) {
 void RegisterKodiRoutes(HttpServer& server, KodiClient& kodi_client, AdminAuthService& auth) {
     server.RegisterHandler(HttpMethod::kGet, "/api/kodi/status",
                            auth.RequireAuth([&kodi_client](const HttpRequest&) {
-                               return HttpResponse{200, "application/json",
-                                                   SnapshotToJson(kodi_client.Snapshot()).dump(), {}};
+                               // `replace`, not the default strict handler: discovered
+                               // instance names/hosts/uuids are raw mDNS bytes from an
+                               // unauthenticated LAN responder, not parsed JSON, so they
+                               // may be invalid UTF-8 - and strict dump() throws on that,
+                               // which is std::abort() with firmware's exceptions off.
+                               return HttpResponse{
+                                   200, "application/json",
+                                   SnapshotToJson(kodi_client.Snapshot())
+                                       .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                                   {}};
                            }));
 
     server.RegisterHandler(HttpMethod::kPost, "/api/kodi/reconnect",
