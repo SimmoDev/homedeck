@@ -172,8 +172,11 @@ same defensive way `HarmonyConnection` does: bounded JSON nesting depth
 size and receive-queue depth Harmony's transport already enforces
 (`platform/websocket_client.h`, both backends - shared code, not
 duplicated per-module), and every parsed field type-checked before use
-(`ApplyItemFields()` leaves a missing/malformed field at its struct
-default rather than surfacing broken state).
+(`GetInt()`/`GetDouble()`/`GetString()`/`GetBool()` and `ApplyItemFields()`
+leave a missing *or type-mismatched* field at its struct default rather
+than surfacing broken state or, on firmware, aborting the process -
+`nlohmann::json::value()`/`get<T>()` throw on a type mismatch, which is
+`std::abort()` with exceptions disabled).
 
 The outbound direction is admin-controlled the same way: `host`
 (validated by `IsValidKodiHost()`, `src/core/kodi_client.cpp`) is an

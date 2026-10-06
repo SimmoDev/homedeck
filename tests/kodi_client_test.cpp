@@ -876,6 +876,57 @@ TEST_F(KodiClientTest, ReconcilePollCarriesCanSeekFromPlayerProperties) {
     client->Stop();
 }
 
+// Kodi's 9090 API has no authentication (ADR-0030), so a type-mismatched
+// field in a Player.GetProperties reply isn't just a hypothetical - any
+// device on the LAN can send one. nlohmann::json::value()/get<T>() throw
+// on a type mismatch, which is std::abort() on firmware (exceptions are
+// compiled out there): without GetInt()/GetDouble()/GetBool() guarding
+// speed/percentage/canseek the same way they already guard
+// volume/muted/version a few lines above, this test crashes the whole
+// process rather than failing an assertion.
+TEST_F(KodiClientTest, ReconcilePollWithTypeMismatchedPlayerPropertiesFallsBackInsteadOfCrashing) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Player.GetProperties"] =
+            R"({"speed":1,"percentage":25.0,"time":{"hours":0,"minutes":5,"seconds":0,"milliseconds":0},)"
+            R"("totaltime":{"hours":0,"minutes":20,"seconds":0,"milliseconds":0},"canseek":true})";
+    }
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.can_seek; }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Player.GetProperties"] =
+            R"({"speed":"fast","percentage":"half","time":{"hours":0,"minutes":5,"seconds":0,"milliseconds":0},)"
+            R"("totaltime":{"hours":0,"minutes":20,"seconds":0,"milliseconds":0},"canseek":"false"})";
+    }
+    client->TriggerReconnect();
+    // Reconnecting re-runs ConnectAndPrime()'s own initial ReconcilePoll
+    // against the now-malformed script - the crash this guards against
+    // happens inside that poll, before kConnected is republished.
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }))
+        << "a type-mismatched field must not abort the process before the connection can even settle";
+
+    homedeck::KodiNowPlaying np = client->Snapshot().now_playing;
+    EXPECT_EQ(np.speed, 1) << "wrong-typed speed leaves the previous value in place, not a crash";
+    EXPECT_EQ(np.playback, homedeck::KodiPlaybackState::kPlaying);
+    EXPECT_DOUBLE_EQ(np.percent, 25.0) << "wrong-typed percentage leaves the previous value in place";
+    EXPECT_TRUE(np.can_seek) << "wrong-typed canseek leaves the previous value in place";
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, InterleavedNotificationDuringAPollIsHandledAndThePollStillCompletes) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

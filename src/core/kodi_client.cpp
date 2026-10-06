@@ -62,6 +62,14 @@ std::string GetString(const nlohmann::json& j, const char* key, const std::strin
     return (it != j.end() && it->is_string()) ? it->get<std::string>() : fallback;
 }
 
+bool GetBool(const nlohmann::json& j, const char* key, bool fallback) {
+    if (!j.is_object()) {
+        return fallback;
+    }
+    auto it = j.find(key);
+    return (it != j.end() && it->is_boolean()) ? it->get<bool>() : fallback;
+}
+
 // Brackets a bare IPv6 literal so it is a valid URL authority. A
 // discovered address (the only source of a ':' here - IsValidKodiHost()
 // rejects one on the manual-override path) reaches both the ws:// URL
@@ -768,12 +776,19 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
         nlohmann::json props = ParseBoundedJson(*props_text);
         auto props_result = props.is_object() ? props.find("result") : props.end();
         if (props_result != props.end() && props_result->is_object()) {
-            np.speed = props_result->value("speed", np.speed);
+            // GetInt/GetDouble/GetBool, not ->value(key, default) - see
+            // this file's own top-of-file comment. The ->value("time"/
+            // "totaltime", nlohmann::json::object()) calls below are the
+            // one safe exception: their default is itself a json, so the
+            // extraction is an identity conversion that can't throw
+            // regardless of the field's actual type, and
+            // MillisFromTimeObject() does its own per-field type checks.
+            np.speed = static_cast<int>(GetInt(*props_result, "speed", np.speed));
             np.playback = PlaybackFromSpeed(np.speed);
-            np.percent = props_result->value("percentage", np.percent);
+            np.percent = GetDouble(*props_result, "percentage", np.percent);
             np.position_ms = MillisFromTimeObject(props_result->value("time", nlohmann::json::object()));
             np.duration_ms = MillisFromTimeObject(props_result->value("totaltime", nlohmann::json::object()));
-            np.can_seek = props_result->value("canseek", np.can_seek);
+            np.can_seek = GetBool(*props_result, "canseek", np.can_seek);
         }
 
         // GetItem's identity is only used until a notification supplies
