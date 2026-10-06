@@ -45,8 +45,10 @@ lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, in
     return button;
 }
 
+lv_obj_t* RemoteButtonLabel(lv_obj_t* button) { return lv_obj_get_child(button, 0); }
+
 void SetTransportGlyph(lv_obj_t* button, bool pointing_left) {
-    lv_obj_t* label = lv_obj_get_child(button, 0);
+    lv_obj_t* label = RemoteButtonLabel(button);
     if (label == nullptr) {
         return;
     }

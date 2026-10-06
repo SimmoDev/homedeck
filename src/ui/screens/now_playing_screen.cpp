@@ -84,7 +84,7 @@ NowPlayingScreen::NowPlayingScreen(EventBus& event_bus, BatteryReader& battery_r
     SetTransportGlyph(rewind_button_, /*pointing_left=*/true);
 
     lv_obj_t* play_pause_button = add_button(transport_row, LV_SYMBOL_PLAY, Action::kPlayPause, LV_PCT(23));
-    play_pause_label_ = lv_obj_get_child(play_pause_button, 0);
+    play_pause_label_ = RemoteButtonLabel(play_pause_button);
     add_button(transport_row, LV_SYMBOL_STOP, Action::kStop, LV_PCT(23));
 
     ff_button_ = add_button(transport_row, "", Action::kSeekForward, LV_PCT(23));

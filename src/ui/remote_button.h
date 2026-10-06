@@ -53,6 +53,9 @@ constexpr int32_t kMinNavTouchTarget = 88;
 // parameter, since every caller wants the same value.
 lv_obj_t* CreateRemoteButton(lv_obj_t* parent, const std::string& label_text, int32_t width = LV_PCT(100));
 
+// The label of a button CreateRemoteButton() returned.
+lv_obj_t* RemoteButtonLabel(lv_obj_t* button);
+
 // A lighter-weight navigation-chrome button than CreateRemoteButton -
 // the home affordance, ActivitiesScreen's "Devices" button, and
 // DevicesScreen's "back" button. Guarantees kMinNavTouchTarget on both

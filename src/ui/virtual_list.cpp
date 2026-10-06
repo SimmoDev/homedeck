@@ -146,7 +146,7 @@ void VirtualList::Rebind(bool force) {
         }
         const size_t row = rows.first + offset;
         if (force || slot_row_[slot] != row) {
-            lv_label_set_text(lv_obj_get_child(button, 0), label_at_(row).c_str());
+            lv_label_set_text(RemoteButtonLabel(button), label_at_(row).c_str());
             lv_obj_set_pos(button, 0, static_cast<int32_t>(row) * kRowPitch);
             lv_obj_set_user_data(button, reinterpret_cast<void*>(static_cast<uintptr_t>(row)));
             slot_row_[slot] = row;

@@ -100,7 +100,7 @@ ActivitiesScreen::ActivitiesScreen(EventBus& event_bus, BatteryReader& battery_r
     // <name>..." to clear on its own with no indication the tap failed.
     dropped_sub_ = event_bus.SubscribeUi<HarmonyCommandDroppedEvent>([this](const HarmonyCommandDroppedEvent&) {
         auto it = activity_buttons_.find(tracker_.pending_activity_id());
-        const char* label = it != activity_buttons_.end() ? lv_label_get_text(lv_obj_get_child(it->second, 0)) : "activity";
+        const char* label = it != activity_buttons_.end() ? lv_label_get_text(RemoteButtonLabel(it->second)) : "activity";
         std::optional<std::string> status_text = tracker_.OnCommandDropped(label);
         if (!status_text.has_value()) return;  // nothing pending right now - not this screen's own drop
         lv_label_set_text(status_label_, status_text->c_str());
@@ -243,7 +243,7 @@ void ActivitiesScreen::OnActivityButtonClicked(lv_event_t* e) {
 
     self->harmony_connection_.StartActivity(activity_id);
 
-    lv_obj_t* label = lv_obj_get_child(button, 0);
+    lv_obj_t* label = RemoteButtonLabel(button);
     const char* activity_label = lv_label_get_text(label);
     ActivityStartTracker::TapOutcome outcome = self->tracker_.OnActivityTapped(activity_id, activity_label, is_current);
     lv_label_set_text(self->status_label_, outcome.status_text.c_str());
@@ -277,7 +277,7 @@ void ActivitiesScreen::OnStartingTimeout(lv_timer_t* timer) {
     auto* self = static_cast<ActivitiesScreen*>(lv_timer_get_user_data(timer));
     auto it = self->activity_buttons_.find(self->tracker_.pending_activity_id());
     const char* label =
-        it != self->activity_buttons_.end() ? lv_label_get_text(lv_obj_get_child(it->second, 0)) : "activity";
+        it != self->activity_buttons_.end() ? lv_label_get_text(RemoteButtonLabel(it->second)) : "activity";
     std::optional<std::string> status_text = self->tracker_.OnStartingTimedOut(label);
     if (!status_text.has_value()) return;  // already cleared by an event in the meantime
     lv_label_set_text(self->status_label_, status_text->c_str());
