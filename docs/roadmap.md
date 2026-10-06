@@ -911,4 +911,5 @@ index — decision name, ADR, one-line outcome.
 | Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol confirmed in M3 — see ADR-0029 |
 | Harmony local protocol | [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md) | Local WebSocket/JSON API on port 8088, not XMPP; no authentication step; manual hub IP entry, no discovery protocol |
 | Kodi transport | [ADR-0030](decisions/ADR-0030-kodi-jsonrpc-transport.md) | Unauthenticated JSON-RPC WebSocket on port 9090 (server-pushed Now Playing), not HTTP 8080; mDNS browse with selection keyed by TXT `uuid`; "unreachable" raises no notification; artwork deferred to M7 |
+| Internal RAM budget | [ADR-0031](decisions/ADR-0031-internal-ram-budget.md) | `SPIRAM_MALLOC_ALWAYSINTERNAL=0` + a 64 KB internal reserve, so task stacks (and reconnects) are not starved by small UI/JSON allocations |
 | Module interface (exact API) | [modules.md](architecture/modules.md#status) | `Module` (`src/core/module.h`): a minimal `Start()`/`Stop()` lifecycle contract, finalized via Harmony's (M3) implementation |

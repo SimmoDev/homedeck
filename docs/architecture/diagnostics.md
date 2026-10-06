@@ -92,6 +92,17 @@ developed and tested — see
 page's crash/reboot section would be one of the only parts of the Web UI
 with no way to be exercised before real hardware exists.
 
+## Memory
+
+Internal RAM, not total free heap, decides whether a new task or network
+connection can start: task stacks and the WebSocket client's per-connection
+allocations cannot come from PSRAM, and total free heap is dominated by the
+30 MB of idle PSRAM. The firmware logs `Internal heap: free, largest block,
+low-water mark` to the serial console every 30 seconds
+(`firmware/main/homedeck.cpp`). `malloc()` placement and the resulting
+budget are in [ADR-0031](../decisions/ADR-0031-internal-ram-budget.md).
+The figures are not yet exposed through `GET /api/diagnostics`.
+
 ## Status
 
 **Crash and reboot diagnostics are implemented**
