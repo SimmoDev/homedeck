@@ -7,9 +7,10 @@
 #include "platform/network_status.h"
 #include "ui/navigation.h"
 #include "ui/status_bar.h"
+#include "ui/virtual_list.h"
 
+#include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace homedeck {
@@ -52,8 +53,6 @@ private:
     // observed.
     void ShowChannelList(long long channelgroupid);
 
-    static void OnGroupButtonClicked(lv_event_t* e);
-    static void OnChannelButtonClicked(lv_event_t* e);
     static void OnBackButtonClicked(lv_event_t* e);
 
     KodiClient& kodi_client_;
@@ -62,17 +61,20 @@ private:
     lv_obj_t* root_;
     StatusBar status_bar_;
     lv_obj_t* hint_label_;
-    lv_obj_t* groups_container_;  // == ScreenChrome's content_container - scrollable group buttons
+    lv_obj_t* groups_container_;  // == ScreenChrome's content_container - holds groups_list_
 
     lv_obj_t* channels_container_;  // back button + group label + channels_list_, sibling of groups_container_
     lv_obj_t* channels_title_label_;
-    lv_obj_t* channels_list_;
 
-    std::vector<KodiChannelGroup> groups_;  // last fetched - ShowChannelList()'s lookup source
+    // Declared after root_ so they are destroyed before it is: see
+    // VirtualList's own lifetime note.
+    std::unique_ptr<VirtualList> groups_list_;
+    std::unique_ptr<VirtualList> channels_list_;
 
-    // button -> id, same lookup pattern DevicesScreen's device_button_ids_ uses.
-    std::unordered_map<lv_obj_t*, long long> group_button_ids_;
-    std::unordered_map<lv_obj_t*, long long> channel_button_ids_;
+    // Last fetched - what each list's rows are read from and what a tap
+    // resolves its row index against.
+    std::vector<KodiChannelGroup> groups_;
+    std::vector<KodiChannel> channels_;
 
     long long selected_channelgroupid_ = -1;
 

@@ -7,9 +7,10 @@
 #include "platform/network_status.h"
 #include "ui/navigation.h"
 #include "ui/status_bar.h"
+#include "ui/virtual_list.h"
 
+#include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace homedeck {
@@ -57,9 +58,6 @@ private:
     // Looks episodeid up in episodes_ (the last fetched list).
     void ShowEpisodeDetail(long long episodeid);
 
-    static void OnShowButtonClicked(lv_event_t* e);
-    static void OnSeasonButtonClicked(lv_event_t* e);
-    static void OnEpisodeButtonClicked(lv_event_t* e);
     static void OnPlayClicked(lv_event_t* e);
     static void OnResumeClicked(lv_event_t* e);
     static void OnSeasonsBackClicked(lv_event_t* e);
@@ -72,33 +70,34 @@ private:
     lv_obj_t* root_;
     StatusBar status_bar_;
     lv_obj_t* hint_label_;
-    lv_obj_t* shows_container_;  // == ScreenChrome's content_container - scrollable show buttons
+    lv_obj_t* shows_container_;  // == ScreenChrome's content_container - holds shows_list_
 
     lv_obj_t* seasons_container_;  // back button + show title + seasons_list_, sibling of shows_container_
     lv_obj_t* seasons_title_label_;
-    lv_obj_t* seasons_list_;
 
     lv_obj_t* episodes_container_;  // back button + "<show> - <season>" heading + episodes_list_
     lv_obj_t* episodes_title_label_;
-    lv_obj_t* episodes_list_;
 
     lv_obj_t* episode_detail_container_;  // back button + episode title + Play/Resume
     lv_obj_t* episode_title_label_;
     lv_obj_t* resume_button_;  // hidden unless the selected episode has a resume point
 
-    std::vector<KodiTvShow> shows_;        // last fetched - ShowSeasonList()'s lookup source
-    std::vector<KodiEpisode> episodes_;    // last fetched - ShowEpisodeDetail()'s lookup source
+    // Declared after root_ so they are destroyed before it is: see
+    // VirtualList's own lifetime note.
+    std::unique_ptr<VirtualList> shows_list_;
+    std::unique_ptr<VirtualList> seasons_list_;
+    std::unique_ptr<VirtualList> episodes_list_;
+
+    // Last fetched - what each list's rows are read from and what a tap
+    // resolves its row index against.
+    std::vector<KodiTvShow> shows_;
+    std::vector<KodiSeason> seasons_;
+    std::vector<KodiEpisode> episodes_;
 
     long long selected_tvshowid_ = -1;
     std::string selected_show_title_;
     int selected_season_ = 0;
     long long selected_episode_id_ = -1;
-
-    // button -> id/season-number, same lookup pattern DevicesScreen's
-    // device_button_ids_ uses.
-    std::unordered_map<lv_obj_t*, long long> show_button_ids_;
-    std::unordered_map<lv_obj_t*, int> season_button_numbers_;
-    std::unordered_map<lv_obj_t*, long long> episode_button_ids_;
 
     EventBus::ScopedSubscription state_sub_;
     EventBus::ScopedSubscription shows_sub_;

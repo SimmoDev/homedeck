@@ -7,9 +7,10 @@
 #include "platform/network_status.h"
 #include "ui/navigation.h"
 #include "ui/status_bar.h"
+#include "ui/virtual_list.h"
 
+#include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace homedeck {
@@ -48,7 +49,6 @@ private:
     void ShowMovieDetail(long long movieid);
     void ShowMovieList();
 
-    static void OnMovieButtonClicked(lv_event_t* e);
     static void OnPlayClicked(lv_event_t* e);
     static void OnResumeClicked(lv_event_t* e);
     static void OnBackButtonClicked(lv_event_t* e);
@@ -59,18 +59,17 @@ private:
     lv_obj_t* root_;
     StatusBar status_bar_;
     lv_obj_t* hint_label_;        // shown instead of everything below when not connected
-    lv_obj_t* list_container_;    // == ScreenChrome's content_container - scrollable movie buttons
+    lv_obj_t* list_container_;    // == ScreenChrome's content_container - holds movie_list_
     lv_obj_t* detail_container_;  // back button + title + Play/Resume, sibling of list_container_
     lv_obj_t* movie_title_label_;
     lv_obj_t* resume_button_;  // hidden unless the selected movie has a resume point
 
-    std::vector<KodiMovie> movies_;  // last fetched list - ShowMovieDetail()'s lookup source
-    long long selected_movie_id_ = -1;
+    // Declared after root_ so it is destroyed before it is: see
+    // VirtualList's own lifetime note.
+    std::unique_ptr<VirtualList> movie_list_;
 
-    // button -> movieid, same lookup pattern DevicesScreen's
-    // device_button_ids_ uses (LVGL event callbacks carry one user_data
-    // pointer, registered once with `this`).
-    std::unordered_map<lv_obj_t*, long long> movie_button_ids_;
+    std::vector<KodiMovie> movies_;  // last fetched list - the rows' source and ShowMovieDetail()'s lookup
+    long long selected_movie_id_ = -1;
 
     EventBus::ScopedSubscription state_sub_;
     EventBus::ScopedSubscription movies_sub_;

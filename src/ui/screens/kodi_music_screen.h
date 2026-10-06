@@ -7,9 +7,10 @@
 #include "platform/network_status.h"
 #include "ui/navigation.h"
 #include "ui/status_bar.h"
+#include "ui/virtual_list.h"
 
+#include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace homedeck {
@@ -57,9 +58,6 @@ private:
     // songs_container_.
     void ShowSongList(long long albumid);
 
-    static void OnArtistButtonClicked(lv_event_t* e);
-    static void OnAlbumButtonClicked(lv_event_t* e);
-    static void OnSongButtonClicked(lv_event_t* e);
     static void OnAlbumsBackClicked(lv_event_t* e);
     static void OnSongsBackClicked(lv_event_t* e);
 
@@ -69,25 +67,28 @@ private:
     lv_obj_t* root_;
     StatusBar status_bar_;
     lv_obj_t* hint_label_;
-    lv_obj_t* artists_container_;  // == ScreenChrome's content_container - scrollable artist buttons
+    lv_obj_t* artists_container_;  // == ScreenChrome's content_container - holds artists_list_
 
     lv_obj_t* albums_container_;  // back button + artist name + albums_list_, sibling of artists_container_
     lv_obj_t* albums_title_label_;
-    lv_obj_t* albums_list_;
 
     lv_obj_t* songs_container_;  // back button + "<artist> - <album>" heading + songs_list_
     lv_obj_t* songs_title_label_;
-    lv_obj_t* songs_list_;
 
-    std::vector<KodiArtist> artists_;  // last fetched - ShowAlbumList()'s lookup source
+    // Declared after root_ so they are destroyed before it is: see
+    // VirtualList's own lifetime note.
+    std::unique_ptr<VirtualList> artists_list_;
+    std::unique_ptr<VirtualList> albums_list_;
+    std::unique_ptr<VirtualList> songs_list_;
+
+    // Last fetched - what each list's rows are read from and what a tap
+    // resolves its row index against.
+    std::vector<KodiArtist> artists_;
+    std::vector<KodiAlbum> albums_;
+    std::vector<KodiSong> songs_;
 
     long long selected_artistid_ = -1;
     std::string selected_artist_name_;
-
-    // button -> id, same lookup pattern DevicesScreen's device_button_ids_ uses.
-    std::unordered_map<lv_obj_t*, long long> artist_button_ids_;
-    std::unordered_map<lv_obj_t*, long long> album_button_ids_;
-    std::unordered_map<lv_obj_t*, long long> song_button_ids_;
 
     EventBus::ScopedSubscription state_sub_;
     EventBus::ScopedSubscription artists_sub_;

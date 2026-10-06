@@ -243,7 +243,10 @@ into the one event the screen receives. Paging keeps each reply far below
 `kMaxWebSocketMessageBytes` (1 MiB), which closes the connection when
 exceeded, so library size is bounded by `kMaxLibraryItems` (10,000; the
 list is truncated beyond that), not by the frame cap. A Kodi that answers
-`limits` with a JSON-RPC error gets one unpaged retry.
+`limits` with a JSON-RPC error gets one unpaged retry. Every browse list is
+rendered by `VirtualList`, which binds only the rows near the screen, so a
+10,000-item list costs what one screenful does (see
+[ui.md](ui.md#long-lists)).
 
 A JSON-RPC `error` reply to a listing (for example PVR disabled on that
 Kodi) parses to an empty list, so the screen shows its "Nothing here."

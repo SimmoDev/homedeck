@@ -25,7 +25,7 @@ KodiFilesScreen::KodiFilesScreen(EventBus& event_bus, BatteryReader& battery_rea
 
     heading_label_ = CreateChromeHeadingLabel(content_);
 
-    list_ = CreateChromeListSubcontainer(content_, 12);
+    list_ = std::make_unique<VirtualList>(content_, "Nothing here.");
 
     Refresh();
 
@@ -68,6 +68,7 @@ void KodiFilesScreen::Refresh() {
     if (connected) {
         lv_obj_set_hidden(hint_label_, true);
         lv_obj_set_hidden(content_, false);
+        list_->Refresh();
     } else {
         lv_obj_set_hidden(content_, true);
         lv_obj_set_hidden(hint_label_, false);
@@ -80,8 +81,7 @@ void KodiFilesScreen::Refresh() {
 void KodiFilesScreen::RequestCurrentLevel() {
     requested_path_ = path_stack_.empty() ? "" : path_stack_.back().first;
     lv_label_set_text(heading_label_, path_stack_.empty() ? "" : path_stack_.back().second.c_str());
-    lv_obj_clean(list_);  // cleared until the fresh KodiFilesFetchedEvent arrives
-    item_button_indices_.clear();
+    list_->Clear();  // cleared until the fresh KodiFilesFetchedEvent arrives
     if (path_stack_.empty()) {
         lv_obj_set_hidden(back_button_, true);
         kodi_client_.RequestFileSources();
@@ -93,22 +93,13 @@ void KodiFilesScreen::RequestCurrentLevel() {
 
 void KodiFilesScreen::RebuildList(const std::vector<KodiFileItem>& items) {
     items_ = items;
-    lv_obj_clean(list_);
-    item_button_indices_.clear();
-
-    if (items.empty()) {
-        lv_obj_t* empty_label = lv_label_create(list_);
-        lv_label_set_text(empty_label, "Nothing here.");
-        return;
-    }
-
-    for (size_t i = 0; i < items.size(); ++i) {
-        const KodiFileItem& item = items[i];
-        std::string label = std::string(item.is_folder ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_FILE) + " " + item.label;
-        lv_obj_t* button = CreateRemoteButton(list_, label);
-        lv_obj_add_event_cb(button, OnItemButtonClicked, LV_EVENT_CLICKED, this);
-        item_button_indices_[button] = i;
-    }
+    list_->SetItems(
+        items_.size(),
+        [this](size_t row) {
+            const KodiFileItem& item = items_[row];
+            return std::string(item.is_folder ? LV_SYMBOL_DIRECTORY : LV_SYMBOL_FILE) + " " + item.label;
+        },
+        [this](size_t row) { Enter(items_[row]); });
 }
 
 void KodiFilesScreen::Enter(const KodiFileItem& item) {
@@ -127,17 +118,6 @@ void KodiFilesScreen::GoBack() {
     }
     path_stack_.pop_back();
     RequestCurrentLevel();
-}
-
-void KodiFilesScreen::OnItemButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiFilesScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->item_button_indices_.find(button);
-    if (it == self->item_button_indices_.end() || it->second >= self->items_.size()) {
-        return;
-    }
-    self->Enter(self->items_[it->second]);
 }
 
 void KodiFilesScreen::OnBackButtonClicked(lv_event_t* e) {

@@ -51,9 +51,4 @@ lv_obj_t* CreateChromeDetailContainer(lv_obj_t* parent, int32_t pad_row);
 // is.
 lv_obj_t* CreateChromeHeadingLabel(lv_obj_t* parent);
 
-// A full-width flex-column sub-list inside a detail container (e.g.
-// KodiTvShowsScreen's seasons_list_ inside seasons_container_); pad_row is
-// passed per call site, as for CreateChromeDetailContainer().
-lv_obj_t* CreateChromeListSubcontainer(lv_obj_t* parent, int32_t pad_row);
-
 }  // namespace homedeck

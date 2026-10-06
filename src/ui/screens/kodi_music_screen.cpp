@@ -26,13 +26,14 @@ KodiMusicScreen::KodiMusicScreen(EventBus& event_bus, BatteryReader& battery_rea
     lv_obj_t* albums_back = CreateNavChromeButton(albums_container_, LV_SYMBOL_LEFT " Artists");
     lv_obj_add_event_cb(albums_back, OnAlbumsBackClicked, LV_EVENT_CLICKED, this);
     albums_title_label_ = CreateChromeHeadingLabel(albums_container_);
-    albums_list_ = CreateChromeListSubcontainer(albums_container_, 12);
+    albums_list_ = std::make_unique<VirtualList>(albums_container_, "No albums found.");
 
     songs_container_ = CreateChromeDetailContainer(container, 12);
     lv_obj_t* songs_back = CreateNavChromeButton(songs_container_, LV_SYMBOL_LEFT " Albums");
     lv_obj_add_event_cb(songs_back, OnSongsBackClicked, LV_EVENT_CLICKED, this);
     songs_title_label_ = CreateChromeHeadingLabel(songs_container_);
-    songs_list_ = CreateChromeListSubcontainer(songs_container_, 12);
+    songs_list_ = std::make_unique<VirtualList>(songs_container_, "No songs found.");
+    artists_list_ = std::make_unique<VirtualList>(artists_container_, "No artists in the library.");
 
     Refresh();
 
@@ -85,6 +86,7 @@ void KodiMusicScreen::Refresh() {
                                             lv_obj_is_hidden(songs_container_);
         if (nothing_deeper_showing) {
             lv_obj_set_hidden(artists_container_, false);
+            artists_list_->Refresh();
         }
     } else {
         lv_obj_set_hidden(artists_container_, true);
@@ -96,66 +98,45 @@ void KodiMusicScreen::Refresh() {
 
 void KodiMusicScreen::RebuildArtistList(const std::vector<KodiArtist>& artists) {
     artists_ = artists;
-    lv_obj_clean(artists_container_);
-    artist_button_ids_.clear();
-
-    if (artists.empty()) {
-        lv_obj_t* empty_label = lv_label_create(artists_container_);
-        lv_label_set_text(empty_label, "No artists in the library.");
-        return;
-    }
-
-    for (const KodiArtist& artist : artists) {
-        lv_obj_t* button = CreateRemoteButton(artists_container_, artist.name);
-        lv_obj_add_event_cb(button, OnArtistButtonClicked, LV_EVENT_CLICKED, this);
-        artist_button_ids_[button] = artist.artistid;
-    }
+    artists_list_->SetItems(
+        artists_.size(), [this](size_t row) { return artists_[row].name; },
+        [this](size_t row) { ShowAlbumList(artists_[row].artistid); });
 }
 
 void KodiMusicScreen::RebuildAlbumList(const std::vector<KodiAlbum>& albums) {
-    lv_obj_clean(albums_list_);
-    album_button_ids_.clear();
-
-    if (albums.empty()) {
-        lv_obj_t* empty_label = lv_label_create(albums_list_);
-        lv_label_set_text(empty_label, "No albums found.");
-        return;
-    }
-
-    for (const KodiAlbum& album : albums) {
-        std::string label = album.title;
-        if (album.year > 0) {
-            label += " (" + std::to_string(album.year) + ")";
-        }
-        lv_obj_t* button = CreateRemoteButton(albums_list_, label);
-        lv_obj_add_event_cb(button, OnAlbumButtonClicked, LV_EVENT_CLICKED, this);
-        album_button_ids_[button] = album.albumid;
-    }
+    albums_ = albums;
+    albums_list_->SetItems(
+        albums_.size(),
+        [this](size_t row) {
+            const KodiAlbum& album = albums_[row];
+            return album.year > 0 ? album.title + " (" + std::to_string(album.year) + ")" : album.title;
+        },
+        [this](size_t row) { ShowSongList(albums_[row].albumid); });
 }
 
 void KodiMusicScreen::RebuildSongList(const std::vector<KodiSong>& songs) {
-    lv_obj_clean(songs_list_);
-    song_button_ids_.clear();
-
-    if (songs.empty()) {
-        lv_obj_t* empty_label = lv_label_create(songs_list_);
-        lv_label_set_text(empty_label, "No songs found.");
-        return;
-    }
-
-    for (const KodiSong& song : songs) {
-        std::string label = std::to_string(song.track) + ". " + song.title + " (" +
-                            FormatKodiClock(static_cast<long long>(song.duration_seconds) * 1000) + ")";
-        lv_obj_t* button = CreateRemoteButton(songs_list_, label);
-        lv_obj_add_event_cb(button, OnSongButtonClicked, LV_EVENT_CLICKED, this);
-        song_button_ids_[button] = song.songid;
-    }
+    songs_ = songs;
+    // No Play/Resume choice - AudioLibrary.GetSongs has no resume
+    // property (see this class's own header comment), so a tap plays
+    // directly.
+    songs_list_->SetItems(
+        songs_.size(),
+        [this](size_t row) {
+            const KodiSong& song = songs_[row];
+            return std::to_string(song.track) + ". " + song.title + " (" +
+                   FormatKodiClock(static_cast<long long>(song.duration_seconds) * 1000) + ")";
+        },
+        [this](size_t row) {
+            kodi_client_.OpenLibraryItem("songid", songs_[row].songid, /*resume=*/false);
+            navigation_.GoTo("kodi-now-playing");
+        });
 }
 
 void KodiMusicScreen::ShowArtistList() {
     lv_obj_set_hidden(albums_container_, true);
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         lv_obj_set_hidden(artists_container_, false);
+        artists_list_->Refresh();
     }
 }
 
@@ -177,8 +158,8 @@ void KodiMusicScreen::ShowAlbumList(long long artistid) {
     // Cleared until the fresh KodiAlbumsFetchedEvent arrives - showing
     // the previous artist's stale album buttons for one frame would be
     // worse than a brief empty list.
-    lv_obj_clean(albums_list_);
-    album_button_ids_.clear();
+    albums_list_->Clear();
+    albums_.clear();
 
     lv_obj_set_hidden(artists_container_, true);
     lv_obj_set_hidden(albums_container_, false);
@@ -186,8 +167,8 @@ void KodiMusicScreen::ShowAlbumList(long long artistid) {
 }
 
 void KodiMusicScreen::ShowSongList(long long albumid) {
-    lv_obj_clean(songs_list_);
-    song_button_ids_.clear();
+    songs_list_->Clear();
+    songs_.clear();
     // The album's own title isn't known here (only its id - AlbumButton
     // lookup would need the last-fetched albums_ list, which this screen
     // doesn't keep beyond building the list); the artist name alone is
@@ -200,43 +181,6 @@ void KodiMusicScreen::ShowSongList(long long albumid) {
     kodi_client_.RequestSongs(albumid);
 }
 
-void KodiMusicScreen::OnArtistButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiMusicScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->artist_button_ids_.find(button);
-    if (it == self->artist_button_ids_.end()) {
-        return;
-    }
-    self->ShowAlbumList(it->second);
-}
-
-void KodiMusicScreen::OnAlbumButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiMusicScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->album_button_ids_.find(button);
-    if (it == self->album_button_ids_.end()) {
-        return;
-    }
-    self->ShowSongList(it->second);
-}
-
-void KodiMusicScreen::OnSongButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiMusicScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->song_button_ids_.find(button);
-    if (it == self->song_button_ids_.end()) {
-        return;
-    }
-    // No Play/Resume choice - AudioLibrary.GetSongs has no resume
-    // property (see this class's own header comment), so a tap plays
-    // directly.
-    self->kodi_client_.OpenLibraryItem("songid", it->second, /*resume=*/false);
-    self->navigation_.GoTo("kodi-now-playing");
-}
-
 void KodiMusicScreen::OnAlbumsBackClicked(lv_event_t* e) {
     auto* self = static_cast<KodiMusicScreen*>(lv_event_get_user_data(e));
     self->ShowArtistList();
@@ -247,6 +191,7 @@ void KodiMusicScreen::OnSongsBackClicked(lv_event_t* e) {
     lv_obj_set_hidden(self->songs_container_, true);
     if (self->kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         lv_obj_set_hidden(self->albums_container_, false);
+        self->albums_list_->Refresh();
     }
 }
 

@@ -21,6 +21,8 @@ KodiMoviesScreen::KodiMoviesScreen(EventBus& event_bus, BatteryReader& battery_r
     // same shape as DevicesScreen's detail_container_ (see its own
     // comment): the two views replace each other via hidden flags rather
     // than one containing the other.
+    movie_list_ = std::make_unique<VirtualList>(list_container_, "No movies in the library.");
+
     detail_container_ = CreateChromeDetailContainer(container, 12);
 
     lv_obj_t* back_button = CreateNavChromeButton(detail_container_, LV_SYMBOL_LEFT " Movies");
@@ -72,6 +74,7 @@ void KodiMoviesScreen::Refresh() {
         // showing must not snap the user back to the list.
         if (lv_obj_is_hidden(detail_container_)) {
             lv_obj_set_hidden(list_container_, false);
+            movie_list_->Refresh();
         }
     } else {
         lv_obj_set_hidden(list_container_, true);
@@ -82,24 +85,13 @@ void KodiMoviesScreen::Refresh() {
 
 void KodiMoviesScreen::RebuildMovieList(const std::vector<KodiMovie>& movies) {
     movies_ = movies;
-    lv_obj_clean(list_container_);
-    movie_button_ids_.clear();
-
-    if (movies.empty()) {
-        lv_obj_t* empty_label = lv_label_create(list_container_);
-        lv_label_set_text(empty_label, "No movies in the library.");
-        return;
-    }
-
-    for (const KodiMovie& movie : movies) {
-        std::string label = movie.title;
-        if (movie.year > 0) {
-            label += " (" + std::to_string(movie.year) + ")";
-        }
-        lv_obj_t* button = CreateRemoteButton(list_container_, label);
-        lv_obj_add_event_cb(button, OnMovieButtonClicked, LV_EVENT_CLICKED, this);
-        movie_button_ids_[button] = movie.movieid;
-    }
+    movie_list_->SetItems(
+        movies_.size(),
+        [this](size_t row) {
+            const KodiMovie& movie = movies_[row];
+            return movie.year > 0 ? movie.title + " (" + std::to_string(movie.year) + ")" : movie.title;
+        },
+        [this](size_t row) { ShowMovieDetail(movies_[row].movieid); });
 }
 
 void KodiMoviesScreen::ShowMovieDetail(long long movieid) {
@@ -130,18 +122,8 @@ void KodiMoviesScreen::ShowMovieList() {
     lv_obj_set_hidden(detail_container_, true);
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         lv_obj_set_hidden(list_container_, false);
+        movie_list_->Refresh();
     }
-}
-
-void KodiMoviesScreen::OnMovieButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiMoviesScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->movie_button_ids_.find(button);
-    if (it == self->movie_button_ids_.end()) {
-        return;
-    }
-    self->ShowMovieDetail(it->second);
 }
 
 void KodiMoviesScreen::OnPlayClicked(lv_event_t* e) {

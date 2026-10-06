@@ -33,13 +33,13 @@ KodiTvShowsScreen::KodiTvShowsScreen(EventBus& event_bus, BatteryReader& battery
     lv_obj_t* seasons_back = CreateNavChromeButton(seasons_container_, LV_SYMBOL_LEFT " TV Shows");
     lv_obj_add_event_cb(seasons_back, OnSeasonsBackClicked, LV_EVENT_CLICKED, this);
     seasons_title_label_ = CreateChromeHeadingLabel(seasons_container_);
-    seasons_list_ = CreateChromeListSubcontainer(seasons_container_, 12);
+    seasons_list_ = std::make_unique<VirtualList>(seasons_container_, "No seasons found.");
 
     episodes_container_ = CreateChromeDetailContainer(container, 12);
     lv_obj_t* episodes_back = CreateNavChromeButton(episodes_container_, LV_SYMBOL_LEFT " Seasons");
     lv_obj_add_event_cb(episodes_back, OnEpisodesBackClicked, LV_EVENT_CLICKED, this);
     episodes_title_label_ = CreateChromeHeadingLabel(episodes_container_);
-    episodes_list_ = CreateChromeListSubcontainer(episodes_container_, 12);
+    episodes_list_ = std::make_unique<VirtualList>(episodes_container_, "No episodes found.");
 
     episode_detail_container_ = CreateChromeDetailContainer(container, 12);
     lv_obj_t* episode_detail_back = CreateNavChromeButton(episode_detail_container_, LV_SYMBOL_LEFT " Episodes");
@@ -52,6 +52,8 @@ KodiTvShowsScreen::KodiTvShowsScreen(EventBus& event_bus, BatteryReader& battery
     resume_button_ = CreateRemoteButton(episode_detail_container_, "Resume");
     lv_obj_add_event_cb(resume_button_, OnResumeClicked, LV_EVENT_CLICKED, this);
     lv_obj_set_hidden(resume_button_, true);
+
+    shows_list_ = std::make_unique<VirtualList>(shows_container_, "No TV shows in the library.");
 
     Refresh();
 
@@ -108,6 +110,7 @@ void KodiTvShowsScreen::Refresh() {
                                             lv_obj_is_hidden(episode_detail_container_);
         if (nothing_deeper_showing) {
             lv_obj_set_hidden(shows_container_, false);
+            shows_list_->Refresh();
         }
     } else {
         lv_obj_set_hidden(shows_container_, true);
@@ -120,66 +123,35 @@ void KodiTvShowsScreen::Refresh() {
 
 void KodiTvShowsScreen::RebuildShowList(const std::vector<KodiTvShow>& shows) {
     shows_ = shows;
-    lv_obj_clean(shows_container_);
-    show_button_ids_.clear();
-
-    if (shows.empty()) {
-        lv_obj_t* empty_label = lv_label_create(shows_container_);
-        lv_label_set_text(empty_label, "No TV shows in the library.");
-        return;
-    }
-
-    for (const KodiTvShow& show : shows) {
-        std::string label = show.title;
-        if (show.year > 0) {
-            label += " (" + std::to_string(show.year) + ")";
-        }
-        lv_obj_t* button = CreateRemoteButton(shows_container_, label);
-        lv_obj_add_event_cb(button, OnShowButtonClicked, LV_EVENT_CLICKED, this);
-        show_button_ids_[button] = show.tvshowid;
-    }
+    shows_list_->SetItems(
+        shows_.size(),
+        [this](size_t row) {
+            const KodiTvShow& show = shows_[row];
+            return show.year > 0 ? show.title + " (" + std::to_string(show.year) + ")" : show.title;
+        },
+        [this](size_t row) { ShowSeasonList(shows_[row].tvshowid); });
 }
 
 void KodiTvShowsScreen::RebuildSeasonList(const std::vector<KodiSeason>& seasons) {
-    lv_obj_clean(seasons_list_);
-    season_button_numbers_.clear();
-
-    if (seasons.empty()) {
-        lv_obj_t* empty_label = lv_label_create(seasons_list_);
-        lv_label_set_text(empty_label, "No seasons found.");
-        return;
-    }
-
-    for (const KodiSeason& season : seasons) {
-        lv_obj_t* button = CreateRemoteButton(seasons_list_, season.label);
-        lv_obj_add_event_cb(button, OnSeasonButtonClicked, LV_EVENT_CLICKED, this);
-        season_button_numbers_[button] = season.season;
-    }
+    seasons_ = seasons;
+    seasons_list_->SetItems(
+        seasons_.size(), [this](size_t row) { return seasons_[row].label; },
+        [this](size_t row) { ShowEpisodeList(seasons_[row].season); });
 }
 
 void KodiTvShowsScreen::RebuildEpisodeList(const std::vector<KodiEpisode>& episodes) {
     episodes_ = episodes;
-    lv_obj_clean(episodes_list_);
-    episode_button_ids_.clear();
-
-    if (episodes.empty()) {
-        lv_obj_t* empty_label = lv_label_create(episodes_list_);
-        lv_label_set_text(empty_label, "No episodes found.");
-        return;
-    }
-
-    for (const KodiEpisode& episode : episodes) {
-        std::string label = std::to_string(episode.episode) + ". " + episode.title;
-        lv_obj_t* button = CreateRemoteButton(episodes_list_, label);
-        lv_obj_add_event_cb(button, OnEpisodeButtonClicked, LV_EVENT_CLICKED, this);
-        episode_button_ids_[button] = episode.episodeid;
-    }
+    episodes_list_->SetItems(
+        episodes_.size(),
+        [this](size_t row) { return std::to_string(episodes_[row].episode) + ". " + episodes_[row].title; },
+        [this](size_t row) { ShowEpisodeDetail(episodes_[row].episodeid); });
 }
 
 void KodiTvShowsScreen::ShowShowList() {
     lv_obj_set_hidden(seasons_container_, true);
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         lv_obj_set_hidden(shows_container_, false);
+        shows_list_->Refresh();
     }
 }
 
@@ -201,8 +173,8 @@ void KodiTvShowsScreen::ShowSeasonList(long long tvshowid) {
     // Cleared until the fresh KodiSeasonsFetchedEvent arrives - showing
     // the previous show's stale season buttons for one frame would be
     // worse than a brief empty list.
-    lv_obj_clean(seasons_list_);
-    season_button_numbers_.clear();
+    seasons_list_->Clear();
+    seasons_.clear();
 
     lv_obj_set_hidden(shows_container_, true);
     lv_obj_set_hidden(seasons_container_, false);
@@ -212,8 +184,8 @@ void KodiTvShowsScreen::ShowSeasonList(long long tvshowid) {
 void KodiTvShowsScreen::ShowEpisodeList(int season) {
     selected_season_ = season;
     lv_label_set_text(episodes_title_label_, SeasonHeading(selected_show_title_, season).c_str());
-    lv_obj_clean(episodes_list_);
-    episode_button_ids_.clear();
+    episodes_list_->Clear();
+    episodes_.clear();
 
     lv_obj_set_hidden(seasons_container_, true);
     lv_obj_set_hidden(episodes_container_, false);
@@ -244,39 +216,6 @@ void KodiTvShowsScreen::ShowEpisodeDetail(long long episodeid) {
     lv_obj_set_hidden(episode_detail_container_, false);
 }
 
-void KodiTvShowsScreen::OnShowButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiTvShowsScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->show_button_ids_.find(button);
-    if (it == self->show_button_ids_.end()) {
-        return;
-    }
-    self->ShowSeasonList(it->second);
-}
-
-void KodiTvShowsScreen::OnSeasonButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiTvShowsScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->season_button_numbers_.find(button);
-    if (it == self->season_button_numbers_.end()) {
-        return;
-    }
-    self->ShowEpisodeList(it->second);
-}
-
-void KodiTvShowsScreen::OnEpisodeButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiTvShowsScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->episode_button_ids_.find(button);
-    if (it == self->episode_button_ids_.end()) {
-        return;
-    }
-    self->ShowEpisodeDetail(it->second);
-}
-
 void KodiTvShowsScreen::OnPlayClicked(lv_event_t* e) {
     auto* self = static_cast<KodiTvShowsScreen*>(lv_event_get_user_data(e));
     self->kodi_client_.OpenLibraryItem("episodeid", self->selected_episode_id_, /*resume=*/false);
@@ -299,6 +238,7 @@ void KodiTvShowsScreen::OnEpisodesBackClicked(lv_event_t* e) {
     lv_obj_set_hidden(self->episodes_container_, true);
     if (self->kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         lv_obj_set_hidden(self->seasons_container_, false);
+        self->seasons_list_->Refresh();
     }
 }
 
@@ -307,6 +247,7 @@ void KodiTvShowsScreen::OnEpisodeDetailBackClicked(lv_event_t* e) {
     lv_obj_set_hidden(self->episode_detail_container_, true);
     if (self->kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         lv_obj_set_hidden(self->episodes_container_, false);
+        self->episodes_list_->Refresh();
     }
 }
 

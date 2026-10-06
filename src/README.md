@@ -209,5 +209,6 @@ for its Web UI status/reconnect endpoints. `ui/screens/now_playing_screen.h`/
 Touch UI screens (all built on the `ScreenChrome` helper shared with
 Harmony's two screens above), `ui/kodi_widget.h`/`.cpp` is its dashboard widget, and
 `ui/kodi_display.h`/`.cpp` holds its LVGL-free, host-tested display-string
-formatting - see [roadmap.md](../docs/roadmap.md)'s M4 section and
+formatting, the browse screens' lists are `ui/virtual_list.h`/`.cpp`
+(see [ui.md](../docs/architecture/ui.md#long-lists)) - see [roadmap.md](../docs/roadmap.md)'s M4 section and
 [kodi.md](../docs/architecture/kodi.md) for the full detail.

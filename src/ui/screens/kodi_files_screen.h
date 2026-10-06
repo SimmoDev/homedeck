@@ -7,9 +7,10 @@
 #include "platform/network_status.h"
 #include "ui/navigation.h"
 #include "ui/status_bar.h"
+#include "ui/virtual_list.h"
 
+#include <memory>
 #include <string>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -51,7 +52,7 @@ public:
 
 private:
     void Refresh();  // hint_label_ vs content_, per KodiClient::Snapshot()
-    // Rebuilds list_ from a fetch reply - path_stack_ already reflects
+    // Rebinds list_ to a fetch reply - path_stack_ already reflects
     // the level this reply is for (Enter()/GoBack() push/pop before
     // requesting), so this only needs the items themselves.
     void RebuildList(const std::vector<KodiFileItem>& items);
@@ -62,7 +63,6 @@ private:
     void Enter(const KodiFileItem& item);  // folder: push and descend; file: play and go to Now Playing
     void GoBack();
 
-    static void OnItemButtonClicked(lv_event_t* e);
     static void OnBackButtonClicked(lv_event_t* e);
 
     KodiClient& kodi_client_;
@@ -74,7 +74,10 @@ private:
     lv_obj_t* content_;      // == ScreenChrome's content_container
     lv_obj_t* back_button_;  // hidden at the source-list level (path_stack_ empty)
     lv_obj_t* heading_label_;
-    lv_obj_t* list_;
+
+    // Declared after root_ so it is destroyed before it is: see
+    // VirtualList's own lifetime note.
+    std::unique_ptr<VirtualList> list_;
 
     // {path, label} for each folder entered so far, outermost first -
     // GoBack() pops one; RequestCurrentLevel() reads path_stack_.back()
@@ -87,10 +90,6 @@ private:
     // same reasoning as the fixed-depth screens' tvshowid/season checks.
     std::string requested_path_;
     std::vector<KodiFileItem> items_;
-
-    // button -> index into items_, same lookup pattern DevicesScreen's
-    // device_button_ids_ uses.
-    std::unordered_map<lv_obj_t*, size_t> item_button_indices_;
 
     EventBus::ScopedSubscription state_sub_;
     EventBus::ScopedSubscription files_sub_;

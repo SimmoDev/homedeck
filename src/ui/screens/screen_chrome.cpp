@@ -71,13 +71,4 @@ lv_obj_t* CreateChromeHeadingLabel(lv_obj_t* parent) {
     return label;
 }
 
-lv_obj_t* CreateChromeListSubcontainer(lv_obj_t* parent, int32_t pad_row) {
-    lv_obj_t* list = lv_obj_create(parent);
-    lv_obj_remove_style_all(list);
-    lv_obj_set_size(list, LV_PCT(100), LV_SIZE_CONTENT);
-    lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_row(list, pad_row, 0);
-    return list;
-}
-
 }  // namespace homedeck

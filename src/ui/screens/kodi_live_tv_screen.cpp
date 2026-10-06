@@ -3,6 +3,8 @@
 #include "ui/remote_button.h"
 #include "ui/screens/screen_chrome.h"
 
+#include <utility>
+
 namespace homedeck {
 
 KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_reader,
@@ -28,7 +30,8 @@ KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_r
 
     channels_title_label_ = CreateChromeHeadingLabel(channels_container_);
 
-    channels_list_ = CreateChromeListSubcontainer(channels_container_, 12);
+    groups_list_ = std::make_unique<VirtualList>(groups_container_, "No channel groups configured.");
+    channels_list_ = std::make_unique<VirtualList>(channels_container_, "No channels in this group.");
 
     Refresh();
 
@@ -76,6 +79,7 @@ void KodiLiveTvScreen::Refresh() {
         // the user back to the group list.
         if (lv_obj_is_hidden(channels_container_)) {
             lv_obj_set_hidden(groups_container_, false);
+            groups_list_->Refresh();
         }
     } else {
         lv_obj_set_hidden(groups_container_, true);
@@ -86,43 +90,28 @@ void KodiLiveTvScreen::Refresh() {
 
 void KodiLiveTvScreen::RebuildGroupList(const std::vector<KodiChannelGroup>& groups) {
     groups_ = groups;
-    lv_obj_clean(groups_container_);
-    group_button_ids_.clear();
-
-    if (groups.empty()) {
-        lv_obj_t* empty_label = lv_label_create(groups_container_);
-        lv_label_set_text(empty_label, "No channel groups configured.");
-        return;
-    }
-
-    for (const KodiChannelGroup& group : groups) {
-        lv_obj_t* button = CreateRemoteButton(groups_container_, group.label);
-        lv_obj_add_event_cb(button, OnGroupButtonClicked, LV_EVENT_CLICKED, this);
-        group_button_ids_[button] = group.channelgroupid;
-    }
+    groups_list_->SetItems(
+        groups_.size(), [this](size_t row) { return groups_[row].label; },
+        [this](size_t row) { ShowChannelList(groups_[row].channelgroupid); });
 }
 
 void KodiLiveTvScreen::RebuildChannelList(const std::vector<KodiChannel>& channels) {
-    lv_obj_clean(channels_list_);
-    channel_button_ids_.clear();
-
-    if (channels.empty()) {
-        lv_obj_t* empty_label = lv_label_create(channels_list_);
-        lv_label_set_text(empty_label, "No channels in this group.");
-        return;
-    }
-
-    for (const KodiChannel& channel : channels) {
-        lv_obj_t* button = CreateRemoteButton(channels_list_, channel.label);
-        lv_obj_add_event_cb(button, OnChannelButtonClicked, LV_EVENT_CLICKED, this);
-        channel_button_ids_[button] = channel.channelid;
-    }
+    channels_ = channels;
+    // No Play/Resume choice - a live broadcast has no resume point (see
+    // this class's own header comment).
+    channels_list_->SetItems(
+        channels_.size(), [this](size_t row) { return channels_[row].label; },
+        [this](size_t row) {
+            kodi_client_.OpenLibraryItem("channelid", channels_[row].channelid, /*resume=*/false);
+            navigation_.GoTo("kodi-now-playing");
+        });
 }
 
 void KodiLiveTvScreen::ShowGroupList() {
     lv_obj_set_hidden(channels_container_, true);
     if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
         lv_obj_set_hidden(groups_container_, false);
+        groups_list_->Refresh();
     }
 }
 
@@ -143,37 +132,12 @@ void KodiLiveTvScreen::ShowChannelList(long long channelgroupid) {
     // Cleared until the fresh KodiChannelsFetchedEvent arrives - showing
     // the previous group's stale channel buttons for one frame would be
     // worse than a brief empty list.
-    lv_obj_clean(channels_list_);
-    channel_button_ids_.clear();
+    channels_list_->Clear();
+    channels_.clear();
 
     lv_obj_set_hidden(groups_container_, true);
     lv_obj_set_hidden(channels_container_, false);
     kodi_client_.RequestChannels(channelgroupid);
-}
-
-void KodiLiveTvScreen::OnGroupButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiLiveTvScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->group_button_ids_.find(button);
-    if (it == self->group_button_ids_.end()) {
-        return;
-    }
-    self->ShowChannelList(it->second);
-}
-
-void KodiLiveTvScreen::OnChannelButtonClicked(lv_event_t* e) {
-    auto* self = static_cast<KodiLiveTvScreen*>(lv_event_get_user_data(e));
-    auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
-
-    auto it = self->channel_button_ids_.find(button);
-    if (it == self->channel_button_ids_.end()) {
-        return;
-    }
-    // No Play/Resume choice - a live broadcast has no resume point (see
-    // this class's own header comment).
-    self->kodi_client_.OpenLibraryItem("channelid", it->second, /*resume=*/false);
-    self->navigation_.GoTo("kodi-now-playing");
 }
 
 void KodiLiveTvScreen::OnBackButtonClicked(lv_event_t* e) {
