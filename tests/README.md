@@ -125,7 +125,9 @@ wrongly-typed entries, as does the reconcile poll's `Player.GetProperties`
 reply) and wrongly-typed notification payloads being ignored, the hazard `weather_routes.cpp`'s own
 geocode parsing already guards against - plus paged listings: a
 multi-page library merged into one event, the unpaged retry when Kodi
-rejects `limits`, and the `kMaxLibraryItems` cap. All of the above runs
+rejects `limits`, the `kMaxLibraryItems` cap, and the `truncated` flag
+for a failed later page and for a timed-out call (which keeps the link up
+when the transport is still open). All of the above runs
 against fake `MdnsBrowser`/`WebSocketClient` doubles, plus
 `RealBackendConnectsReconcilesAndHandlesAPushedNotification` driving the
 libcurl-backed `HostWebSocketClient` against a raw-socket loopback
