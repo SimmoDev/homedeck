@@ -14,13 +14,15 @@
 # weather_provider.cpp's is_number() guards for the established fix
 # pattern this flags deviation from. Heuristic, not data-flow analysis -
 # a same-named key checked in an unrelated object elsewhere in the file
-# reads as "guarded" too. Non-blocking - see pre-commit.
+# reads as "guarded" too. Skips tests/: fixtures there parse JSON the test
+# itself wrote, not external input. Non-blocking - see pre-commit.
 set -uo pipefail
 
 status=0
 
 for f in "$@"; do
     [ -f "$f" ] || continue
+    case "$f" in tests/*) continue ;; esac
     stripped=$(sed -E 's#//.*$##' "$f")
 
     # A default that's itself a json value (nlohmann::json::object()/

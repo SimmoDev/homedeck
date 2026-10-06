@@ -54,7 +54,10 @@ why that split exists. Checking for the following defect classes:
   `is_array()` check for that same key anywhere else in the file - both
   throw `json::type_error` on a type-mismatched field, which is
   `std::abort()` on firmware since exceptions are compiled out there
-  (`githooks/check-unchecked-json-field-access.sh`); and, against every
+  (`githooks/check-unchecked-json-field-access.sh`); a strict `.dump()`
+  (default error handler) in a file that handles raw mDNS bytes, which
+  throws on invalid UTF-8 - `std::abort()` on firmware
+  (`githooks/check-json-dump-strict.sh`); and, against every
   staged file regardless of extension, private-key blocks,
   cloud-provider/API-token credential shapes, and a staged `.env` file -
   the one check that actually blocks the commit

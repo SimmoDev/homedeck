@@ -25,8 +25,8 @@ namespace homedeck {
 // KodiConnectionState::kConnected (covers both the first connect and any
 // later reconnect while this screen exists) via
 // KodiClient::RequestMovies(); KodiMoviesFetchedEvent rebuilds the list.
-// Artwork is out of scope (ADR-0030) - a plain "Title (Year)" label per
-// movie.
+// Each movie is a plain "Title (Year)" label; artwork is out of scope
+// (see ADR-0030).
 class KodiMoviesScreen {
 public:
     KodiMoviesScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,

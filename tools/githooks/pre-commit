@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Runs the doc-narration, hardware.md-scope, ESP-IDF-return, curl-timeout,
-# esp-http-timeout, unauthenticated-route, json-field-type, and
-# secret-scan checks against staged files. Only check-secrets.sh blocks
-# the commit - its patterns are narrow/high-precision (private key
+# esp-http-timeout, unauthenticated-route, json-field-type,
+# json-dump-strict, and secret-scan checks against staged files. Only
+# check-secrets.sh blocks the commit - its patterns are narrow/high-precision (private key
 # headers, known credential-token shapes) and a missed leak is
-# high-severity and hard to reverse once pushed. The other seven checks
+# high-severity and hard to reverse once pushed. The other eight checks
 # are heuristic (free-text wording/narration, or syntactic checks that
 # sometimes need human judgment) and stay warn-only, so a false positive
 # there can't force a --no-verify habit that would also bypass the secret
@@ -59,6 +59,8 @@ if [ -n "$cpp_files" ]; then
     "$repo_root/tools/githooks/check-unauthenticated-routes.sh" $cpp_files || found_issue=1
     # shellcheck disable=SC2086
     "$repo_root/tools/githooks/check-unchecked-json-field-access.sh" $cpp_files || found_issue=1
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-json-dump-strict.sh" $cpp_files || found_issue=1
 fi
 
 secrets_found=0
