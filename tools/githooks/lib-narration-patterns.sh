@@ -79,4 +79,19 @@ narration_patterns=(
     # pass introduced a change.
     'exit review'
     'review pass [0-9]'
+    # Refactoring/bug history in comments and docs - what the code used to
+    # do, which fix a test guards, which bug a change surfaced. State the
+    # current invariant instead; the commit that made the change carries
+    # the history (CLAUDE.md's Documentation section: "Refactoring or
+    # implementation history", "Bugs found during development, once
+    # fixed"). Deliberately omits bare "no longer"/"originally", which are
+    # also legitimate present-tense wording and in ADR Status sections.
+    'previously (duplicated|ignored|implemented|handled)'
+    'was previously'
+    'used to (duplicate|itemi[sz]e|be )'
+    'regression test:'
+    'without the fix'
+    'bug it surfaced'
+    'let a (real )?bug'
+    'since (been )?(generali[sz]ed|fixed)'
 )
