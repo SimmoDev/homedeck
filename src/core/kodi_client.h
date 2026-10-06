@@ -274,6 +274,7 @@ struct KodiFilesFetchedEvent {
 };
 struct KodiChannelGroupsFetchedEvent {
     std::vector<KodiChannelGroup> groups;
+    bool truncated = false;
 };
 struct KodiChannelsFetchedEvent {
     long long channelgroupid;

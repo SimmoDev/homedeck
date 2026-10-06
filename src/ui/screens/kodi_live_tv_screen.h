@@ -44,7 +44,7 @@ public:
 
 private:
     void Refresh();  // hint_label_ vs whichever level was showing, per KodiClient::Snapshot()
-    void RebuildGroupList(const std::vector<KodiChannelGroup>& groups);
+    void RebuildGroupList(const std::vector<KodiChannelGroup>& groups, bool truncated);
     void RebuildChannelList(const std::vector<KodiChannel>& channels, bool truncated);
 
     void ShowGroupList();

@@ -43,7 +43,7 @@ KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_r
             }
         });
     groups_sub_ = event_bus.SubscribeUi<KodiChannelGroupsFetchedEvent>(
-        [this](const KodiChannelGroupsFetchedEvent& event) { RebuildGroupList(event.groups); });
+        [this](const KodiChannelGroupsFetchedEvent& event) { RebuildGroupList(event.groups, event.truncated); });
     // Filtered by the currently-open group - a reply for a group the
     // user has since backed out of (a slow query racing a fast back
     // tap) must not repopulate a list that's no longer showing.
@@ -88,11 +88,12 @@ void KodiLiveTvScreen::Refresh() {
     }
 }
 
-void KodiLiveTvScreen::RebuildGroupList(const std::vector<KodiChannelGroup>& groups) {
+void KodiLiveTvScreen::RebuildGroupList(const std::vector<KodiChannelGroup>& groups, bool truncated) {
     groups_ = groups;
     groups_list_->SetItems(
         groups_.size(), [this](size_t row) { return groups_[row].label; },
         [this](size_t row) { ShowChannelList(groups_[row].channelgroupid); });
+    groups_list_->SetTruncated(truncated);
 }
 
 void KodiLiveTvScreen::RebuildChannelList(const std::vector<KodiChannel>& channels, bool truncated) {

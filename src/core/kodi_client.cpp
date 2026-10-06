@@ -1374,7 +1374,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                 if (!text.has_value()) {
                     return false;
                 }
-                event_bus_.Publish(KodiChannelGroupsFetchedEvent{ParseChannelGroups(*text)});
+                event_bus_.Publish(KodiChannelGroupsFetchedEvent{ParseChannelGroups(*text), truncated});
                 break;
             }
             case LibraryRequest::Kind::kChannels: {

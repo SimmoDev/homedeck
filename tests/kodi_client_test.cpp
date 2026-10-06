@@ -1470,6 +1470,40 @@ TEST_F(KodiClientTest, ALibraryCallThatTimesOutOnAnOpenConnectionKeepsTheLink) {
     client->Stop();
 }
 
+// The unpaged lists (channel groups, file sources) flag a timeout too, so a
+// screen can tell a slow listing from an empty one.
+TEST_F(KodiClientTest, AChannelGroupListingThatTimesOutIsFlaggedTruncated) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->drop_request = [](const nlohmann::json& request) {
+            return request["method"].get<std::string>() == "PVR.GetChannelGroups";
+        };
+    }
+
+    std::mutex result_mutex;
+    std::optional<homedeck::KodiChannelGroupsFetchedEvent> received;
+    auto sub = bus.Subscribe<homedeck::KodiChannelGroupsFetchedEvent>(
+        [&](const homedeck::KodiChannelGroupsFetchedEvent& event) {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            received = event;
+        });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestChannelGroups();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    std::lock_guard<std::mutex> lock(result_mutex);
+    EXPECT_TRUE(received->groups.empty());
+    EXPECT_TRUE(received->truncated);
+    client->Stop();
+}
+
 // Pages that arrived before a timeout are kept and flagged as incomplete.
 TEST_F(KodiClientTest, ALibraryCallThatTimesOutAfterTheFirstPageKeepsThatPageAsTruncated) {
     KODI_COMMAND_RIG();
