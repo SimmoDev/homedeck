@@ -35,15 +35,14 @@ bool IsApplicationDataOpcode(uint8_t op_code) {
            op_code == WS_TRANSPORT_OPCODES_BINARY;
 }
 
-// Bounds how many complete messages can accumulate in message_queue_
-// before the oldest is dropped - without a cap, any unsolicited message
-// the hub sends outside the normal send-one/receive-one pattern (see
-// core/harmony_connection.h's own comment on this transport's shape)
-// would grow the queue without bound on a device that stays up for
-// weeks, since nothing currently drains a message nobody asked for.
-// core/harmony_connection.cpp's own DrainStaleMessages() loop
-// (kMaxDrainIterations) is sized to match this value, so a full queue
-// empties in one drain - keep the two in sync if this changes.
+// Bounds how many complete messages can accumulate in message_queue_ before
+// the oldest is dropped. A peer that sends unsolicited messages (Kodi's
+// notifications, a hub's stray frames) faster than the consumer drains them
+// would otherwise grow the queue without bound on a device that stays up for
+// weeks. The consumers' bounded drain loops
+// (HarmonyConnection::DrainStaleMessages(), KodiClient::PumpNotifications())
+// each run at least this many iterations, so a full queue empties in one
+// drain - keep them at or above this value.
 constexpr size_t kMaxQueuedMessages = 20;
 
 // The ESP-IDF event-loop callback esp_websocket_register_events() wants -
@@ -79,9 +78,8 @@ bool FirmwareWebSocketClient::Connect(const std::string& url) {
 
     esp_websocket_client_config_t config = {};
     config.uri = url.c_str();
-    // HarmonyConnection/RetryBackoff owns reconnect policy - this
-    // library's own auto-reconnect would otherwise retry independently
-    // and race with that, per RetryBackoff's own comment.
+    // The module's RetryBackoff owns reconnect policy; the library's own
+    // auto-reconnect would retry independently and race with it.
     config.disable_auto_reconnect = true;
 
     client_ = esp_websocket_client_init(&config);
@@ -99,17 +97,12 @@ bool FirmwareWebSocketClient::Connect(const std::string& url) {
         closed_ = false;
     }
 
-    // A failure here means Connect() would otherwise block for the full
-    // kConnectTimeoutMs with no way for it to ever succeed - no event
-    // handler is registered to observe WEBSOCKET_EVENT_CONNECTED at all -
-    // so this is reported immediately rather than left to degrade into a
-    // silent timeout later.
+    // Without the handler nothing observes WEBSOCKET_EVENT_CONNECTED, so
+    // Connect() would wait out kConnectTimeoutMs and fail anyway; report it now.
     if (esp_websocket_register_events(client_, WEBSOCKET_EVENT_ANY, &OnWebSocketEvent, this) != ESP_OK) {
         ESP_LOGW(kTag, "esp_websocket_register_events() failed for %s", url.c_str());
-        // Nothing left to retry against either way - client_ is abandoned
-        // regardless of whether destroy() itself succeeds - but logging a
-        // failure here leaves a trace if the underlying handle ever
-        // actually leaks, instead of silently dropping it.
+        // client_ is abandoned whether or not destroy() succeeds; the log
+        // line marks a possible handle leak.
         if (esp_websocket_client_destroy(client_) != ESP_OK) {
             ESP_LOGW(kTag, "esp_websocket_client_destroy() failed after a failed register_events()");
         }
@@ -170,11 +163,8 @@ bool FirmwareWebSocketClient::IsOpen() const {
 
 void FirmwareWebSocketClient::Close() {
     if (client_ != nullptr) {
-        // Failures here are logged, not otherwise acted upon - client_ is
-        // abandoned either way (the object being torn down or reconnected
-        // has nothing left to retry against) - but a log line leaves a
-        // trace if the underlying handle is ever actually leaked, instead
-        // of silently dropping it.
+        // client_ is abandoned whether or not stop()/destroy() succeed; the
+        // log lines mark a possible handle leak.
         if (esp_websocket_client_stop(client_) != ESP_OK) {
             ESP_LOGW(kTag, "esp_websocket_client_stop() failed");
         }
@@ -234,11 +224,13 @@ void FirmwareWebSocketClient::HandleData(const void* event_data) {
     bool oversized = false;
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);
-        // See kMaxWebSocketMessageBytes's own comment (platform/
-        // websocket_client.h) for why - this transport has no
-        // authentication (ADR-0029). Checked before appending, not
-        // after, so in_progress_message_ never actually exceeds the
-        // bound even transiently.
+        // Once closed (including by the oversize path below) the rest of the
+        // message in flight is discarded rather than queued as a fragment.
+        if (closed_) {
+            return;
+        }
+        // See kMaxWebSocketMessageBytes (platform/websocket_client.h). Checked
+        // before appending so in_progress_message_ never exceeds the bound.
         if (in_progress_message_.size() + static_cast<size_t>(data->data_len) > kMaxWebSocketMessageBytes) {
             in_progress_message_.clear();
             oversized = true;
@@ -256,10 +248,8 @@ void FirmwareWebSocketClient::HandleData(const void* event_data) {
         }
     }
     if (oversized) {
-        // Same treatment as a transport-level close - ReceiveText()'s
-        // callers already handle "connection dropped mid-receive" as a
-        // failed attempt, which is the correct outcome here: an oversized
-        // message can't be a well-formed response.
+        // Treated as a transport close: an oversized message can't be a
+        // well-formed response, and callers already handle a dropped link.
         HandleClosed();
         return;
     }
