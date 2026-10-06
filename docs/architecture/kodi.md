@@ -216,10 +216,10 @@ command buttons, Kodi's are a single tap.
 
 ### Library browsing (M4b)
 
-Two buttons below Remote, visible whenever Kodi is connected (not gated
-on anything currently playing): `KodiMoviesScreen` and
-`KodiTvShowsScreen` (`src/ui/screens/`), both reached from
-`NowPlayingScreen`.
+Five buttons below Remote, visible whenever Kodi is connected (not gated
+on anything currently playing): `KodiMoviesScreen`, `KodiTvShowsScreen`,
+`KodiMusicScreen`, `KodiFilesScreen` and `KodiLiveTvScreen`
+(`src/ui/screens/`), all reached from `NowPlayingScreen`.
 
 Unlike every command above, a library browse is request/response, not
 fire-and-forget - `KodiClient::RequestMovies()`/`RequestTvShows()`/
@@ -338,10 +338,8 @@ video/music/files/live-TV, the full set the roadmap's Media browsing
 item names. The `VideoLibrary.GetMovies`/`GetTVShows`/`GetSeasons`/
 `GetEpisodes`, `AudioLibrary.GetArtists`/`GetAlbums`/`GetSongs`,
 `Files.GetSources`/`GetDirectory`, and `PVR.GetChannelGroups`/
-`GetChannels` response shapes `KodiClient` parses were all confirmed
-field-for-field against a live Kodi 21 instance, resolving the "library-
-browse response shapes are only partially verified" caveat
-[ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md) flagged.
+`GetChannels` response shapes `KodiClient` parses match a live Kodi 21
+instance field-for-field.
 
 `KodiClient`'s connect/reconcile/notification loop and its
 discovery/selection policy are host-tested against fake `MdnsBrowser` /
@@ -373,9 +371,4 @@ screen renders something once armed).
 **Not yet built (M4b):** recently-added/continue-watching. Artwork is
 out of scope until M7 - the `image://…` URLs Kodi returns resolve only
 through its HTTP endpoint on the authenticated port 8080
-([ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)). M4's
-on-hardware verification pass across every module/screen above (see
-[roadmap.md](../roadmap.md)'s M4b items) is complete - it found and fixed
-the `ResolveTarget()` defect described in [Discovery and instance
-selection](#discovery-and-instance-selection) above, not just a
-simulator-only gap.
+([ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)).

@@ -135,9 +135,8 @@ adapters: `KodiClient`'s discovery/selection tests
 (a hermetic loopback mDNS responder is impractical to stand up the way
 `websocket_client_test.cpp` stands up a loopback WebSocket server).
 `FirmwareMdnsBrowser` also has no automated firmware target, so its
-`mdns_query_ptr` result walk is exercised only on-device — folded into
-the on-hardware validation M4 (Media) needs before release, not the M4a
-part.
+`mdns_query_ptr` result walk is exercised only on-device (see
+[roadmap.md](../roadmap.md)'s M4 on-hardware verification item).
 
 Connectivity status is also implemented: a portable `NetworkStatus`
 interface (`src/platform/network_status.h`) exposes a `Snapshot()` of

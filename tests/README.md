@@ -118,8 +118,11 @@ artists, albums, songs, file sources, directories, channel groups,
 channels), each sending the right JSON-RPC params and publishing the
 matching `KodiXFetchedEvent` - and a type-mismatched field in one of
 those responses falling back to its struct default instead of
-crashing the whole process, the hazard `weather_routes.cpp`'s own
-geocode parsing already guards against. All of the above runs
+crashing the whole process (as does the reconcile poll's
+`Player.GetProperties` reply), the hazard `weather_routes.cpp`'s own
+geocode parsing already guards against - plus paged listings: a
+multi-page library merged into one event, the unpaged retry when Kodi
+rejects `limits`, and the `kMaxLibraryItems` cap. All of the above runs
 against fake `MdnsBrowser`/`WebSocketClient` doubles, plus
 `RealBackendConnectsReconcilesAndHandlesAPushedNotification` driving the
 libcurl-backed `HostWebSocketClient` against a raw-socket loopback
@@ -127,7 +130,8 @@ JSON-RPC peer, the same reasoning `harmony_connection_test.cpp` and
 `websocket_client_test.cpp` give for testing against a genuine transport
 rather than only a double. `kodi_routes_test.cpp` covers the two Web UI
 routes (`/api/kodi/status`, `/api/kodi/reconnect`) - auth gating and the
-`KodiSnapshot` wire serialisation, empty and populated.
+`KodiSnapshot` wire serialisation, empty and populated, including
+discovered-instance strings that are not valid UTF-8.
 `kodi_display_test.cpp` covers the LVGL-free display-string helpers the
 Kodi Touch UI renders - the widget's status line for each connection/
 playback state, the Now Playing subtitle (show + zero-padded `S03E07`

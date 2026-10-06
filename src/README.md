@@ -203,9 +203,11 @@ code needed, see
 a new `platform/mdns_browser.h` (`HostMdnsBrowser`/`FirmwareMdnsBrowser`)
 for discovering an instance on the LAN, and `core/kodi_routes.h`/`.cpp`
 for its Web UI status/reconnect endpoints. `ui/screens/now_playing_screen.h`/
-`.cpp` and `kodi_remote_screen.h`/`.cpp` are its Touch UI screens (both
-built on the `ScreenChrome` helper generalized out of Harmony's own two
-screens above), `ui/kodi_widget.h`/`.cpp` is its dashboard widget, and
+`.cpp`, `kodi_remote_screen.h`/`.cpp` and the five library-browse screens
+(`kodi_movies_screen`, `kodi_tv_shows_screen`, `kodi_music_screen`,
+`kodi_files_screen`, `kodi_live_tv_screen`, each `.h`/`.cpp`) are its
+Touch UI screens (all built on the `ScreenChrome` helper shared with
+Harmony's two screens above), `ui/kodi_widget.h`/`.cpp` is its dashboard widget, and
 `ui/kodi_display.h`/`.cpp` holds its LVGL-free, host-tested display-string
 formatting - see [roadmap.md](../docs/roadmap.md)'s M4 section and
 [kodi.md](../docs/architecture/kodi.md) for the full detail.

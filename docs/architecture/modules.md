@@ -108,11 +108,13 @@ plus the generic settings API are its API endpoints;
 `.cpp`) publishes its notifications; and `EventBus` events cover
 connection state, fetched config, and current-activity changes.
 
-`KodiClient` (`src/core/kodi_client.h`/`.cpp`, M4a) is the second —
+`KodiClient` (`src/core/kodi_client.h`/`.cpp`) is the second —
 Storage-backed settings (a manually-entered host, or an
 mDNS-discovered instance keyed by its `uuid`) plus a background
-`Task`-owned connection loop; `NowPlayingScreen`/`KodiRemoteScreen`
-(`src/ui/screens/`) are its registered screens; `KodiWidget`
+`Task`-owned connection loop; `NowPlayingScreen`, `KodiRemoteScreen` and
+the five library-browse screens (`KodiMoviesScreen`, `KodiTvShowsScreen`,
+`KodiMusicScreen`, `KodiFilesScreen`, `KodiLiveTvScreen`, all in
+`src/ui/screens/`) are its registered screens; `KodiWidget`
 (`src/ui/kodi_widget.h`/`.cpp`) is its dashboard widget;
 `RegisterKodiRoutes` (`src/core/kodi_routes.h`/`.cpp`) plus the generic
 settings API are its API endpoints; and `KodiConnectionStateChangedEvent`/

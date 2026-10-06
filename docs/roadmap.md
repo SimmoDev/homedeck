@@ -606,29 +606,16 @@ hold.
       (`FirmwareMdnsBrowser`'s `mdns_query_ptr` result walk, which has no
       automated firmware target — see
       [networking.md](architecture/networking.md#status)) and every Kodi
-      Touch UI screen driven against a live instance on a Tab5. Covers
-      the M4a-built pieces too: the simulator and unit tests exercise the
-      portable logic, but per
+      Touch UI screen run against a live instance on a Tab5 (the K145
+      reference unit): connection, Now Playing/Remote, all five browse
+      screens (Movies/TV Shows/Music/Files/Live TV), mDNS discovery, and
+      `instance_uuid`-based selection from the Web UI's radio list. Per
       [simulator.md](architecture/simulator.md#what-the-simulator-is-not)
-      a milestone is only releasable after an on-hardware pass, and M4a
-      shipped without one (deliberately — it is the M4-release gate, not
-      the M4a part). Connection, Now Playing/Remote, and all five browse
-      screens (Movies/TV Shows/Music/Files/Live TV) driven against a
-      live instance on the K145 reference unit; mDNS discovery itself
-      ran on real hardware too (found a real instance rather than
-      nothing). That run surfaced a real defect, not a simulator-only
-      gap: `ResolveTarget()` was falling back to a discovered instance's
-      raw mDNS `hostname` with no check that it's actually resolvable,
-      and at least one real device advertises a non-resolvable hostname
-      — fixed by requiring a resolved IP address before auto-selecting
-      or matching a saved instance (see
-      [kodi.md](architecture/kodi.md#discovery-and-instance-selection)),
-      an address-less instance still shown in the discovered list for
-      manual entry, just never auto-connected to. After the fix, the
-      `instance_uuid`-based selection path itself (not just manual host
-      entry) was also confirmed on hardware: picking a discovered,
-      address-backed instance from the Web UI's radio list and saving
-      connected correctly on its resolved address.
+      a milestone is only releasable after an on-hardware pass.
+      `ResolveTarget()` requires a resolved IP address before
+      auto-selecting or matching a saved instance; an address-less
+      instance is listed for manual entry but never auto-connected to
+      (see [kodi.md](architecture/kodi.md#discovery-and-instance-selection)).
 - [x] (M4a) Playback control — `PlayPause`/`StopPlayback`/`SeekStep`/
       `SeekPercent`/`SetSpeed`/`VolumeStep`/`SetVolume`/`ToggleMute`/
       `SendInput`, fire-and-forget onto the connection loop with the same
@@ -647,12 +634,11 @@ hold.
       optimistic local state. Both build on the shared `ScreenChrome`
       generalised from Harmony's screens.
 
-**M4a exit criteria met:** a user can point HomeDeck at a Kodi instance
+**M4a exit criteria:** a user can point HomeDeck at a Kodi instance
 (by discovery or manual address), and from the Touch UI see what it is
-playing and drive playback, transport, volume, and menu navigation. All
-M4a items above are checked; `KodiClient` and its screens run on both
-targets (see [modules.md](architecture/modules.md#status)). M4 as a
-whole stays `(current)` until M4b lands.
+playing and drive playback, transport, volume, and menu navigation.
+`KodiClient` and its screens run on both targets (see
+[modules.md](architecture/modules.md#status)).
 
 **M4b exit criteria:** a user can browse the Kodi library from the Touch
 UI and start playback of a chosen item, and the whole Kodi module
@@ -915,4 +901,5 @@ index — decision name, ADR, one-line outcome.
 | Time synchronization | [ADR-0028](decisions/ADR-0028-time-synchronization.md) | SNTP against `pool.ntp.org` once Wi-Fi connects, corrected back into the physical RTC on every sync — not a manual set-time affordance; no timezone handling added |
 | Harmony local control feasibility | [ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control) | Scoped to already-paired hubs; protocol confirmed in M3 — see ADR-0029 |
 | Harmony local protocol | [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md) | Local WebSocket/JSON API on port 8088, not XMPP; no authentication step; manual hub IP entry, no discovery protocol |
+| Kodi transport | [ADR-0030](decisions/ADR-0030-kodi-jsonrpc-transport.md) | Unauthenticated JSON-RPC WebSocket on port 9090 (server-pushed Now Playing), not HTTP 8080; mDNS browse with selection keyed by TXT `uuid`; "unreachable" raises no notification; artwork deferred to M7 |
 | Module interface (exact API) | [modules.md](architecture/modules.md#status) | `Module` (`src/core/module.h`): a minimal `Start()`/`Stop()` lifecycle contract, finalized via Harmony's (M3) implementation |
