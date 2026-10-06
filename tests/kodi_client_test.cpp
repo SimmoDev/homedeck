@@ -10,6 +10,8 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
+
 #include <mbedtls/base64.h>
 #include <mbedtls/sha1.h>
 
@@ -91,6 +93,9 @@ struct WsScript {
     std::vector<std::string> connect_urls;
     std::vector<std::string> sent;
     std::map<std::string, std::string> results;  // method -> raw JSON for the "result" value
+    // method -> builds the whole reply body ("result" or "error" member) from
+    // the request, for tests that depend on the request's params (paging).
+    std::map<std::string, std::function<nlohmann::json(const nlohmann::json&)>> handlers;
     std::deque<std::string> pushed;
     std::deque<std::string> ready;
     int close_count = 0;
@@ -115,6 +120,13 @@ public:
         nlohmann::json request = nlohmann::json::parse(text, nullptr, false);
         if (request.is_object() && request.contains("id") && request.contains("method")) {
             const std::string method = request["method"].get<std::string>();
+            auto handler = script_->handlers.find(method);
+            if (handler != script_->handlers.end()) {
+                nlohmann::json reply = {{"jsonrpc", "2.0"}, {"id", request["id"]}};
+                reply.update(handler->second(request), /*merge_objects=*/false);
+                script_->ready.push_back(reply.dump());
+                return true;
+            }
             auto it = script_->results.find(method);
             if (it != script_->results.end()) {
                 nlohmann::json reply = {{"jsonrpc", "2.0"}, {"id", request["id"]}};
@@ -1138,6 +1150,125 @@ TEST_F(KodiClientTest, RequestMoviesFetchesAndParsesTheLibrary) {
     EXPECT_EQ((*received)[1].title, "Beta");
     EXPECT_EQ((*received)[1].resume_position_ms, 120500)
         << "resume.position is seconds (float) - not the {hours,minutes,...} shape MillisFromTimeObject() parses";
+    client->Stop();
+}
+
+// A library listing is fetched in kLibraryPageSize pages so no single reply
+// can approach kMaxWebSocketMessageBytes: a 1,200-movie library takes three
+// requests and arrives as one merged event.
+TEST_F(KodiClientTest, RequestMoviesFetchesALargeLibraryInPagesAndMergesThem) {
+    KODI_COMMAND_RIG();
+    constexpr int kTotal = 1200;
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->handlers["VideoLibrary.GetMovies"] = [kTotal](const nlohmann::json& request) {
+            const long long start = request["params"]["limits"]["start"].get<long long>();
+            const long long end = std::min<long long>(request["params"]["limits"]["end"].get<long long>(), kTotal);
+            nlohmann::json movies = nlohmann::json::array();
+            for (long long i = start; i < end; ++i) {
+                movies.push_back({{"movieid", i}, {"title", "Movie " + std::to_string(i)}, {"year", 2000}});
+            }
+            return nlohmann::json{
+                {"result", {{"movies", movies}, {"limits", {{"start", start}, {"end", end}, {"total", kTotal}}}}}};
+        };
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiMovie>> received;
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.movies;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        ASSERT_EQ(received->size(), static_cast<size_t>(kTotal));
+        EXPECT_EQ(received->front().title, "Movie 0");
+        EXPECT_EQ(received->back().title, "Movie 1199");
+    }
+    EXPECT_EQ(CountSent(script, "VideoLibrary.GetMovies"), 3);
+    client->Stop();
+}
+
+// A Kodi that rejects the `limits` parameter must still deliver its library.
+TEST_F(KodiClientTest, RequestMoviesRetriesUnpagedWhenKodiRejectsLimits) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->handlers["VideoLibrary.GetMovies"] = [](const nlohmann::json& request) {
+            if (request["params"].contains("limits")) {
+                return nlohmann::json{{"error", {{"code", -32602}, {"message", "Invalid params."}}}};
+            }
+            return nlohmann::json{{"result", {{"movies", {{{"movieid", 7}, {"title", "Solo"}}}}}}};
+        };
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiMovie>> received;
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.movies;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    std::lock_guard<std::mutex> lock(result_mutex);
+    ASSERT_EQ(received->size(), 1u);
+    EXPECT_EQ((*received)[0].title, "Solo");
+    client->Stop();
+}
+
+// A server reporting an endless library can't grow the merged list without
+// bound.
+TEST_F(KodiClientTest, RequestMoviesTruncatesAtTheLibraryItemCap) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->handlers["VideoLibrary.GetMovies"] = [](const nlohmann::json& request) {
+            const long long start = request["params"]["limits"]["start"].get<long long>();
+            const long long end = request["params"]["limits"]["end"].get<long long>();
+            nlohmann::json movies = nlohmann::json::array();
+            for (long long i = start; i < end; ++i) {
+                movies.push_back({{"movieid", i}, {"title", "M"}});
+            }
+            return nlohmann::json{{"result", {{"movies", movies}, {"limits", {{"total", 1000000}}}}}};
+        };
+    }
+
+    std::mutex result_mutex;
+    std::optional<std::vector<homedeck::KodiMovie>> received;
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent& event) {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        received = event.movies;
+    });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(result_mutex);
+        return received.has_value();
+    }));
+
+    std::lock_guard<std::mutex> lock(result_mutex);
+    EXPECT_EQ(received->size(), 10000u);
     client->Stop();
 }
 

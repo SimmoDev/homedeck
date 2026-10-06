@@ -11,6 +11,18 @@ namespace homedeck {
 namespace {
 
 constexpr int kCallTimeoutMs = 8000;
+
+// A directory on a cold network share can take well past kCallTimeoutMs to
+// list, and a timeout is treated as a dead transport (see Call()).
+constexpr int kLibraryCallTimeoutMs = 30000;
+
+// Library listings are fetched this many items per request so one reply
+// stays far below kMaxWebSocketMessageBytes (~130 B per entry).
+constexpr int kLibraryPageSize = 500;
+
+// Bounds the merged listing against a server that reports an endless
+// library; beyond this the list is truncated.
+constexpr size_t kMaxLibraryItems = 10000;
 constexpr std::chrono::seconds kNoTargetRecheckInterval{5};
 
 // Bounds PumpNotifications()'s own non-blocking drain loop - the same
@@ -677,6 +689,57 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
     return std::nullopt;
 }
 
+std::optional<std::string> KodiClient::CallLibrary(const std::string& method, const std::string& params_json,
+                                                    const char* result_key, std::stop_token stop) {
+    if (result_key == nullptr) {
+        return Call(method, params_json, kLibraryCallTimeoutMs, stop);
+    }
+    nlohmann::json params = ParseBoundedJson(params_json);
+    if (!params.is_object()) {
+        return std::nullopt;
+    }
+
+    nlohmann::json merged = nlohmann::json::array();
+    for (long long start = 0; merged.size() < kMaxLibraryItems;) {
+        params["limits"] = {{"start", start}, {"end", start + kLibraryPageSize}};
+        std::optional<std::string> text = Call(method, params.dump(), kLibraryCallTimeoutMs, stop);
+        if (!text.has_value()) {
+            return std::nullopt;
+        }
+        nlohmann::json parsed = ParseBoundedJson(*text);
+        const nlohmann::json* page = ResultArray(parsed, result_key);
+        if (page == nullptr) {
+            if (start == 0) {
+                if (parsed.is_object() && parsed.contains("error")) {
+                    params.erase("limits");
+                    return Call(method, params.dump(), kLibraryCallTimeoutMs, stop);
+                }
+                return text;  // not a listing at all - the parser yields an empty list
+            }
+            break;
+        }
+        const size_t page_size = page->size();
+        for (const nlohmann::json& item : *page) {
+            if (merged.size() >= kMaxLibraryItems) {
+                break;
+            }
+            merged.push_back(item);
+        }
+        start += static_cast<long long>(page_size);
+        const auto result_it = parsed.find("result");
+        const nlohmann::json empty = nlohmann::json::object();
+        const auto limits_it = result_it->find("limits");
+        const long long total = GetInt(limits_it != result_it->end() ? *limits_it : empty, "total", -1);
+        // != rather than < : a server that ignored `limits` and sent
+        // everything at once must not be asked for the same items again.
+        if (page_size != static_cast<size_t>(kLibraryPageSize) || (total >= 0 && start >= total)) {
+            break;
+        }
+    }
+    nlohmann::json result = {{"result", {{result_key, std::move(merged)}}}};
+    return result.dump();
+}
+
 bool KodiClient::ReconcilePoll(std::stop_token stop) {
     std::optional<std::string> app_text =
         Call("Application.GetProperties", R"({"properties":["volume","muted","version"]})", kCallTimeoutMs, stop);
@@ -1180,7 +1243,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
             case LibraryRequest::Kind::kMovies: {
                 nlohmann::json params = {{"properties", {"title", "year", "resume"}}, {"sort", kSortByLabel}};
                 std::optional<std::string> text =
-                    Call("VideoLibrary.GetMovies", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("VideoLibrary.GetMovies", params.dump(), "movies", stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1191,7 +1254,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                 nlohmann::json params = {{"properties", {"title", "year", "episode", "watchedepisodes"}},
                                          {"sort", kSortByLabel}};
                 std::optional<std::string> text =
-                    Call("VideoLibrary.GetTVShows", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("VideoLibrary.GetTVShows", params.dump(), "tvshows", stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1203,7 +1266,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                                          {"properties", {"season", "episode", "watchedepisodes"}},
                                          {"sort", {{"method", "season"}, {"order", "ascending"}}}};
                 std::optional<std::string> text =
-                    Call("VideoLibrary.GetSeasons", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("VideoLibrary.GetSeasons", params.dump(), "seasons", stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1216,7 +1279,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                                          {"properties", {"episode", "title", "resume"}},
                                          {"sort", {{"method", "episode"}, {"order", "ascending"}}}};
                 std::optional<std::string> text =
-                    Call("VideoLibrary.GetEpisodes", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("VideoLibrary.GetEpisodes", params.dump(), "episodes", stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1231,7 +1294,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                 // page.
                 nlohmann::json params = {{"sort", kSortByLabel}};
                 std::optional<std::string> text =
-                    Call("AudioLibrary.GetArtists", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("AudioLibrary.GetArtists", params.dump(), "artists", stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1243,7 +1306,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                                          {"properties", {"title", "year"}},
                                          {"sort", {{"method", "year"}, {"order", "ascending"}}}};
                 std::optional<std::string> text =
-                    Call("AudioLibrary.GetAlbums", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("AudioLibrary.GetAlbums", params.dump(), "albums", stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1255,7 +1318,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
                                          {"properties", {"title", "track", "duration"}},
                                          {"sort", {{"method", "track"}, {"order", "ascending"}}}};
                 std::optional<std::string> text =
-                    Call("AudioLibrary.GetSongs", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("AudioLibrary.GetSongs", params.dump(), "songs", stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1265,7 +1328,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
             case LibraryRequest::Kind::kFileSources: {
                 nlohmann::json params = {{"media", "video"}};
                 std::optional<std::string> text =
-                    Call("Files.GetSources", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("Files.GetSources", params.dump(), nullptr, stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1275,7 +1338,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
             case LibraryRequest::Kind::kDirectory: {
                 nlohmann::json params = {{"directory", request.path}, {"media", "video"}};
                 std::optional<std::string> text =
-                    Call("Files.GetDirectory", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("Files.GetDirectory", params.dump(), "files", stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1286,7 +1349,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
             case LibraryRequest::Kind::kChannelGroups: {
                 nlohmann::json params = {{"channeltype", "tv"}};
                 std::optional<std::string> text =
-                    Call("PVR.GetChannelGroups", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("PVR.GetChannelGroups", params.dump(), nullptr, stop);
                 if (!text.has_value()) {
                     return false;
                 }
@@ -1296,7 +1359,7 @@ bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
             case LibraryRequest::Kind::kChannels: {
                 nlohmann::json params = {{"channelgroupid", request.parent_id}};
                 std::optional<std::string> text =
-                    Call("PVR.GetChannels", params.dump(), kCallTimeoutMs, stop);
+                    CallLibrary("PVR.GetChannels", params.dump(), "channels", stop);
                 if (!text.has_value()) {
                     return false;
                 }

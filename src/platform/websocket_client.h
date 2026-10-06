@@ -7,14 +7,15 @@ namespace homedeck {
 
 // Every message either backend delivers to ReceiveText() (Harmony's hub
 // config/current-activity responses, Kodi's JSON-RPC replies and pushed
-// notifications - both connection-status/library-metadata scale, not
-// media payloads) is at most a few hundred KB; 1 MiB is a generous
-// multiple of that, not a tight fit. Both HostWebSocketClient and
-// FirmwareWebSocketClient enforce this while accumulating a message
-// across possibly-fragmented frames, since this transport has no
-// authentication (ADR-0029, ADR-0030) - a rogue LAN device could
-// otherwise send an arbitrarily large frame/message within the existing
-// timeout, growing the accumulated string without bound.
+// notifications) must fit in this bound; a larger one closes the
+// connection. Callers whose replies scale with user data (Kodi's library
+// listings) page their requests to stay under it. 1 MiB is a generous
+// multiple of any single status or page-sized reply. Both
+// HostWebSocketClient and FirmwareWebSocketClient enforce this while
+// accumulating a message across possibly-fragmented frames, since this
+// transport has no authentication (ADR-0029, ADR-0030) - a rogue LAN
+// device could otherwise send an arbitrarily large frame/message within
+// the existing timeout, growing the accumulated string without bound.
 constexpr size_t kMaxWebSocketMessageBytes = 1024 * 1024;
 
 // Outbound WebSocket client - see docs/architecture/networking.md,

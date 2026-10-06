@@ -237,6 +237,15 @@ fire-and-forget send: a query is worthless without its reply, so
 fatal to the whole batch, the same as a dead transport anywhere else in
 this module.
 
+Listings are fetched through `CallLibrary()`: a 30 s timeout (a cold
+network share can list slowly) and, for every list except file sources and
+channel groups, pages of 500 items via Kodi's `limits` parameter, merged
+into the one event the screen receives. Paging keeps each reply far below
+`kMaxWebSocketMessageBytes` (1 MiB), which closes the connection when
+exceeded, so library size is bounded by `kMaxLibraryItems` (10,000; the
+list is truncated beyond that), not by the frame cap. A Kodi that answers
+`limits` with a JSON-RPC error gets one unpaged retry.
+
 `KodiMoviesScreen` is list-then-detail (movie list, then a selected
 movie's Play/Resume choice), matching `DevicesScreen`'s own no-back-stack
 shape. `KodiTvShowsScreen` is four levels deep (shows -> seasons ->

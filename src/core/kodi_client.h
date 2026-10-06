@@ -469,6 +469,16 @@ private:
     // as HarmonyConnection - the .cpp does all parsing.
     std::optional<std::string> Call(const std::string& method, const std::string& params_json, int timeout_ms,
                                     std::stop_token stop);
+    // A library listing via Call(), with the longer kLibraryCallTimeoutMs.
+    // With a non-null result_key the listing is fetched in kLibraryPageSize
+    // pages (Kodi's `limits` parameter) and merged into one
+    // {"result":{<result_key>:[...]}} text, so no single reply approaches
+    // kMaxWebSocketMessageBytes however large the library is, and a slow
+    // source can't hold one reply past the timeout. Capped at
+    // kMaxLibraryItems items. A Kodi that rejects `limits` with a JSON-RPC
+    // error gets one unpaged retry. nullopt on the same conditions as Call().
+    std::optional<std::string> CallLibrary(const std::string& method, const std::string& params_json,
+                                           const char* result_key, std::stop_token stop);
     // Application.GetProperties + Player.GetActivePlayers (+ GetProperties
     // /GetItem when something is playing). Refreshes the snapshot and is
     // the periodic liveness probe. false => transport dead, reconnect.
