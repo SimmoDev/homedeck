@@ -214,51 +214,42 @@ struct KodiConnectionStateChangedEvent {
 // (there is no standing "library snapshot" to re-read via Snapshot() -
 // the library is too large to hold in full, and a browse screen only
 // ever wants the one list it just asked for).
+//
+// Every event with a `truncated` flag reports an incomplete listing: it
+// reached kMaxLibraryItems with more available, a later page failed, or a
+// call timed out. A timeout before anything arrived yields an empty list
+// with `truncated` set, so a screen can tell a slow listing from an empty one.
 struct KodiMoviesFetchedEvent {
     std::vector<KodiMovie> movies;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 struct KodiTvShowsFetchedEvent {
     std::vector<KodiTvShow> shows;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 struct KodiSeasonsFetchedEvent {
     long long tvshowid;
     std::vector<KodiSeason> seasons;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 struct KodiEpisodesFetchedEvent {
     long long tvshowid;
     int season;
     std::vector<KodiEpisode> episodes;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 struct KodiArtistsFetchedEvent {
     std::vector<KodiArtist> artists;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 struct KodiAlbumsFetchedEvent {
     long long artistid;
     std::vector<KodiAlbum> albums;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 struct KodiSongsFetchedEvent {
     long long albumid;
     std::vector<KodiSong> songs;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 // path is "" for the top-level sources list (RequestFileSources()), or
@@ -268,8 +259,6 @@ struct KodiSongsFetchedEvent {
 struct KodiFilesFetchedEvent {
     std::string path;
     std::vector<KodiFileItem> items;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 struct KodiChannelGroupsFetchedEvent {
@@ -279,8 +268,6 @@ struct KodiChannelGroupsFetchedEvent {
 struct KodiChannelsFetchedEvent {
     long long channelgroupid;
     std::vector<KodiChannel> channels;
-    // The listing is incomplete: it reached kMaxLibraryItems with more
-    // available, or a page failed partway through.
     bool truncated = false;
 };
 
