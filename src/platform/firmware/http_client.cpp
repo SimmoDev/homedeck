@@ -99,15 +99,24 @@ HttpClientResponse FirmwareHttpClient::Post(const std::string& url, const std::s
         response.status_code = 0;
         return response;
     }
-    // Set-header/set-post-field failures aren't checked individually - a
-    // malformed request they'd produce still surfaces via
-    // esp_http_client_perform()'s own overall result below, logged the
-    // same as any other transport failure.
-    esp_http_client_set_header(client, "Content-Type", "application/json");
+    // A header or body that cannot be set (allocation failure) would send a
+    // different request than the caller asked for, so abandon it instead.
+    bool request_built = esp_http_client_set_header(client, "Content-Type", "application/json") == ESP_OK;
     for (const auto& [name, value] : extra_headers) {
-        esp_http_client_set_header(client, name.c_str(), value.c_str());
+        request_built = request_built && esp_http_client_set_header(client, name.c_str(), value.c_str()) == ESP_OK;
     }
-    esp_http_client_set_post_field(client, json_body.c_str(), static_cast<int>(json_body.size()));
+    request_built = request_built &&
+                    esp_http_client_set_post_field(client, json_body.c_str(), static_cast<int>(json_body.size())) == ESP_OK;
+    if (!request_built) {
+        ESP_LOGW(kTag, "POST %s failed: could not set the request headers/body", url.c_str());
+        if (esp_http_client_cleanup(client) != ESP_OK) {
+            ESP_LOGW(kTag, "esp_http_client_cleanup failed");
+        }
+        HttpClientResponse response;
+        response.success = false;
+        response.status_code = 0;
+        return response;
+    }
 
     esp_err_t err = esp_http_client_perform(client);
 

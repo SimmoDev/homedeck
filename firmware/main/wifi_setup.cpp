@@ -161,6 +161,16 @@ WifiSetupState g_state;
 // its first disconnect event.
 esp_timer_handle_t g_reconnect_timer = nullptr;
 
+// Cancels a pending reconnect retry. esp_timer_stop() reports
+// ESP_ERR_INVALID_STATE when the timer is not running, which is the common
+// case here; any other error is logged.
+void CancelReconnectTimer() {
+    esp_err_t err = esp_timer_stop(g_reconnect_timer);
+    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
+        ESP_LOGW(kTag, "esp_timer_stop failed: %s", esp_err_to_name(err));
+    }
+}
+
 void ReconnectTimerCallback(void* /*arg*/) {
     esp_err_t err = esp_wifi_connect();
     if (err != ESP_OK) {
@@ -178,7 +188,7 @@ void ReconnectTimerCallback(void* /*arg*/) {
         // fail, so it isn't the kind of attempt that counting tracks.
         ESP_LOGW(kTag, "esp_wifi_connect (on reconnect timer) failed: %s - rescheduling in %dms", esp_err_to_name(err),
                  kReconnectBackoffMs);
-        esp_timer_stop(g_reconnect_timer);
+        CancelReconnectTimer();
         esp_err_t start_err =
             esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(kReconnectBackoffMs) * 1000);
         if (start_err != ESP_OK) {
@@ -553,9 +563,7 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                     }
                 }
                 ESP_LOGI(kTag, "Disconnected, retrying in %dms...", kReconnectBackoffMs);
-                // Ignore the return - ESP_ERR_INVALID_STATE just means no
-                // previous retry was pending, which is the common case.
-                esp_timer_stop(g_reconnect_timer);
+                CancelReconnectTimer();
                 ESP_ERROR_CHECK(esp_timer_start_once(g_reconnect_timer,
                                                       static_cast<uint64_t>(kReconnectBackoffMs) * 1000));
                 break;
@@ -568,7 +576,7 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
         // A retry scheduled just before this connection succeeded would
         // otherwise still fire later and call esp_wifi_connect() again
         // while already connected - harmless, but pointless.
-        esp_timer_stop(g_reconnect_timer);
+        CancelReconnectTimer();
         ESP_LOGI(kTag, "Connected, IP: " IPSTR, IP2STR(&event->ip_info.ip));
 
         httpd_handle_t server_to_stop = nullptr;
@@ -577,7 +585,9 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
             std::lock_guard<std::mutex> lock(g_state_mutex);
             if (state.network_status != nullptr) {
                 char ip_str[16];
-                esp_ip4addr_ntoa(&event->ip_info.ip, ip_str, sizeof(ip_str));
+                if (esp_ip4addr_ntoa(&event->ip_info.ip, ip_str, sizeof(ip_str)) == nullptr) {
+                    ip_str[0] = '\0';  // 16 bytes always fits an IPv4 string; never reached
+                }
                 state.network_status->SetConnectionState(true, state.pending_ssid, ip_str);
             }
             server_to_stop = state.setup_server;
@@ -638,7 +648,7 @@ bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
     // Connecting immediately below supersedes any retry a previous
     // disconnect already scheduled.
-    esp_timer_stop(g_reconnect_timer);
+    CancelReconnectTimer();
     esp_err_t err = esp_wifi_connect();
     if (err != ESP_OK) {
         ESP_LOGW(kTag, "esp_wifi_connect (on credential submission) failed: %s", esp_err_to_name(err));

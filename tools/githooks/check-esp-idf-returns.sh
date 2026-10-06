@@ -42,6 +42,20 @@ for f in "$@"; do
             n_close = gsub(/\)/, ")", line)
             if (n_close <= n_open) print $0
           }' || true)
+    # A call on its own line right after a line ending in `=` is the wrapped
+    # right-hand side of an assignment (`esp_err_t err =\n    esp_foo();`),
+    # so its result is used; drop it.
+    if [ -n "$matches" ]; then
+        kept=""
+        while IFS= read -r m; do
+            line_no=${m%%:*}
+            if [ "$line_no" -gt 1 ] && sed -n "$((line_no - 1))p" "$f" | grep -qE '=[[:space:]]*$'; then
+                continue
+            fi
+            kept+="$m"$'\n'
+        done <<< "$matches"
+        matches=${kept%$'\n'}
+    fi
     if [ -n "$matches" ]; then
         echo "[esp-idf-return] $f: bare call, return value not checked/logged:"
         echo "$matches" | sed 's/^/    /'
