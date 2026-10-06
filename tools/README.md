@@ -62,6 +62,10 @@ why that split exists. Checking for the following defect classes:
   cloud-provider/API-token credential shapes, and a staged `.env` file -
   the one check that actually blocks the commit
   (`githooks/check-secrets.sh`).
+- `githooks/check-lvgl-version-sync.sh` takes no arguments and is not part
+  of the pre-commit hook: CI (`lint.yml`) runs it, and it fails when the
+  simulator's pinned LVGL release differs from the version in
+  `firmware/dependencies.lock`.
 - `githooks/commit-msg` runs against the commit message itself, once
   written - the same narration patterns check-docs.sh checks in files
   (`githooks/lib-narration-patterns.sh`, shared by both), since a commit

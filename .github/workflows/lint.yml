@@ -36,6 +36,11 @@ jobs:
           bash tools/githooks/check-esp-idf-returns.sh $files
           bash tools/githooks/check-esp-http-timeouts.sh $files
 
+      # Deterministic, so a mismatch fails the job instead of only
+      # reporting - see check-lvgl-version-sync.sh's own header.
+      - name: Check the simulator and firmware resolve the same LVGL version
+        run: bash tools/githooks/check-lvgl-version-sync.sh
+
       - name: Run check-curl-timeouts.sh, check-unauthenticated-routes.sh, check-unchecked-json-field-access.sh, and check-json-dump-strict.sh against every tracked .cpp/.h/.hpp file
         continue-on-error: true
         run: |

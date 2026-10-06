@@ -176,12 +176,12 @@ do and why, worth reading at least once.
    **Switching the Docker image tag needs a clean rebuild.** CMake's
    cache bakes in the toolchain paths from whichever image last
    configured the build — reusing an existing `build/` dir (or even just
-   `sdkconfig`/`dependencies.lock`/`managed_components/`) against a
-   different `espressif/idf` tag fails confusingly (a missing-compiler
-   error, not an obvious "wrong image" one). Delete `build/`,
-   `managed_components/`, `dependencies.lock`, `sdkconfig`, and
-   `sdkconfig.old`, then `set-target` again, whenever changing the pinned
-   IDF version. **The same is true whenever `sdkconfig.defaults` changes**
+   `sdkconfig`/`managed_components/`) against a different
+   `espressif/idf` tag fails confusingly (a missing-compiler error, not an
+   obvious "wrong image" one). Delete `build/`, `managed_components/`,
+   `sdkconfig`, and `sdkconfig.old`, then `set-target` again, whenever
+   changing the pinned IDF version. **The same is true whenever
+   `sdkconfig.defaults` changes**
    (flash size, PSRAM speed, RTTI, partition table size, etc. were all
    learned this way) — an existing `sdkconfig` silently ignores updated
    defaults; only deleting it and reconfiguring picks them up.
@@ -193,6 +193,16 @@ do and why, worth reading at least once.
    `firmware/main/idf_component.yml`'s `override_path` points there
    instead of fetching it. Everything else is fetched into the latter,
    which is gitignored and safe to delete for a clean re-fetch.
+
+   **`firmware/dependencies.lock` is git-tracked.** Most dependencies in
+   `firmware/main/idf_component.yml` are version ranges or `"*"`, so the
+   lock file is what makes a clean clone build the same component
+   versions the firmware was verified with. Commit it whenever a
+   dependency is added or updated deliberately; do not delete it to
+   "fix" a build. LVGL is resolved transitively
+   (`espressif/esp_lvgl_port`), so the simulator's `GIT_TAG` in
+   `simulator/CMakeLists.txt` must match the `lvgl/lvgl` version recorded
+   there — `tools/githooks/check-lvgl-version-sync.sh` enforces this in CI.
 4. **Flashing and monitoring**, against a Tab5 K145 reference unit:
    ```sh
    docker run --rm -it -v "$(pwd):/project" -w /project/firmware \
@@ -353,6 +363,9 @@ hook's six remaining checks
 `check-json-dump-strict.sh`)
 against every tracked file (push, PR, and weekly) — the same "full-tree,
 not just a commit's diff" and non-blocking reasoning as `docs.yml`.
+The same workflow also runs `check-lvgl-version-sync.sh`, which is
+blocking because it is deterministic: it fails when the simulator's
+pinned LVGL release differs from the one in `firmware/dependencies.lock`.
 
 ## Status
 
