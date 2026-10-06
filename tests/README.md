@@ -118,8 +118,9 @@ artists, albums, songs, file sources, directories, channel groups,
 channels), each sending the right JSON-RPC params and publishing the
 matching `KodiXFetchedEvent` - and a type-mismatched field in one of
 those responses falling back to its struct default instead of
-crashing the whole process (as does the reconcile poll's
-`Player.GetProperties` reply), the hazard `weather_routes.cpp`'s own
+crashing the whole process (all eleven list parsers, fed non-object and
+wrongly-typed entries, as does the reconcile poll's `Player.GetProperties`
+reply) and wrongly-typed notification payloads being ignored, the hazard `weather_routes.cpp`'s own
 geocode parsing already guards against - plus paged listings: a
 multi-page library merged into one event, the unpaged retry when Kodi
 rejects `limits`, and the `kMaxLibraryItems` cap. All of the above runs

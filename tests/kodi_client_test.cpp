@@ -1153,6 +1153,101 @@ TEST_F(KodiClientTest, RequestMoviesFetchesAndParsesTheLibrary) {
     client->Stop();
 }
 
+// Every list parser shares the Get*/ResultArray() guards, but each one still
+// has to be reached with entries of the wrong shape (not an object at all,
+// or an object whose fields have the wrong types) and deliver an event
+// rather than abort the process (std::abort() on firmware - see GetInt()'s
+// comment in kodi_client.cpp).
+TEST_F(KodiClientTest, EveryLibraryListToleratesMalformedEntriesInsteadOfCrashing) {
+    KODI_COMMAND_RIG();
+    const auto garbage = [](const std::string& key, const std::string& id_field) {
+        return "{\"" + key + "\":[1,\"x\",null,[],{\"" + id_field +
+               "\":\"bad\",\"title\":5,\"label\":{},\"year\":\"y\",\"episode\":[],\"season\":\"s\","
+               "\"resume\":\"r\",\"file\":5,\"filetype\":[],\"duration\":{},\"track\":null}]}";
+    };
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["VideoLibrary.GetMovies"] = garbage("movies", "movieid");
+        script->results["VideoLibrary.GetTVShows"] = garbage("tvshows", "tvshowid");
+        script->results["VideoLibrary.GetSeasons"] = garbage("seasons", "season");
+        script->results["VideoLibrary.GetEpisodes"] = garbage("episodes", "episodeid");
+        script->results["AudioLibrary.GetArtists"] = garbage("artists", "artistid");
+        script->results["AudioLibrary.GetAlbums"] = garbage("albums", "albumid");
+        script->results["AudioLibrary.GetSongs"] = garbage("songs", "songid");
+        script->results["Files.GetSources"] = garbage("sources", "file");
+        script->results["Files.GetDirectory"] = garbage("files", "file");
+        script->results["PVR.GetChannelGroups"] = garbage("channelgroups", "channelgroupid");
+        script->results["PVR.GetChannels"] = garbage("channels", "channelid");
+    }
+
+    std::atomic<int> events{0};
+    auto s1 = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>([&](const homedeck::KodiMoviesFetchedEvent&) { events++; });
+    auto s2 = bus.Subscribe<homedeck::KodiTvShowsFetchedEvent>([&](const homedeck::KodiTvShowsFetchedEvent&) { events++; });
+    auto s3 = bus.Subscribe<homedeck::KodiSeasonsFetchedEvent>([&](const homedeck::KodiSeasonsFetchedEvent&) { events++; });
+    auto s4 = bus.Subscribe<homedeck::KodiEpisodesFetchedEvent>([&](const homedeck::KodiEpisodesFetchedEvent&) { events++; });
+    auto s5 = bus.Subscribe<homedeck::KodiArtistsFetchedEvent>([&](const homedeck::KodiArtistsFetchedEvent&) { events++; });
+    auto s6 = bus.Subscribe<homedeck::KodiAlbumsFetchedEvent>([&](const homedeck::KodiAlbumsFetchedEvent&) { events++; });
+    auto s7 = bus.Subscribe<homedeck::KodiSongsFetchedEvent>([&](const homedeck::KodiSongsFetchedEvent&) { events++; });
+    auto s8 = bus.Subscribe<homedeck::KodiFilesFetchedEvent>([&](const homedeck::KodiFilesFetchedEvent&) { events++; });
+    auto s9 = bus.Subscribe<homedeck::KodiChannelGroupsFetchedEvent>(
+        [&](const homedeck::KodiChannelGroupsFetchedEvent&) { events++; });
+    auto s10 = bus.Subscribe<homedeck::KodiChannelsFetchedEvent>([&](const homedeck::KodiChannelsFetchedEvent&) { events++; });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    // One at a time: the pending queue holds at most
+    // kMaxPendingLibraryRequests, so firing all eleven at once would drop
+    // the oldest. Files.GetSources and GetDirectory both publish
+    // KodiFilesFetchedEvent.
+    int expected = 0;
+    const auto request = [&](const std::function<void()>& send) {
+        send();
+        ++expected;
+        return WaitFor([&] { return events.load() == expected; });
+    };
+    EXPECT_TRUE(request([&] { client->RequestMovies(); }));
+    EXPECT_TRUE(request([&] { client->RequestTvShows(); }));
+    EXPECT_TRUE(request([&] { client->RequestSeasons(1); }));
+    EXPECT_TRUE(request([&] { client->RequestEpisodes(1, 1); }));
+    EXPECT_TRUE(request([&] { client->RequestArtists(); }));
+    EXPECT_TRUE(request([&] { client->RequestAlbums(1); }));
+    EXPECT_TRUE(request([&] { client->RequestSongs(1); }));
+    EXPECT_TRUE(request([&] { client->RequestFileSources(); }));
+    EXPECT_TRUE(request([&] { client->RequestDirectory("/x"); }));
+    EXPECT_TRUE(request([&] { client->RequestChannelGroups(); }));
+    EXPECT_TRUE(request([&] { client->RequestChannels(1); }));
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
+    client->Stop();
+}
+
+// Notification payloads are as untrusted as replies: params/data/item/player
+// of the wrong JSON type must be ignored, not abort or wedge the loop.
+TEST_F(KodiClientTest, NotificationsWithWronglyTypedPayloadsAreIgnoredInsteadOfCrashing) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    Push(script, R"({"method":"Player.OnPlay","params":"str"})");
+    Push(script, R"({"method":"Player.OnPlay","params":{"data":[1]}})");
+    Push(script, R"({"method":"Player.OnPlay","params":{"data":{"item":"str","player":{"speed":"fast"}}}})");
+    Push(script, R"({"method":"Player.OnPlay","params":{"data":{"item":{"title":5,"season":"x","type":[]},"player":5}}})");
+    Push(script, R"({"method":"Application.OnVolumeChanged","params":{"data":{"volume":"loud","muted":1}}})");
+    Push(script, R"({"method":5,"params":{}})");
+    Push(script, R"([1,2,3])");
+    // A well-formed notification afterwards proves the loop kept draining.
+    // Identity (not volume): the immediate reconcile poll an OnPlay triggers
+    // re-reads volume from the static fake, but never overwrites a
+    // notification-supplied title.
+    Push(script, R"({"method":"Player.OnPlay","params":{"data":{"item":{"title":"Still Alive","type":"movie"}}}})");
+
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.title == "Still Alive"; }));
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
+    client->Stop();
+}
+
 // A library listing is fetched in kLibraryPageSize pages so no single reply
 // can approach kMaxWebSocketMessageBytes: a 1,200-movie library takes three
 // requests and arrives as one merged event.
