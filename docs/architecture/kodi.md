@@ -245,6 +245,11 @@ exceeded, so library size is bounded by `kMaxLibraryItems` (10,000; the
 list is truncated beyond that), not by the frame cap. A Kodi that answers
 `limits` with a JSON-RPC error gets one unpaged retry.
 
+A JSON-RPC `error` reply to a listing (for example PVR disabled on that
+Kodi) parses to an empty list, so the screen shows its "Nothing here."
+text rather than an error; only a transport failure or timeout is
+reported as a connection problem.
+
 `KodiMoviesScreen` is list-then-detail (movie list, then a selected
 movie's Play/Resume choice), matching `DevicesScreen`'s own no-back-stack
 shape. `KodiTvShowsScreen` is four levels deep (shows -> seasons ->
