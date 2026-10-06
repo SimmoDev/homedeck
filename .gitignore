@@ -3,7 +3,6 @@ firmware/build/
 firmware/sdkconfig
 firmware/sdkconfig.old
 firmware/managed_components/
-firmware/dependencies.lock
 
 # Simulator build (host-native CMake)
 simulator/build/
