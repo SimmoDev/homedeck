@@ -92,6 +92,35 @@ whether any LVGL object anywhere has ever been deleted:
   destructor too, and before deleting the object the timer's callback
   reads, not after.
 
+## Long lists
+
+A list whose length the user's data decides must not create a button per
+row. On a Tab5, one `CreateRemoteButton` per entry took about 20 seconds
+to build and render 1,000 rows, and 5,000 rows took over six minutes.
+`VirtualList` (`src/ui/virtual_list.h`/`.cpp`) keeps only the rows on
+screen, plus two above and below, as LVGL objects: a small pool of
+buttons is repositioned and rebound as the screen scrolls, so the cost
+depends on the screen's height, not the row count. It is used by every
+Kodi library-browse list.
+
+- Rows are all `kRemoteButtonHeight` tall, `VirtualList::kRowGap` apart.
+- The containing screen scrolls, not the list. `VirtualList` listens to
+  that screen's `LV_EVENT_SCROLL`, so it is created inside a container of
+  a screen's tree.
+- The caller owns the row data. `SetItems()` takes callables that read a
+  row's label and handle its tap on demand, so they typically index a
+  vector the screen keeps as a member. `Clear()` shows nothing (waiting
+  for a reply); `SetItems()` with zero items shows the empty text.
+- A list inside a hidden container has no layout, so a screen calls
+  `Refresh()` after showing the container.
+- It must be destroyed no later than its screen: screens hold it as a
+  member declared after `root_`.
+
+The visible-row arithmetic is `ComputeVisibleRows()` in
+`src/ui/virtual_list_window.h`, LVGL-free and host-tested
+(`tests/virtual_list_window_test.cpp`). Lists bounded small by design
+(Harmony's activities and devices) still build one button per item.
+
 ## Rendering
 
 LVGL is the rendering toolkit, driven through the hardware BSP on-device

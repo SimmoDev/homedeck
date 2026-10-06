@@ -55,6 +55,7 @@ add_executable(homedeck_tests
   kodi_client_test.cpp
   kodi_routes_test.cpp
   kodi_display_test.cpp
+  virtual_list_window_test.cpp
   notification_sound_test.cpp
   admin_auth_service_test.cpp
   admin_auth_routes_test.cpp

@@ -138,6 +138,11 @@ Kodi Touch UI renders - the widget's status line for each connection/
 playback state, the Now Playing subtitle (show + zero-padded `S03E07`
 code, kept wide past 99 / movie title / bare-verb fallback / "Nothing
 playing"), and the `m:ss` / `h:mm:ss` clock formatter.
+`virtual_list_window_test.cpp` covers `ComputeVisibleRows()`, the
+LVGL-free arithmetic behind `VirtualList`: the rows bound at the top, middle
+and end of a list, a row partly above the view, a list scrolled far past
+either end, and the window never exceeding the button pool at any scroll
+offset.
 
 Further module tests arrive alongside the modules they test, not before
 they exist.

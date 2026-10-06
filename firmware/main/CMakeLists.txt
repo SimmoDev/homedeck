@@ -68,6 +68,7 @@ idf_component_register(
         "../../src/ui/kodi_widget.cpp"
         "../../src/ui/kodi_display.cpp"
         "../../src/ui/remote_button.cpp"
+        "../../src/ui/virtual_list.cpp"
         "../../src/ui/time_format.cpp"
         "../../src/ui/text_format.cpp"
         "../../src/ui/activity_start_tracker.cpp"

@@ -149,6 +149,7 @@ if(TARGET lvgl)
     ui/harmony_widget.cpp
     ui/kodi_widget.cpp
     ui/remote_button.cpp
+    ui/virtual_list.cpp
     ui/screens/dashboard_screen.cpp
     ui/screens/wifi_setup_screen.cpp
     ui/screens/activities_screen.cpp
