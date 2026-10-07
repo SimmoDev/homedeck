@@ -21,3 +21,7 @@ webui/dist/
 
 # Logs
 *.log
+
+# Python bytecode (tools/)
+__pycache__/
+*.pyc
