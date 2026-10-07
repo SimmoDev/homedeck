@@ -135,7 +135,7 @@ std::string GenerateWebSocketKey() {
 // well-specified primitive, not something worth restructuring that
 // dependency graph for. Not a security-sensitive use (this project's
 // own hub protocol has no authentication at all, ADR-0029) - only
-// confirms the handshake response actually came from something that
+// confirms the handshake response came from something that
 // understood the request as a WebSocket upgrade, not a general SHA-1
 // consumer.
 std::array<unsigned char, 20> Sha1(const std::string& input) {
@@ -202,7 +202,7 @@ std::array<unsigned char, 20> Sha1(const std::string& input) {
 
 // RFC 6455 section 1.3's handshake verification: base64(SHA1(key +
 // this fixed GUID)) - confirms the response came from something that
-// actually understood the request as a WebSocket upgrade, not just
+// understood the request as a WebSocket upgrade, not just
 // something that happened to answer "101" (a misconfigured device, a
 // captive-portal-style proxy, a different service that took over the
 // hub's IP after a DHCP lease change).
@@ -267,7 +267,7 @@ int RemainingMs(std::chrono::steady_clock::time_point deadline) {
 // CONNECT_ONLY use case ("let the application drive the transfer using
 // curl_easy_send()/curl_easy_recv()"). poll() on the raw fd is still valid
 // for readiness-waiting regardless: it operates below the TLS layer,
-// which needs an actually-readable socket to make its own progress on
+// which needs a readable socket to make its own progress on
 // either side. Used for both the frame header/payload reads in
 // ReceiveText() and the handshake response read in Connect() below, since
 // any of them can arrive split across more than one read. False on
@@ -429,7 +429,7 @@ bool HostWebSocketClient::Connect(const std::string& url) {
     }
 
     // A bare "101" isn't enough on its own - RFC 6455's own handshake
-    // verification step confirms the far end actually understood the
+    // verification step confirms the far end understood the
     // request as a WebSocket upgrade (see ComputeAcceptKey()'s own
     // comment), not just something that happens to answer 101.
     std::optional<std::string> accept = FindHeaderValue(response, "Sec-WebSocket-Accept");
@@ -562,7 +562,7 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         // against `len` alone first (cheap, no overflow risk even for an
         // adversarial 64-bit extended length) before the cumulative
         // check, which only matters once a multi-frame message is
-        // actually in progress.
+        // in progress.
         if (len > kMaxWebSocketMessageBytes || accumulated.size() + len > kMaxWebSocketMessageBytes) {
             return Fail();
         }

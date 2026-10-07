@@ -30,7 +30,7 @@ class Logger {
 public:
     // max_log_file_bytes defaults to the real production cap (see
     // ADR-0019); overridable so tests can trigger rotation in a handful
-    // of calls instead of the hundreds it'd take to actually cross 64KB.
+    // of calls instead of the hundreds it'd take to cross 64KB.
     explicit Logger(Storage& storage, TimeSource& time_source, size_t max_log_file_bytes = 64 * 1024);
     ~Logger();
 
@@ -57,7 +57,7 @@ public:
     // Rotated + current entries, oldest first, as a JSON array (each
     // stored line is already valid JSON, so this joins them rather than
     // parsing and re-serializing). Blocks until every Log() call made
-    // before this one has actually been persisted, so a caller never
+    // before this one has been persisted, so a caller never
     // sees a view that's missing something it already logged.
     std::string ReadAll();
 
@@ -70,7 +70,7 @@ private:
     };
     // A queue item is either a real record to persist, or a flush
     // request (record empty) that WorkerLoop() acknowledges once
-    // everything pushed ahead of it has actually been written.
+    // everything pushed ahead of it has been written.
     struct Item {
         std::optional<Record> record;
         std::shared_ptr<std::promise<void>> flush_signal;

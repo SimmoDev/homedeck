@@ -202,7 +202,7 @@ void ActivitiesScreen::RestyleButtons() {
     // "Starting <name>...", and blanking unconditionally here would
     // erase that in the same synchronous call before it's ever
     // rendered. command_failed_ (dropped_sub_'s own message) is cleared
-    // separately, once something actually supersedes it - see its own
+    // separately, once something supersedes it - see its own
     // comment. A disconnected/reconnecting hub gets its own standing
     // indicator here rather than staying blank - the activity list below
     // still shows the last-known state (see Rebuild()'s own comment),

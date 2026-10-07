@@ -259,7 +259,7 @@ void OnTestTriggerActiveClicked(lv_event_t* e) {
     source->SetForced(DebugOverridableUserActivitySource::ForcedLevel::kNone);
     // Clears the override, but the underlying real clock needs to be
     // fresh too - otherwise it could still read as idle on the very next
-    // tick if the real SDL window hasn't actually been touched recently.
+    // tick if the real SDL window hasn't been touched recently.
     lv_display_trigger_activity(nullptr);
 }
 

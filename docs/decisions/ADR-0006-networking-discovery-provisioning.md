@@ -50,7 +50,7 @@ with genuinely different transport characteristics (Home Assistant's
 WebSocket reconnect semantics differ meaningfully from an HTTP-polling
 integration like Uptime Kuma). Worth re-checking once the second module
 (Kodi) is built, since a single module isn't enough to validate the shared
-utility actually fits multiple integrations' needs — but the default is
+utility fits multiple integrations' needs — but the default is
 settled.
 
 ## Decision: LAN discovery service shape
@@ -60,7 +60,7 @@ settled.
   discovery protocol behind one interface.
 - No Core discovery service at all — every module implements its own.
 - A thin Core wrapper around standard mDNS/Zeroconf only, for the modules
-  that actually use it.
+  that use it.
 
 **Decided:** the third option. Core wraps ESP-IDF's `mdns` component for
 modules whose external service supports standard mDNS/Zeroconf discovery —

@@ -45,7 +45,7 @@ public:
     // DashboardGrid::AddWidget(), which must reuse the same clamped
     // values for MarkOccupied() and the LVGL cell rather than
     // re-deriving them, so placement and occupancy never disagree on
-    // the footprint actually used.
+    // the footprint used.
     static Span ClampSpan(int col_span, int row_span) {
         if (col_span < 1) col_span = 1;
         if (col_span > Columns) col_span = Columns;

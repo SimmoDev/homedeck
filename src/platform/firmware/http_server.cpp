@@ -30,7 +30,7 @@ std::string StatusLine(int status_code) {
 // diagnostics - everything shares this single server instance). At the
 // default 5s recv_wait_timeout (HTTPD_DEFAULT_CONFIG()), this allows 15s
 // of total silence - generous for a slow but alive multi-MB OTA upload,
-// since the counter resets on every call that actually receives data.
+// since the counter resets on every call that receives data.
 constexpr int kMaxConsecutiveRecvTimeouts = 3;
 // kMaxConsecutiveRecvTimeouts alone bounds silence, not total transfer
 // time - a client trickling in a single byte just under every timeout

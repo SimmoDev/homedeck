@@ -5,7 +5,7 @@ namespace homedeck {
 // The lifecycle contract every module (docs/architecture/modules.md,
 // ADR-0003) implements - deliberately minimal, sized to what
 // its implementations (core/harmony_connection.h, core/kodi_client.h)
-// actually need, not designed speculatively.
+// need, not designed speculatively.
 //
 // Init is the constructor (wiring only - Storage/EventBus/HttpClient
 // references, no I/O yet); Start()/Stop() bracket the module's actual

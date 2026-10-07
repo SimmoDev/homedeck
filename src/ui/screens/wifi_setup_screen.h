@@ -50,7 +50,7 @@ public:
     lv_obj_t* Root() const { return root_; }
 
     // Fills in the alternative-device setup instructions, only known once
-    // SoftAP actually starts (see wifi_setup.cpp's WifiUiCallbacks) - the
+    // SoftAP starts (see wifi_setup.cpp's WifiUiCallbacks) - the
     // screen exists before that, so this is a separate call rather than a
     // constructor parameter. port defaults to the standard HTTP port (the
     // initial no-stored-credentials setup flow always uses it); the

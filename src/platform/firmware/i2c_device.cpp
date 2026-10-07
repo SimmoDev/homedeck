@@ -19,7 +19,7 @@ constexpr uint32_t kSclSpeedHz = 400000;
 // physical device is absent," which is instead something BatteryReader/
 // TimeSource's own Read()/Write() call sites already degrade gracefully
 // against (see their "conservative fallback" comments) once real bus
-// transactions are actually attempted. ESP_ERROR_CHECK here is
+// transactions are attempted. ESP_ERROR_CHECK here is
 // deliberate, not a gap in that graceful-degradation story.
 I2cDevice::I2cDevice(i2c_master_bus_handle_t bus, uint8_t address) {
     i2c_device_config_t dev_cfg = {

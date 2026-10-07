@@ -23,7 +23,7 @@ namespace homedeck {
 // to build). The advanced/raw-command surface, one level down from
 // ActivitiesScreen (reached via its "Devices" button) - most day-to-day
 // use is Activities; this is for when a specific device command is
-// actually needed.
+// needed.
 //
 // One screen, two internal view states (device list, then a selected
 // device's commands), not two Navigation routes - this project's

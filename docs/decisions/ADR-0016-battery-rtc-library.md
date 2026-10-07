@@ -23,7 +23,7 @@ own decision to display/touch only, and left battery and RTC as an open
 question: *"`espressif/m5stack_tab5` does appear to bundle IMU and audio
 support... which may mean the same reasoning extends to those peripherals
 too, but that's unconfirmed, not assumed — resolve it when each is
-actually brought up, not by extrapolation."*
+brought up, not by extrapolation."*
 
 Battery and RTC were brought up as part of M1's on-device dashboard work
 (live clock, real battery percentage — see
@@ -60,7 +60,7 @@ components (`firmware/main/idf_component.yml`). Both a battery
 percentage and RTC time read successfully on the reference hardware,
 not mocked — see
 [hardware.md](../architecture/hardware.md#on-device-dashboard) for what
-those reads actually showed, including two gaps this surfaced (a
+those reads showed, including two gaps this surfaced (a
 simple linear battery-percentage approximation, not true fuel-gauge
 coulomb-counting; and the RTC having never been set, both pre-flagged
 limitations, not library bugs). Both components communicate through
@@ -76,7 +76,7 @@ spirit as ADR-0014: [CLAUDE.md](../../CLAUDE.md)'s Technology Stack section fixe
 M5Unified/M5GFX as the *route* to peripheral access; for battery and RTC
 specifically, that route was never viable project-wide (per ADR-0014),
 and the BSP that replaced it for display/touch doesn't cover these two
-peripherals either. `espp` is what actually delivers the outcome [CLAUDE.md](../../CLAUDE.md)
+peripherals either. `espp` is what delivers the outcome [CLAUDE.md](../../CLAUDE.md)
 wants (real hardware access to these peripherals), not a rejection of the
 underlying intent.
 
@@ -91,7 +91,7 @@ underlying intent.
   ADR is added at the relevant bullet.
 - [ADR-0014](ADR-0014-hardware-support-library.md)'s own Consequences
   section explicitly flagged this as a follow-up to resolve when battery/
-  RTC were actually brought up — **done**, with a different library than
+  RTC were brought up — **done**, with a different library than
   either M5Unified/M5GFX or `espressif/m5stack_tab5`: the BSP doesn't
   cover these peripherals, so a third, separate dependency was the
   correct outcome, not a sign the evidence-first approach failed.
@@ -101,7 +101,7 @@ underlying intent.
   support (`bsp_sensors.c`, `bsp_audio.c`), which may mean the BSP covers
   those directly without needing a third-party component like `espp`
   here, but that's unconfirmed, not assumed — resolve it when each is
-  actually brought up, same as this decision was.
+  brought up, same as this decision was.
 - New dependency footprint is larger than the two direct declarations
   suggest: `espp/ina226` and `espp/rx8130ce` each pull in
   `espp/base_peripheral` → `espp/base_component` → `espp/logger` →

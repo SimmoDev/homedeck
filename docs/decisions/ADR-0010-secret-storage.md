@@ -54,13 +54,13 @@ development cost: once enabled it complicates the re-flashing workflow
 used throughout M1/M2 iteration (production builds typically need a
 separate unencrypted development flow), which is a real ongoing cost for a
 project still establishing its build/bring-up process — more than a Wi-Fi
-password and one password hash actually require. NVS encryption targets
+password and one password hash require. NVS encryption targets
 the same secrets without that cost. Plaintext storage was rejected outright
 as a direct violation of an explicit [CLAUDE.md](../../CLAUDE.md) requirement, not a genuine
 option.
 
 **Which NVS encryption scheme, specifically — confirmed against current
-ESP-IDF documentation (not assumed):** ESP-IDF actually offers two distinct
+ESP-IDF documentation (not assumed):** ESP-IDF offers two distinct
 schemes for protecting NVS encryption keys, and they are not
 interchangeable for this decision's purposes:
 

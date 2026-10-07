@@ -30,7 +30,7 @@ for f in "$@"; do
     # lambda body (e.g. `void Foo() { esp_wifi_connect(); }`) isn't
     # invisible to this check just because something else shares its line;
     # a call preceded by anything else (`=`, `(`, `if (`, etc.) means its
-    # result is actually being used, which is exactly what this check must
+    # result is being used, which is exactly what this check must
     # not flag.
     matches=$(grep -nE '(^|[{};])[[:space:]]*(esp_|mdns_|httpd_)[A-Za-z0-9_]+\(.*\);[[:space:]]*\}?[[:space:]]*$' "$f" \
         | grep -vE 'httpd_resp_' \
@@ -69,7 +69,7 @@ for f in "$@"; do
     # statement-boundary call start (same (^|[{};]) requirement as above,
     # so an ESP_ERROR_CHECK(-wrapped or assigned multi-line call is still
     # correctly excluded) AND has more '(' than ')' on that single line -
-    # i.e. an actually-unclosed call, not just a line whose trailing
+    # i.e. a unclosed call, not just a line whose trailing
     # punctuation happens not to match the single-line pass's own closing
     # shape (e.g. a lambda assigned to a variable, `cb = [](){ f(); };`,
     # is already fully balanced on one line and must never be treated as
@@ -124,7 +124,7 @@ for f in "$@"; do
     # line start. Walks the line by character to find the condition's own
     # balanced close (so a for-loop's internal `;`s, e.g.
     # `for (int i = 0; i < 3; i++) esp_foo();`, don't confuse where the
-    # condition actually ends), then checks whether what follows is a
+    # condition ends), then checks whether what follows is a
     # bare call with the same closing shape and paren-balance guard as
     # the single-line pass above.
     cf_matches=$(awk '

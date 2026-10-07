@@ -141,7 +141,7 @@ public:
     // set - the simulator's case, which has no hostname rules to check.
     void SetOnDeviceNameValidate(DeviceNameValidateFn fn) { on_device_name_validate_ = std::move(fn); }
 
-    // Optional; invoked only once the new device name is actually
+    // Optional; invoked only once the new device name is
     // persisted (see settings_routes.h's DeviceNameCommittedFn) - e.g.
     // firmware's live mDNS re-announce, which needs GetLogger() below and
     // must not run before Storage::SetSetting() itself has succeeded. Same

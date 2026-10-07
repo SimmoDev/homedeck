@@ -42,7 +42,7 @@ enum class HarmonyConnectionState {
 // surfaces reject the same values - this is the server-side half,
 // invoked from POST /api/settings via core/settings_routes.h's generic
 // SettingValidateFn (wired in ui/app_core.cpp), since that generic
-// settings API - not a Harmony-specific endpoint - is what actually
+// settings API - not a Harmony-specific endpoint - is what
 // persists this value (see kHubHostKey below). Empty is accepted - it
 // isn't this function's concern, since ConnectionLoop() already treats
 // it as "not yet configured," not a malformed address.
@@ -328,9 +328,9 @@ private:
     // own dedicated request/response slot this class's simple
     // synchronous transport doesn't have - see this class's own header
     // comment on current-activity freshness); ADR-0029 leaves it an open
-    // question whether the hub actually sends one. If it does, that
+    // question whether the hub sends one. If it does, that
     // reply would otherwise sit unconsumed until the next ReceiveText()
-    // call and get wrongly parsed as whatever that call actually
+    // call and get wrongly parsed as whatever that call
     // expects. Bounded by kMaxPendingCommands so a hub that keeps
     // sending unsolicited messages can't loop this forever - same cap
     // FirmwareWebSocketClient::message_queue_ itself uses. A 0ms
@@ -412,7 +412,7 @@ private:
     // pending command (ws_client_ only exists then); the unconfigured/
     // error-backoff waits leave it queued rather than waking early on
     // it, since waking with nothing to send over would otherwise
-    // busy-loop (entries stay queued until actually consumed).
+    // busy-loop (entries stay queued until consumed).
     WakeReason Sleep(std::chrono::milliseconds delay, std::stop_token stop, bool watch_commands);
 
     HttpClient& http_client_;
@@ -424,7 +424,7 @@ private:
     std::chrono::milliseconds liveness_interval_;
     // SendPendingCommands() drops any entry older than this rather than
     // sending it - a queued command from long enough ago no longer
-    // reflects what the user actually wants sent to a hub whose
+    // reflects what the user wants sent to a hub whose
     // real-world state has moved on. Not applied to a release-status
     // device command - see that method's own comment on why a release is
     // always worth attempting once a connection exists to send it over,

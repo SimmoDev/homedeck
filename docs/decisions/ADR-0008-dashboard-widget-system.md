@@ -70,7 +70,7 @@ but the data source is pluggable and user-selectable in the Web Management
 UI, with no default enabled:
 
 - **Direct provider:** Open-Meteo, chosen specifically because it requires
-  no API key or account, minimizing what a "direct cloud" option actually
+  no API key or account, minimizing what a "direct cloud" option
   commits the user to. Small enough (one API call, no discovery/auth/
   lifecycle) to live in Core rather than as a full module. Requires the
   user to manually enter a location (address or coordinates) — not

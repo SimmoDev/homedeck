@@ -23,7 +23,7 @@ namespace homedeck {
 // accepted simplification, not an oversight.
 using DeviceNameValidateFn = std::function<bool(const std::string& value)>;
 
-// Called only once storage.SetSetting() has actually persisted the new
+// Called only once storage.SetSetting() has persisted the new
 // device name - the one point it's safe to apply a live side effect that
 // can't itself be rolled back (firmware: re-announces mDNS with no
 // reboot needed; simulator: omitted, nothing to apply).
@@ -47,7 +47,7 @@ using DeviceNameCommittedFn = std::function<void(const std::string& value)>;
 // the concern docs/decisions/ADR-0023-settings-backup-api.md raises for
 // that case. A format-invalid hub_host restored unchecked would
 // otherwise bypass IsValidHubHost()'s own #/?/@ rejection entirely,
-// changing what host/port a later connect attempt actually reaches
+// changing what host/port a later connect attempt reaches
 // rather than just failing to connect.
 using SettingValidateFn = std::function<bool(const std::string& module, const std::string& key, const std::string& value)>;
 

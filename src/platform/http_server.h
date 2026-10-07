@@ -54,7 +54,7 @@ struct HttpResponse {
 // line), so this returns the phrase alone and each caller builds its own
 // format around it, rather than the full line, so neither format is
 // privileged over the other. Only the status codes this project's handlers
-// actually return get a case - AdminAuthService::RequireAuth() in
+// return get a case - AdminAuthService::RequireAuth() in
 // particular returns 401/403 on the majority of requests to any protected
 // endpoint - everything else falls back to a generic one rather than
 // growing this list speculatively.

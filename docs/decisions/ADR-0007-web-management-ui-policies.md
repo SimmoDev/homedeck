@@ -11,7 +11,7 @@ scope and transport. Two decisions within it involved real tradeoffs and
 rejected alternatives: how users authenticate to it, and — once initial
 Wi-Fi provisioning moved to a separate SoftAP flow (see
 [ADR-0006](ADR-0006-networking-discovery-provisioning.md)) — when the admin
-credential that authentication depends on actually gets created. This ADR
+credential that authentication depends on gets created. This ADR
 records both, so the architecture doc can state the current design without
 carrying the full rationale inline.
 
@@ -36,7 +36,7 @@ becomes a real requirement.
 **Context:** the SoftAP captive portal that handles initial Wi-Fi
 provisioning (see [ADR-0006](ADR-0006-networking-discovery-provisioning.md))
 collects Wi-Fi credentials only. Once that was decided, it left open when
-the separate Web UI admin password from the previous decision actually gets
+the separate Web UI admin password from the previous decision gets
 created — the two flows were designed independently and needed to be
 reconciled.
 

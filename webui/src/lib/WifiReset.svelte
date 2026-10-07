@@ -25,13 +25,13 @@
   // reboots automatically once the reset is scheduled (see
   // wifi_routes.h's own WifiResetFn comment for why a reboot isn't
   // optional here, and why a second confirmed click - the way OTA offers
-  // one - could never actually be pressed in time regardless).
+  // one - could never be pressed in time regardless).
   //
   // On success this doesn't render its own "done" state - the device is
   // rebooting, this browser's session and the LAN address it's talking
   // to are both about to become invalid, and every other panel on this
   // page (Settings, OTA, the rest of Diagnostics) would otherwise sit
-  // there looking normal while actually unreachable. onWifiReset() hands
+  // there looking normal while unreachable. onWifiReset() hands
   // off to App.svelte instead, which replaces the entire authenticated
   // view with one dedicated message - not a page redirect (the device
   // won't be reachable at this address to serve one).

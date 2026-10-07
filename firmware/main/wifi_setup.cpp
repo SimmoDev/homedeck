@@ -42,7 +42,7 @@ constexpr int kMaxSetupReconnectAttempts = 5;
 // - see WifiReconnectPolicy::ShouldOfferRecovery() and
 // StartRecoveryAccessPoint() below. Each failed attempt costs ~2.9s
 // end to end (kReconnectBackoffMs's 500ms plus the SDIO round trip to
-// the C6 for esp_wifi_connect() to actually fail),
+// the C6 for esp_wifi_connect() to fail),
 // not the bare 500ms backoff alone - 40 attempts is ~2 minutes at that
 // real rate, long enough to ride out a router reboot without offering a
 // recovery access point prematurely, short enough that a genuinely-gone
@@ -183,7 +183,7 @@ void ReconnectTimerCallback(void* /*arg*/) {
         // log line and no further attempts. Reschedules directly rather
         // than routing through OnEvent()'s WIFI_EVENT_STA_DISCONNECTED
         // bookkeeping (reconnect_policy's give-up/recovery attempt
-        // counting) - this call never actually started a connection to
+        // counting) - this call never started a connection to
         // fail, so it isn't the kind of attempt that counting tracks.
         ESP_LOGW(kTag, "esp_wifi_connect (on reconnect timer) failed: %s - rescheduling in %dms", esp_err_to_name(err),
                  kReconnectBackoffMs);

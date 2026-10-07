@@ -22,7 +22,7 @@ something went wrong badly enough that ordinary execution didn't complete.
 [ADR-0005](ADR-0005-power-and-sleep-model.md) already treats brownout as a
 real risk (it's the reason OTA is gated on battery/power state), but
 nothing captures *why* the device last rebooted, or what it was doing at
-the time, which is the diagnostic information that actually matters for a
+the time, which is the diagnostic information that matters for a
 crash.
 
 ## Decision
@@ -52,7 +52,7 @@ KB, configurable) and easily affordable on the confirmed 16MB flash.
 No special handling was rejected as inconsistent with "first-class"
 diagnostics — it means field crashes are simply unexplainable after the
 fact. Reset-reason-only was rejected as materially less useful for
-actually fixing a crash: knowing a device panicked without knowing where
+fixing a crash: knowing a device panicked without knowing where
 in the code is a much weaker starting point than a backtrace.
 
 **Panic handler behavior:** production builds must not halt-and-wait-for-

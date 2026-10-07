@@ -80,7 +80,7 @@ private:
     DisplayBrightness& display_brightness_;
     TimeSource& time_source_;
     PowerState state_ = PowerState::kActive;
-    // Ground truth for whether an OTA write is actually in flight,
+    // Ground truth for whether an OTA write is in flight,
     // independent of state_ - a critical-battery event forces state_ to
     // kError even mid-write (see the critical-battery subscription's own
     // comment), which would otherwise obscure that kUpdating is what

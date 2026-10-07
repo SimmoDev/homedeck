@@ -258,7 +258,7 @@ TEST(HostWebSocketClient, ReceiveTextReassemblesARealMultiFrameContinuationMessa
     // FIN=1 CONTINUATION frame - every payload this project has observed
     // against the reference hub arrives as a single frame (ADR-0029), but
     // ReceiveText()'s own loop handles this shape too; nothing before
-    // this test actually exercised it against the real backend.
+    // this test exercised it against the real backend.
     uint16_t port = 0;
     int listen_fd = ListenOnLoopback(&port);
     ASSERT_GE(listen_fd, 0);
@@ -297,7 +297,7 @@ TEST(HostWebSocketClient, ReceiveTextRepliesToAPingAndKeepsWaitingForTheRealMess
     // RFC 6455's PING/PONG keep-alive: a PING frame gets an in-kind PONG
     // reply (echoing its payload) and must not be surfaced to this call's
     // own caller as message content - the caller is waiting for the
-    // getCurrentActivity/config response the hub actually sent, not a
+    // getCurrentActivity/config response the hub sent, not a
     // transport-level keep-alive.
     uint16_t port = 0;
     int listen_fd = ListenOnLoopback(&port);
@@ -382,7 +382,7 @@ TEST(HostWebSocketClient, ReceiveTextRejectsAMessageOverTheSizeCap) {
 TEST(HostWebSocketClient, ReceiveTextEchoesACloseFrameBack) {
     // RFC 6455's closing handshake: the endpoint that receives a CLOSE
     // frame is expected to send one back before the TCP connection
-    // actually closes.
+    // closes.
     uint16_t port = 0;
     int listen_fd = ListenOnLoopback(&port);
     ASSERT_GE(listen_fd, 0);

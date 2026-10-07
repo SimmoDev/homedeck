@@ -129,7 +129,7 @@ int Ina226BatteryReader::ReadPercent() const {
     float voltage = sensor_->bus_voltage_volts(ec);
     if (ec) {
         // Conservative fallback: report empty rather than a stale or
-        // fabricated value when the sensor can't actually be read.
+        // fabricated value when the sensor can't be read.
         return 0;
     }
     float fraction = (voltage - kMinVoltage) / (kMaxVoltage - kMinVoltage);
@@ -148,7 +148,7 @@ bool Ina226BatteryReader::IsBatteryPresent() const {
     if (ec) {
         // Conservative fallback, matching ReadPercent(): assume no
         // battery rather than fabricate a reading the sensor couldn't
-        // actually take.
+        // take.
         return false;
     }
     if (std::fabs(current) >= kBatteryPresentCurrentThresholdAmps) {

@@ -34,7 +34,7 @@ bool WaitFor(Predicate predicate, int max_attempts = 300) {
 }
 
 // HarmonyConnection needs a WebSocketClient factory even though these
-// route tests never actually connect (no hub address is ever configured
+// route tests never connect (no hub address is ever configured
 // here) - a factory that's never called is enough.
 class UnusedWebSocketClient : public homedeck::WebSocketClient {
 public:
@@ -166,7 +166,7 @@ TEST_F(HarmonyRoutesTest, StatusReportsDisconnectedWithNoConfigBeforeAnyHubIsCon
 // StatusReportsDisconnectedWithNoConfigBeforeAnyHubIsConfigured above only
 // exercises SnapshotToJson()'s empty-state branch - the device/activity
 // array population and currentActivityId it wires up once a hub is
-// actually configured had no dedicated coverage through the real
+// configured had no dedicated coverage through the real
 // GET /api/harmony/status wire format.
 TEST_F(HarmonyRoutesTest, StatusReportsPopulatedSnapshotOnceConnected) {
     ASSERT_TRUE(storage_->SetSetting("harmony", "hub_host", 1, "127.0.0.1"));

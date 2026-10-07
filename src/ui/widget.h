@@ -13,7 +13,7 @@ namespace homedeck {
 // Deliberately minimal beyond span: no live/cached/offline freshness
 // reporting yet - ADR-0008 names it as an open implementation detail,
 // and there's no widget yet (weather, the first one, is a separate
-// follow-up pass) to validate what shape it actually needs.
+// follow-up pass) to validate what shape it needs.
 class Widget {
 public:
     virtual ~Widget() = default;

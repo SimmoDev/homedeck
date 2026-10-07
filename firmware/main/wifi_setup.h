@@ -26,7 +26,7 @@ struct WifiUiCallbacks {
     // see StartRecoveryAccessPoint's own comment for why it can't reuse
     // 80). May be empty (no Touch UI hookup).
     std::function<void(const std::string& ap_ssid, const std::string& ap_ip, uint16_t port)> on_setup_needed;
-    // Fires once Wi-Fi actually connects - the caller should dismiss the
+    // Fires once Wi-Fi connects - the caller should dismiss the
     // setup screen. May be empty.
     std::function<void()> on_connected;
     // Fires when a freshly-submitted set of credentials gives up after
@@ -47,7 +47,7 @@ struct WifiUiCallbacks {
 // are always populated (derived from the device's own MAC and the fixed
 // SoftAP gateway address respectively), regardless of
 // has_stored_credentials, since a caller deciding what to show the user
-// needs them before knowing whether setup mode will actually be entered.
+// needs them before knowing whether setup mode will be entered.
 struct WifiCredentialsCheck {
     bool has_stored_credentials;
     std::string ap_ssid;

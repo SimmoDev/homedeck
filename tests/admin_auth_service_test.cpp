@@ -170,7 +170,7 @@ TEST_F(AdminAuthServiceTest, LoginSweepsAnExpiredSessionNobodyEverRevalidated) {
     ASSERT_TRUE(second_token.has_value());
 
     // The stale first session must be gone, not just a second one added
-    // on top of it - proves SweepExpiredSessions() actually ran on this
+    // on top of it - proves SweepExpiredSessions() ran on this
     // login, not just that ValidateSession()'s own lazy expiry works
     // (already covered by SessionExpiresAfterItsLifetime above).
     EXPECT_EQ(auth.ActiveSessionCountForTesting(), 1u);
@@ -209,7 +209,7 @@ TEST_F(AdminAuthServiceTest, RequireAuthReturns401WithoutAValidSessionCookie) {
 
 namespace {
 // Decorates a real SecretStore to count Get() calls - a proxy for "how
-// many Login() calls actually got past the lockout gate to attempt a
+// many Login() calls got past the lockout gate to attempt a
 // real password comparison," since Login() only reads the stored hash
 // from inside that gate.
 class CountingSecretStore : public homedeck::SecretStore {
@@ -313,7 +313,7 @@ TEST_F(AdminAuthServiceTest, RequireAuthCallsInnerHandlerWithAValidSessionCookie
     homedeck::HttpRequest request;
     // Alongside an unrelated cookie, matching a real browser's Cookie
     // header carrying more than one cookie - proves the "session" name
-    // is actually parsed out, not just assumed to be the whole header.
+    // is parsed out, not just assumed to be the whole header.
     request.cookie_header = "other=1; session=" + *token;
     homedeck::HttpResponse response = wrapped(request);
 

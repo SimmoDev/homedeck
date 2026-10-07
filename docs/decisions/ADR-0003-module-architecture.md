@@ -31,7 +31,7 @@ possible about individual modules, and that modules never communicate with
 each other directly. This ADR records the shape of that contract at an
 architectural level. It intentionally does not define C++ interfaces,
 method signatures, or protocol details — [CLAUDE.md](../../CLAUDE.md) instructs against making
-assumptions about APIs before the first module is actually built, since that
+assumptions about APIs before the first module is built, since that
 tends to produce speculative abstractions that don't fit real
 implementation needs.
 

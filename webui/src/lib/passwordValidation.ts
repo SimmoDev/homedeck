@@ -14,7 +14,7 @@ export const kMaxPasswordLength = 256; // matches AdminAuthService::kMaxPassword
 // visibly astral-plane characters like emoji, counted as 2 code units
 // but 4+ UTF-8 bytes) - a password that reads as within-bounds
 // client-side could still be rejected server-side. TextEncoder gives
-// the same UTF-8 byte count the server actually checks.
+// the same UTF-8 byte count the server checks.
 function utf8ByteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }

@@ -27,7 +27,7 @@
   // both about to stop working, not a state worth returning to by
   // itself clearing or timing out. There's deliberately no way back out
   // of this view - a page reload is the correct next step, once the
-  // device is actually reachable again at whatever address it gets from
+  // device is reachable again at whatever address it gets from
   // reprovisioning.
   //
   // wifiResetSsid is separate from wifiResetTriggered (rather than one
@@ -55,7 +55,7 @@
     // this app - a failed logout isn't user-actionable (there's no retry
     // affordance worth showing), and loadStatus() re-checking the
     // session state afterward is correct either way: still logged in on
-    // a network failure, logged out if the request actually landed.
+    // a network failure, logged out if the request landed.
     await postJson("/api/auth/logout");
     await loadStatus();
   }

@@ -2,7 +2,7 @@
 # defaults when sdkconfig is (re)generated - see DEVELOPMENT.md's ESP-IDF
 # setup section. The full generated sdkconfig is gitignored (machine/
 # build-specific); this file is the source of truth for settings the
-# project actually requires against the confirmed reference hardware (see
+# project requires against the confirmed reference hardware (see
 # docs/architecture/hardware.md).
 
 # The Tab5 K145's actual flash size is 16MB - the ESP-IDF default (2MB)

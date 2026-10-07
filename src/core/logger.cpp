@@ -101,7 +101,7 @@ Logger::~Logger() = default;
 
 void Logger::Log(LogLevel level, const std::string& component, const std::string& message) {
     // Timestamp captured now, not whenever WorkerLoop() eventually
-    // persists this - callers need the time the event actually
+    // persists this - callers need the time the event
     // happened, not whenever the write got around to running.
     Record record{std::chrono::system_clock::to_time_t(time_source_.Now()), level, component, message};
     pending_.Push(Item{std::move(record), nullptr});
@@ -161,7 +161,7 @@ void Logger::WorkerLoop(std::stop_token stop_token) {
             WriteBatch(batch);
         }
         // Only after the batch above (everything queued ahead of these
-        // signals) has actually been written - FIFO ordering plus
+        // signals) has been written - FIFO ordering plus
         // strictly-sequential processing here guarantees that.
         for (auto& signal : flush_signals) {
             signal->set_value();

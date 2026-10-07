@@ -542,7 +542,7 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
     }
 
     std::vector<MdnsService> instances = mdns_browser_.Browse(kServiceType, browse_timeout_);
-    // Keep only instances we could actually connect to: a usable host,
+    // Keep only instances we could connect to: a usable host,
     // a non-zero port, and a host string safe to concatenate into a
     // ws:// authority. A discovered host never came from the user, so it
     // bypasses IsValidKodiHost() - screen it here instead, allowing ':'
@@ -698,7 +698,7 @@ bool KodiClient::ConnectAndPrime(const Target& target, std::stop_token stop) {
     // One reconcile poll up front so a client that connects while
     // something is already playing shows it immediately, rather than
     // blank until the first pushed notification. Doubles as a check
-    // that the socket is actually alive.
+    // that the socket is alive.
     return ReconcilePoll(stop, /*tolerate_timeout=*/false);
 }
 

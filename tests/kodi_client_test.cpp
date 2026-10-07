@@ -783,7 +783,7 @@ TEST_F(KodiClientTest, OnPlayForANewItemClearsThePreviousItemsStaleIdentity) {
 // main reason is add-on playback, where GetItem
 // returns blanks that ApplyItemFields() would already leave alone, so
 // this scripts the poll returning a *different, non-blank* title
-// instead - the only way to prove identity_from_notification_ actually
+// instead - the only way to prove identity_from_notification_
 // suppresses the overwrite rather than ApplyItemFields' own
 // leave-blank-fields-alone behavior doing it incidentally.
 TEST_F(KodiClientTest, NotificationIdentitySurvivesALaterPollWithADifferentGetItemResult) {
@@ -1019,7 +1019,7 @@ TEST_F(KodiClientTest, ReconcilePollFillsPositionAndDurationFromPolledProperties
 
 // canseek comes only from the reconcile poll's Player.GetProperties (no
 // Player.On* notification carries it), and gates NowPlayingScreen's seek
-// buttons. Prove the poll actually threads it onto the snapshot for both
+// buttons. Prove the poll threads it onto the snapshot for both
 // values.
 TEST_F(KodiClientTest, ReconcilePollCarriesCanSeekFromPlayerProperties) {
     homedeck::HostSettingsStore settings_store(root_dir_);
@@ -2491,7 +2491,7 @@ TEST_F(KodiClientTest, PumpNotificationDrainStopsAtItsIterationCap) {
 // through FakeMdnsBrowser, so ResolveTarget()'s discovery path carries
 // the real port into WebSocketUrl() (only the port-less manual-override
 // path assumes 9090). Binding 9090 itself would collide with a Kodi
-// actually running on the developer's machine - the exact setup anyone
+// running on the developer's machine - the exact setup anyone
 // working on this module has.
 
 std::string ReadHttpRequest(int fd) {
@@ -2588,7 +2588,7 @@ int ListenLoopback(uint16_t* out_port) {
 // Answers the JSON-RPC methods ReconcilePoll() issues, then pushes one
 // unsolicited notification - enough to prove KodiClient drives the
 // libcurl-backed HostWebSocketClient (id correlation across genuine
-// frames, a 0ms drain that actually sees a buffered push) end to end.
+// frames, a 0ms drain that sees a buffered push) end to end.
 // A scripted FakeWebSocketClient cannot show whether the real backend's
 // zero-timeout receive behaves as modelled, so this one runs over sockets.
 void RunFakeKodi(int listen_fd, std::atomic<bool>& stop) {

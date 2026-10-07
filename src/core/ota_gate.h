@@ -17,7 +17,7 @@ struct OtaGateStatus {
     // ADR-0005's "deferred with a clear explanation, not silently
     // blocked."
     std::string reason;
-    // The battery reading this decision was actually based on - callers
+    // The battery reading this decision was based on - callers
     // that also report battery percent (e.g. GET /api/ota/status) should
     // use this rather than taking a second, independent ReadPercent()
     // call, which could disagree with `open` at a threshold boundary.

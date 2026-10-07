@@ -11,7 +11,7 @@
 namespace {
 
 // A minimal real HTTP/1.1 client over a raw socket - proving
-// HostHttpServer actually accepts and answers a real TCP connection, not
+// HostHttpServer accepts and answers a real TCP connection, not
 // just that its internal dispatch logic runs. No new dependency: plain
 // POSIX sockets, matching how this project already avoids adding a
 // library where the standard one suffices.
@@ -168,7 +168,7 @@ TEST(HostHttpServer, RejectsOversizedRequestBodyBeforeReadingIt) {
     ASSERT_EQ(connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)), 0);
 
     // Claims a body far larger than kMaxHttpRequestBodyBytes but never
-    // actually sends one - proving the rejection happens against the
+    // sends one - proving the rejection happens against the
     // Content-Length header alone, before any read attempt, not only
     // after receiving (and thus allocating a buffer for) that much data.
     std::string request =

@@ -84,8 +84,8 @@ PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activit
                 // esp_ota_write() keeps running on its own thread
                 // regardless of PowerManager's state (see
                 // power-management.md#status), so OnTick()'s Idle timeout
-                // must stay suppressed for as long as that write actually
-                // is.
+                // must stay suppressed for as long as that write
+                // is in progress.
                 TransitionTo(ota_in_progress_ ? PowerState::kUpdating : PowerState::kActive);
             }
         });

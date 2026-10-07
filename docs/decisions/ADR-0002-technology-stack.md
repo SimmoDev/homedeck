@@ -94,7 +94,7 @@ primitives — a plain host C++ toolchain doesn't provide those, and this
 needs an explicit resolution, not a gap.
 
 **Decided:** a small set of Core-owned concurrency types — `Task`,
-`Queue`, and `Timer` — covering what Core and modules actually use
+`Queue`, and `Timer` — covering what Core and modules use
 (background tasks, the event bus's internal dispatch, and periodic/
 one-shot scheduling). Core and module code is written against these types
 exclusively, never against `xTaskCreate`/`xQueueCreate`/FreeRTOS APIs or
@@ -234,7 +234,7 @@ configuration, diagnostics, OTA, settings — not initial Wi-Fi setup,
 which is a separate SoftAP captive-portal flow, see
 [networking.md](../architecture/networking.md#initial-wi-fi-provisioning)).
 Vanilla JS remains the fallback if bundle size proves problematic in
-practice. **Where the built bundle actually lives is a later, separate
+practice. **Where the built bundle lives is a later, separate
 decision from the framework choice here — see
 [ADR-0025](ADR-0025-webui-static-asset-storage.md).**
 

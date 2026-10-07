@@ -12,7 +12,7 @@ namespace homedeck {
 // SettingEntry: this interface is generic key-value storage with no
 // concept of "module" of its own (that's a Core-level idea layered on
 // top by Storage, which is also the only thing that ever calls
-// module_id a module_id) - `ns` names what this layer actually knows
+// module_id a module_id) - `ns` names what this layer knows
 // it's namespacing by, nothing more.
 struct SettingsEntry {
     std::string ns;

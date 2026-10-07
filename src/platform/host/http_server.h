@@ -31,7 +31,7 @@ public:
     bool Start(uint16_t port) override;
     void Stop() override;
 
-    // The port Start() actually bound (0 before a successful Start or
+    // The port Start() bound (0 before a successful Start or
     // after Stop). Host-only, not on the HttpServer interface - firmware
     // always binds a fixed port and nothing there needs to ask.
     uint16_t BoundPort() const { return bound_port_; }

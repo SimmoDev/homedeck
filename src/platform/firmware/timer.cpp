@@ -73,7 +73,7 @@ Timer::~Timer() {
     // the delete ahead of it has already been fully processed, and no
     // callback for this timer can still be executing (the same one task
     // can't be doing both at once). Blocking on that pended call
-    // finishing is what makes this destructor actually safe to return
+    // finishing is what makes this destructor safe to return
     // from, not just "probably fine."
     SemaphoreHandle_t done = xSemaphoreCreateBinary();
     xTimerPendFunctionCall(GiveSemaphore, done, 0, portMAX_DELAY);

@@ -17,7 +17,7 @@
 # the most recent declaration before it - not truly variable-name-aware
 # (real C++ parsing would be needed for that), but matches this
 # codebase's own established declare-configure-use-per-function style
-# (see http_client.cpp), which is what actually matters here.
+# (see http_client.cpp), which is what matters here.
 #
 # esp_websocket_client_start() is deliberately NOT checked here, unlike
 # esp_http_client_perform() - its own config struct's network_timeout_ms
@@ -37,7 +37,7 @@ for f in "$@"; do
     # Trailing `//` comments stripped first - a prose mention of
     # esp_http_client_perform() (e.g. explaining what it does) must not
     # count as an actual call, and a comment mentioning timeout_ms must
-    # not count as actually setting it. Still not real parsing, so a
+    # not count as setting it. Still not real parsing, so a
     # /* */ block comment isn't handled the same way - same tradeoff
     # check-curl-timeouts.sh's identical strip already accepts.
     stripped=$(sed -E 's#//.*$##' "$f")

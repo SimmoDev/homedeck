@@ -98,7 +98,7 @@ void PrintBootBanner() {
 
 // Passed to RegisterOtaRoutes as its OtaRebootFn - esp_restart() can't
 // be called directly from the /api/ota/reboot handler, since the
-// handler still has to return so its 200 response is actually sent
+// handler still has to return so its 200 response is sent
 // first. The delay just needs to clear that write; it isn't otherwise
 // meaningful. OtaRebootFn has no failure-reporting contract (the 200
 // response is already committed by the time this runs), so a scheduling
@@ -132,14 +132,14 @@ void ScheduleReboot() {
 // just keep retrying against the now-empty config indefinitely instead of
 // ever reaching SoftAP mode - so this schedules the restore and the
 // reboot together, automatically, rather than leaving the reboot to a
-// second confirmed Web UI action that could never actually be clicked in
+// second confirmed Web UI action that could never be clicked in
 // time regardless (the connection carrying the first response is already
 // gone by then).
 //
 // Returns false if scheduling itself fails (matching WifiResetFn's own
 // contract, see wifi_routes.h) - the caller must not report success to
 // the Web UI in that case, since neither the credential clear nor the
-// reboot will actually happen.
+// reboot will happen.
 bool ScheduleWifiResetAndReboot() {
     esp_timer_handle_t timer = nullptr;
     esp_timer_create_args_t args = {};
@@ -165,7 +165,7 @@ bool ScheduleWifiResetAndReboot() {
 // check below (a real SDIO/RPC round trip to the C6, not instant) - masks
 // that latency with something meaningful rather than either an LVGL
 // default blank screen or briefly showing the dashboard before knowing
-// whether Wi-Fi setup is actually needed. Caller deletes the returned
+// whether Wi-Fi setup is needed. Caller deletes the returned
 // object once the initial screen has loaded.
 lv_obj_t* ShowSplashScreen() {
     lv_obj_t* splash = lv_obj_create(nullptr);
@@ -263,7 +263,7 @@ void RegisterMdns(const std::string& device_name, homedeck::Logger& logger) {
     if (mdns_result == ESP_OK) {
         // Checked individually rather than assuming success once mdns_init()
         // is OK - a partial failure here would otherwise still log "Advertising
-        // as X.local" below even though the device isn't actually reachable
+        // as X.local" below even though the device isn't reachable
         // there.
         bool setup_ok = mdns_hostname_set(device_name.c_str()) == ESP_OK;
         setup_ok = (mdns_instance_name_set("HomeDeck") == ESP_OK) && setup_ok;
@@ -474,12 +474,12 @@ void BlockUntilWifiConnected(homedeck::AppCore& app_core) {
     app_core.GetLogger().Log(homedeck::LogLevel::kInfo, "wifi", "Connected to Wi-Fi");
 }
 
-// Everything that only becomes possible/meaningful once Wi-Fi is actually
+// Everything that only becomes possible/meaningful once Wi-Fi is
 // connected - time sync, mDNS self-advertisement, and finally starting the
 // Web Management UI itself (see ServeEmbeddedWebUi(), already called before
 // this - only the actual accept-connections Start() call waits for Wi-Fi).
 // Also where the OTA rollback confirmation lives: a meaningful "this
-// boot actually worked" checkpoint belongs after the boot sequence has
+// boot worked" checkpoint belongs after the boot sequence has
 // gotten this far, not any earlier.
 void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, homedeck::FirmwareHttpServer& web_server,
                                      homedeck::AppCore& app_core) {
@@ -505,12 +505,12 @@ void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, hom
         app_core.GetLogger().Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
     }
 
-    // A meaningful "this boot actually worked" checkpoint - see
+    // A meaningful "this boot worked" checkpoint - see
     // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.
-    // Gated on the Web UI actually starting - it's the device's only
+    // Gated on the Web UI starting - it's the device's only
     // remote admin/recovery surface once provisioned, so an image that
     // connects Wi-Fi but fails to serve it is exactly the "boots but is
-    // actually broken" case rollback exists to catch. mDNS failing alone
+    // broken" case rollback exists to catch. mDNS failing alone
     // doesn't block confirmation - the Web UI stays reachable by IP
     // without it, so it isn't the same class of "unusable boot."
     // Deliberately left unconfirmed rather than escalated: the bootloader
@@ -669,10 +669,10 @@ extern "C" void app_main(void) {
     // AppCore's construction so the committed callback can safely
     // reference GetLogger(). Split across two calls (not one, unlike
     // before) specifically so the live mDNS re-announce below only ever
-    // runs once Storage::SetSetting() has actually persisted the new
+    // runs once Storage::SetSetting() has persisted the new
     // name - never on a name this validator itself already rejected, and
     // never left applied against a value a later storage-write failure
-    // didn't actually save.
+    // didn't save.
     app_core.SetOnDeviceNameValidate(
         [](const std::string& value) -> bool { return IsValidHostnameLabel(value); });
     app_core.SetOnDeviceNameCommitted([&app_core](const std::string& value) {

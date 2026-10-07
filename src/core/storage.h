@@ -26,7 +26,7 @@ struct VersionedValue {
 // enumeration primitive (docs/decisions/ADR-0023-settings-backup-api.md).
 // `module_id` is platform/settings_store.h's SettingsEntry::ns renamed,
 // not a different value - deliberately, since this is the layer that
-// actually knows the string means "which module," a concept
+// knows the string means "which module," a concept
 // SettingsStore itself has no notion of (see its own comment on `ns`).
 struct SettingEntry {
     std::string module_id;

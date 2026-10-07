@@ -54,14 +54,18 @@ for f in "$@"; do
         status=1
     fi
 
-    # Filler adverbs add nothing to a sentence in prose docs. ADRs are a
-    # record as of their date and are not reworded; code comments use
-    # "actually" for real contrasts (requested vs persisted), so only
-    # Markdown outside docs/decisions is checked.
+    # Filler adverbs add nothing to a sentence. Warn-only: delete the word
+    # unless the sentence changes meaning without it. "actually" is checked
+    # everywhere; the others only in Markdown outside docs/decisions/.
+    filler='actually'
     case "$f" in
-        docs/decisions/*|*CLAUDE.md|*m5stack_tab5*) ;;
-        *.md)
-            filler_matches=$(grep -niE '\b(actually|simply|basically|essentially|obviously)\b' "$f" || true)
+        docs/decisions/*) ;;
+        *.md) filler='actually|simply|basically|essentially|obviously' ;;
+    esac
+    case "$f" in
+        *CLAUDE.md|*m5stack_tab5*|*third_party*|*lib-narration-patterns.sh|*check-docs.sh) ;;
+        *)
+            filler_matches=$(grep -niE "\\b($filler)\\b" "$f" || true)
             if [ -n "$filler_matches" ]; then
                 echo "[wording] $f: filler adverb - delete it if the sentence reads the same without it:"
                 echo "$filler_matches" | sed 's/^/    /'

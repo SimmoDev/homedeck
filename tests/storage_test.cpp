@@ -111,7 +111,7 @@ TEST_F(StorageTest, SecretRoundTripsAndIsSeparateFromSettings) {
 
     // Not "admin_pw_hash" - that exact (module_id, key) is reserved (see
     // ReservedAdminPasswordKeyTests below), which would make SetSetting
-    // fail here for a reason unrelated to what this test is actually
+    // fail here for a reason unrelated to what this test is
     // checking.
     ASSERT_TRUE(storage.SetSetting("core", "some_other_key", 1, "settings-value"));
     ASSERT_TRUE(storage.SetSecret("core", "admin_pw_hash", 1, "secret-value"));
@@ -224,7 +224,7 @@ TEST_F(StorageTest, EraseSettingRejectsTheReservedAdminPasswordKey) {
     homedeck::Storage storage(settings_store, cache_store, secret_store);
 
     // Written directly through the underlying store, bypassing SetSetting's
-    // own guard, so this test actually exercises EraseSetting's guard
+    // own guard, so this test exercises EraseSetting's guard
     // rather than just observing there was nothing to erase.
     ASSERT_TRUE(settings_store.Set(homedeck::AdminAuthService::kModuleId, homedeck::AdminAuthService::kPasswordKey,
                                     "real-hash-value"));
@@ -249,7 +249,7 @@ TEST_F(StorageTest, SetSettingRejectsPathTraversalSegments) {
     EXPECT_FALSE(storage.GetSetting("..", "hub_ip").has_value());
     EXPECT_FALSE(storage.EraseSetting("harmony", "../secret"));
 
-    // The rejection actually took effect, not just a false return -
+    // The rejection took effect, not just a false return -
     // nothing escaped root_dir_ onto disk.
     EXPECT_FALSE(std::filesystem::exists(root_dir_.parent_path() / "etc"));
 }

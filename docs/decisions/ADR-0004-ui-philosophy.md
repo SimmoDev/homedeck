@@ -48,7 +48,7 @@ default, persistent view — see
 UI components subscribe to Core's event bus and re-render in response to
 events (e.g. `ActivityChanged`, `MonitorStatusChanged`) rather than polling
 module or Core state on a timer. Modules own the responsibility of deciding
-when their state has actually changed and publishing an event; UI code
+when their state has changed and publishing an event; UI code
 should never need to guess an appropriate poll interval. This keeps UI code
 simple and keeps polling policy (which affects battery life) centralized in
 modules/Core rather than scattered across screens.
@@ -65,7 +65,7 @@ without each module needing to reimplement back/home handling.
 guarantees that *if* something asks the navigation manager to go home, it
 reliably can, from any screen. It does not by itself give the user
 something to tap. See [Decision: Return-home
-affordance](#decision-return-home-affordance) below for what actually
+affordance](#decision-return-home-affordance) below for what
 delivers this to the user.
 
 ## Decision: Return-home affordance
@@ -86,7 +86,7 @@ affordance, and centralized navigation alone doesn't specify what it is.
 
 **Decided:** a persistent on-screen affordance, as the guaranteed baseline.
 This was chosen specifically because it's the only option that can
-actually be guaranteed to hold on *every* screen without relying on
+be guaranteed to hold on *every* screen without relying on
 unconfirmed assumptions: an edge-swipe gesture risks silent conflicts with
 whatever gesture an arbitrary future module's screen assumes is available
 to it (e.g. a horizontal swipe through a media carousel, a vertical scroll

@@ -16,7 +16,7 @@ namespace homedeck {
 // implementation behind a pImpl the way Task/Timer do). The firmware/
 // FreeRTOS specialization - likely needing trivially-copyable T given
 // xQueueCreate's fixed-size semantics - isn't solved here; it's deferred
-// to when firmware bring-up actually needs it. In practice this generic
+// to when firmware bring-up needs it. In practice this generic
 // std::mutex/condition_variable_any implementation works
 // on firmware too (see Logger, ADR-0020) - the same pthread-
 // backed primitives AdminAuthService's mutex already relies on there -

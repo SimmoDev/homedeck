@@ -76,7 +76,7 @@ struct WsScript {
     // that arrived before the drain runs. `responses` models this test's
     // own expected reply to whatever request follows the drain, and must
     // stay untouched by it regardless of when the test pushed it relative
-    // to the connection loop actually running - a real backend's 0ms
+    // to the connection loop running - a real backend's 0ms
     // receive only ever sees what's already buffered, never something a
     // later, bounded-timeout receive is the one meant to wait for.
     std::deque<std::string> stale_responses;
@@ -223,7 +223,7 @@ constexpr std::chrono::milliseconds kFastBackoff = std::chrono::milliseconds(30)
 // below - every other test in this file drives HarmonyConnection against
 // FakeHttpClient/FakeWebSocketClient, scriptable doubles that can't
 // reproduce real socket/timing behavior (e.g. DrainStaleMessages()'s own
-// 0ms ReceiveText() poll, which depends on what a real backend actually
+// 0ms ReceiveText() poll, which depends on what a real backend
 // does with a zero timeout - see HostWebSocketClient's own
 // ReceiveTextZeroDoesNotBlockWhenNothingIsPending regression test in
 // websocket_client_test.cpp). Deliberately minimal - just enough of HTTP/1.1
@@ -492,7 +492,7 @@ TEST(IsValidHubHostTest, RejectsNonWhitespaceControlCharacters) {
 TEST(IsValidHubHostTest, RejectsUrlStructuralCharacters) {
     // #/?/@ all pass every other check (no scheme, no whitespace, no
     // path, plain ASCII) but change what HandshakeUrl()/WebSocketUrl()'s
-    // raw concatenation actually connects to instead of just failing to
+    // raw concatenation connects to instead of just failing to
     // connect - see IsValidHubHost()'s own comment.
     EXPECT_FALSE(homedeck::IsValidHubHost("realhost#fragment"));
     EXPECT_FALSE(homedeck::IsValidHubHost("realhost?query=1"));
@@ -524,14 +524,14 @@ TEST(IsValidHubIdTest, AcceptsAHexOrUuidShapedId) {
 TEST(IsValidHubIdTest, RejectsEmpty) {
     // Unlike IsValidHubHost(), which accepts empty as "not this function's
     // concern" - there's no "not yet configured" reading of an empty
-    // activeRemoteId once a handshake response has actually been parsed.
+    // activeRemoteId once a handshake response has been parsed.
     EXPECT_FALSE(homedeck::IsValidHubId(""));
 }
 
 TEST(IsValidHubIdTest, RejectsUrlStructuralCharacters) {
     // '&'/'#' would otherwise reach WebSocketUrl()'s raw concatenation
     // unchanged and, like IsValidHubHost()'s own '#'/'?'/'@' case, change
-    // what the connect URL's query string actually contains rather than
+    // what the connect URL's query string contains rather than
     // just failing to connect.
     EXPECT_FALSE(homedeck::IsValidHubId("74494839&evil=1"));
     EXPECT_FALSE(homedeck::IsValidHubId("74494839#fragment"));
@@ -711,7 +711,7 @@ TEST_F(HarmonyConnectionTest, EntriesWithAWrongTypedIdAreDroppedNotKeptEmpty) {
 }
 
 // Saving hub_host back to empty - the Web UI's "clear the configured hub"
-// flow, HarmonySettings.svelte - must actually clear
+// flow, HarmonySettings.svelte - must clear
 // devices/activities/current_activity_id/has_config, not just move state
 // to kDisconnected while leaving ActivitiesScreen/DevicesScreen (both
 // keyed on has_config alone, not state) still rendering the previous
@@ -813,7 +813,7 @@ TEST_F(HarmonyConnectionTest, ChangingHubHostAfterANeverSuccessfulAttemptStillPu
     // HarmonyConfigUpdatedEvent must still fire on the address change so
     // HarmonyNotificationBridge can tell "a fresh address's own first
     // failure" apart from "the previous address's already-notified one",
-    // even though there was no cached config to actually clear.
+    // even though there was no cached config to clear.
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
     homedeck::HostSecretStore secret_store(root_dir_);
@@ -999,7 +999,7 @@ TEST_F(HarmonyConnectionTest, HandshakeWithExcessivelyNestedJsonBodyEntersErrorS
     connection.Stop();
 }
 
-// A well-formed JSON object missing the field this class actually needs
+// A well-formed JSON object missing the field this class needs
 // (activeRemoteId) - the hub returning a shape this project doesn't
 // recognize must not be treated as success.
 TEST_F(HarmonyConnectionTest, HandshakeMissingActiveRemoteIdEntersErrorState) {
@@ -1209,7 +1209,7 @@ TEST_F(HarmonyConnectionTest, MalformedCurrentActivityResponseDropsTheConnection
     // clean before the malformed one below is ever reached.
     PushResponse(script, CurrentActivityResponseBody("-1"));
     // Consumed by the first periodic liveness probe after connecting -
-    // missing the "result" field FetchCurrentActivity() actually reads.
+    // missing the "result" field FetchCurrentActivity() reads.
     PushResponse(script, R"({"data":{"result_typo":"-1"}})");
 
     homedeck::HarmonyConnection connection(
@@ -1530,7 +1530,7 @@ TEST_F(HarmonyConnectionTest, DrainsStaleMessagesBeforeSendingTheInitialConfigRe
     // WsScript::stale_responses can't model a real transport's shared
     // receive buffer (a real socket doesn't know which call is
     // "supposed" to get which message the way two separate fake queues
-    // would), so this checks the one thing that actually matters
+    // would), so this checks the one thing that matters
     // instead: that ConnectAndFetchConfig()'s own 0ms drain poll runs
     // before the config request itself is sent.
     std::lock_guard<std::mutex> lock(script->mutex);
@@ -1910,10 +1910,10 @@ TEST_F(HarmonyConnectionTest, EnqueueingPastTheCapDropsTheOldestEntriesFirst) {
         kFastBackoff);
     connection.Start();
 
-    // Waits for the connection loop's own thread to have actually reached
+    // Waits for the connection loop's own thread to have reached
     // its unconfigured wait, rather than assuming it gets there before the
     // 25 enqueues below run - Start() only requests the background thread
-    // start, with no guarantee about when it actually begins executing.
+    // start, with no guarantee about when it begins executing.
     // Without this wait, a slow-to-schedule thread (seen in CI under load)
     // could still be sitting on a stale, pre-Start() TriggerReconnect()-style
     // wake_requested_ once it finally connects, tripping an extra,
@@ -1999,7 +1999,7 @@ TEST_F(HarmonyConnectionTest, CommandStillQueuedWhenStoppedPublishesADroppedEven
 }
 
 // A command still queued from before a connectivity gap no longer
-// reflects what the user actually wants sent once too much time has
+// reflects what the user wants sent once too much time has
 // passed - it must be dropped, not fired stale on reconnect.
 TEST_F(HarmonyConnectionTest, StaleQueuedCommandsAreDroppedOnReconnect) {
     homedeck::HostSettingsStore settings_store(root_dir_);
@@ -2024,7 +2024,7 @@ TEST_F(HarmonyConnectionTest, StaleQueuedCommandsAreDroppedOnReconnect) {
 
     // ActivitiesScreen's dropped_sub_ (src/ui/screens/activities_screen.h)
     // is the real subscriber - this just verifies the event this class
-    // itself is responsible for actually fires, not that screen's own UI
+    // itself is responsible for fires, not that screen's own UI
     // reaction to it (LVGL-dependent code isn't built in this test
     // harness - see tests/README.md).
     std::atomic<int> dropped_events{0};
@@ -2246,7 +2246,7 @@ TEST_F(HarmonyConnectionTest, HubHostChangeArrivingDuringAnInFlightConnectIsNotD
     PushResponse(script, CurrentActivityResponseBody("-1"));
     // The new-address attempt's own responses, queued up front - WsScript
     // has no per-hub distinction, only connect_urls' recorded order below
-    // proves which attempt actually reached the hub.
+    // proves which attempt reached the hub.
     PushResponse(script, kConfigSuccessBody);
     PushResponse(script, CurrentActivityResponseBody("-1"));
 
@@ -2328,7 +2328,7 @@ TEST_F(HarmonyConnectionTest, StopDuringAnInFlightBatchSendPublishesADroppedEven
     connection.PressDeviceCommand(R"({"idx":"first"})");
     connection.PressDeviceCommand(R"({"idx":"second"})");
 
-    // Waits for the first command's SendText() to actually be blocked
+    // Waits for the first command's SendText() to be blocked
     // mid-call, not just enqueued - only then is it safe to stop the
     // connection loop's own thread without racing whether it even started
     // sending yet.
@@ -2338,7 +2338,7 @@ TEST_F(HarmonyConnectionTest, StopDuringAnInFlightBatchSendPublishesADroppedEven
     }
 
     // Stop() blocks (via Task's own destructor) until the connection loop's
-    // thread actually returns, which can't happen until the blocked
+    // thread returns, which can't happen until the blocked
     // SendText() above is released - so it has to run on its own thread.
     // request_stop() itself is a single fast atomic-flag set with no I/O in
     // between it and Stop() being called, so by the time this thread is
@@ -2448,7 +2448,7 @@ TEST_F(HarmonyConnectionTest, RealBackendDrainsAStaleFrameBeforeTheNextLivenessP
 
     ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().current_activity_id == "-1"; }));
 
-    // If DrainStaleMessages() failed to actually drain the stray frame
+    // If DrainStaleMessages() failed to drain the stray frame
     // against the real socket backend, the next liveness probe's own
     // ReceiveText() would read the stray frame instead of the real
     // reply below, and current_activity_id would never reach "123".

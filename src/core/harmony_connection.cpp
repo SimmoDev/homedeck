@@ -172,7 +172,7 @@ std::vector<HarmonyDevice> ParseDevices(const nlohmann::json& array) {
 // room for a hub that returns e.g. a hex/UUID-shaped id without
 // reopening the character classes - '&', '#', whitespace - that would
 // let a malicious or spoofed response change what the connect URL's
-// query string actually contains.
+// query string contains.
 bool IsValidHubId(const std::string& value) {
     if (value.empty()) return false;
     for (unsigned char c : value) {
@@ -322,7 +322,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         std::optional<VersionedValue> hub_host_setting = storage_.GetSetting(kModuleId, kHubHostKey);
         if (!hub_host_setting.has_value() || hub_host_setting->value.empty()) {
             ClearConfigIfPresent();
-            // Only once a previous hub was actually configured - a command
+            // Only once a previous hub was configured - a command
             // queued before any hub has ever been set (last_hub_host_ still
             // empty) has no prior hub to have been wrongly addressed to; it
             // stays queued, waiting for whichever hub is configured first,
@@ -349,7 +349,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         // HarmonySettings.svelte's own post-save comment.
         if (hub_host_setting->value != last_hub_host_) {
             ClearConfigIfPresent(/*force_publish=*/true);
-            // Same "only if a previous hub actually existed" guard as the
+            // Same "only if a previous hub existed" guard as the
             // unconfigured branch above - last_hub_host_ empty here means
             // this is the very first connect attempt of the process, not a
             // switch away from a hub any queued command could have been
@@ -390,7 +390,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         // again here, under wake_mutex_ (so no concurrent TriggerReconnect()
         // call can land between this read and the reset below), to tell
         // the two cases apart: only discard the trigger if hub_host is
-        // still what this iteration actually connected with.
+        // still what this iteration connected with.
         {
             std::lock_guard<std::mutex> lock(wake_mutex_);
             std::optional<VersionedValue> post_connect_hub_host = storage_.GetSetting(kModuleId, kHubHostKey);

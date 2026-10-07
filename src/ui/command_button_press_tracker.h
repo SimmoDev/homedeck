@@ -24,7 +24,7 @@ public:
     Action OnLongPressed(const void* button);
     // LV_EVENT_LONG_PRESSED_REPEAT - always returns kHold; per LVGL's own
     // indev.c this only ever fires after LONG_PRESSED already did, so
-    // there's no separate "is this button actually mid-long-press" check
+    // there's no separate "is this button mid-long-press" check
     // to make here.
     Action OnLongPressRepeat(const void* button) const;
     // LV_EVENT_RELEASED - `is_scrolling` is the caller's own

@@ -147,7 +147,7 @@ export async function postJson<T = unknown>(url: string, body?: unknown): Promis
 // (JsonErrorResult) but not its optional-data success case: unlike
 // postJson(), a malformed/empty body here throws inside this function's
 // own try and resolves as a network-kind error instead, so `data` is
-// always actually present when `ok` is true.
+// always present when `ok` is true.
 export type GetJsonResult<T> = { ok: true; data: T } | JsonErrorResult;
 
 export async function getJson<T>(url: string): Promise<GetJsonResult<T>> {

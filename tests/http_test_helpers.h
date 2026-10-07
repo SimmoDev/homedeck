@@ -1,7 +1,7 @@
 #pragma once
 
 // Shared raw-socket HTTP test client for tests/*_routes_test.cpp - proves
-// each HttpServer-backed route actually round-trips over a real TCP
+// each HttpServer-backed route round-trips over a real TCP
 // connection, not just that handler logic runs in isolation. Header-only
 // (inline) since it's included directly by several test translation units
 // that all link into the same tests/ binary.

@@ -183,7 +183,7 @@ TEST_F(AdminAuthRoutesTest, LoginRejectsPasswordOverMaximumLengthWithoutCounting
 // The other reason SetInitialPassword() can fail besides the race
 // ADR-0007 accepts (FullSetupLoginProtectedRouteLogoutFlow's "already_set"
 // case) - a genuine storage write failure, which must surface as 500, not
-// be misreported as "already_set" when the password was never actually
+// be misreported as "already_set" when the password was never
 // persisted.
 TEST_F(AdminAuthRoutesTest, SetupReturns500WhenStorageWriteFailsWithPasswordStillUnset) {
     homedeck::HostSettingsStore settings_store(root_dir_ / "failing_case");

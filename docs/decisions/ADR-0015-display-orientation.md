@@ -11,7 +11,7 @@ figures, and what the simulator's window dimensions originally assumed
 (`simulator/main.cpp`, before this decision). Real hardware bring-up (see
 [ADR-0014](ADR-0014-hardware-support-library.md) and
 [hardware.md](../architecture/hardware.md#display-driver-strategy))
-found the panel actually reports `720x1280` at runtime — portrait, not
+found the panel reports `720x1280` at runtime — portrait, not
 landscape — and that this is genuinely the panel's native scan direction,
 not a default init flag: `espressif/m5stack_tab5` hardcodes it as
 `BSP_LCD_H_RES`/`BSP_LCD_V_RES` in its own `display.h`, with no

@@ -106,7 +106,7 @@ reference to build from).
   IMU and audio support (`bsp_sensors.c`, `bsp_audio.c` exist in the
   component and were part of the M1 build), which may mean the same
   reasoning extends to those peripherals too, but that's unconfirmed, not
-  assumed — resolve it when each is actually brought up, not by
+  assumed — resolve it when each is brought up, not by
   extrapolation.
 - **New dependency footprint accepted as a real cost, not overlooked:**
   `espressif/m5stack_tab5` unconditionally pulls in camera/USB-UVC support

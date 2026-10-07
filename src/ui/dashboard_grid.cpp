@@ -69,7 +69,7 @@ void DashboardGrid::EnsureRowExists(int row) {
     // LVGL's grid style property stores this pointer directly rather
     // than copying the array, so growing row_dsc_ - which may reallocate
     // its buffer - requires re-pointing LVGL at wherever the data
-    // actually lives now. Skipping
+    // lives now. Skipping
     // this after a reallocation would leave LVGL holding a dangling
     // pointer into freed memory. Harmless to call even when
     // GrowRowDescriptorArray() above was a no-op (row already covered) -
@@ -83,7 +83,7 @@ void DashboardGrid::AddWidget(Widget& widget) {
     // silently collide with another widget - see its own comment) into
     // one this class can place safely. Clamped once, here, and reused
     // for every subsequent step below, so placement and occupancy never
-    // disagree about which footprint was actually used.
+    // disagree about which footprint was used.
     auto [col_span, row_span] =
         GridOccupancy<kColumns>::ClampSpan(widget.ColumnSpan(), widget.RowSpan());
 
