@@ -5,6 +5,8 @@ name: Docs check
 # files, so a narration/wording violation in a file nobody happens to
 # touch again stays invisible indefinitely - a full-repo periodic run is
 # the only way to catch it.
+# The files holding the checker's own patterns are excluded: they quote
+# every banned phrase and would always match.
 # Non-blocking, same as the pre-commit hook itself: a full-repo run also
 # surfaces plenty of pre-existing, legitimate "real"-as-adjective usage
 # and the project's own "**Confirmed:**"-as-fact-marker convention in
@@ -35,7 +37,9 @@ jobs:
             '*.md' '*.cpp' '*.cc' '*.h' '*.hpp' '*.ts' '*.svelte' '*.yml' '*.yaml' '*.sh' \
             '*sdkconfig*' 'CMakeLists.txt' '**/CMakeLists.txt' '*.cmake' \
             ':!firmware/components/m5stack_tab5/**' \
-            ':!src/third_party/nlohmann/**')
+            ':!src/third_party/nlohmann/**' \
+            ':!tools/githooks/lib-narration-patterns.sh' \
+            ':!tools/githooks/check-docs.sh')
           bash tools/githooks/check-docs.sh $files
 
       - name: Run check-hardware-md-scope.sh against docs/architecture/hardware.md
