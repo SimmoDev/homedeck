@@ -609,7 +609,8 @@ hold.
       reference unit): connection, Now Playing/Remote, all five browse
       screens (Movies/TV Shows/Music/Files/Live TV), mDNS discovery, and
       `instance_uuid`-based selection from the Web UI's radio list, plus
-      reconnecting after the Kodi server restarts and scrolling and
+      reconnecting after the Kodi server restarts or the item changes during
+      an outage (Now Playing shows the new item), and scrolling and
       selecting in every browse list (see
       [ui.md](architecture/ui.md#long-lists)). Per
       [simulator.md](architecture/simulator.md#what-the-simulator-is-not)
