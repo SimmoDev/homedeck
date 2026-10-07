@@ -60,7 +60,7 @@ why that split exists. Checking for the following defect classes:
   (`githooks/check-json-dump-strict.sh`); and, against every
   staged file regardless of extension, private-key blocks,
   cloud-provider/API-token credential shapes, and a staged `.env` file -
-  the one check that actually blocks the commit
+  the one check that blocks the commit
   (`githooks/check-secrets.sh`).
 - `githooks/pre-commit` also runs `shellcheck -S warning` on staged shell
   scripts (the `.sh` files and the extensionless hooks) when `shellcheck`

@@ -139,7 +139,7 @@ notification's `item`. `OnAVChange` / `OnResume` and the rest are the
 
 ### Progress freshness
 
-Kodi pushes nothing as playback simply advances - a notification fires
+Kodi pushes nothing as playback advances - a notification fires
 only on a state change (play / pause / seek / speed). So during
 uninterrupted playback the position, the `NowPlayingScreen` time label,
 and its `lv_bar` only move on the `reconcile_interval` poll: they step

@@ -9,7 +9,7 @@ The architecture documentation has grown large (14 architecture docs, 31
 ADRs) across M0's design work and the M1/M2/M3/M4 implementation work
 since. Not all of it is relevant to building a new module — most of the
 M1/M2-specific bring-up detail is settled and only worth consulting when
-it's actually touched. If you're implementing a module (see
+it's touched. If you're implementing a module (see
 [docs/roadmap.md](docs/roadmap.md) for which one is current), this is
 the essential reading, in order:
 
@@ -54,7 +54,7 @@ Everything else — the M1/M2 hardware bring-up detail in
 [ui.md](docs/architecture/ui.md)'s Rendering/Thread-safety sections, and most of
 the ADRs numbered 0009 and below plus 0011–0022 — is settled
 implementation to build on top of, not something a new module changes.
-Worth consulting when a specific need actually touches one of those
+Worth consulting when a specific need touches one of those
 areas (e.g. a new background task's threading rules), not worth
 re-reading in full up front.
 
@@ -159,7 +159,7 @@ do and why, worth reading at least once.
    ```
    **The mount covers the whole repo root, not just `firmware/`** — the
    firmware component reuses portable source directly from `../../src`
-   (see `firmware/main/CMakeLists.txt`), which needs to actually be
+   (see `firmware/main/CMakeLists.txt`), which needs to be
    visible inside the container. `-w /project/firmware` keeps `idf.py`'s
    own behavior (where `build/`, `sdkconfig`, etc. end up) unchanged
    despite the wider mount. Mounting the repo root does surface a cosmetic

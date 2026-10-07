@@ -65,7 +65,7 @@ specific module.
 ## Why these are centralized
 
 Every item above is a capability more than one module plausibly needs
-(logging, storage, and the event bus obviously; but also things like
+(logging, storage, and the event bus, but also things like
 weather, which the dashboard needs directly and which a future module might
 also want to react to). Centralizing them means:
 
@@ -80,10 +80,10 @@ also want to react to). Centralizing them means:
 
 **Known gap:** the event bus and module lifecycle have no defined capacity
 budget — nothing today bounds memory or scheduling cost as module count
-grows. This is acceptable while only 4 modules are actually scoped through
+grows. This is acceptable while only 4 modules are scoped through
 M6 (see [roadmap.md](../roadmap.md)); [CLAUDE.md](../../CLAUDE.md)'s longer future-modules
 list is aspirational, not committed. Revisit once module count starts
-actually growing past what's scoped today, rather than guessing at a
+growing past what's scoped today, rather than guessing at a
 budget now without modules to measure against.
 
 ## Boundary with modules

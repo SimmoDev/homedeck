@@ -81,7 +81,7 @@ hardware-facing interface layer, for two reasons:
    alternate hardware target is planned or committed to today.
 
 This abstraction is intentionally minimal — it should expose what Core and
-modules actually need (display surface, touch events, IMU readings, battery
+modules need (display surface, touch events, IMU readings, battery
 state, audio out, storage), not a general-purpose HAL designed for hardware
 that doesn't exist yet.
 
@@ -99,7 +99,7 @@ supporting tooling and test suites.
 
 This list is exhaustive, not prioritized — most of it is M2+ scope. If
 you're building a module, see [DEVELOPMENT.md's "Where to
-start"](../../DEVELOPMENT.md#where-to-start) for the actually-relevant
+start"](../../DEVELOPMENT.md#where-to-start) for the relevant
 subset and reading order instead of working through this list top to
 bottom.
 

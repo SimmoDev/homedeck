@@ -197,7 +197,7 @@ that severity. `kError`
 takes priority over `kUpdating` if both are true at once, per ADR-0005's
 "force a safe shutdown right now regardless of what the UI is doing" -
 the power *state* flips to `kError` immediately even mid-upload, though
-`PowerManager` has no mechanism to actually halt the in-progress
+`PowerManager` has no mechanism to halt the in-progress
 `esp_ota_write()` call itself, which keeps running on its own thread
 regardless. Safety here comes from `esp_ota_end()` already validating an
 image before it can become bootable, not from PowerManager stopping the
@@ -206,7 +206,7 @@ unvalidated and un-bootable, which is what fails safe. Of the other two
 fault types ADR-0005 originally scoped Error to cover:
 charging-fault detection is a permanent limitation of this board
 revision, not outstanding work - `CHG_STAT` (see [hardware.md](hardware.md#power))
-can't distinguish a stalled charge from a simply-unplugged or
+can't distinguish a stalled charge from a unplugged or
 already-full battery, and no independent cable-presence signal exists
 to disambiguate (see [roadmap.md](../roadmap.md) for the detail).
 Thermal fault is the same: no battery-temperature signal exists in this

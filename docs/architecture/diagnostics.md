@@ -86,7 +86,7 @@ ESP-IDF — a simulator process crashing is an ordinary host crash (segfault,
 uncaught exception), handled by the OS/debugger, not by any of this. What
 the simulator *does* need is mock data for this mechanism's Web UI
 presentation (a fake "last reboot reason," a stub downloadable core dump),
-consistent with the simulator being where the Web UI actually gets
+consistent with the simulator being where the Web UI gets
 developed and tested — see
 [simulator.md](simulator.md#how-it-works). Without that, the Diagnostics
 page's crash/reboot section would be one of the only parts of the Web UI

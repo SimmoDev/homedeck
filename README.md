@@ -22,7 +22,7 @@ full project vision.
 - A polished, consumer-quality handheld smart home control device — not a
   hobby project with a screen.
 - A complete, reliable replacement for a Harmony Hub remote as the first
-  milestone that actually matters to a user.
+  milestone that matters to a user.
 - A modular architecture that lets new integrations (Kodi, Uptime Kuma, Home
   Assistant, and beyond) be added without compromising the reliability of
   what's already there.

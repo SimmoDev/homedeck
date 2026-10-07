@@ -25,7 +25,7 @@ Networking is a Core service (see
   UI](web-ui.md) and any module API endpoints
 - A thin mDNS/Zeroconf discovery wrapper (see [LAN
   discovery](#lan-discovery) below) — not a universal discovery abstraction,
-  just standard mDNS browsing for the modules that actually use it
+  just standard mDNS browsing for the modules that use it
 
 Modules do not manage their own Wi-Fi or low-level network state — they use
 Core's networking service and Core's HTTP server registration mechanism.

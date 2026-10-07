@@ -190,7 +190,7 @@ explicitly doesn't yet:
   active (including the dashboard), not a navigation change. A
   notification published while the display is off (Sleeping) becomes
   visible this way once it's back on, whether that's an immediate
-  render that was simply invisible with the backlight off, or a
+  render that was invisible with the backlight off, or a
   deliberate replay — an implementation detail not yet decided.
 - **Sound** — uses the confirmed ES8388 codec and onboard speaker (see
   [hardware.md](hardware.md#audio)) via `AudioOutput`
@@ -281,7 +281,7 @@ seconds after showing. `NotificationSound`
 dashboard-indicator output — see [Notification
 presentation](#notification-presentation) above for both. All three
 outputs replace rather than queue: a notification arriving before the
-previous one has finished showing/playing simply overwrites it (one
+previous one has finished showing/playing overwrites it (one
 banner, one tone, one dashboard tile), the same "nothing today fires
 more than one notification per episode" reasoning the last-notification
 tile above already documents, applied consistently across all three.

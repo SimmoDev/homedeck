@@ -35,7 +35,7 @@ for why this ruled out a separate web-based mock UI.
 - **Simulated hardware and mechanisms — one principle, several instances:**
   anything with no meaningful desktop equivalent is backed by a mock/
   simulated implementation exposed through debug controls, rather than the
-  simulator attempting to actually replicate hardware or firmware behavior
+  simulator attempting to replicate hardware or firmware behavior
   it can't (or shouldn't) replicate. This serves two purposes throughout:
   GoogleTest exercises the underlying logic in isolation, and the debug
   controls let a developer manually exercise the resulting UI without real
