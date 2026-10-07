@@ -283,8 +283,9 @@ library request has waited more than 3 s, `KodiSnapshot::library_busy` is
 set (and `KodiNowPlayingChangedEvent` published) and `NowPlayingScreen` and
 `KodiRemoteScreen` show "Kodi is busy listing a folder"; it clears when Kodi
 next replies to anything, and on disconnect. Listings that are merely
-long (many fast pages) do not block it: `CallLibrary()` sends any queued playback commands before each page, so a
-command waits behind at most one page.
+long (many fast pages) do not block it: `CallLibrary()` sends any queued
+playback commands before each page, so a command waits behind at most one
+page.
 
 A JSON-RPC `error` reply to a listing (for example PVR disabled on that
 Kodi) parses to an empty list, so the screen shows its "Nothing here."
@@ -309,13 +310,13 @@ top-level list when it is first shown (`ScreenLoader`, on
 `LV_EVENT_SCREEN_LOAD_START`) and again after each transition into
 `KodiConnectionState::kConnected` - at once if it is showing, otherwise at
 its next show. Opening Kodi therefore costs no library queries until a
-browse screen is opened. A reconnect
-returns the fixed-depth screens to their top-level list, since a request in
-flight when the link dropped is lost; `KodiFilesScreen` keeps its
-`path_stack_` and reloads the folder the user was in. A show's seasons/episodes aren't known until that show/season is chosen,
-so those queries fire only when that level is entered. Kodi's database
-order has no relation to how a user browses, so every query sorts by
-label (`VideoLibrary.GetMovies`/`GetTVShows`) or by season/episode
+browse screen is opened. A reconnect returns the fixed-depth screens to
+their top-level list, since a request in flight when the link dropped is
+lost; `KodiFilesScreen` keeps its `path_stack_` and reloads the folder the
+user was in. A show's seasons/episodes aren't known until that show/season
+is chosen, so those queries fire only when that level is entered. Kodi's
+database order has no relation to how a user browses, so every query sorts
+by label (`VideoLibrary.GetMovies`/`GetTVShows`) or by season/episode
 number, not left at Kodi's own insertion order.
 
 `KodiMusicScreen` follows the video screens' `RequestX()`/
