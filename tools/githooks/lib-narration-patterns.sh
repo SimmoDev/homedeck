@@ -119,4 +119,11 @@ narration_patterns=(
     'already fixed'
     'fix(es)? for the (identical|same)'
     'a real bug'
+    # Change-history "now": the phrase names a state that used to differ.
+    # Bare "now" and "previously-X" are legitimate present-tense wording
+    # ("Reboot now", "previously-working credentials") and stay unflagged.
+    'also now'
+    'implemented now'
+    'it now does'
+    'originally scoped'
 )
