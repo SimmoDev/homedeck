@@ -100,4 +100,8 @@ narration_patterns=(
     "its own fix for"
     'was added for'
     'finding that originally'
+    # "real" used as an implementation-status word (CLAUDE.md: say
+    # "implemented").
+    'equally real'
+    'test for real'
 )
