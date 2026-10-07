@@ -822,6 +822,47 @@ TEST_F(KodiClientTest, NotificationIdentitySurvivesALaterPollWithADifferentGetIt
     client->Stop();
 }
 
+// A notification missed during an outage must not leave the previous
+// connection's identity on screen: the reconnect poll repopulates it.
+TEST_F(KodiClientTest, IdentityAfterAReconnectReflectsWhatIsPlayingNow) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    Push(script, R"({"jsonrpc":"2.0","method":"Player.OnPlay","params":{"data":{"item":{"title":"An Ep",)"
+                 R"("showtitle":"The Show","season":10,"episode":7,"type":"episode"},"player":{"playerid":1,)"
+                 R"("speed":1}}}})");
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.season == 10; }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Player.GetItem"] = R"({"item":{"title":"Movie B","type":"movie"}})";
+    }
+    client->TriggerReconnect();  // stands in for a link that dropped while the item changed
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->connect_urls.size() >= 2;
+    }));
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    auto np = client->Snapshot().now_playing;
+    EXPECT_EQ(np.title, "Movie B");
+    EXPECT_TRUE(np.show_title.empty());
+    EXPECT_EQ(np.season, -1);
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, PauseThenStopNotificationsTrackPlaybackState) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);

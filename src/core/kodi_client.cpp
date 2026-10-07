@@ -687,6 +687,14 @@ bool KodiClient::ConnectAndPrime(const Target& target, std::stop_token stop) {
     if (stop.stop_requested()) {
         return false;
     }
+    // Notifications missed while the link was down leave the previous
+    // connection's identity stale, and the poll defers to notification
+    // identity, so start from nothing and let the poll repopulate it.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state_.now_playing = KodiNowPlaying{};
+    }
+    identity_from_notification_ = false;
     // One reconcile poll up front so a client that connects while
     // something is already playing shows it immediately, rather than
     // blank until the first pushed notification. Doubles as a check

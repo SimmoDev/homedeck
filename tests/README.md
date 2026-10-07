@@ -69,8 +69,9 @@ Against fake `MdnsBrowser`/`WebSocketClient` doubles:
 - Discovery and selection: manual host override, saved `uuid`, single-instance
   auto-select, ambiguous, offline and address-less instances, unsafe hosts.
 - The JSON-RPC `id`-correlation loop with interleaved notifications.
-- Notification-driven Now Playing state, `can_seek`, and idle or paused
-  reconcile polls not republishing an unchanged snapshot.
+- Notification-driven Now Playing state, `can_seek`, idle or paused
+  reconcile polls not republishing an unchanged snapshot, and identity
+  being re-read after a reconnect.
 - The command surface: playback, `Input.*` and `Player.Open`, relative seek
   and volume steps, active-player resolution, stale-command dropping with
   stop kept, the `kMaxPendingCommands` cap, and the `kMaxPumpIterations`
