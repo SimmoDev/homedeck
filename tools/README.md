@@ -98,7 +98,9 @@ why that split exists. Checking for the following defect classes:
   (`githooks/check-unchecked-json-field-access.sh`); a strict `.dump()`
   (default error handler) in a file that handles raw mDNS bytes, which
   throws on invalid UTF-8 - `std::abort()` on firmware
-  (`githooks/check-json-dump-strict.sh`); and, against every
+  (`githooks/check-json-dump-strict.sh`); a staged generated file -
+  Python bytecode, object file or log - that belongs in `.gitignore`
+  (`githooks/check-build-artifacts.sh`); and, against every
   staged file regardless of extension, private-key blocks,
   cloud-provider/API-token credential shapes, and a staged `.env` file -
   the one check that blocks the commit

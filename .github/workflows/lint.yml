@@ -1,15 +1,15 @@
 name: Lint check
 
-# Runs the six tools/githooks/ checks that have no other CI backstop
+# Runs the seven tools/githooks/ checks that have no other CI backstop
 # (check-esp-idf-returns.sh/check-curl-timeouts.sh/check-esp-http-timeouts.sh/
 # check-unauthenticated-routes.sh/check-unchecked-json-field-access.sh/
-# check-json-dump-strict.sh) against every tracked file, not just a
+# check-json-dump-strict.sh/check-build-artifacts.sh) against every tracked file, not just a
 # commit's diff - same "the local pre-commit hook only ever sees staged
 # files, so a violation in a file nobody happens to touch again stays
 # invisible indefinitely" reasoning
 # docs.yml already uses for check-docs.sh/check-hardware-md-scope.sh.
 # Non-blocking, same as the pre-commit hook itself (see pre-commit's own
-# header comment for why these six stay warn-only): this is a periodic
+# header comment for why these seven stay warn-only): this is a periodic
 # report, not a merge gate. The shellcheck and LVGL-version steps are
 # deterministic and do fail the job.
 
@@ -43,6 +43,10 @@ jobs:
         run: |
           files=$(git ls-files -- '*.sh'; ls tools/githooks/commit-msg tools/githooks/pre-commit)
           shellcheck -x -S warning $files
+
+      - name: Run check-build-artifacts.sh against every tracked file
+        continue-on-error: true
+        run: bash tools/githooks/check-build-artifacts.sh $(git ls-files)
 
       # Deterministic, so a mismatch fails the job instead of only
       # reporting - see check-lvgl-version-sync.sh's own header.
