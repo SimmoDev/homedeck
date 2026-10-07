@@ -40,6 +40,7 @@ nlohmann::json SnapshotToJson(const KodiSnapshot& s) {
         {"appVersion", s.app_version},
         {"volume", s.volume},
         {"muted", s.muted},
+        {"libraryBusy", s.library_busy},
         {"nowPlaying",
          {
              {"playback", PlaybackToString(np.playback)},
