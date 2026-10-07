@@ -3,7 +3,11 @@
 
 Needs slow_source.py running and `pip install websocket-client`. See tools/README.md.
 """
-import json, time, websocket
+import json
+import time
+
+import websocket
+
 ws = websocket.create_connection("ws://127.0.0.1:9090/jsonrpc", timeout=120)
 t0 = time.time()
 ws.send(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "Files.GetDirectory",

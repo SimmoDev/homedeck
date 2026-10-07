@@ -7,7 +7,14 @@ HOMEDECK_PASSWORD=... device_check.py monitor [seconds]  # watch the busy flag w
 
 HOMEDECK_HOST overrides the device address (default homedeck.local).
 """
-import json, os, signal, subprocess, sys, time, urllib.request, http.cookiejar
+import http.cookiejar
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+import urllib.request
 
 HOST = os.environ.get("HOMEDECK_HOST", "homedeck.local")
 op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
@@ -33,9 +40,11 @@ def wait(pred, secs, what):
     while time.time() - t0 < secs:
         s = status()
         if pred(s):
-            print(f"  ok: {what} after {time.time()-t0:.0f}s"); return s
+            print(f"  ok: {what} after {time.time()-t0:.0f}s")
+            return s
         time.sleep(1)
-    print(f"  FAIL: {what} not reached in {secs}s; last={s.get('state', s)}"); return None
+    print(f"  FAIL: {what} not reached in {secs}s; last={s.get('state', s)}")
+    return None
 
 def kodi_pid():
     out = subprocess.run(["pgrep", "-x", "kodi.bin"], capture_output=True, text=True).stdout.split()
@@ -52,15 +61,24 @@ def discovery():
 
 def restart():
     ok = True
-    if not wait(lambda s: s.get("state") == "connected", 30, "connected before restart"): return False
-    pid = kodi_pid(); print("stopping Kodi", pid)
+    if not wait(lambda s: s.get("state") == "connected", 30, "connected before restart"):
+        return False
+    pid = kodi_pid()
+    if pid is None:
+        print("FAIL: no local kodi.bin process to stop")
+        return False
+    print("stopping Kodi", pid)
     os.kill(pid, signal.SIGTERM)
     # A second instance would fail to bind 9090/8080, so wait for the first to exit.
     for _ in range(30):
-        if kodi_pid() is None: break
+        if kodi_pid() is None:
+            break
         time.sleep(1)
     else:
-        os.kill(kodi_pid(), signal.SIGKILL); time.sleep(2)
+        stuck = kodi_pid()
+        if stuck is not None:
+            os.kill(stuck, signal.SIGKILL)
+        time.sleep(2)
     ok &= wait(lambda s: s.get("state") != "connected", 60, "link reported down") is not None
     time.sleep(5)
     print("starting Kodi")
@@ -68,8 +86,10 @@ def restart():
                      stderr=subprocess.DEVNULL, start_new_session=True)
     s = wait(lambda s: s.get("state") == "connected", 180, "reconnected")
     ok &= s is not None
-    if s: print("  nowPlaying after reconnect:", s["nowPlaying"]["playback"], repr(s["nowPlaying"]["title"]))
-    print("PASS" if ok else "FAIL"); return ok
+    if s:
+        print("  nowPlaying after reconnect:", s["nowPlaying"]["playback"], repr(s["nowPlaying"]["title"]))
+    print("PASS" if ok else "FAIL")
+    return ok
 
 def monitor(secs):
     print(f"monitoring {secs}s - open Files > SlowTest on the device now; Ctrl-C to stop early")
@@ -79,7 +99,8 @@ def monitor(secs):
             s = status()
             cur = (s.get("state"), s.get("libraryBusy"))
             if cur != last:
-                ev.append((time.time() - t0, *cur)); print(f"  t={ev[-1][0]:5.1f}s state={cur[0]} libraryBusy={cur[1]}")
+                ev.append((time.time() - t0, *cur))
+                print(f"  t={ev[-1][0]:5.1f}s state={cur[0]} libraryBusy={cur[1]}")
                 last = cur
             time.sleep(1)
     except KeyboardInterrupt:

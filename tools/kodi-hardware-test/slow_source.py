@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A directory listing that takes 50 s to answer, for testing Kodi's slow-listing handling (see tools/README.md)."""
-import http.server, time
+import http.server
+import time
 
 DELAY = 50
 
