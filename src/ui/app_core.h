@@ -160,6 +160,9 @@ public:
 private:
     Storage storage_;
     HttpClient& http_client_;
+    // Before everything that logs through it. Logger's worker task starts at
+    // construction and needs only storage_ and the time source.
+    Logger logger_;
     OpenMeteoWeatherProvider weather_provider_;
     HarmonyConnection harmony_connection_;
     KodiClient kodi_client_;
@@ -202,7 +205,6 @@ private:
     KodiLiveTvScreen kodi_live_tv_screen_;
 
     Clock clock_;
-    Logger logger_;
 
     SteadyTimeSource auth_time_source_;
     AdminAuthService admin_auth_;

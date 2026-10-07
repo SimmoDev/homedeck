@@ -5,7 +5,6 @@
 
 #include <chrono>
 #include <cstdlib>
-#include <iostream>
 #include <optional>
 
 namespace homedeck {
@@ -48,11 +47,12 @@ bool IsValidWeatherCoordinate(const std::string& key, const std::string& value) 
 }
 
 OpenMeteoWeatherProvider::OpenMeteoWeatherProvider(HttpClient& http_client, Storage& storage, EventBus& event_bus,
-                                                     std::chrono::milliseconds poll_interval)
+                                                     std::chrono::milliseconds poll_interval, Logger* logger)
     : http_client_(http_client),
       storage_(storage),
       event_bus_(event_bus),
       poll_interval_(poll_interval),
+      logger_(logger),
       poll_task_("weather-poll", [this](std::stop_token stop) { PollLoop(stop); }) {}
 
 WeatherState OpenMeteoWeatherProvider::Snapshot() const {
@@ -130,12 +130,11 @@ void OpenMeteoWeatherProvider::PollOnce() {
                 {"weather_code", weather_code},
                 {"display_name", name},
             };
-            // A failed write here only risks a reboot before the next
-            // successful poll falling back to stale/absent cached data
-            // (self-heals on the next successful poll) - but silently,
-            // with no trace of why, unless this is reported now.
-            if (!storage_.WriteCache(kModuleId, kCacheKey, kCacheSchemaVersion, cache.dump())) {
-                std::cerr << "OpenMeteoWeatherProvider: failed to persist weather cache\n";
+            // A failed write only risks a reboot before the next successful
+            // poll falling back to stale or absent cached data, so it is
+            // logged rather than treated as a poll failure.
+            if (!storage_.WriteCache(kModuleId, kCacheKey, kCacheSchemaVersion, cache.dump()) && logger_ != nullptr) {
+                logger_->Log(LogLevel::kWarning, "weather", "Failed to persist the weather cache");
             }
 
             {

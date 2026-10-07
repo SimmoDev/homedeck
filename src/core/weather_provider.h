@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/event_bus.h"
+#include "core/logger.h"
 #include "core/storage.h"
 #include "platform/http_client.h"
 #include "platform/task.h"
@@ -80,12 +81,16 @@ public:
     static constexpr char kLongitudeKey[] = "longitude";
     static constexpr char kDisplayNameKey[] = "display_name";
 
-    // poll_interval is injectable (defaulted to a real 30 minutes) so
+    static constexpr std::chrono::minutes kDefaultPollInterval{30};
+
+    // poll_interval is injectable (defaulted to kDefaultPollInterval) so
     // tests can use a millisecond-scale interval instead of waiting -
-    // the same "real default, test-overridable" shape Clock::tick_period
-    // already uses.
+    // the same default-plus-override shape Clock::tick_period uses.
+    // logger receives the cache-write failure, which the poll loop cannot
+    // otherwise report; null drops it.
     OpenMeteoWeatherProvider(HttpClient& http_client, Storage& storage, EventBus& event_bus,
-                              std::chrono::milliseconds poll_interval = std::chrono::minutes(30));
+                              std::chrono::milliseconds poll_interval = kDefaultPollInterval,
+                              Logger* logger = nullptr);
 
     WeatherState Snapshot() const override;
 
@@ -106,6 +111,7 @@ private:
     Storage& storage_;
     EventBus& event_bus_;
     std::chrono::milliseconds poll_interval_;
+    Logger* logger_;
 
     // Written only by poll_task_'s own thread, read from the UI thread
     // via Snapshot() - same single-writer/multi-reader mutex pattern as

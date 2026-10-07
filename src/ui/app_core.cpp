@@ -44,7 +44,8 @@ int ReadIntSetting(Storage& storage, const char* module_id, const char* key, int
 AppCore::AppCore(EventBus& event_bus, Dependencies deps)
     : storage_(deps.settings_store, deps.cache_store, deps.secret_store),
       http_client_(deps.http_client),
-      weather_provider_(deps.http_client, storage_, event_bus),
+      logger_(storage_, deps.time_source),
+      weather_provider_(deps.http_client, storage_, event_bus, OpenMeteoWeatherProvider::kDefaultPollInterval, &logger_),
       harmony_connection_(deps.http_client, deps.make_websocket_client, storage_, event_bus),
       kodi_client_(deps.make_websocket_client, deps.mdns_browser, storage_, event_bus),
       dashboard_(event_bus, deps.battery_reader, deps.network_status),
@@ -75,7 +76,6 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
       kodi_files_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
       kodi_live_tv_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
       clock_(deps.time_source, event_bus),
-      logger_(storage_, deps.time_source),
       admin_auth_(storage_, auth_time_source_) {
     // AddWidget order matches each widget's declaration order above,
     // except harmony_widget_ - declared later (it needs navigation_, see

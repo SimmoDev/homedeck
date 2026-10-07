@@ -1,5 +1,6 @@
 #include "core/weather_provider.h"
 
+#include "core/logger.h"
 #include "platform/host/cache_store.h"
 #include "platform/host/secret_store.h"
 #include "platform/host/settings_store.h"
@@ -75,6 +76,20 @@ protected:
     void TearDown() override { std::filesystem::remove_all(root_dir_); }
 
     std::filesystem::path root_dir_;
+};
+
+class FakeTimeSource : public homedeck::TimeSource {
+public:
+    std::chrono::system_clock::time_point Now() const override {
+        return std::chrono::system_clock::time_point(std::chrono::seconds(1700000000));
+    }
+};
+
+class FailingCacheStore : public homedeck::CacheStore {
+public:
+    bool Write(const std::string&, const std::string&, const std::string&) override { return false; }
+    std::optional<std::string> Read(const std::string&, const std::string&) override { return std::nullopt; }
+    bool Erase(const std::string&, const std::string&) override { return true; }
 };
 
 constexpr std::chrono::milliseconds kFastPollInterval = std::chrono::milliseconds(30);
@@ -353,4 +368,31 @@ TEST(IsValidWeatherCoordinateTest, RejectsANonNumericValue) {
 
 TEST(IsValidWeatherCoordinateTest, AcceptsAnyValueForAnUnrelatedKey) {
     EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("display_name", "anything at all"));
+}
+
+TEST_F(WeatherProviderTest, FailedCacheWriteIsLogged) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    FailingCacheStore failing_cache;
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, failing_cache, secret_store);
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
+    ASSERT_TRUE(storage.SetSetting("weather", "display_name", 1, "Berlin, DE"));
+
+    // The logger persists through its own working storage.
+    const std::filesystem::path log_dir = root_dir_ / "log";
+    homedeck::HostSettingsStore log_settings(log_dir);
+    homedeck::HostCacheStore log_cache(log_dir);
+    homedeck::HostSecretStore log_secrets(log_dir);
+    homedeck::Storage log_storage(log_settings, log_cache, log_secrets);
+    FakeTimeSource time_source;
+    homedeck::Logger logger(log_storage, time_source);
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kSuccessBody});
+    homedeck::OpenMeteoWeatherProvider provider(http_client, storage, bus, kFastPollInterval, &logger);
+
+    ASSERT_TRUE(WaitFor([&] { return logger.ReadAll().find("Failed to persist the weather cache") != std::string::npos; }));
+    EXPECT_TRUE(provider.Snapshot().has_reading) << "a cache failure must not discard the live reading";
 }
