@@ -1,6 +1,7 @@
 #include "ui/screens/kodi_live_tv_screen.h"
 
 #include "ui/remote_button.h"
+#include "ui/routes.h"
 #include "ui/screens/screen_chrome.h"
 
 #include <utility>
@@ -101,7 +102,7 @@ void KodiLiveTvScreen::RebuildChannelList(const std::vector<KodiChannel>& channe
         channels_.size(), [this](size_t row) { return channels_[row].label; },
         [this](size_t row) {
             kodi_client_.OpenLibraryItem("channelid", channels_[row].channelid, /*resume=*/false);
-            navigation_.GoTo("kodi-now-playing");
+            navigation_.GoTo(routes::kKodiNowPlaying);
         });
     channels_list_->SetTruncated(truncated);
 }

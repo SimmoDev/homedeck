@@ -1,5 +1,7 @@
 #include "ui/app_core.h"
 
+#include "ui/routes.h"
+
 #include <charconv>
 
 namespace homedeck {
@@ -45,7 +47,7 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
       power_manager_(event_bus, deps.user_activity_source, deps.display_brightness, power_time_source_,
                      ReadIntSetting(storage_, "power", "brightness", 100)),
       quick_settings_panel_(event_bus, power_manager_, notification_sound_, storage_),
-      navigation_("dashboard", dashboard_.Root()),
+      navigation_(routes::kDashboard, dashboard_.Root()),
       wifi_setup_screen_(event_bus, deps.battery_reader, deps.network_status, deps.wifi_submit),
       harmony_widget_(dashboard_.Grid().Container(), event_bus, harmony_connection_, navigation_),
       activities_screen_(event_bus, deps.battery_reader, deps.network_status, harmony_connection_, navigation_),
@@ -72,16 +74,16 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
     dashboard_.Grid().AddWidget(harmony_widget_);
     dashboard_.Grid().AddWidget(kodi_widget_);
 
-    navigation_.Register("wifi-setup", wifi_setup_screen_.Root());
-    navigation_.Register("harmony-activities", activities_screen_.Root());
-    navigation_.Register("harmony-devices", devices_screen_.Root());
-    navigation_.Register("kodi-now-playing", now_playing_screen_.Root());
-    navigation_.Register("kodi-remote", kodi_remote_screen_.Root());
-    navigation_.Register("kodi-movies", kodi_movies_screen_.Root());
-    navigation_.Register("kodi-tv-shows", kodi_tv_shows_screen_.Root());
-    navigation_.Register("kodi-music", kodi_music_screen_.Root());
-    navigation_.Register("kodi-files", kodi_files_screen_.Root());
-    navigation_.Register("kodi-live-tv", kodi_live_tv_screen_.Root());
+    navigation_.Register(routes::kWifiSetup, wifi_setup_screen_.Root());
+    navigation_.Register(routes::kHarmonyActivities, activities_screen_.Root());
+    navigation_.Register(routes::kHarmonyDevices, devices_screen_.Root());
+    navigation_.Register(routes::kKodiNowPlaying, now_playing_screen_.Root());
+    navigation_.Register(routes::kKodiRemote, kodi_remote_screen_.Root());
+    navigation_.Register(routes::kKodiMovies, kodi_movies_screen_.Root());
+    navigation_.Register(routes::kKodiTvShows, kodi_tv_shows_screen_.Root());
+    navigation_.Register(routes::kKodiMusic, kodi_music_screen_.Root());
+    navigation_.Register(routes::kKodiFiles, kodi_files_screen_.Root());
+    navigation_.Register(routes::kKodiLiveTv, kodi_live_tv_screen_.Root());
 
     RegisterAdminAuthRoutes(deps.http_server, admin_auth_);
     RegisterDiagnosticsRoutes(deps.http_server, storage_, admin_auth_, deps.battery_reader, logger_,

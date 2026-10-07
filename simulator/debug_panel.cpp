@@ -1,5 +1,7 @@
 #include "debug_panel.h"
 
+#include "ui/routes.h"
+
 #include <cmath>
 #include <cstdint>
 #include <vector>
@@ -53,7 +55,7 @@ namespace {
 
 void OnTestWifiSetupNavClicked(lv_event_t* e) {
     auto* navigation = static_cast<Navigation*>(lv_event_get_user_data(e));
-    navigation->GoTo("wifi-setup");
+    navigation->GoTo(routes::kWifiSetup);
 }
 
 }  // namespace

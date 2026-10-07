@@ -2,6 +2,7 @@
 
 #include "ui/kodi_display.h"
 #include "ui/remote_button.h"
+#include "ui/routes.h"
 #include "ui/screens/screen_chrome.h"
 
 #include <algorithm>
@@ -203,22 +204,22 @@ void NowPlayingScreen::OnActionClicked(lv_event_t* e) {
             self->kodi_client_.ToggleMute();
             break;
         case Action::kOpenRemote:
-            self->navigation_.GoTo("kodi-remote");
+            self->navigation_.GoTo(routes::kKodiRemote);
             break;
         case Action::kOpenMovies:
-            self->navigation_.GoTo("kodi-movies");
+            self->navigation_.GoTo(routes::kKodiMovies);
             break;
         case Action::kOpenTvShows:
-            self->navigation_.GoTo("kodi-tv-shows");
+            self->navigation_.GoTo(routes::kKodiTvShows);
             break;
         case Action::kOpenMusic:
-            self->navigation_.GoTo("kodi-music");
+            self->navigation_.GoTo(routes::kKodiMusic);
             break;
         case Action::kOpenFiles:
-            self->navigation_.GoTo("kodi-files");
+            self->navigation_.GoTo(routes::kKodiFiles);
             break;
         case Action::kOpenLiveTv:
-            self->navigation_.GoTo("kodi-live-tv");
+            self->navigation_.GoTo(routes::kKodiLiveTv);
             break;
     }
 }

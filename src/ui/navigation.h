@@ -24,7 +24,9 @@ public:
 
     void Register(const std::string& route, lv_obj_t* screen);
     // No-op if route is already the active screen - safe for a caller to
-    // invoke without first checking current state itself (see .cpp).
+    // invoke without first checking current state itself (see .cpp). An
+    // unregistered route is logged (LV_LOG_WARN) and ignored; use the ids
+    // in ui/routes.h.
     void GoTo(const std::string& route);
     void GoHome();
 

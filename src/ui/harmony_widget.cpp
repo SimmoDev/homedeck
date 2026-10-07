@@ -1,5 +1,6 @@
 #include "ui/harmony_widget.h"
 
+#include "ui/routes.h"
 #include "ui/theme.h"
 #include "ui/widget_tile.h"
 
@@ -60,6 +61,6 @@ HarmonyWidget::HarmonyWidget(lv_obj_t* parent, EventBus& event_bus, HarmonyConne
 
 void HarmonyWidget::Refresh() { lv_label_set_text(label_, StatusLine(harmony_connection_.Snapshot()).c_str()); }
 
-void HarmonyWidget::OnTap() { navigation_.GoTo("harmony-activities"); }
+void HarmonyWidget::OnTap() { navigation_.GoTo(routes::kHarmonyActivities); }
 
 }  // namespace homedeck

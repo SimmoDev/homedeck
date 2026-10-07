@@ -1,6 +1,7 @@
 #include "ui/kodi_widget.h"
 
 #include "ui/kodi_display.h"
+#include "ui/routes.h"
 #include "ui/theme.h"
 #include "ui/widget_tile.h"
 
@@ -27,6 +28,6 @@ KodiWidget::KodiWidget(lv_obj_t* parent, EventBus& event_bus, KodiClient& kodi_c
 
 void KodiWidget::Refresh() { lv_label_set_text(label_, KodiWidgetLine(kodi_client_.Snapshot()).c_str()); }
 
-void KodiWidget::OnTap() { navigation_.GoTo("kodi-now-playing"); }
+void KodiWidget::OnTap() { navigation_.GoTo(routes::kKodiNowPlaying); }
 
 }  // namespace homedeck

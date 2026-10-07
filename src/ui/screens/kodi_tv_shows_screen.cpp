@@ -1,6 +1,7 @@
 #include "ui/screens/kodi_tv_shows_screen.h"
 
 #include "ui/remote_button.h"
+#include "ui/routes.h"
 #include "ui/screens/screen_chrome.h"
 
 namespace homedeck {
@@ -218,13 +219,13 @@ void KodiTvShowsScreen::ShowEpisodeDetail(long long episodeid) {
 void KodiTvShowsScreen::OnPlayClicked(lv_event_t* e) {
     auto* self = static_cast<KodiTvShowsScreen*>(lv_event_get_user_data(e));
     self->kodi_client_.OpenLibraryItem("episodeid", self->selected_episode_id_, /*resume=*/false);
-    self->navigation_.GoTo("kodi-now-playing");
+    self->navigation_.GoTo(routes::kKodiNowPlaying);
 }
 
 void KodiTvShowsScreen::OnResumeClicked(lv_event_t* e) {
     auto* self = static_cast<KodiTvShowsScreen*>(lv_event_get_user_data(e));
     self->kodi_client_.OpenLibraryItem("episodeid", self->selected_episode_id_, /*resume=*/true);
-    self->navigation_.GoTo("kodi-now-playing");
+    self->navigation_.GoTo(routes::kKodiNowPlaying);
 }
 
 void KodiTvShowsScreen::OnSeasonsBackClicked(lv_event_t* e) {

@@ -32,6 +32,10 @@ screen, including ones added by future modules:
 Modules register screens with this navigation manager; they do not manage
 their own screen stack.
 
+Route ids are the constants in `src/ui/routes.h`, shared by `AppCore`'s
+registrations and every `GoTo()` caller. `Navigation::GoTo()` logs and
+ignores an id nothing registered.
+
 The navigation manager is the backend routing mechanism behind the second
 invariant; the actual on-screen affordance the user taps to invoke it is a
 persistent home icon at a fixed screen location, present on every screen

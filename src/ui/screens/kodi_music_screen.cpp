@@ -2,6 +2,7 @@
 
 #include "ui/kodi_display.h"
 #include "ui/remote_button.h"
+#include "ui/routes.h"
 #include "ui/screens/screen_chrome.h"
 
 namespace homedeck {
@@ -126,7 +127,7 @@ void KodiMusicScreen::RebuildSongList(const std::vector<KodiSong>& songs, bool t
         },
         [this](size_t row) {
             kodi_client_.OpenLibraryItem("songid", songs_[row].songid, /*resume=*/false);
-            navigation_.GoTo("kodi-now-playing");
+            navigation_.GoTo(routes::kKodiNowPlaying);
         });
     songs_list_->SetTruncated(truncated);
 }

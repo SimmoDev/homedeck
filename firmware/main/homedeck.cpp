@@ -39,6 +39,7 @@
 #include "platform/static_assets.h"
 #include "ui/app_core.h"
 #include "ui/lvgl_user_activity_source.h"
+#include "ui/routes.h"
 #include "ui/ui_dispatch.h"
 #include "wifi_setup.h"
 
@@ -457,7 +458,7 @@ void BlockUntilWifiConnected(homedeck::AppCore& app_core) {
                                                      uint16_t port) {
         homedeck::PostToUiThread([&app_core, ap_ssid, ap_ip, port]() {
             app_core.GetWifiSetupScreen().SetApInfo(ap_ssid, ap_ip, port);
-            app_core.GetNavigation().GoTo("wifi-setup");
+            app_core.GetNavigation().GoTo(homedeck::routes::kWifiSetup);
         });
     };
     wifi_ui_callbacks.on_connected = [&app_core]() {
@@ -638,7 +639,7 @@ extern "C" void app_main(void) {
     // gets around to it.
     if (!wifi_check.has_stored_credentials) {
         app_core.GetWifiSetupScreen().SetApInfo(wifi_check.ap_ssid, wifi_check.ap_ip);
-        app_core.GetNavigation().GoTo("wifi-setup");
+        app_core.GetNavigation().GoTo(homedeck::routes::kWifiSetup);
     }
     lv_obj_delete(splash);
     bsp_display_unlock();

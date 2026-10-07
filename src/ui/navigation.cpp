@@ -14,7 +14,10 @@ void Navigation::Register(const std::string& route, lv_obj_t* screen) {
 
 void Navigation::GoTo(const std::string& route) {
     auto it = screens_.find(route);
-    if (it == screens_.end()) return;
+    if (it == screens_.end()) {
+        LV_LOG_WARN("Navigation: no screen registered for route '%s'", route.c_str());
+        return;
+    }
     // A caller doesn't generally know (or need to know) whether it's
     // already on the target screen - e.g. ConnectToWifi()'s on_connected
     // callback calls GoHome() unconditionally once Wi-Fi actually

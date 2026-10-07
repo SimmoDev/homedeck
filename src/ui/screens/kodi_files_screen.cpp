@@ -1,6 +1,7 @@
 #include "ui/screens/kodi_files_screen.h"
 
 #include "ui/remote_button.h"
+#include "ui/routes.h"
 #include "ui/screens/screen_chrome.h"
 
 namespace homedeck {
@@ -106,7 +107,7 @@ void KodiFilesScreen::Enter(const KodiFileItem& item) {
         RequestCurrentLevel();
     } else {
         kodi_client_.PlayFile(item.path);
-        navigation_.GoTo("kodi-now-playing");
+        navigation_.GoTo(routes::kKodiNowPlaying);
     }
 }
 

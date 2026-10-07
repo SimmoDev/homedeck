@@ -1,6 +1,7 @@
 #include "ui/screens/activities_screen.h"
 
 #include "ui/remote_button.h"
+#include "ui/routes.h"
 #include "ui/screens/screen_chrome.h"
 
 namespace homedeck {
@@ -285,7 +286,7 @@ void ActivitiesScreen::OnStartingTimeout(lv_timer_t* timer) {
 
 void ActivitiesScreen::OnDevicesButtonClicked(lv_event_t* e) {
     auto* self = static_cast<ActivitiesScreen*>(lv_event_get_user_data(e));
-    self->navigation_.GoTo("harmony-devices");
+    self->navigation_.GoTo(routes::kHarmonyDevices);
 }
 
 }  // namespace homedeck
