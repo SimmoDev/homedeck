@@ -108,8 +108,8 @@ also has a minimal
 implementation — a route registry (`Register`/`GoTo`/`GoHome`),
 exercised across a deliberately throwaway second screen — though it lives in
 `src/ui/`, not `src/core/`, since its `lv_scr_load()` call is a UI-layer
-implementation detail (see [src/README.md](../../src/README.md) for the
-same reasoning applied to `EventBus` staying LVGL-free).
+implementation detail (`EventBus` stays LVGL-free for the same reason, so it is unit-testable;
+see [src/README.md](../../src/README.md)).
 
 **Configuration and Storage** are also implemented now (`Storage` in
 `src/core/`, unit-tested in `tests/`) — the two named responsibilities

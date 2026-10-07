@@ -102,7 +102,7 @@ management state model" item instead.
       [src/](../src/) — see [src/README.md](../src/README.md) for the
       layout.
 - [x] Initial dashboard shell — `DashboardScreen` (see
-      [src/README.md](../src/README.md)). Core-only widgets, hardcoded
+      [dashboard.md](architecture/dashboard.md)). Core-only widgets, hardcoded
       directly — the pluggable widget-registration system and grid
       layout are M2 scope (see
       [dashboard.md](architecture/dashboard.md#status) and
