@@ -126,7 +126,7 @@ in `harmony_connection.cpp`, sharing the depth-bounded parse utility in
 against a stack-overflow attempt via deeply-nested JSON; bounded
 WebSocket message size (`kMaxWebSocketMessageBytes`,
 `src/platform/websocket_client.h`, both backends) and a bounded
-receive-queue depth (`kMaxQueuedMessages`, the firmware backend only —
+receive-queue depth (`kMaxQueuedWebSocketMessages`, the firmware backend only —
 the host/simulator backend's synchronous pull model has no queue to
 bound) guard against unbounded memory growth from an oversized or
 flooding response; and every parsed field is type-checked before use

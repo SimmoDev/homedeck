@@ -1,9 +1,9 @@
 #pragma once
 
 #include "platform/websocket_client.h"
+#include "platform/websocket_message_assembler.h"
 
 #include <condition_variable>
-#include <deque>
 #include <mutex>
 
 // Forward-declared rather than including esp_websocket_client.h here, so
@@ -55,8 +55,7 @@ private:
 
     mutable std::mutex queue_mutex_;
     std::condition_variable queue_cv_;
-    std::deque<std::string> message_queue_;
-    std::string in_progress_message_;
+    WebSocketMessageAssembler assembler_;
     bool closed_ = false;
 };
 

@@ -35,16 +35,6 @@ bool IsApplicationDataOpcode(uint8_t op_code) {
            op_code == WS_TRANSPORT_OPCODES_BINARY;
 }
 
-// Bounds how many complete messages can accumulate in message_queue_ before
-// the oldest is dropped. A peer that sends unsolicited messages (Kodi's
-// notifications, a hub's stray frames) faster than the consumer drains them
-// would otherwise grow the queue without bound on a device that stays up for
-// weeks. The consumers' bounded drain loops
-// (HarmonyConnection::DrainStaleMessages(), KodiClient::PumpNotifications())
-// each run at least this many iterations, so a full queue empties in one
-// drain - keep them at or above this value.
-constexpr size_t kMaxQueuedMessages = 20;
-
 // The ESP-IDF event-loop callback esp_websocket_register_events() wants -
 // a free function matching esp_event_handler_t exactly, not a static
 // class member, so websocket_client.h never needs esp_event_base_t in
@@ -147,13 +137,11 @@ bool FirmwareWebSocketClient::SendText(const std::string& text) {
 std::optional<std::string> FirmwareWebSocketClient::ReceiveText(int timeout_ms) {
     std::unique_lock<std::mutex> lock(queue_mutex_);
     bool got_message = queue_cv_.wait_for(lock, std::chrono::milliseconds(timeout_ms),
-                                           [this] { return !message_queue_.empty() || closed_; });
-    if (!got_message || message_queue_.empty()) {
+                                           [this] { return assembler_.HasMessage() || closed_; });
+    if (!got_message || !assembler_.HasMessage()) {
         return std::nullopt;
     }
-    std::string message = std::move(message_queue_.front());
-    message_queue_.pop_front();
-    return message;
+    return assembler_.Pop();
 }
 
 bool FirmwareWebSocketClient::IsOpen() const {
@@ -175,8 +163,7 @@ void FirmwareWebSocketClient::Close() {
     }
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);
-        message_queue_.clear();
-        in_progress_message_.clear();
+        assembler_.Clear();
         closed_ = true;
     }
     queue_cv_.notify_all();
@@ -220,8 +207,7 @@ void FirmwareWebSocketClient::HandleData(const void* event_data) {
         // separately (see OnWebSocketEvent()); nothing to do here.
         return;
     }
-    bool message_complete = false;
-    bool oversized = false;
+    WebSocketMessageAssembler::Result result;
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);
         // Once closed (including by the oversize path below) the rest of the
@@ -229,31 +215,16 @@ void FirmwareWebSocketClient::HandleData(const void* event_data) {
         if (closed_) {
             return;
         }
-        // See kMaxWebSocketMessageBytes (platform/websocket_client.h). Checked
-        // before appending so in_progress_message_ never exceeds the bound.
-        if (in_progress_message_.size() + static_cast<size_t>(data->data_len) > kMaxWebSocketMessageBytes) {
-            in_progress_message_.clear();
-            oversized = true;
-        } else {
-            in_progress_message_.append(static_cast<const char*>(data->data_ptr), data->data_len);
-            if (data->fin && data->payload_offset + data->data_len >= data->payload_len) {
-                message_queue_.push_back(std::move(in_progress_message_));
-                in_progress_message_.clear();
-                // See kMaxQueuedMessages's own comment.
-                while (message_queue_.size() > kMaxQueuedMessages) {
-                    message_queue_.pop_front();
-                }
-                message_complete = true;
-            }
-        }
+        result = assembler_.Add(static_cast<const char*>(data->data_ptr), static_cast<size_t>(data->data_len), data->fin,
+                                data->payload_offset + data->data_len >= data->payload_len);
     }
-    if (oversized) {
+    if (result == WebSocketMessageAssembler::Result::kOversized) {
         // Treated as a transport close: an oversized message can't be a
         // well-formed response, and callers already handle a dropped link.
         HandleClosed();
         return;
     }
-    if (message_complete) {
+    if (result == WebSocketMessageAssembler::Result::kComplete) {
         queue_cv_.notify_one();
     }
 }

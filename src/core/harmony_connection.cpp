@@ -28,18 +28,11 @@ constexpr int kConfigFetchTimeoutMs = 10000;
 constexpr int kLivenessProbeTimeoutMs = 10000;
 constexpr std::chrono::seconds kUnconfiguredRecheckInterval{5};
 
-// Bounds DrainStaleMessages()'s own 0ms-poll loop - a distinct concern
-// from HarmonyConnection::kMaxPendingCommands (the pending-command queue
-// depth cap), which happens to share this value but isn't the thing this
-// bound actually depends on. What this bound should track is
-// FirmwareWebSocketClient::kMaxQueuedMessages (platform/firmware/
-// websocket_client.cpp) - the most messages that backend's own receive
-// queue can hold before it starts dropping the oldest itself, so this
-// loop empties a full queue in one drain rather than leaving stale
-// entries behind for the next one. Kept in sync by comment on both
-// sides, not a shared symbol - the two live in different targets
-// (homedeck_core vs. homedeck_platform_host) with no dependency edge
-// between them for a constant this minor to justify introducing one.
+// Bounds DrainStaleMessages()'s own 0ms-poll loop. It must be at least
+// kMaxQueuedWebSocketMessages (platform/websocket_message_assembler.h), the
+// most messages the firmware receive queue holds before it drops the
+// oldest, so one drain empties a full queue. Distinct from
+// kMaxPendingCommands, which only happens to share the value.
 constexpr size_t kMaxDrainIterations = 20;
 
 // Parses `text` as JSON, discarded (same convention as a parse error) if

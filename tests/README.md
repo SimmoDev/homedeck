@@ -61,6 +61,7 @@ for why.
 | `kodi_display_test.cpp` | The Kodi widget line, Now Playing subtitle and clock formatting |
 | `virtual_list_window_test.cpp` | `ComputeVisibleRows()`, the arithmetic behind `VirtualList` |
 | `lazy_load_test.cpp` | `LazyLoad`, which decides when a browse screen requests its list, including the retry after a failed load |
+| `websocket_message_assembler_test.cpp` | `WebSocketMessageAssembler`, the chunk and fragment reassembly, size bound and queue bound behind `FirmwareWebSocketClient` |
 
 ### `kodi_client_test.cpp`
 

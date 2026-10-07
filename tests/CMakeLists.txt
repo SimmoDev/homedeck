@@ -57,6 +57,7 @@ add_executable(homedeck_tests
   kodi_display_test.cpp
   virtual_list_window_test.cpp
   lazy_load_test.cpp
+  websocket_message_assembler_test.cpp
   host_validation_test.cpp
   json_request_test.cpp
   notification_sound_test.cpp
