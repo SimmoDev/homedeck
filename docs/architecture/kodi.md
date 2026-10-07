@@ -267,12 +267,17 @@ rendered by `VirtualList`, which binds only the rows near the screen, so a
 10,000-item list costs what one screenful does (see
 [ui.md](ui.md#long-lists)).
 
-A listing occupies the connection loop request by request, so
-`CallLibrary()` sends any queued playback commands before each request:
-a command waits behind at most one request (up to 30 s on a slow share),
-not behind the whole listing. Commands older than
-`max_pending_command_age` at that point are still dropped, except stop and
-mute.
+Kodi executes JSON-RPC calls one at a time across all connections, so
+while it is still answering a slow listing it answers nothing else - not a
+`Player.PlayPause`, not a probe from a second connection - and JSON-RPC has
+no way to cancel the call. HomeDeck stops waiting after 30 s but Kodi stays
+blocked until its own source timeout, so playback control is unavailable
+for that long whatever HomeDeck does; a command tapped meanwhile is dropped
+once it is older than `max_pending_command_age` (except stop and mute),
+rather than firing late and toggling the player unexpectedly. Listings
+that are merely long (many fast pages) do not block it:
+`CallLibrary()` sends any queued playback commands before each page, so a
+command waits behind at most one page.
 
 A JSON-RPC `error` reply to a listing (for example PVR disabled on that
 Kodi) parses to an empty list, so the screen shows its "Nothing here."

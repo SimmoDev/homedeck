@@ -758,7 +758,9 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
     // A listing holds the loop thread for up to kLibraryCallTimeoutMs per
     // request, so queued transport commands are sent before each request
     // rather than waiting out the whole listing (and aging past
-    // max_pending_command_age_).
+    // max_pending_command_age_). This cannot help while Kodi is still
+    // answering one slow request: it runs JSON-RPC calls one at a time
+    // across all connections and answers nothing else until that call ends.
     if (!SendPendingCommands(stop)) {
         return std::nullopt;
     }

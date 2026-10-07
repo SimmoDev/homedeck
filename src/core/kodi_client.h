@@ -528,7 +528,8 @@ private:
     // `truncated` is set when the listing is
     // incomplete (see KodiMoviesFetchedEvent::truncated). Queued playback
     // commands are sent before each request (SendPendingCommands()), so a
-    // slow listing does not hold them back. nullopt on the same conditions
+    // listing of many pages does not hold them back; Kodi itself answers
+    // nothing else while one request is slow. nullopt on the same conditions
     // as Call(), or when sending those commands fails.
     std::optional<std::string> CallLibrary(const std::string& method, const std::string& params_json,
                                            const char* result_key, std::stop_token stop, bool& truncated);
