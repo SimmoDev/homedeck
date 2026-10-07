@@ -188,6 +188,10 @@ bool IsValidHubId(const std::string& value) {
     return true;
 }
 
+bool IsValidHarmonySetting(const std::string& key, const std::string& value) {
+    return key != HarmonyConnection::kHubHostKey || IsValidHubHost(value);
+}
+
 bool IsValidHubHost(const std::string& value) {
     // The manual-entry path: HandshakeUrl()/WebSocketUrl() concatenate
     // this value into a URL authority without bracketing, so a bare IPv6

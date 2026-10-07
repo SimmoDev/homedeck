@@ -303,6 +303,12 @@ protected:
     std::filesystem::path root_dir_;
 };
 
+TEST(IsValidKodiSettingTest, ValidatesOnlyTheHostKey) {
+    EXPECT_TRUE(homedeck::IsValidKodiSetting(KodiClient::kHostKey, "10.0.0.5"));
+    EXPECT_FALSE(homedeck::IsValidKodiSetting(KodiClient::kHostKey, "http://10.0.0.5"));
+    EXPECT_TRUE(homedeck::IsValidKodiSetting(KodiClient::kInstanceUuidKey, "any value at all"));
+}
+
 // --- IsValidKodiHost -------------------------------------------------------
 
 TEST(IsValidKodiHostTest, AcceptsAPlainHostnameOrIpAndEmpty) {

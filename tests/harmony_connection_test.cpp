@@ -438,6 +438,12 @@ void RunFakeHarmonyHubWithStaleFrame(int listen_fd) {
 
 }  // namespace
 
+TEST(IsValidHarmonySettingTest, ValidatesOnlyTheHubHostKey) {
+    EXPECT_TRUE(homedeck::IsValidHarmonySetting(homedeck::HarmonyConnection::kHubHostKey, "10.0.0.9"));
+    EXPECT_FALSE(homedeck::IsValidHarmonySetting(homedeck::HarmonyConnection::kHubHostKey, "ws://10.0.0.9"));
+    EXPECT_TRUE(homedeck::IsValidHarmonySetting("some_other_key", "ws://anything"));
+}
+
 // Mirrors webui/src/lib/harmonyValidation.test.ts's coverage of
 // hubHostError() - the two must reject the same values, see
 // IsValidHubHost()'s own comment.

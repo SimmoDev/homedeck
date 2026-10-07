@@ -431,6 +431,10 @@ bool IsValidKodiHost(const std::string& value) {
     return !HasUnsafeHostChars(value, /*allow_colon=*/false);
 }
 
+bool IsValidKodiSetting(const std::string& key, const std::string& value) {
+    return key != KodiClient::kHostKey || IsValidKodiHost(value);
+}
+
 KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser& mdns_browser, Storage& storage,
                        EventBus& event_bus, std::chrono::milliseconds initial_backoff,
                        std::chrono::milliseconds max_backoff, std::chrono::milliseconds reconcile_interval,

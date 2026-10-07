@@ -48,6 +48,11 @@ enum class HarmonyConnectionState {
 // it as "not yet configured," not a malformed address.
 bool IsValidHubHost(const std::string& value);
 
+// Validates one of HarmonyConnection's settings for POST /api/settings
+// (ui/app_core.cpp registers it by module id): hub_host through
+// IsValidHubHost(), every other key unconstrained.
+bool IsValidHarmonySetting(const std::string& key, const std::string& value);
+
 // Restricts activeRemoteId (see ConnectAndFetchConfig()) to ASCII
 // alphanumerics before it becomes the trailing hubId value in
 // WebSocketUrl()'s raw string concatenation - see harmony_connection.cpp's

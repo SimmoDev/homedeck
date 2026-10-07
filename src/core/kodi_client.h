@@ -49,6 +49,11 @@ enum class KodiInput { kUp, kDown, kLeft, kRight, kSelect, kBack, kHome, kInfo, 
 // webui/src/lib/kodiValidation.ts.
 bool IsValidKodiHost(const std::string& value);
 
+// Validates one of KodiClient's settings for POST /api/settings (ui/app_core.cpp
+// registers it by module id): `host` through IsValidKodiHost(), every other
+// key unconstrained.
+bool IsValidKodiSetting(const std::string& key, const std::string& value);
+
 // What's playing right now, merged from two sources per ADR-0030:
 // identity (title/show/episode) comes from the Player.On* notification's
 // own `item`, which is populated even for add-on playback where

@@ -8,6 +8,20 @@ namespace homedeck {
 
 namespace {
 
+// Each module owns the validation of its own settings; this table is the
+// one place AppCore learns which module id uses which validator.
+struct ModuleSettingValidator {
+    const char* module_id;
+    bool (*is_valid)(const std::string& key, const std::string& value);
+};
+
+constexpr ModuleSettingValidator kModuleSettingValidators[] = {
+    {HarmonyConnection::kModuleId, &IsValidHarmonySetting},
+    {KodiClient::kModuleId, &IsValidKodiSetting},
+    {OpenMeteoWeatherProvider::kModuleId, &IsValidWeatherCoordinate},
+};
+
+
 // Shared by NotificationSound/PowerManager's initial volume/brightness
 // below - std::from_chars, not std::stoi, matches Storage's own internal
 // parsing (see storage.cpp's Decode()) for the same firmware-builds-
@@ -106,14 +120,10 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
             }
         },
         [](const std::string& module, const std::string& key, const std::string& value) {
-            if (module == HarmonyConnection::kModuleId && key == HarmonyConnection::kHubHostKey) {
-                return IsValidHubHost(value);
-            }
-            if (module == KodiClient::kModuleId && key == KodiClient::kHostKey) {
-                return IsValidKodiHost(value);
-            }
-            if (module == OpenMeteoWeatherProvider::kModuleId) {
-                return IsValidWeatherCoordinate(key, value);
+            for (const ModuleSettingValidator& validator : kModuleSettingValidators) {
+                if (module == validator.module_id) {
+                    return validator.is_valid(key, value);
+                }
             }
             return true;
         });
