@@ -99,6 +99,13 @@ struct WsScript {
     // When set and true for a request, the fake sends no reply at all (a
     // slow server), so the caller times out on a connection that stays open.
     std::function<bool(const nlohmann::json&)> drop_request;
+    // When true, a blocking ReceiveText() with nothing to deliver waits out
+    // its timeout (or a delayed reply coming due) like a real transport,
+    // instead of returning at once.
+    bool real_wait = false;
+    // method -> how long the fake holds that method's reply back.
+    std::map<std::string, std::chrono::milliseconds> reply_delay;
+    std::deque<std::pair<std::chrono::steady_clock::time_point, std::string>> delayed;
     std::deque<std::string> pushed;
     std::deque<std::string> ready;
     int close_count = 0;
@@ -133,6 +140,16 @@ public:
                 script_->ready.push_back(reply.dump());
                 return true;
             }
+            auto delay = script_->reply_delay.find(method);
+            if (delay != script_->reply_delay.end()) {
+                nlohmann::json reply = {{"jsonrpc", "2.0"}, {"id", request["id"]}};
+                auto result = script_->results.find(method);
+                reply["result"] = result != script_->results.end()
+                                      ? nlohmann::json::parse(result->second, nullptr, false)
+                                      : nlohmann::json::object();
+                script_->delayed.emplace_back(std::chrono::steady_clock::now() + delay->second, reply.dump());
+                return true;
+            }
             auto it = script_->results.find(method);
             if (it != script_->results.end()) {
                 nlohmann::json reply = {{"jsonrpc", "2.0"}, {"id", request["id"]}};
@@ -144,10 +161,29 @@ public:
     }
 
     std::optional<std::string> ReceiveText(int timeout_ms) override {
-        std::lock_guard<std::mutex> lock(script_->mutex);
-        if (script_->dead) {
-            return std::nullopt;
+        const auto give_up = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+        for (;;) {
+            {
+                std::lock_guard<std::mutex> lock(script_->mutex);
+                if (script_->dead) {
+                    return std::nullopt;
+                }
+                while (!script_->delayed.empty() && script_->delayed.front().first <= std::chrono::steady_clock::now()) {
+                    script_->ready.push_back(std::move(script_->delayed.front().second));
+                    script_->delayed.pop_front();
+                }
+                const bool deliverable =
+                    !script_->pushed.empty() || (timeout_ms != 0 && !script_->ready.empty());
+                if (deliverable || !script_->real_wait || timeout_ms == 0 ||
+                    std::chrono::steady_clock::now() >= give_up) {
+                    return TakeLocked(timeout_ms);
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
         }
+    }
+
+    std::optional<std::string> TakeLocked(int timeout_ms) {
         if (!script_->pushed.empty()) {
             std::string frame = std::move(script_->pushed.front());
             script_->pushed.pop_front();
@@ -292,10 +328,11 @@ protected:
     std::unique_ptr<KodiClient> MakeClient(std::shared_ptr<WsScript> script, FakeMdnsBrowser& browser,
                                            homedeck::Storage& storage, homedeck::EventBus& bus,
                                            std::chrono::milliseconds reconcile = kFastReconcile,
-                                           std::chrono::milliseconds max_command_age = std::chrono::seconds(5)) {
+                                           std::chrono::milliseconds max_command_age = std::chrono::seconds(5),
+                                           std::chrono::milliseconds library_busy_after = std::chrono::seconds(3)) {
         return std::make_unique<KodiClient>(
             [script] { return std::make_unique<FakeWebSocketClient>(script); }, browser, storage, bus, kFastBackoff,
-            kFastBackoff, reconcile, kFastPump, kFastBrowse, max_command_age);
+            kFastBackoff, reconcile, kFastPump, kFastBrowse, max_command_age, library_busy_after);
     }
 
     static constexpr std::chrono::seconds kNoReconcile{30};
@@ -1435,6 +1472,81 @@ TEST_F(KodiClientTest, ACommandQueuedDuringAPagedListingIsSentBetweenPages) {
         ASSERT_NE(third_page, std::string::npos);
         EXPECT_LT(play_pause, third_page);
     }
+    client->Stop();
+}
+
+// Kodi answers nothing else while a listing is slow, so a reply that takes
+// longer than the busy threshold raises library_busy until Kodi answers.
+TEST_F(KodiClientTest, ASlowLibraryReplyRaisesLibraryBusyUntilKodiAnswers) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->real_wait = true;
+        script->results["VideoLibrary.GetMovies"] = R"({"movies":[]})";
+        script->reply_delay["VideoLibrary.GetMovies"] = std::chrono::milliseconds(500);
+    }
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile, std::chrono::seconds(5),
+                             std::chrono::milliseconds(100));
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    EXPECT_FALSE(client->Snapshot().library_busy);
+
+    client->RequestMovies();
+    EXPECT_TRUE(WaitFor([&] { return client->Snapshot().library_busy; }));
+    EXPECT_TRUE(WaitFor([&] { return !client->Snapshot().library_busy; }));
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, AFastLibraryReplyNeverRaisesLibraryBusy) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->real_wait = true;
+        script->results["VideoLibrary.GetMovies"] = R"({"movies":[]})";
+    }
+    std::atomic<bool> ever_busy{false};
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile, std::chrono::seconds(5),
+                             std::chrono::milliseconds(300));
+    auto sub = bus.Subscribe<homedeck::KodiNowPlayingChangedEvent>(
+        [&](const homedeck::KodiNowPlayingChangedEvent&) {
+            if (client->Snapshot().library_busy) {
+                ever_busy = true;
+            }
+        });
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    std::atomic<bool> done{false};
+    auto movies_sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>(
+        [&](const homedeck::KodiMoviesFetchedEvent&) { done = true; });
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] { return done.load(); }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    EXPECT_FALSE(ever_busy.load());
+    EXPECT_FALSE(client->Snapshot().library_busy);
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, LibraryBusyClearsWhenTheConnectionDrops) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->real_wait = true;
+        script->drop_request = [](const nlohmann::json& request) {
+            return request["method"].get<std::string>() == "VideoLibrary.GetMovies";
+        };
+    }
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile, std::chrono::seconds(5),
+                             std::chrono::milliseconds(100));
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().library_busy; }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->dead = true;
+    }
+    EXPECT_TRUE(WaitFor([&] { return !client->Snapshot().library_busy; }));
     client->Stop();
 }
 

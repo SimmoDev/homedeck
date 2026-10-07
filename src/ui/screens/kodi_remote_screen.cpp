@@ -41,6 +41,7 @@ KodiRemoteScreen::KodiRemoteScreen(EventBus& event_bus, BatteryReader& battery_r
     ScreenChrome chrome = CreateScreenChrome(root_, "Kodi Remote", "Kodi not connected.", navigation);
     hint_label_ = chrome.hint_label;
     content_ = chrome.content_container;
+    busy_hint_label_ = CreateKodiBusyHint(content_);
     lv_obj_t* home_button = chrome.home_button;
 
     auto add_button = [this](lv_obj_t* row, const char* label, KodiInput input, int32_t width) {
@@ -80,6 +81,9 @@ KodiRemoteScreen::KodiRemoteScreen(EventBus& event_bus, BatteryReader& battery_r
     Refresh();
     state_sub_ = event_bus.SubscribeUi<KodiConnectionStateChangedEvent>(
         [this](const KodiConnectionStateChangedEvent&) { Refresh(); });
+    // Also published when library_busy changes.
+    now_playing_sub_ =
+        event_bus.SubscribeUi<KodiNowPlayingChangedEvent>([this](const KodiNowPlayingChangedEvent&) { Refresh(); });
 
     lv_obj_move_foreground(status_bar_.Root());
     lv_obj_move_foreground(home_button);
@@ -87,11 +91,14 @@ KodiRemoteScreen::KodiRemoteScreen(EventBus& event_bus, BatteryReader& battery_r
 
 KodiRemoteScreen::~KodiRemoteScreen() {
     state_sub_.Reset();
+    now_playing_sub_.Reset();
     lv_obj_del(root_);
 }
 
 void KodiRemoteScreen::Refresh() {
-    if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
+    const KodiSnapshot snapshot = kodi_client_.Snapshot();
+    lv_obj_set_hidden(busy_hint_label_, !snapshot.library_busy);
+    if (snapshot.state == KodiConnectionState::kConnected) {
         lv_obj_set_hidden(content_, false);
         lv_obj_set_hidden(hint_label_, true);
     } else {

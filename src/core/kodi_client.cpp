@@ -439,7 +439,8 @@ KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser
                        EventBus& event_bus, std::chrono::milliseconds initial_backoff,
                        std::chrono::milliseconds max_backoff, std::chrono::milliseconds reconcile_interval,
                        std::chrono::milliseconds pump_interval, std::chrono::milliseconds browse_timeout,
-                       std::chrono::milliseconds max_pending_command_age)
+                       std::chrono::milliseconds max_pending_command_age,
+                       std::chrono::milliseconds library_busy_after)
     : make_websocket_client_(std::move(make_websocket_client)),
       mdns_browser_(mdns_browser),
       storage_(storage),
@@ -449,7 +450,8 @@ KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser
       reconcile_interval_(reconcile_interval),
       pump_interval_(pump_interval),
       browse_timeout_(browse_timeout),
-      max_pending_command_age_(max_pending_command_age) {}
+      max_pending_command_age_(max_pending_command_age),
+      library_busy_after_(library_busy_after) {}
 
 void KodiClient::Start() {
     if (task_) {
@@ -492,6 +494,18 @@ void KodiClient::SetState(KodiConnectionState state) {
     // back into Snapshot() must not self-deadlock on the non-recursive
     // mutex_ (see HarmonyConnection::SetState()'s identical note).
     event_bus_.Publish(KodiConnectionStateChangedEvent{state});
+}
+
+void KodiClient::SetLibraryBusy(bool busy) {
+    if (library_busy_ == busy) {
+        return;
+    }
+    library_busy_ = busy;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        state_.library_busy = busy;
+    }
+    event_bus_.Publish(KodiNowPlayingChangedEvent{});
 }
 
 KodiClient::WakeReason KodiClient::Sleep(std::chrono::milliseconds delay, std::stop_token stop, bool watch_commands) {
@@ -613,6 +627,7 @@ void KodiClient::ConnectionLoop(std::stop_token stop) {
                 ws_client_->Close();
                 ws_client_.reset();
             }
+            SetLibraryBusy(false);
             SetState(KodiConnectionState::kError);
             Sleep(backoff_.NextDelay(), stop, /*watch_commands=*/false);
             continue;
@@ -657,6 +672,7 @@ void KodiClient::ConnectionLoop(std::stop_token stop) {
             ws_client_->Close();
             ws_client_.reset();
         }
+        SetLibraryBusy(false);
     }
 
     SetState(KodiConnectionState::kDisconnected);
@@ -691,7 +707,7 @@ void KodiClient::PumpNotifications() {
 }
 
 std::optional<std::string> KodiClient::Call(const std::string& method, const std::string& params_json, int timeout_ms,
-                                            std::stop_token stop) {
+                                            std::stop_token stop, bool report_busy) {
     if (!ws_client_) {
         return std::nullopt;
     }
@@ -708,17 +724,30 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
         return std::nullopt;
     }
 
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    const auto started = std::chrono::steady_clock::now();
+    const auto deadline = started + std::chrono::milliseconds(timeout_ms);
+    const auto busy_at = started + library_busy_after_;
     while (!stop.stop_requested()) {
         const auto now = std::chrono::steady_clock::now();
         if (now >= deadline) {
             last_call_timed_out_ = ws_client_->IsOpen();
             return std::nullopt;
         }
-        const int remaining =
-            static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count());
-        std::optional<std::string> text = ws_client_->ReceiveText(std::max(remaining, 1));
+        // Waits in two slices when the busy flag is wanted, so it can be
+        // raised once library_busy_after_ has passed without a reply.
+        auto wait_until = deadline;
+        if (report_busy && !library_busy_ && now < busy_at) {
+            wait_until = std::min(deadline, busy_at);
+        }
+        const int slice =
+            static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(wait_until - now).count());
+        std::optional<std::string> text = ws_client_->ReceiveText(std::max(slice, 1));
         if (!text.has_value()) {
+            if (wait_until < deadline && ws_client_->IsOpen() &&
+                std::chrono::steady_clock::now() >= wait_until - std::chrono::milliseconds(5)) {
+                SetLibraryBusy(true);  // the first slice elapsed with no reply
+                continue;
+            }
             // A timeout (link still open) or a closed/failed transport.
             last_call_timed_out_ = ws_client_->IsOpen();
             return std::nullopt;
@@ -728,8 +757,11 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
             continue;  // unparseable frame - ignore, keep waiting for ours
         }
         auto id_it = frame.find("id");
-        if (id_it != frame.end() && id_it->is_number_integer() && id_it->get<int>() == id) {
-            return text;  // our response
+        if (id_it != frame.end() && id_it->is_number_integer()) {
+            SetLibraryBusy(false);  // Kodi answered something, so it is not stuck on a listing
+            if (id_it->get<int>() == id) {
+                return text;  // our response
+            }
         }
         if (frame.contains("method")) {
             HandleNotification(*text);  // an interleaved pushed notification
@@ -765,7 +797,7 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
         return std::nullopt;
     }
     if (result_key == nullptr) {
-        return survive_timeout(Call(method, params_json, kLibraryCallTimeoutMs, stop));
+        return survive_timeout(Call(method, params_json, kLibraryCallTimeoutMs, stop, /*report_busy=*/true));
     }
     nlohmann::json params = ParseBoundedJson(params_json);
     if (!params.is_object()) {
@@ -778,7 +810,8 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
             return std::nullopt;
         }
         params["limits"] = {{"start", start}, {"end", start + kLibraryPageSize}};
-        std::optional<std::string> text = Call(method, params.dump(), kLibraryCallTimeoutMs, stop);
+        std::optional<std::string> text =
+            Call(method, params.dump(), kLibraryCallTimeoutMs, stop, /*report_busy=*/true);
         if (!text.has_value()) {
             if (!last_call_timed_out_) {
                 return std::nullopt;  // dead transport
@@ -795,7 +828,8 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
             if (start == 0) {
                 if (parsed.is_object() && parsed.contains("error")) {
                     params.erase("limits");
-                    return survive_timeout(Call(method, params.dump(), kLibraryCallTimeoutMs, stop));
+                    return survive_timeout(
+                        Call(method, params.dump(), kLibraryCallTimeoutMs, stop, /*report_busy=*/true));
                 }
                 return text;  // not a listing at all - the parser yields an empty list
             }

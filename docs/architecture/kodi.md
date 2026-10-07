@@ -274,9 +274,12 @@ no way to cancel the call. HomeDeck stops waiting after 30 s but Kodi stays
 blocked until its own source timeout, so playback control is unavailable
 for that long whatever HomeDeck does; a command tapped meanwhile is dropped
 once it is older than `max_pending_command_age` (except stop and mute),
-rather than firing late and toggling the player unexpectedly. Listings
-that are merely long (many fast pages) do not block it:
-`CallLibrary()` sends any queued playback commands before each page, so a
+rather than firing late and toggling the player unexpectedly. Once a
+library request has waited more than 3 s, `KodiSnapshot::library_busy` is
+set (and `KodiNowPlayingChangedEvent` published) and `NowPlayingScreen` and
+`KodiRemoteScreen` show "Kodi is busy listing a folder"; it clears when Kodi
+next replies to anything, and on disconnect. Listings that are merely
+long (many fast pages) do not block it: `CallLibrary()` sends any queued playback commands before each page, so a
 command waits behind at most one page.
 
 A JSON-RPC `error` reply to a listing (for example PVR disabled on that

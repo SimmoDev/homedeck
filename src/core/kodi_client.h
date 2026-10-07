@@ -119,6 +119,12 @@ struct KodiSnapshot {
     int volume = 0;
     bool muted = false;
     KodiNowPlaying now_playing;
+    // A library request has waited longer than the busy threshold for its
+    // reply. Kodi runs JSON-RPC calls one at a time across all connections,
+    // so until it answers, playback and navigation commands cannot get
+    // through either. Clears when Kodi next replies to anything, and on
+    // disconnect.
+    bool library_busy = false;
 };
 
 // One library entry per M4b's video-browsing screens (movies / TV shows /
@@ -336,7 +342,8 @@ public:
                std::chrono::milliseconds reconcile_interval = std::chrono::seconds(10),
                std::chrono::milliseconds pump_interval = std::chrono::milliseconds(250),
                std::chrono::milliseconds browse_timeout = std::chrono::seconds(2),
-               std::chrono::milliseconds max_pending_command_age = std::chrono::seconds(5));
+               std::chrono::milliseconds max_pending_command_age = std::chrono::seconds(5),
+               std::chrono::milliseconds library_busy_after = std::chrono::seconds(3));
 
     // Module:
     void Start() override;
@@ -512,8 +519,10 @@ private:
     // loop's own thread calls this: it is the sole owner of ws_client_
     // and next_rpc_id_. nlohmann::json is kept out of this header, same
     // as HarmonyConnection - the .cpp does all parsing.
+    // report_busy: set KodiSnapshot::library_busy once the reply has taken
+    // longer than library_busy_after_ (for library listings).
     std::optional<std::string> Call(const std::string& method, const std::string& params_json, int timeout_ms,
-                                    std::stop_token stop);
+                                    std::stop_token stop, bool report_busy = false);
     // A library listing via Call(), with the longer kLibraryCallTimeoutMs.
     // With a non-null result_key the listing is fetched in kLibraryPageSize
     // pages (Kodi's `limits` parameter) and merged into one
@@ -545,6 +554,9 @@ private:
     // reconcile interval (notifications carry no timing fields - ADR-0030).
     void HandleNotification(const std::string& frame_text);
     void SetState(KodiConnectionState state);
+    // Updates the snapshot's library_busy and, on a change, publishes
+    // KodiNowPlayingChangedEvent so the control screens re-render.
+    void SetLibraryBusy(bool busy);
     // watch_commands: only the connected inner loop watches
     // pending_commands_/pending_library_requests_ (ws_client_ exists only
     // then) - the no-target/backoff waits leave both queued rather than
@@ -589,6 +601,7 @@ private:
     std::chrono::milliseconds pump_interval_;
     std::chrono::milliseconds browse_timeout_;
     std::chrono::milliseconds max_pending_command_age_;
+    std::chrono::milliseconds library_busy_after_;
 
     // Owned by, and only ever touched from, task_'s own thread - no
     // mutex, same single-owner reasoning as HarmonyConnection::ws_client_.
@@ -599,6 +612,9 @@ private:
     // transport. Only meaningful right after a Call() that returned nullopt.
     bool last_call_timed_out_ = false;
     bool needs_immediate_poll_ = false;
+    // Loop-thread mirror of KodiSnapshot::library_busy, so Call() can check
+    // it for every reply without taking mutex_.
+    bool library_busy_ = false;
     // Once a Player.On* notification has supplied identity for the
     // current playback, the reconcile poll's Player.GetItem result does
     // not overwrite it - the notification's `item` is the

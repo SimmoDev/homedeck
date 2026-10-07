@@ -54,6 +54,8 @@ NowPlayingScreen::NowPlayingScreen(EventBus& event_bus, BatteryReader& battery_r
     content_ = chrome.content_container;
     lv_obj_t* home_button = chrome.home_button;
 
+    busy_hint_label_ = CreateKodiBusyHint(content_);
+
     subtitle_label_ = lv_label_create(content_);
     lv_label_set_long_mode(subtitle_label_, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(subtitle_label_, LV_PCT(100));
@@ -145,6 +147,8 @@ void NowPlayingScreen::Refresh() {
         lv_obj_set_hidden(hint_label_, false);
         return;
     }
+
+    lv_obj_set_hidden(busy_hint_label_, !snapshot.library_busy);
 
     const KodiNowPlaying& np = snapshot.now_playing;
     lv_label_set_text(subtitle_label_, KodiNowPlayingSubtitle(np).c_str());

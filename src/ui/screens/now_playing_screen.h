@@ -57,6 +57,7 @@ private:
     StatusBar status_bar_;
     lv_obj_t* hint_label_;         // shown instead of content_ when not connected
     lv_obj_t* content_;           // holds everything below
+    lv_obj_t* busy_hint_label_;    // shown while KodiSnapshot::library_busy
     lv_obj_t* subtitle_label_;
     lv_obj_t* progress_bar_;
     lv_obj_t* time_label_;
