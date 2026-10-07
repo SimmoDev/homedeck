@@ -17,8 +17,8 @@ namespace homedeck {
 // FreeRTOS specialization - likely needing trivially-copyable T given
 // xQueueCreate's fixed-size semantics - isn't solved here; it's deferred
 // to when firmware bring-up actually needs it. In practice this generic
-// std::mutex/condition_variable_any implementation is now confirmed
-// working on firmware too (see Logger, ADR-0020) - the same pthread-
+// std::mutex/condition_variable_any implementation works
+// on firmware too (see Logger, ADR-0020) - the same pthread-
 // backed primitives AdminAuthService's mutex already relies on there -
 // so a genuinely FreeRTOS-native backend (xQueueCreate) remains a
 // possible future optimization, not a correctness requirement.

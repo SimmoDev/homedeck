@@ -273,9 +273,8 @@ TEST_F(OtaRoutesTest, GateClosedRejectionPublishesNeitherEvent) {
     EXPECT_EQ(event_count, 0);
 }
 
-// Regression: two concurrent uploads previously had nothing serializing
-// them - HostHttpServer alone runs multiple worker threads, so this is
-// structurally reachable, not just theoretical. write_image() blocks
+// Two concurrent uploads must not race: HostHttpServer runs multiple
+// worker threads, so this is structurally reachable. write_image() blocks
 // until released, holding the first upload "in progress" for as long as
 // this test needs to prove a second, concurrent request is rejected
 // rather than racing the first's write.

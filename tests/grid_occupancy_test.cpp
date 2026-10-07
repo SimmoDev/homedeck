@@ -106,8 +106,8 @@ TEST(GridOccupancyTest, ClampSpanLeavesAlreadyValidSpansUnchanged) {
 }
 
 TEST(GridOccupancyTest, FindPlacementTerminatesForAColumnSpanWiderThanTheGrid) {
-    // Regression: an unclamped col_span > Columns previously made Fits()
-    // reject every column at every row, spinning this call forever.
+    // col_span > Columns is clamped; otherwise Fits() would reject every
+    // column at every row and the search would never end.
     FourColumnGrid grid;
     auto placement = grid.FindPlacement(6, 1);
     EXPECT_EQ(placement.row, 0);
@@ -115,10 +115,9 @@ TEST(GridOccupancyTest, FindPlacementTerminatesForAColumnSpanWiderThanTheGrid) {
 }
 
 TEST(GridOccupancyTest, FindPlacementClampsAnExcessiveRowSpanBeforeSearching) {
-    // Regression: row_span previously had no upper bound anywhere in
-    // this class, so Fits()'s row loop - and a caller's subsequent
-    // row-descriptor growth from the same unclamped value - scaled with
-    // whatever a misbehaving Widget::RowSpan() override returned.
+    // row_span is bounded so Fits()'s row loop, and a caller's row-descriptor
+    // growth from the same value, cannot scale with whatever a misbehaving
+    // Widget::RowSpan() override returns.
     FourColumnGrid grid;
     auto placement = grid.FindPlacement(1, 1000000);
     EXPECT_EQ(placement.row, 0);

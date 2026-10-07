@@ -295,7 +295,7 @@ simulator.
       this pass: weather condition icons and Fahrenheit/Celsius
       selection (both M7 polish, see the M7 section below). A tap
       handler on `Widget` itself, deferred here until Harmony (M3) or
-      Kodi (M4) first needed tap-for-detail, is now built — see the M3
+      Kodi (M4) first needed tap-for-detail, is built — see the M3
       Activities item below. The enable/disable/reorder widget
       customization named in
       [dashboard.md](architecture/dashboard.md#customization-future),
@@ -513,8 +513,7 @@ this until it's done — see
       one consistent look rather than list buttons auto-fitting their own
       shorter labels. Long-press actions -
       sustained repeat while a command button stays held - are built:
-      `HarmonyConnection::SendDeviceCommand()` (a single press+release
-      pair per call) is now three separate calls
+      `HarmonyConnection` sends a command as three separate calls
       (`PressDeviceCommand()`/`HoldDeviceCommand()`/`ReleaseDeviceCommand()`),
       matching the hub's own three-state `holdAction` protocol, driven by
       `DevicesScreen`'s own `LV_EVENT_LONG_PRESSED`/`LONG_PRESSED_REPEAT`/

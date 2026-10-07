@@ -480,10 +480,9 @@ TEST(HostWebSocketClient, ReceiveTextRejectsABinaryFrame) {
 }
 
 TEST(HostWebSocketClient, ConnectFailsOnAWrongSecWebSocketAcceptHeader) {
-    // Regression test for Connect() previously accepting any "101" status
-    // line with no check that Sec-WebSocket-Accept actually matches the
-    // Sec-WebSocket-Key this client sent - RFC 6455's own handshake
-    // verification step, which confirms the far end understood the
+    // Connect() must check that Sec-WebSocket-Accept matches the
+    // Sec-WebSocket-Key this client sent, not accept any "101" status
+    // line - RFC 6455's own handshake verification step, which confirms the far end understood the
     // request as a WebSocket upgrade rather than just happening to answer
     // 101 (a misconfigured device, a captive-portal-style proxy, a
     // different service that took over the hub's IP after a DHCP lease
