@@ -93,8 +93,8 @@ int HostHttpServer::Dispatch(mg_connection* conn) {
         }
         request.body.resize(static_cast<size_t>(info->content_length));
         // A single mg_read() call is not guaranteed to return the full
-        // body - fine for the small JSON bodies used so far, a real bug
-        // for anything larger (e.g. an OTA image upload), which arrives
+        // body - fine for a small JSON body, truncating
+        // anything larger (e.g. an OTA image upload), which arrives
         // across multiple underlying reads. Loop until the whole body is
         // read; per mg_read()'s documented contract, 0 means the peer
         // closed the connection and negative means a read error - both

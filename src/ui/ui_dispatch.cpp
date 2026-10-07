@@ -14,10 +14,9 @@ namespace {
 // ADR-0011) - schedules each call as a fresh one-shot lv_timer, and
 // lv_timer_create() inserts every new timer at the *head* of LVGL's
 // internal timer list. Two calls made back-to-back therefore run in
-// *reverse* order, not the order they were posted - a real bug for any
+// *reverse* order, not the order they were posted - wrong for any
 // "last write wins" UI update fed by multiple synchronous publishes
-// (see docs/roadmap.md's Notifications item for the traced case this
-// fixes). Queueing here ourselves and draining through a single
+// (see docs/roadmap.md's Notifications item). Queueing here ourselves and draining through a single
 // recurring timer sidesteps that entirely: our own Queue<T> preserves
 // real FIFO order regardless of how LVGL orders repeated timer
 // creation.

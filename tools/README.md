@@ -26,8 +26,10 @@ why that split exists. Checking for the following defect classes:
 
 - `githooks/pre-commit` runs against staged doc/code files: doc
   narration/banned wording/stale ADR cross-references, broken relative
-  Markdown links and anchors, and a staged `tests/*_test.cpp` file
-  missing from [tests/README.md](../tests/README.md)'s own test inventory
+  Markdown links and anchors, filler adverbs in Markdown outside
+  `docs/decisions/`, and a staged `tests/*_test.cpp`, `webui/src/lib/*.svelte`
+  or tool script missing from its directory README's inventory
+  ([tests/](../tests/README.md), [webui/](../webui/README.md), this file)
   (`githooks/check-docs.sh`); [hardware.md](../docs/architecture/hardware.md)'s
   documented electrical/physical-facts-only scope, when that file is
   staged (`githooks/check-hardware-md-scope.sh`); unchecked ESP-IDF/mDNS/httpd

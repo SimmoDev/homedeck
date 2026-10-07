@@ -54,6 +54,22 @@ for f in "$@"; do
         status=1
     fi
 
+    # Filler adverbs add nothing to a sentence in prose docs. ADRs are a
+    # record as of their date and are not reworded; code comments use
+    # "actually" for real contrasts (requested vs persisted), so only
+    # Markdown outside docs/decisions is checked.
+    case "$f" in
+        docs/decisions/*|*CLAUDE.md|*m5stack_tab5*) ;;
+        *.md)
+            filler_matches=$(grep -niE '\b(actually|simply|basically|essentially|obviously)\b' "$f" || true)
+            if [ -n "$filler_matches" ]; then
+                echo "[wording] $f: filler adverb - delete it if the sentence reads the same without it:"
+                echo "$filler_matches" | sed 's/^/    /'
+                status=1
+            fi
+            ;;
+    esac
+
     # Bare date parenthetical in prose, e.g. "...done. (2026-07-30)" - git
     # history already carries "when".
     date_matches=$(grep -nE '\([0-9]{4}-[0-9]{2}-[0-9]{2}\)' "$f" || true)
@@ -122,16 +138,18 @@ for f in "$@"; do
     # needed to catch this reliably: the pre-commit hook only ever sees
     # a file on the commit that adds it, never a later commit that would
     # re-flag a since-gone-stale inventory entry.
+    # Same for the other directories whose README is an exhaustive
+    # inventory: every Web UI component and every tool script.
+    readme=""
     case "$f" in
-        tests/*_test.cpp)
-            readme="$repo_root/tests/README.md"
-            base=$(basename "$f")
-            if [ -f "$readme" ] && ! grep -qF "$base" "$readme"; then
-                echo "[docs] $f: not mentioned by name in tests/README.md's test inventory"
-                status=1
-            fi
-            ;;
+        tests/*_test.cpp) readme="$repo_root/tests/README.md" ;;
+        webui/src/lib/*.svelte) readme="$repo_root/webui/README.md" ;;
+        tools/*.sh|tools/githooks/*) readme="$repo_root/tools/README.md" ;;
     esac
+    if [ -n "$readme" ] && [ -f "$readme" ] && ! grep -qF "$(basename "$f")" "$readme"; then
+        echo "[docs] $f: not mentioned by name in ${readme#"$repo_root"/}'s inventory"
+        status=1
+    fi
 
     # Broken relative-Markdown-link targets/anchors: a link's target file
     # must exist, and if it names a `#anchor`, some heading in the target

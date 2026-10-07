@@ -111,4 +111,12 @@ narration_patterns=(
     'regression( test)?:? .{0,60}previously'
     '(is|are) now (built|confirmed|three|two)'
     '(but|and) real on'
+    # Comments that point at a past fix instead of stating current
+    # behaviour: "the identical bug class", "hazard class already fixed",
+    # "a real bug for anything larger".
+    '(identical|same) (bug|hazard) class'
+    '(bug|hazard) class already'
+    'already fixed'
+    'fix(es)? for the (identical|same)'
+    'a real bug'
 )
