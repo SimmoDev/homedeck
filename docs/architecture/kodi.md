@@ -252,10 +252,10 @@ it arrives, the screen gets what had arrived (an empty list when nothing
 had), and the listing is flagged `truncated`.
 The periodic reconcile poll treats a timeout the same way: it is abandoned
 until the next interval and the link is kept, unless three polls in a row
-get no answer at all (`kMaxToleratedPollTimeouts`), which reconnects. The
-firmware WebSocket client's ping/pong closes a dead link by itself; the
-simulator's has no keepalive, so this bound is what detects one there. The
-poll that follows a new connection must always be answered, since it is
+get no answer at all (`kMaxToleratedPollTimeouts`), which reconnects. That
+detects a half-dead link in about a minute on both targets: the firmware
+WebSocket client's own ping/pong timeout is 120 s and the simulator's
+client has no keepalive. The poll that follows a new connection must always be answered, since it is
 what proves the connection works.
 
 Listings are fetched through `CallLibrary()`: a 30 s timeout (a cold

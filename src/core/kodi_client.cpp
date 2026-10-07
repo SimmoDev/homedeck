@@ -876,8 +876,8 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
     // is busy (it answers one call at a time), not that the transport is
     // dead. The poll is abandoned until the next interval; what it had
     // already read stays published. kMaxToleratedPollTimeouts polls in a
-    // row that get no answer at all count as a dead link, which a
-    // transport without its own keepalive would otherwise never report.
+    // row that get no answer at all count as a dead link: the firmware
+    // client's pong timeout is 120 s and the simulator's has no keepalive.
     const auto call_failed = [&] {
         if (changed) {
             event_bus_.Publish(KodiNowPlayingChangedEvent{});
