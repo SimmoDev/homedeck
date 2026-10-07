@@ -1746,6 +1746,37 @@ TEST_F(KodiClientTest, ALibraryCallThatTimesOutOnAnOpenConnectionKeepsTheLink) {
 // re-established while Kodi works through a slow call.
 TEST_F(KodiClientTest, AReconcilePollThatTimesOutOnAnOpenConnectionKeepsTheLink) {
     KODI_COMMAND_RIG();
+    // Drops the first two polls after `stalled` is set (fewer than
+    // kMaxToleratedPollTimeouts), then answers again.
+    auto stalled = std::make_shared<std::atomic<bool>>(false);
+    auto dropped = std::make_shared<std::atomic<int>>(0);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->drop_request = [stalled, dropped](const nlohmann::json& request) {
+            return stalled->load() && request["method"].get<std::string>() == "Application.GetProperties" &&
+                   dropped->fetch_add(1) < 2;
+        };
+    }
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    stalled->store(true);
+    ASSERT_TRUE(WaitFor([&] { return dropped->load() >= 3; }));  // two dropped, then one answered
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->connect_urls.size(), 1u);  // never reconnected
+    }
+    client->Stop();
+}
+
+// A link that answers nothing for kMaxToleratedPollTimeouts polls in a row is
+// dead even though the transport still reports itself open.
+TEST_F(KodiClientTest, RepeatedReconcilePollTimeoutsOnAnOpenConnectionReconnect) {
+    KODI_COMMAND_RIG();
     auto stalled = std::make_shared<std::atomic<bool>>(false);
     {
         std::lock_guard<std::mutex> lock(script->mutex);
@@ -1756,13 +1787,10 @@ TEST_F(KodiClientTest, AReconcilePollThatTimesOutOnAnOpenConnectionKeepsTheLink)
     ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
 
     stalled->store(true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));  // several reconcile intervals
-
-    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
-    {
+    EXPECT_TRUE(WaitFor([&] {
         std::lock_guard<std::mutex> lock(script->mutex);
-        EXPECT_EQ(script->connect_urls.size(), 1u);  // never reconnected
-    }
+        return script->connect_urls.size() >= 2u;
+    }));
     client->Stop();
 }
 

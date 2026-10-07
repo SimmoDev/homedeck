@@ -867,18 +867,24 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
     // A reply that does not arrive on a link that is still open means Kodi
     // is busy (it answers one call at a time), not that the transport is
     // dead. The poll is abandoned until the next interval; what it had
-    // already read stays published.
+    // already read stays published. kMaxToleratedPollTimeouts polls in a
+    // row that get no answer at all count as a dead link, which a
+    // transport without its own keepalive would otherwise never report.
     const auto call_failed = [&] {
         if (changed) {
             event_bus_.Publish(KodiNowPlayingChangedEvent{});
         }
-        return tolerate_timeout && last_call_timed_out_;
+        if (!tolerate_timeout || !last_call_timed_out_) {
+            return false;
+        }
+        return ++consecutive_poll_timeouts_ < kMaxToleratedPollTimeouts;
     };
     std::optional<std::string> app_text =
         Call("Application.GetProperties", R"({"properties":["volume","muted","version"]})", kCallTimeoutMs, stop);
     if (!app_text.has_value()) {
         return call_failed();
     }
+    consecutive_poll_timeouts_ = 0;  // Kodi answered, so the link is alive
     {
         nlohmann::json app = ParseBoundedJson(*app_text);
         auto result_it = app.is_object() ? app.find("result") : app.end();

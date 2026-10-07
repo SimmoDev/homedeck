@@ -457,6 +457,9 @@ private:
     // dropped first once full, same policy and reasoning as
     // HarmonyConnection::kMaxPendingCommands.
     static constexpr size_t kMaxPendingCommands = 20;
+    // Consecutive reconcile polls that may time out without Kodi answering
+    // anything before the link is treated as dead (see ReconcilePoll()).
+    static constexpr int kMaxToleratedPollTimeouts = 3;
 
     // One queued library browse query (RequestMovies() etc.) - unlike
     // PendingCommand these are drained via Call() (request/response),
@@ -547,9 +550,10 @@ private:
     // /GetItem when something is playing). Refreshes the snapshot and is
     // the periodic liveness probe. false => transport dead, reconnect.
     // tolerate_timeout: a call that times out on a still-open link ends the
-    // poll with true instead (Kodi is busy, not gone). The up-front poll in
-    // ConnectAndPrime() does not tolerate it: it is what proves a new
-    // connection answers.
+    // poll with true instead (Kodi is busy, not gone), up to
+    // kMaxToleratedPollTimeouts polls in a row without any answer. The
+    // up-front poll in ConnectAndPrime() does not tolerate it: it is what
+    // proves a new connection answers.
     bool ReconcilePoll(std::stop_token stop, bool tolerate_timeout);
     // Applies one pushed notification (Player.On* / Application.OnVolumeChanged),
     // given as raw frame text, to the snapshot and publishes
@@ -622,6 +626,8 @@ private:
     // transport. Only meaningful right after a Call() that returned nullopt.
     bool last_call_timed_out_ = false;
     bool needs_immediate_poll_ = false;
+    // Reconcile polls in a row whose first call timed out on an open link.
+    int consecutive_poll_timeouts_ = 0;
     // Loop-thread mirror of KodiSnapshot::library_busy, so Call() can check
     // it for every reply without taking mutex_.
     bool library_busy_ = false;
