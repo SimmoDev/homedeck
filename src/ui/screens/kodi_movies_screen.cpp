@@ -10,7 +10,9 @@ KodiMoviesScreen::KodiMoviesScreen(EventBus& event_bus, BatteryReader& battery_r
     : kodi_client_(kodi_client),
       navigation_(navigation),
       root_(lv_obj_create(nullptr)),
-      status_bar_(root_, event_bus, battery_reader, network_status) {
+      status_bar_(root_, event_bus, battery_reader, network_status),
+      loader_(
+          root_, [this] { return kodi_client_.IsConnected(); }, [this] { kodi_client_.RequestMovies(); }) {
     ScreenChrome chrome = CreateScreenChrome(root_, "Movies", "Kodi not connected.", navigation);
     lv_obj_t* container = chrome.container;
     hint_label_ = chrome.hint_label;
@@ -43,15 +45,11 @@ KodiMoviesScreen::KodiMoviesScreen(EventBus& event_bus, BatteryReader& battery_r
         [this](const KodiConnectionStateChangedEvent& event) {
             Refresh();
             if (event.state == KodiConnectionState::kConnected) {
-                kodi_client_.RequestMovies();
+                loader_.OnConnected();
             }
         });
     movies_sub_ = event_bus.SubscribeUi<KodiMoviesFetchedEvent>(
         [this](const KodiMoviesFetchedEvent& event) { RebuildMovieList(event.movies, event.truncated); });
-
-    if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        kodi_client_.RequestMovies();
-    }
 
     lv_obj_move_foreground(status_bar_.Root());
     lv_obj_move_foreground(home_button);

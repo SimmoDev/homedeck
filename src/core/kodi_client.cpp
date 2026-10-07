@@ -426,6 +426,11 @@ KodiSnapshot KodiClient::Snapshot() const {
     return state_;
 }
 
+bool KodiClient::IsConnected() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return state_.state == KodiConnectionState::kConnected;
+}
+
 void KodiClient::TriggerReconnect() {
     {
         std::lock_guard<std::mutex> lock(wake_mutex_);
@@ -707,6 +712,13 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
         return (!text.has_value() && last_call_timed_out_) ? std::optional<std::string>(timed_out_reply()) : text;
     };
 
+    // A listing holds the loop thread for up to kLibraryCallTimeoutMs per
+    // request, so queued transport commands are sent before each request
+    // rather than waiting out the whole listing (and aging past
+    // max_pending_command_age_).
+    if (!SendPendingCommands(stop)) {
+        return std::nullopt;
+    }
     if (result_key == nullptr) {
         return survive_timeout(Call(method, params_json, kLibraryCallTimeoutMs, stop));
     }
@@ -717,6 +729,9 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
 
     nlohmann::json merged = nlohmann::json::array();
     for (long long start = 0; merged.size() < kMaxLibraryItems;) {
+        if (start > 0 && !SendPendingCommands(stop)) {
+            return std::nullopt;
+        }
         params["limits"] = {{"start", start}, {"end", start + kLibraryPageSize}};
         std::optional<std::string> text = Call(method, params.dump(), kLibraryCallTimeoutMs, stop);
         if (!text.has_value()) {

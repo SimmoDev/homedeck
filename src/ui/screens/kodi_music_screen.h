@@ -6,6 +6,7 @@
 #include "platform/battery_reader.h"
 #include "platform/network_status.h"
 #include "ui/navigation.h"
+#include "ui/screen_loader.h"
 #include "ui/status_bar.h"
 #include "ui/virtual_list.h"
 
@@ -27,9 +28,9 @@ namespace homedeck {
 //
 // An album's songs aren't known until that album is chosen, so
 // KodiClient::RequestAlbums()/RequestSongs() fire when that level is
-// entered, not up front - unlike RequestArtists() itself, which fires on
-// construction and on every reconnect (same shape as
-// KodiMoviesScreen::RequestMovies()).
+// entered, not up front - unlike RequestArtists() itself, which a
+// ScreenLoader fires when the screen is first shown and after a reconnect
+// (same shape as KodiMoviesScreen::RequestMovies()).
 class KodiMusicScreen {
 public:
     KodiMusicScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
@@ -66,6 +67,7 @@ private:
 
     lv_obj_t* root_;
     StatusBar status_bar_;
+    ScreenLoader loader_;  // requests the top-level list when first shown, and after a reconnect
     lv_obj_t* hint_label_;
     lv_obj_t* artists_container_;  // == ScreenChrome's content_container - holds artists_list_
 

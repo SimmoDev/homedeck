@@ -10,7 +10,9 @@ KodiFilesScreen::KodiFilesScreen(EventBus& event_bus, BatteryReader& battery_rea
     : kodi_client_(kodi_client),
       navigation_(navigation),
       root_(lv_obj_create(nullptr)),
-      status_bar_(root_, event_bus, battery_reader, network_status) {
+      status_bar_(root_, event_bus, battery_reader, network_status),
+      loader_(
+          root_, [this] { return kodi_client_.IsConnected(); }, [this] { RequestCurrentLevel(); }) {
     ScreenChrome chrome = CreateScreenChrome(root_, "Files", "Kodi not connected.", navigation);
     hint_label_ = chrome.hint_label;
     content_ = chrome.content_container;
@@ -33,7 +35,7 @@ KodiFilesScreen::KodiFilesScreen(EventBus& event_bus, BatteryReader& battery_rea
         [this](const KodiConnectionStateChangedEvent& event) {
             Refresh();
             if (event.state == KodiConnectionState::kConnected) {
-                RequestCurrentLevel();
+                loader_.OnConnected();
             }
         });
     // Filtered by the currently-requested path - a reply for a level
@@ -46,10 +48,6 @@ KodiFilesScreen::KodiFilesScreen(EventBus& event_bus, BatteryReader& battery_rea
             RebuildList(event.items, event.truncated);
         }
     });
-
-    if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        RequestCurrentLevel();
-    }
 
     lv_obj_move_foreground(status_bar_.Root());
     lv_obj_move_foreground(home_button);

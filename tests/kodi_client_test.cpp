@@ -1311,6 +1311,59 @@ TEST_F(KodiClientTest, RequestMoviesFetchesALargeLibraryInPagesAndMergesThem) {
 }
 
 // A Kodi that rejects the `limits` parameter must still deliver its library.
+// A listing occupies the loop thread request by request, so a playback
+// command queued while it is paging goes out between pages, not after the
+// last one.
+TEST_F(KodiClientTest, ACommandQueuedDuringAPagedListingIsSentBetweenPages) {
+    KODI_COMMAND_RIG();
+    constexpr int kTotal = 1200;
+    std::atomic<KodiClient*> client_ptr{nullptr};
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->handlers["VideoLibrary.GetMovies"] = [kTotal, &client_ptr](const nlohmann::json& request) {
+            const long long start = request["params"]["limits"]["start"].get<long long>();
+            const long long end = std::min<long long>(request["params"]["limits"]["end"].get<long long>(), kTotal);
+            if (start == 500) {
+                client_ptr.load()->PlayPause();
+            }
+            nlohmann::json movies = nlohmann::json::array();
+            for (long long i = start; i < end; ++i) {
+                movies.push_back({{"movieid", i}, {"title", "Movie"}});
+            }
+            return nlohmann::json{
+                {"result", {{"movies", movies}, {"limits", {{"start", start}, {"end", end}, {"total", kTotal}}}}}};
+        };
+    }
+    std::atomic<bool> done{false};
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>(
+        [&](const homedeck::KodiMoviesFetchedEvent&) { done = true; });
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client_ptr = client.get();
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] { return done.load(); }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        size_t play_pause = std::string::npos;
+        size_t third_page = std::string::npos;
+        for (size_t i = 0; i < script->sent.size(); ++i) {
+            if (play_pause == std::string::npos && script->sent[i].find("Player.PlayPause") != std::string::npos) {
+                play_pause = i;
+            }
+            if (script->sent[i].find("\"start\":1000") != std::string::npos) {
+                third_page = i;
+            }
+        }
+        ASSERT_NE(play_pause, std::string::npos);
+        ASSERT_NE(third_page, std::string::npos);
+        EXPECT_LT(play_pause, third_page);
+    }
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, RequestMoviesRetriesUnpagedWhenKodiRejectsLimits) {
     KODI_COMMAND_RIG();
     {

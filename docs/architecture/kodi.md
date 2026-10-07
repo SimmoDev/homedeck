@@ -260,6 +260,13 @@ rendered by `VirtualList`, which binds only the rows near the screen, so a
 10,000-item list costs what one screenful does (see
 [ui.md](ui.md#long-lists)).
 
+A listing occupies the connection loop request by request, so
+`CallLibrary()` sends any queued playback commands before each request:
+a command waits behind at most one request (up to 30 s on a slow share),
+not behind the whole listing. Commands older than
+`max_pending_command_age` at that point are still dropped, except stop and
+mute.
+
 A JSON-RPC `error` reply to a listing (for example PVR disabled on that
 Kodi) parses to an empty list, so the screen shows its "Nothing here."
 text rather than an error; only a transport failure is reported as a
@@ -278,10 +285,12 @@ total}`-in-seconds shape (distinct from `Player.GetProperties`' `time`/
 Playback always starts through the existing `OpenLibraryItem()`
 (`Player.Open`), landing on `NowPlayingScreen` immediately after.
 
-Each screen requests its own top-level list on construction and again on
-every transition into `KodiConnectionState::kConnected` (covers the
-first connect and any later reconnect while the screen exists); a
-show's seasons/episodes aren't known until that show/season is chosen,
+`AppCore` builds every screen at start-up, so a screen requests its own
+top-level list when it is first shown (`ScreenLoader`, on
+`LV_EVENT_SCREEN_LOAD_START`) and again after each transition into
+`KodiConnectionState::kConnected` - at once if it is showing, otherwise at
+its next show. Opening Kodi therefore costs no library queries until a
+browse screen is opened. A show's seasons/episodes aren't known until that show/season is chosen,
 so those queries fire only when that level is entered. Kodi's database
 order has no relation to how a user browses, so every query sorts by
 label (`VideoLibrary.GetMovies`/`GetTVShows`) or by season/episode

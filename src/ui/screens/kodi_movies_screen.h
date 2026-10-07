@@ -6,6 +6,7 @@
 #include "platform/battery_reader.h"
 #include "platform/network_status.h"
 #include "ui/navigation.h"
+#include "ui/screen_loader.h"
 #include "ui/status_bar.h"
 #include "ui/virtual_list.h"
 
@@ -22,10 +23,9 @@ namespace homedeck {
 // two Navigation routes - same no-back-stack reasoning as DevicesScreen
 // (see its own header comment).
 //
-// Requests a fresh list on construction and on every transition into
-// KodiConnectionState::kConnected (covers both the first connect and any
-// later reconnect while this screen exists) via
-// KodiClient::RequestMovies(); KodiMoviesFetchedEvent rebuilds the list.
+// Requests a fresh list via KodiClient::RequestMovies() when the screen is
+// first shown and when it is shown or showing after a reconnect (see
+// ScreenLoader); KodiMoviesFetchedEvent rebuilds the list.
 // Each movie is a plain "Title (Year)" label; artwork is out of scope
 // (see ADR-0030).
 class KodiMoviesScreen {
@@ -58,6 +58,7 @@ private:
 
     lv_obj_t* root_;
     StatusBar status_bar_;
+    ScreenLoader loader_;  // requests the top-level list when first shown, and after a reconnect
     lv_obj_t* hint_label_;        // shown instead of everything below when not connected
     lv_obj_t* list_container_;    // == ScreenChrome's content_container - holds movie_list_
     lv_obj_t* detail_container_;  // back button + title + Play/Resume, sibling of list_container_

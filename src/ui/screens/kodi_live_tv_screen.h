@@ -6,6 +6,7 @@
 #include "platform/battery_reader.h"
 #include "platform/network_status.h"
 #include "ui/navigation.h"
+#include "ui/screen_loader.h"
 #include "ui/status_bar.h"
 #include "ui/virtual_list.h"
 
@@ -60,6 +61,7 @@ private:
 
     lv_obj_t* root_;
     StatusBar status_bar_;
+    ScreenLoader loader_;  // requests the top-level list when first shown, and after a reconnect
     lv_obj_t* hint_label_;
     lv_obj_t* groups_container_;  // == ScreenChrome's content_container - holds groups_list_
 

@@ -336,6 +336,8 @@ public:
     void Stop() override;
 
     KodiSnapshot Snapshot() const;
+    // Cheaper than Snapshot() when only the connection state matters.
+    bool IsConnected() const;
 
     // Wakes the connection loop immediately so a newly-saved host/
     // instance selection is tried without waiting out the current
@@ -503,8 +505,10 @@ private:
     // pages merged so far are returned as a truncated listing, or an error
     // reply when there are none, and the late reply is ignored by id.
     // `truncated` is set when the listing is
-    // incomplete (see KodiMoviesFetchedEvent::truncated). nullopt on the
-    // same conditions as Call().
+    // incomplete (see KodiMoviesFetchedEvent::truncated). Queued playback
+    // commands are sent before each request (SendPendingCommands()), so a
+    // slow listing does not hold them back. nullopt on the same conditions
+    // as Call(), or when sending those commands fails.
     std::optional<std::string> CallLibrary(const std::string& method, const std::string& params_json,
                                            const char* result_key, std::stop_token stop, bool& truncated);
     // Application.GetProperties + Player.GetActivePlayers (+ GetProperties

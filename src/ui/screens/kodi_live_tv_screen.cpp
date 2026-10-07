@@ -12,7 +12,9 @@ KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_r
     : kodi_client_(kodi_client),
       navigation_(navigation),
       root_(lv_obj_create(nullptr)),
-      status_bar_(root_, event_bus, battery_reader, network_status) {
+      status_bar_(root_, event_bus, battery_reader, network_status),
+      loader_(
+          root_, [this] { return kodi_client_.IsConnected(); }, [this] { kodi_client_.RequestChannelGroups(); }) {
     ScreenChrome chrome = CreateScreenChrome(root_, "Live TV", "Kodi not connected.", navigation);
     lv_obj_t* container = chrome.container;
     hint_label_ = chrome.hint_label;
@@ -39,7 +41,7 @@ KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_r
         [this](const KodiConnectionStateChangedEvent& event) {
             Refresh();
             if (event.state == KodiConnectionState::kConnected) {
-                kodi_client_.RequestChannelGroups();
+                loader_.OnConnected();
             }
         });
     groups_sub_ = event_bus.SubscribeUi<KodiChannelGroupsFetchedEvent>(
@@ -52,10 +54,6 @@ KodiLiveTvScreen::KodiLiveTvScreen(EventBus& event_bus, BatteryReader& battery_r
             RebuildChannelList(event.channels, event.truncated);
         }
     });
-
-    if (kodi_client_.Snapshot().state == KodiConnectionState::kConnected) {
-        kodi_client_.RequestChannelGroups();
-    }
 
     lv_obj_move_foreground(status_bar_.Root());
     lv_obj_move_foreground(home_button);
