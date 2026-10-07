@@ -28,6 +28,11 @@ std::string KodiWidgetLine(const KodiSnapshot& snapshot) {
         case KodiConnectionState::kError:
             return "Not reachable";
         case KodiConnectionState::kDisconnected:
+            // A configured target that cannot be resolved (its Kodi is not
+            // running) is the normal resting state, not a missing setup.
+            if (snapshot.target_configured) {
+                return "Not reachable";
+            }
             // More than one instance answered discovery but none is
             // saved - the user has to pick (ADR-0030). Otherwise there's
             // simply nothing configured to connect to.

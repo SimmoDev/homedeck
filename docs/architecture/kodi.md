@@ -36,7 +36,12 @@ control API disappears with it (both port 9090 and 8080 stop answering
 within minutes of the app being backgrounded); "unreachable" is the
 resting state for a large share of setups, not a fault. The
 dashboard widget and screens show a plain "not reachable" indicator and
-the retry loop continues quietly.
+the retry loop continues quietly. This includes a configured target that
+cannot be resolved: a saved `instance_uuid` whose Kodi is not running
+leaves the module `kDisconnected`, and `KodiSnapshot::target_configured`
+makes the widget read "Not reachable" rather than "Not configured". The
+Web UI settings page keeps the saved instance selectable
+(`selectedUuid` in `GET /api/kodi/status`) while discovery does not list it.
 
 ## Discovery and instance selection
 

@@ -34,6 +34,9 @@ TEST(KodiWidgetLineTest, ReportsEachNonConnectedState) {
     EXPECT_EQ(homedeck::KodiWidgetLine(s), "Not configured");
     s.discovered = {{"Living Room", "10.0.0.1", "a"}, {"Bedroom", "10.0.0.2", "b"}};
     EXPECT_EQ(homedeck::KodiWidgetLine(s), "Choose a Kodi in settings");
+    // A saved selection whose Kodi is not running is configured, not missing.
+    s.target_configured = true;
+    EXPECT_EQ(homedeck::KodiWidgetLine(s), "Not reachable");
 }
 
 TEST(KodiWidgetLineTest, ReportsPlaybackWhenConnected) {

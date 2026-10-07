@@ -165,6 +165,8 @@ TEST_F(KodiRoutesTest, StatusReportsDisconnectedBeforeAnyInstanceIsConfigured) {
     EXPECT_EQ(result.status_code, 200);
     EXPECT_NE(result.body.find(R"("state":"disconnected")"), std::string::npos);
     EXPECT_NE(result.body.find(R"("discovered":[])"), std::string::npos);
+    EXPECT_NE(result.body.find(R"("targetConfigured":false)"), std::string::npos);
+    EXPECT_NE(result.body.find(R"("selectedUuid":"")"), std::string::npos);
 }
 
 TEST_F(KodiRoutesTest, StatusReportsPopulatedSnapshotOnceConnected) {

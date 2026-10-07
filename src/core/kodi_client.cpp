@@ -471,6 +471,8 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
         {
             std::lock_guard<std::mutex> lock(mutex_);
             state_.resolved_host = host_setting->value;
+            state_.target_configured = true;
+            state_.selected_uuid.clear();
             state_.discovered.clear();
         }
         return Target{host_setting->value, kDefaultPort};
@@ -540,6 +542,8 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
         std::lock_guard<std::mutex> lock(mutex_);
         state_.discovered = std::move(discovered);
         state_.resolved_host = resolved_host;
+        state_.target_configured = !selected_uuid.empty();
+        state_.selected_uuid = selected_uuid;
     }
     return target;
 }

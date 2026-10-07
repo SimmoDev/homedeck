@@ -97,6 +97,14 @@ struct KodiSnapshot {
     // the `host` override, or the chosen discovered instance) - shown on
     // the Web UI settings page. Empty when no target could be resolved.
     std::string resolved_host;
+    // A manual `host` override or a saved `instance_uuid` exists, whether
+    // or not that target is currently reachable. Distinguishes "configured
+    // but Kodi is not running" from "nothing configured" when state is
+    // kDisconnected.
+    bool target_configured = false;
+    // The saved `instance_uuid`, empty when none is saved or a manual
+    // `host` override is in effect.
+    std::string selected_uuid;
     // Instances seen by the most recent discovery browse. size() > 1 with
     // no saved selection is the "ask the user to choose" case (ADR-0030).
     // Empty while a manual `host` override is in effect (no browse runs).

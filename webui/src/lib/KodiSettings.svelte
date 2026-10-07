@@ -25,6 +25,8 @@
   interface KodiStatus {
     state: "disconnected" | "connecting" | "connected" | "error";
     resolvedHost: string;
+    targetConfigured: boolean;
+    selectedUuid: string;
     discovered: KodiDiscovered[];
     appVersion: string;
     volume: number;
@@ -152,7 +154,7 @@
   function stateLabel(state: KodiStatus["state"]): string {
     switch (state) {
       case "disconnected":
-        return "Not connected";
+        return status?.targetConfigured ? "Not reachable - retrying" : "Not connected";
       case "connecting":
         return "Connecting...";
       case "connected":
@@ -160,6 +162,12 @@
       case "error":
         return "Not reachable - retrying";
     }
+  }
+
+  // The saved instance is missing from the discovery list while its Kodi is
+  // not running; it still needs a selected radio button.
+  function savedButNotDiscovered(current: KodiStatus): boolean {
+    return current.selectedUuid !== "" && !current.discovered.some((i) => i.uuid === current.selectedUuid);
   }
 
   function nowPlayingSummary(np: KodiStatus["nowPlaying"]): string | undefined {
@@ -183,6 +191,12 @@
   {:else}
     <fieldset>
       <legend>Which Kodi?</legend>
+      {#if status && savedButNotDiscovered(status)}
+        <label class="choice">
+          <input type="radio" name="kodi-instance" bind:group={choice} value={status.selectedUuid} disabled={saving} />
+          Saved Kodi <span class="hint">(not running or not found)</span>
+        </label>
+      {/if}
       {#if status && status.discovered.length > 0}
         {#each status.discovered as instance (instance.uuid)}
           <label class="choice">

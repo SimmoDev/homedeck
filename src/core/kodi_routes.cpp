@@ -34,6 +34,8 @@ nlohmann::json SnapshotToJson(const KodiSnapshot& s) {
     return {
         {"state", StateToString(s.state)},
         {"resolvedHost", s.resolved_host},
+        {"targetConfigured", s.target_configured},
+        {"selectedUuid", s.selected_uuid},
         {"discovered", std::move(instances)},
         {"appVersion", s.app_version},
         {"volume", s.volume},

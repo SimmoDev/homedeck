@@ -442,6 +442,8 @@ TEST_F(KodiClientTest, SavedUuidOfflineDoesNotFallBackToAnotherInstance) {
     ASSERT_TRUE(WaitFor([&] { return browser.BrowseCount() >= 1; }));
     std::this_thread::sleep_for(std::chrono::milliseconds(80));
     EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kDisconnected);
+    EXPECT_TRUE(client->Snapshot().target_configured);
+    EXPECT_EQ(client->Snapshot().selected_uuid, "uuid-gone");
     {
         std::lock_guard<std::mutex> lock(script->mutex);
         EXPECT_TRUE(script->connect_urls.empty())

@@ -8,7 +8,8 @@ namespace homedeck {
 
 // Registers, mirroring core/harmony_routes.h:
 // - GET /api/kodi/status - KodiClient::Snapshot() as JSON (connection
-//   state, resolved host, discovered instances, app volume/mute, and
+//   state, resolved host, whether a target is configured and the saved
+//   instance uuid, discovered instances, app volume/mute, and
 //   what's playing), for the Web UI's Kodi settings page.
 // - POST /api/kodi/reconnect - KodiClient::TriggerReconnect(), so the
 //   settings save flow gets an immediate (re)connect instead of waiting
