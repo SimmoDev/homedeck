@@ -675,7 +675,9 @@ UI and start playback of a chosen item, and the whole Kodi module
 - [ ] Animations
 - [ ] Accessibility
 - [ ] Performance optimisation
-- [ ] Battery optimisation
+- [ ] Battery optimisation, including modules reducing their background
+      activity by power state (see
+      [power-management.md](architecture/power-management.md#status))
 - [ ] Full board power-off with RTC-alarm cold-boot wake, matching
       M5Stack's own official Tab5 firmware pattern
       (`sleepAndRtcWakeup()`/`powerOff()` via the PMS150G-U06 power

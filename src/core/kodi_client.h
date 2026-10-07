@@ -561,6 +561,8 @@ private:
     EventBus& event_bus_;
 
     RetryBackoff backoff_;
+    // Spaces out discovery attempts while no target resolves.
+    RetryBackoff no_target_backoff_;
     std::chrono::milliseconds reconcile_interval_;
     std::chrono::milliseconds pump_interval_;
     std::chrono::milliseconds browse_timeout_;

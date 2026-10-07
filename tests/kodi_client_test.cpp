@@ -450,8 +450,8 @@ TEST_F(KodiClientTest, MultipleInstancesWithNoSelectionStaysDisconnected) {
     client->Stop();
 }
 
-// The loop sleeps 5 s between target checks when nothing resolves; Stop()
-// must not wait that out.
+// The loop sleeps between target checks when nothing resolves; Stop() must
+// not wait that out.
 TEST_F(KodiClientTest, StopDuringTheNoTargetWaitReturnsPromptly) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
@@ -468,6 +468,28 @@ TEST_F(KodiClientTest, StopDuringTheNoTargetWaitReturnsPromptly) {
     const auto started = std::chrono::steady_clock::now();
     client->Stop();
     EXPECT_LT(std::chrono::steady_clock::now() - started, std::chrono::seconds(2));
+}
+
+// Repeating the discovery pass with nothing found is not a state change.
+TEST_F(KodiClientTest, RepeatedDiscoveryWithNoTargetPublishesNoRepeatedStateEvents) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+
+    std::atomic<int> events{0};
+    auto sub = bus.Subscribe<homedeck::KodiConnectionStateChangedEvent>(
+        [&](const homedeck::KodiConnectionStateChangedEvent&) { ++events; });
+
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return browser.BrowseCount() >= 4; }));
+    client->Stop();
+
+    EXPECT_EQ(events.load(), 0);  // the module starts in kDisconnected and never leaves it
 }
 
 TEST_F(KodiClientTest, SavedUuidOfflineDoesNotFallBackToAnotherInstance) {

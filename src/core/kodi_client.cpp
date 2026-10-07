@@ -25,7 +25,13 @@ constexpr int kLibraryPageSize = 500;
 // Bounds the merged listing against a server that reports an endless
 // library; beyond this the list is truncated.
 constexpr size_t kMaxLibraryItems = 10000;
-constexpr std::chrono::seconds kNoTargetRecheckInterval{5};
+
+// Longest wait between discovery attempts while no Kodi is found. Shorter
+// than the connect backoff's cap so a Kodi that has just started is
+// noticed within this long, yet long enough that an absent Kodi (the
+// normal resting state on Android/Google TV) is not browsed for
+// continuously.
+constexpr std::chrono::milliseconds kNoTargetMaxRecheckInterval{30000};
 
 // Bounds PumpNotifications()'s own non-blocking drain loop - the same
 // role kMaxDrainIterations plays in harmony_connection.cpp. A hub/box
@@ -435,6 +441,7 @@ KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser
       storage_(storage),
       event_bus_(event_bus),
       backoff_(initial_backoff, max_backoff),
+      no_target_backoff_(initial_backoff, std::min(max_backoff, kNoTargetMaxRecheckInterval)),
       reconcile_interval_(reconcile_interval),
       pump_interval_(pump_interval),
       browse_timeout_(browse_timeout),
@@ -472,6 +479,9 @@ void KodiClient::TriggerReconnect() {
 void KodiClient::SetState(KodiConnectionState state) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (state_.state == state) {
+            return;  // the discovery loop re-enters kDisconnected every pass
+        }
         state_.state = state;
     }
     // Published after mutex_ releases - a synchronous subscriber calling
@@ -588,9 +598,10 @@ void KodiClient::ConnectionLoop(std::stop_token stop) {
         std::optional<Target> target = ResolveTarget();
         if (!target.has_value()) {
             SetState(KodiConnectionState::kDisconnected);
-            Sleep(kNoTargetRecheckInterval, stop, /*watch_commands=*/false);
+            Sleep(no_target_backoff_.NextDelay(), stop, /*watch_commands=*/false);
             continue;
         }
+        no_target_backoff_.ResetAttempts();
 
         SetState(KodiConnectionState::kConnecting);
         if (!ConnectAndPrime(*target, stop)) {

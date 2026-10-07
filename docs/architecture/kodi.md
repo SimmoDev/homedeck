@@ -70,6 +70,10 @@ Kodi is its first consumer.
   **`instance_uuid`** (module `kodi`, key `instance_uuid`) - the `uuid`
   from the instance's mDNS TXT record, **not its IP**, so a DHCP lease
   change or a Kodi restart doesn't lose the selection.
+- While nothing resolves, discovery repeats with a backoff (the connect
+  backoff, capped at 30 s) rather than continuously: an absent Kodi is the
+  normal resting state, and each browse is Wi-Fi traffic. The state stays
+  `kDisconnected` and no event repeats it.
 - If nothing is saved and exactly one instance answered, it is
   auto-selected. If more than one answered and nothing is saved, the
   module stays `kDisconnected` and the UI asks the user to choose - it

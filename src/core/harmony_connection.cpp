@@ -279,6 +279,9 @@ HarmonyConnection::WakeReason HarmonyConnection::Sleep(std::chrono::milliseconds
 void HarmonyConnection::SetState(HarmonyConnectionState state) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
+        if (state_.state == state) {
+            return;  // an event is a transition, not a restatement
+        }
         state_.state = state;
     }
     // Published after mutex_ releases, not while held - see

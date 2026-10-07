@@ -162,6 +162,14 @@ reconnect/liveness loop has no reason to keep the display on while
 genuinely idle. Still available for a future module whose background
 work can't tolerate the display going dark mid-operation.
 
+Neither `HarmonyConnection` nor `KodiClient` subscribes to power-state
+events: both keep their connection, Kodi's 250 ms notification pump and
+10 s reconcile poll running in `Idle` and `Sleeping`, which is consistent
+with `Sleeping` leaving the CPU and Wi-Fi on
+([ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md)). Modules
+reducing their background activity by power state belongs to M7's battery
+optimisation item in [roadmap.md](../roadmap.md).
+
 `Updating` is also implemented: `POST /api/ota/upload` publishes
 `OtaUpdateStateChangedEvent` immediately around the actual flash write,
 `PowerManager` transitions into `kUpdating` and back to `kActive`
