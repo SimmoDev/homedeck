@@ -290,7 +290,10 @@ top-level list when it is first shown (`ScreenLoader`, on
 `LV_EVENT_SCREEN_LOAD_START`) and again after each transition into
 `KodiConnectionState::kConnected` - at once if it is showing, otherwise at
 its next show. Opening Kodi therefore costs no library queries until a
-browse screen is opened. A show's seasons/episodes aren't known until that show/season is chosen,
+browse screen is opened. A reconnect
+returns the fixed-depth screens to their top-level list, since a request in
+flight when the link dropped is lost; `KodiFilesScreen` keeps its
+`path_stack_` and reloads the folder the user was in. A show's seasons/episodes aren't known until that show/season is chosen,
 so those queries fire only when that level is entered. Kodi's database
 order has no relation to how a user browses, so every query sorts by
 label (`VideoLibrary.GetMovies`/`GetTVShows`) or by season/episode

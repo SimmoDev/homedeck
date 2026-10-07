@@ -70,9 +70,8 @@ void KodiFilesScreen::Refresh() {
     } else {
         lv_obj_set_hidden(content_, true);
         lv_obj_set_hidden(hint_label_, false);
-        // path_stack_ deliberately untouched - a brief reconnect blip
-        // while browsing must not snap the user back to the source
-        // list, same reasoning as the fixed-depth screens.
+        // path_stack_ is kept: the reconnect reloads the level the user
+        // was on (RequestCurrentLevel()), not the source list.
     }
 }
 

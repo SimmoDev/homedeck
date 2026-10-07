@@ -100,16 +100,14 @@ void KodiTvShowsScreen::Refresh() {
     const bool connected = kodi_client_.Snapshot().state == KodiConnectionState::kConnected;
     if (connected) {
         lv_obj_set_hidden(hint_label_, true);
-        // Every deeper level's own visibility is deliberately untouched -
-        // a brief reconnect blip while browsing seasons/episodes must not
-        // snap the user back to the top level.
-        const bool nothing_deeper_showing = lv_obj_is_hidden(seasons_container_) &&
-                                            lv_obj_is_hidden(episodes_container_) &&
-                                            lv_obj_is_hidden(episode_detail_container_);
-        if (nothing_deeper_showing) {
-            lv_obj_set_hidden(shows_container_, false);
-            shows_list_->Refresh();
-        }
+        // A request in flight when the link dropped is lost, so a
+        // (re)connect returns to the show list, which the ScreenLoader
+        // reloads.
+        lv_obj_set_hidden(seasons_container_, true);
+        lv_obj_set_hidden(episodes_container_, true);
+        lv_obj_set_hidden(episode_detail_container_, true);
+        lv_obj_set_hidden(shows_container_, false);
+        shows_list_->Refresh();
     } else {
         lv_obj_set_hidden(shows_container_, true);
         lv_obj_set_hidden(seasons_container_, true);

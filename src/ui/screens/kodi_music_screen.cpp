@@ -77,15 +77,13 @@ void KodiMusicScreen::Refresh() {
     const bool connected = kodi_client_.Snapshot().state == KodiConnectionState::kConnected;
     if (connected) {
         lv_obj_set_hidden(hint_label_, true);
-        // Every deeper level's own visibility is deliberately untouched -
-        // a brief reconnect blip while browsing albums/songs must not
-        // snap the user back to the top level.
-        const bool nothing_deeper_showing = lv_obj_is_hidden(albums_container_) &&
-                                            lv_obj_is_hidden(songs_container_);
-        if (nothing_deeper_showing) {
-            lv_obj_set_hidden(artists_container_, false);
-            artists_list_->Refresh();
-        }
+        // A request in flight when the link dropped is lost, so a
+        // (re)connect returns to the artist list, which the ScreenLoader
+        // reloads.
+        lv_obj_set_hidden(albums_container_, true);
+        lv_obj_set_hidden(songs_container_, true);
+        lv_obj_set_hidden(artists_container_, false);
+        artists_list_->Refresh();
     } else {
         lv_obj_set_hidden(artists_container_, true);
         lv_obj_set_hidden(albums_container_, true);

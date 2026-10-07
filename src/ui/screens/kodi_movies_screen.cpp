@@ -67,13 +67,11 @@ void KodiMoviesScreen::Refresh() {
     const bool connected = kodi_client_.Snapshot().state == KodiConnectionState::kConnected;
     if (connected) {
         lv_obj_set_hidden(hint_label_, true);
-        // detail_container_'s own visibility is deliberately untouched -
-        // a brief reconnect blip while a movie's Play/Resume choice is
-        // showing must not snap the user back to the list.
-        if (lv_obj_is_hidden(detail_container_)) {
-            lv_obj_set_hidden(list_container_, false);
-            movie_list_->Refresh();
-        }
+        // A request in flight when the link dropped is lost, so a
+        // (re)connect returns to the list, which the ScreenLoader reloads.
+        lv_obj_set_hidden(detail_container_, true);
+        lv_obj_set_hidden(list_container_, false);
+        movie_list_->Refresh();
     } else {
         lv_obj_set_hidden(list_container_, true);
         lv_obj_set_hidden(detail_container_, true);
