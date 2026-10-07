@@ -12,6 +12,7 @@
 # reliable/etc.) actually adjacent to hardware/reference-unit wording, not
 # bare co-occurrence, to keep the false-positive rate low enough to stay
 # useful.
+# shellcheck disable=SC2034  # read by the scripts that source this file
 narration_patterns=(
     # Covers "confirmed on hardware", "confirmed on real hardware",
     # "confirmed on the K145 reference unit", "confirmed against the

@@ -62,6 +62,9 @@ why that split exists. Checking for the following defect classes:
   cloud-provider/API-token credential shapes, and a staged `.env` file -
   the one check that actually blocks the commit
   (`githooks/check-secrets.sh`).
+- `githooks/pre-commit` also runs `shellcheck -S warning` on staged shell
+  scripts (the `.sh` files and the extensionless hooks) when `shellcheck`
+  is installed; `lint.yml` runs it on every script.
 - `githooks/check-lvgl-version-sync.sh` takes no arguments and is not part
   of the pre-commit hook: CI (`lint.yml`) runs it, and it fails when the
   simulator's pinned LVGL release differs from the version in

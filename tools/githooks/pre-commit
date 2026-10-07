@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Runs the doc-narration, hardware.md-scope, ESP-IDF-return, curl-timeout,
 # esp-http-timeout, unauthenticated-route, json-field-type,
-# json-dump-strict, and secret-scan checks against staged files. Only
-# check-secrets.sh blocks the commit - its patterns are narrow/high-precision (private key
-# headers, known credential-token shapes) and a missed leak is
-# high-severity and hard to reverse once pushed. The other eight checks
+# json-dump-strict, shellcheck, and secret-scan checks against staged files.
+# Only check-secrets.sh blocks the commit - its patterns are narrow and
+# high-precision (private key headers, known credential-token shapes) and a
+# missed leak is high-severity and hard to reverse once pushed. The other nine checks
 # are heuristic (free-text wording/narration, or syntactic checks that
 # sometimes need human judgment) and stay warn-only, so a false positive
 # there can't force a --no-verify habit that would also bypass the secret
@@ -61,6 +61,14 @@ if [ -n "$cpp_files" ]; then
     "$repo_root/tools/githooks/check-unchecked-json-field-access.sh" $cpp_files || found_issue=1
     # shellcheck disable=SC2086
     "$repo_root/tools/githooks/check-json-dump-strict.sh" $cpp_files || found_issue=1
+fi
+
+# Staged shell scripts, including the extensionless hooks in this directory.
+# Skipped where shellcheck is not installed; CI runs it on every script.
+shell_files=$(echo "$staged_files" | grep -E '\.sh$|^tools/githooks/[^/.]+$' || true)
+if [ -n "$shell_files" ] && command -v shellcheck >/dev/null 2>&1; then
+    # shellcheck disable=SC2086
+    (cd "$repo_root" && shellcheck -x -S warning $shell_files) || found_issue=1
 fi
 
 secrets_found=0

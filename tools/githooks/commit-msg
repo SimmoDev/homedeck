@@ -14,6 +14,7 @@ msg_file="$1"
 [ -f "$msg_file" ] || exit 0
 
 # shellcheck source=lib-narration-patterns.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib-narration-patterns.sh"
 
 status=0

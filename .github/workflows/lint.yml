@@ -10,7 +10,8 @@ name: Lint check
 # docs.yml already uses for check-docs.sh/check-hardware-md-scope.sh.
 # Non-blocking, same as the pre-commit hook itself (see pre-commit's own
 # header comment for why these six stay warn-only): this is a periodic
-# report, not a merge gate.
+# report, not a merge gate. The shellcheck and LVGL-version steps are
+# deterministic and do fail the job.
 
 on:
   push:
@@ -24,7 +25,7 @@ on:
 
 jobs:
   lint:
-    name: Full-repo esp-idf-returns/curl-timeout/esp-http-timeout/unauthenticated-route/json-field-type/json-dump-strict sweep
+    name: Full-repo shell, version-sync and hook sweeps
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -35,6 +36,13 @@ jobs:
           files=$(git ls-files -- 'firmware/main/*.cpp' 'firmware/main/*.h' 'firmware/main/*.hpp' 'src/platform/firmware/*.cpp' 'src/platform/firmware/*.h' 'src/platform/firmware/*.hpp')
           bash tools/githooks/check-esp-idf-returns.sh $files
           bash tools/githooks/check-esp-http-timeouts.sh $files
+
+      # Deterministic, so a finding fails the job. The runner image ships
+      # shellcheck.
+      - name: Lint every shell script with shellcheck
+        run: |
+          files=$(git ls-files -- '*.sh'; ls tools/githooks/commit-msg tools/githooks/pre-commit)
+          shellcheck -x -S warning $files
 
       # Deterministic, so a mismatch fails the job instead of only
       # reporting - see check-lvgl-version-sync.sh's own header.

@@ -117,6 +117,8 @@ re-reading in full up front.
   [ADR-0025](docs/decisions/ADR-0025-webui-static-asset-storage.md)
   for why this is a separate, explicit build step rather than
   auto-invoked from CMake.
+- **shellcheck** — optional locally; the pre-commit hook lints staged shell
+  scripts with it when present, and CI lints all of them.
 - **Pre-commit hooks** — run `git config core.hooksPath tools/githooks`
   once per clone to activate them. Only `check-secrets.sh` blocks a
   commit; the rest warn only (the checks are listed in

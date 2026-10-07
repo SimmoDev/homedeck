@@ -10,6 +10,7 @@ repo_root="$(git rev-parse --show-toplevel)"
 status=0
 
 # shellcheck source=lib-narration-patterns.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib-narration-patterns.sh"
 
 for f in "$@"; do
