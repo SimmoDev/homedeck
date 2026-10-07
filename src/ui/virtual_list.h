@@ -50,8 +50,9 @@ public:
     // SetItems(), which clears it.
     void SetTruncated(bool truncated);
 
-    // Shows nothing at all: for a list waiting on a reply, where the
-    // previous list's rows or an "empty" message would both mislead.
+    // Shows "Loading..." instead of rows: for a list waiting on a reply,
+    // where the previous list's rows or an "empty" message would both
+    // mislead. A new list starts in this state.
     void Clear();
 
     // Rebinds the visible rows. Call after showing a container the list
@@ -71,6 +72,7 @@ private:
 
     lv_obj_t* list_;
     lv_obj_t* empty_label_;
+    lv_obj_t* loading_label_;
     lv_obj_t* truncated_label_;
     lv_obj_t* screen_;
 

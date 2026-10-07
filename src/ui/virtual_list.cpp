@@ -26,6 +26,7 @@ constexpr int32_t kRowPitch = kRemoteButtonHeight + VirtualList::kRowGap;
 VirtualList::VirtualList(lv_obj_t* parent, const char* empty_text)
     : list_(lv_obj_create(parent)),
       empty_label_(lv_label_create(parent)),
+      loading_label_(lv_label_create(parent)),
       truncated_label_(lv_label_create(parent)),
       screen_(lv_obj_get_screen(parent)) {
     lv_obj_remove_style_all(list_);
@@ -40,6 +41,8 @@ VirtualList::VirtualList(lv_obj_t* parent, const char* empty_text)
     lv_obj_set_hidden(empty_label_, true);
 
     lv_obj_set_hidden(truncated_label_, true);
+
+    lv_label_set_text(loading_label_, "Loading...");
 
     lv_obj_add_event_cb(screen_, OnScreenScrolled, LV_EVENT_SCROLL, this);
 }
@@ -58,6 +61,7 @@ void VirtualList::SetItems(size_t count, LabelFn label_at, SelectFn on_select) {
     on_select_ = std::move(on_select);
 
     lv_obj_set_hidden(truncated_label_, true);
+    lv_obj_set_hidden(loading_label_, true);
     lv_obj_set_hidden(empty_label_, count != 0);
     lv_obj_set_hidden(list_, count == 0);
     lv_obj_set_height(list_, count == 0 ? 0 : static_cast<int32_t>(count) * kRowPitch - kRowGap);
@@ -82,6 +86,7 @@ void VirtualList::Clear() {
     lv_obj_set_hidden(truncated_label_, true);
     label_at_ = nullptr;
     on_select_ = nullptr;
+    lv_obj_set_hidden(loading_label_, false);
     lv_obj_set_hidden(empty_label_, true);
     lv_obj_set_hidden(list_, true);
     lv_obj_set_height(list_, 0);
