@@ -326,7 +326,7 @@ its own status badge — see [README.md](README.md)). Three mirror the
 three build/test commands above:
 
 - [`simulator.yml`](.github/workflows/simulator.yml) — builds the Web UI
-  bundle (including the `svelte-check` type-check gate — see
+  bundle (including the `svelte-check` type-check and Vitest gates — see
   [Build/test workflow](#buildtest-workflow) above), then the simulator.
 - [`tests.yml`](.github/workflows/tests.yml) — builds and runs the unit
   test suite; a failing test fails the job, not just a failing compile.
