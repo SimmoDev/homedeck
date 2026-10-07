@@ -69,16 +69,10 @@ project's NVS partition (see
 
 ## Requirement: validate API input
 
-**Principle decided now, mechanism deferred.** All API input (REST request
-bodies, WebSocket messages, query parameters) must be validated before use
-— this is a hard requirement, not optional. The specific validation
-mechanism (centralized schema validation at Core's HTTP server layer vs.
-per-endpoint validation) is deferred until M2, when the first API
-endpoints are built, consistent with the project's established stance
-against designing mechanisms ahead of a consumer (see
-[ADR-0003](../decisions/ADR-0003-module-architecture.md)). Deferring the
-mechanism is not the same as deferring the requirement — no endpoint ships
-without input validation, regardless of which mechanism M2 lands on.
+**Requirement:** all API input (REST request bodies, WebSocket messages,
+query parameters) must be validated before use. Validation is
+per-endpoint, on top of one shared JSON parse step; see
+[Status](#status) for the mechanism and where each route validates.
 
 ## Requirement: minimise external dependencies
 

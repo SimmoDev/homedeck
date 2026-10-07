@@ -118,8 +118,8 @@ doesn't require real hardware.
 ## State transition policy
 
 The state model above defines the states; exact thresholds/triggers for
-transitioning between them are implementation details tuned during M2, with
-one exception: the sleep-veto mechanism, decided now because retrofitting
+transitioning between them are implementation details, with one
+exception: the sleep-veto mechanism, decided up front because retrofitting
 it later would be disruptive to every module's background task code.
 
 **Sleep-veto mechanism:** a module may request that Core delay a transition
@@ -131,12 +131,10 @@ from the start. See
 [ADR-0005](../decisions/ADR-0005-power-and-sleep-model.md#decision-sleep-veto-mechanism)
 for why this shape was chosen over no veto or an unlimited one.
 
-**Still deferred to M2 implementation, tuned against real battery
-measurements rather than decided abstractly:**
-- Idle timeout duration (and whether it's user-configurable)
-- Idle → Sleeping timeout duration (and whether it's user-configurable)
-- Display brightness curve for automatic brightness, if the Tab5's
-  available sensors support ambient light sensing
+**Thresholds:** the display dims to 20% after 30 s of inactivity (`Idle`)
+and turns off after 120 s of cumulative inactivity (`Sleeping`). Neither is
+user-configurable. Automatic brightness is not implemented; no ambient
+light sensor is confirmed on the Tab5 (see above).
 
 ## Status
 
