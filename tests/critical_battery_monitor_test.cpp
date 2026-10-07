@@ -158,8 +158,8 @@ TEST(CriticalBatteryMonitor, PublishesTheClearingEdgeWhenTheBatteryIsRemovedWhil
     EXPECT_FALSE(state_events[1]);
 
     // A healthy battery reinserted afterward must not be stuck unable to
-    // ever signal critical again (the latch has to have genuinely reset,
-    // not just skipped publishing).
+    // ever signal critical again (the latch has to have reset, not
+    // just skipped publishing).
     battery.SetBatteryPresent(true);
     battery.SetPercent(80);
     bus.Publish(homedeck::ClockTickEvent{});

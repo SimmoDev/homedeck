@@ -246,7 +246,7 @@ push notification of its own) and publishes the parsed result as
 fire-and-forget send: a query is worthless without its reply, so
 `SendPendingLibraryRequests()` treats a failed `Call()` on a dead transport
 as fatal to the whole batch, the same as anywhere else in this module. A
-call that merely times out on a connection that is still open
+call that times out on a connection that is still open
 (`WebSocketClient::IsOpen()`) is not: the late reply is dropped by id when
 it arrives, the screen gets what had arrived (an empty list when nothing
 had), and the listing is flagged `truncated`.

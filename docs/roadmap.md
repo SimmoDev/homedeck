@@ -500,8 +500,8 @@ this until it's done — see
       exists, and reusing `SkipBackward`/`SkipForward`'s icons would make
       both pairs ambiguous on a device that has both groups) and
       `PowerOff`/`PowerOn`/`PowerToggle` (LVGL has exactly one power icon
-      for three different actions) are the commands that genuinely have
-      no fitting icon and stay as text. `CreateRemoteButton()`
+      for three different actions) are the commands that have no fitting icon
+      and stay as text. `CreateRemoteButton()`
       (`src/ui/remote_button.h`/`.cpp`) gained an optional `width`
       parameter (existing callers unaffected, still default full-width)
       and now explicitly wraps and vertically centers its label - neither
@@ -816,9 +816,9 @@ UI and start playback of a chosen item, and the whole Kodi module
       keypad/D-pad layouts (see the M3 Remote control item) already fit
       one screen and aren't in scope for paging
 - [ ] Smooth `NowPlayingScreen` progress (`src/ui/screens/now_playing_screen.cpp`)
-      - Kodi pushes nothing as playback merely advances, so the time
-      label and `lv_bar` currently step forward only on `KodiClient`'s
-      10 s reconcile poll (see
+      - Kodi pushes nothing as playback advances, so the time label and
+      `lv_bar` currently step forward only on `KodiClient`'s 10 s
+      reconcile poll (see
       [kodi.md](architecture/kodi.md#progress-freshness)). A local
       interpolation timer, seeded from the last polled position/speed and
       corrected on each reconcile, would make the bar tick smoothly

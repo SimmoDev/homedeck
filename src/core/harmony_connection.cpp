@@ -64,7 +64,7 @@ std::string WebSocketUrl(const std::string& hub_host, const std::string& hub_id)
 // The activeRemoteId field is a bare JSON number in the response this
 // project's own live-hub probe observed, but every other Harmony-adjacent
 // hbus command exchanges hubId as a string - normalizing to a string here
-// once means every later WS message can just interpolate hub_id_ directly.
+// once means every later WS message can interpolate hub_id_ directly.
 std::string NumberOrStringToString(const nlohmann::json& value) {
     if (value.is_string()) return value.get<std::string>();
     if (value.is_number_integer()) return std::to_string(value.get<long long>());
@@ -351,7 +351,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
             ClearConfigIfPresent(/*force_publish=*/true);
             // Same "only if a previous hub existed" guard as the
             // unconfigured branch above - last_hub_host_ empty here means
-            // this is the very first connect attempt of the process, not a
+            // this is the first connect attempt of the process, not a
             // switch away from a hub any queued command could have been
             // meant for.
             if (!last_hub_host_.empty()) {

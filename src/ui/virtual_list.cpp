@@ -167,7 +167,7 @@ void VirtualList::OnRowClicked(lv_event_t* e) {
     auto* button = static_cast<lv_obj_t*>(lv_event_get_target(e));
     const auto row = static_cast<size_t>(reinterpret_cast<uintptr_t>(lv_obj_get_user_data(button)));
     if (self->on_select_ && row < self->count_) {
-        // A copy: the handler may replace or clear this very list (the Files
+        // A copy: the handler may replace or clear this list (the Files
         // screen descends into a folder from its own row tap), which would
         // otherwise destroy the callable while it is running.
         const SelectFn on_select = self->on_select_;

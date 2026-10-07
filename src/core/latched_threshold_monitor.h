@@ -11,10 +11,10 @@ namespace homedeck {
 // The shared "evaluate a battery condition once a tick, latch so a
 // sustained bad state doesn't republish every tick" state machine
 // CriticalBatteryMonitor and LowBatteryMonitor are both built on - see
-// each one's own comment for how their conditions/publishing genuinely
-// differ (external-power gating, one- vs. two-edge publishing). Not a
-// general pub/sub abstraction - deliberately narrow to this one repeated
-// shape, not meant to grow new callers casually.
+// each one's own comment for how their conditions/publishing differ
+// (external-power gating, one- vs. two-edge publishing). Not a general
+// pub/sub abstraction - deliberately narrow to this one repeated shape,
+// not meant to grow new callers casually.
 //
 // While no battery is present, "bad" can't be evaluated at all - the
 // latch just tracks whichever edge already-bad state implies: leaving

@@ -253,8 +253,8 @@ avoids a flash/reboot cycle on real hardware for every change.
    workflow](#buildtest-workflow) below) — the simulator's CMake
    configure fails with a clear message if `webui/dist/` doesn't exist.
 2. Configure and build the simulator's own CMake project (a separate build
-   directory from the firmware target — a genuinely different build
-   system, not just a different `idf.py set-target`; see
+   directory from the firmware target — a different build system,
+   not just a different `idf.py set-target`; see
    [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system)
    for why).
 3. Run the resulting binary directly on your development machine; it opens

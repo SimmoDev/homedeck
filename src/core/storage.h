@@ -54,10 +54,10 @@ struct SettingEntry {
 // passing it straight through to the underlying store, rather than
 // trusting callers to prefix their own keys.
 //
-// Thread-safe: every method locks a single internal mutex_ - genuinely
-// needed, not defensive. app_main's own boot-sequence thread, the Web
-// UI's httpd worker thread, and OpenMeteoWeatherProvider's background
-// poll Task (core/weather_provider.h) all call into the same Storage
+// Thread-safe: every method locks a single internal mutex_ - needed,
+// not defensive. app_main's own boot-sequence thread, the Web UI's
+// httpd worker thread, and OpenMeteoWeatherProvider's background poll
+// Task (core/weather_provider.h) all call into the same Storage
 // instance, none coordinated with each other.
 class Storage {
 public:

@@ -103,7 +103,7 @@ The broad catch-all was rejected because it has no well-defined entry/exit
 conditions and can't be implemented correctly. Removing it entirely was
 rejected because it loses a clean way to represent "force a safe
 shutdown right now regardless of what the UI is doing," which a critical
-battery fault genuinely needs as a distinct state.
+battery fault needs as a distinct state.
 
 ## Decision: OTA battery/power gate
 

@@ -37,8 +37,8 @@
     submitting = false;
     // already_set means another request won first (the race
     // ADR-0007 accepts) - the password itself may now be wrong, but
-    // the state genuinely changed, so re-checking status is still the
-    // right move rather than treating this as this form's own error.
+    // the state changed, so re-checking status is still the right
+    // move rather than treating this as this form's own error.
     if (result.ok || (result.kind === "http" && result.body.error === "already_set")) {
       onStateChange();
       return;

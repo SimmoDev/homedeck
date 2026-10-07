@@ -101,8 +101,8 @@ TEST_F(LoggerTest, RotatesOnceSizeThresholdIsExceeded) {
     EXPECT_EQ(parsed[0]["message"], "first");
     EXPECT_EQ(parsed[1]["message"], "second");
 
-    // The rotated cache key genuinely holds the first entry, not just
-    // an artifact of ReadAll()'s own ordering.
+    // The rotated cache key holds the first entry, not just an
+    // artifact of ReadAll()'s own ordering.
     auto rotated = storage_->ReadCache("core", "log_rotated");
     ASSERT_TRUE(rotated.has_value());
     EXPECT_NE(rotated->value.find("first"), std::string::npos);

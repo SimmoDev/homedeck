@@ -17,7 +17,7 @@ namespace homedeck {
 // Single-writer (only OnEvent(), always on the ESP-IDF system
 // event-loop task) / multi-reader (the LVGL UI task today, httpd
 // worker threads once a Web UI Wi-Fi page exists) - simpler than
-// AdminAuthService's genuinely concurrent-writer case, but still a real
+// AdminAuthService's concurrent-writer case, but still a real
 // cross-task race without the mutex.
 class FirmwareNetworkStatus : public NetworkStatus {
 public:

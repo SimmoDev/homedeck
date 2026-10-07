@@ -31,8 +31,8 @@ strategy for handling this that doesn't assume a single controller.
 own Tab5 board support doesn't already handle this — duplicating detection
 logic the hardware support library already provides would create two
 sources of truth for the same fact. If M5Unified doesn't yet cover it
-(plausible, since ST7123/ST7121 are very recent hardware revisions), the
-HAL implements probing directly: address `0x14` present indicates GT911;
+(plausible, since ST7123/ST7121 are recent hardware revisions), the HAL
+implements probing directly: address `0x14` present indicates GT911;
 `0x55` present indicates ST7123 or ST7121, disambiguated by reading a
 chip-ID register at that address if one exists (**not yet confirmed —
 verify against the datasheet during M1 bring-up**; if no such register
@@ -60,7 +60,7 @@ that never changes on a given physical unit.
   Tab5 support before writing any new detection code — see
   [ADR-0014](ADR-0014-hardware-support-library.md) for the result of that
   check and its consequences for the detection design below.
-- Whether ST7123 and ST7121 need genuinely separate driver paths, or can
+- Whether ST7123 and ST7121 need separate driver paths, or can
   share one, is an open sub-question to resolve during M1 bring-up, not
   before — it depends on hardware facts (a chip-ID register, or a real
   behavioral difference) that aren't confirmed yet.

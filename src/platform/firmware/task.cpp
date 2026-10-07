@@ -13,9 +13,9 @@ namespace {
 
 // OpenMeteoWeatherProvider's poll Task (core/weather_provider.h) is the
 // first Task consumer, and runs esp_http_client/TLS (mbedtls) plus
-// JSON parsing - both genuinely stack-hungry, well past a minimal
-// background task's usual footprint. Same "generous, not just past
-// current requirement" reasoning as CONFIG_ESP_MAIN_TASK_STACK_SIZE/
+// JSON parsing - both stack-hungry, well past a minimal background
+// task's usual footprint. Same "generous, not just past current
+// requirement" reasoning as CONFIG_ESP_MAIN_TASK_STACK_SIZE/
 // CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH in sdkconfig.defaults - PSRAM/
 // RAM headroom makes a larger static stack cheap, and this constant
 // applies uniformly to every Task instance, not just this one caller.
@@ -28,7 +28,7 @@ constexpr UBaseType_t kPriority = tskIDLE_PRIORITY + 1;
 // bridges that gap, so it needs a type it can freely name from outside
 // Task - Task::Impl itself is private and only accessible to Task's own
 // member functions, so this context is a separate, ordinary struct that
-// Impl merely owns a pointer to, not the same type.
+// Impl owns a pointer to, not the same type.
 struct TaskContext {
     std::stop_source stop_source;
     Task::Function function;

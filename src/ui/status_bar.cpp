@@ -95,10 +95,10 @@ StatusBar::StatusBar(lv_obj_t* parent, EventBus& event_bus, BatteryReader& batte
     // leaving it enabled produces a visible scrollbar and drag-to-scroll
     // on what's meant to be static chrome.
     lv_obj_set_scrollable(bar_, false);
-    // Without this, `bar_` is just a normal child of `parent` (each
-    // screen's own scrolling root_) - it scrolls out of view with the
-    // rest of the content on a screen tall enough to scroll, and drags
-    // down with root_'s own elastic overscroll bounce on any screen.
+    // Without this, `bar_` is a normal child of `parent` (each screen's
+    // own scrolling root_) - it scrolls out of view with the rest of
+    // the content on a screen tall enough to scroll, and drags down
+    // with root_'s own elastic overscroll bounce on any screen.
     // FLOATING keeps it pinned at its aligned position regardless of
     // root_'s scroll offset, the standard LVGL idiom for a fixed status
     // bar over scrollable content.

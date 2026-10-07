@@ -25,9 +25,9 @@ class I2cDevice;
 // gap, not something this class tries to solve on its own.
 //
 // Thread-safe: Now() and SetTime() both lock mutex_ around the actual
-// I2C access - genuinely needed, not defensive, since ADR-0028's SNTP
-// sync callback calls SetTime() from LwIP's own task while Clock's
-// Timer keeps calling Now() from the FreeRTOS timer service task,
+// I2C access - needed, not defensive, since ADR-0028's SNTP sync
+// callback calls SetTime() from LwIP's own task while Clock's Timer
+// keeps calling Now() from the FreeRTOS timer service task,
 // unsynchronized without this. espp::Rx8130ce reads/writes several
 // registers per call (year/month/day/hour/min/sec are separate BCD
 // fields on this chip) - an unguarded interleaving could hand a caller

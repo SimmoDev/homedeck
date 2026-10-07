@@ -43,15 +43,14 @@ public:
 
     // Always sends Content-Type: application/json - every current/
     // planned caller posts a JSON body; add a content-type parameter if
-    // a future caller genuinely needs something else, rather than
-    // generalizing ahead of that need. extra_headers is (name, value)
-    // pairs sent in addition to Content-Type - added for
-    // HarmonyConnection's hub handshake, which a live probe against the
-    // reference hub confirmed requires an Origin header the hub otherwise
-    // rejects with a 400 (see ADR-0029); kept generic here (not a
-    // hardcoded Origin) rather than baking Harmony-specific knowledge
-    // into this shared platform interface, per ADR-0003's "Core stays
-    // thin" boundary.
+    // a future caller needs something else, rather than generalizing
+    // ahead of that need. extra_headers is (name, value) pairs sent in
+    // addition to Content-Type - added for HarmonyConnection's hub
+    // handshake, which a live probe against the reference hub confirmed
+    // requires an Origin header the hub otherwise rejects with a 400 (see
+    // ADR-0029); kept generic here (not a hardcoded Origin) rather than
+    // baking Harmony-specific knowledge into this shared platform
+    // interface, per ADR-0003's "Core stays thin" boundary.
     virtual HttpClientResponse Post(const std::string& url, const std::string& json_body,
                                      const std::vector<std::pair<std::string, std::string>>& extra_headers = {}) = 0;
 };

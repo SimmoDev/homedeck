@@ -134,8 +134,8 @@ struct StoredPasswordHash {
 // not used - verification always hashes at the current
 // kPbkdf2Iterations constant). Pulled out of Login() so the parsing -
 // fast, and the only part of password verification that touches
-// Storage - is clearly separated from the expensive hash-and-compare
-// step that follows it, which needs none of Login()'s own locked state.
+// Storage - is separated from the expensive hash-and-compare step that
+// follows it, which needs none of Login()'s own locked state.
 std::optional<StoredPasswordHash> ParseStoredPasswordHash(const std::optional<VersionedValue>& stored) {
     if (!stored.has_value()) {
         return std::nullopt;

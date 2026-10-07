@@ -10,12 +10,12 @@ namespace homedeck {
 
 // The dashboard's widget host - see docs/architecture/dashboard.md#widget-system
 // and ADR-0008's "Dashboard layout model" decision (a fixed grid, exact
-// dimensions left as an M2 implementation detail). kColumns is a
-// genuinely arbitrary starting point, not a considered choice - there's
-// no widget catalog yet to size against. Rows have no fixed cap
-// (no paging concept exists), so they grow on demand as widgets are
-// added - the container stays scrollable for when that content exceeds
-// the visible screen.
+// dimensions left as an M2 implementation detail). kColumns is an
+// arbitrary starting point, not a considered choice - there's no
+// widget catalog yet to size against. Rows have no fixed cap (no
+// paging concept exists), so they grow on demand as widgets are added
+// - the container stays scrollable for when that content exceeds the
+// visible screen.
 //
 // Rows are a fixed height, not sized to content - matched (see
 // dashboard_grid.cpp's kRowHeight) to the Tab5's confirmed 720px panel

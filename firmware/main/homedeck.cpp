@@ -99,7 +99,7 @@ void PrintBootBanner() {
 // Passed to RegisterOtaRoutes as its OtaRebootFn - esp_restart() can't
 // be called directly from the /api/ota/reboot handler, since the
 // handler still has to return so its 200 response is sent first. The
-// delay just needs to clear that write; it isn't otherwise meaningful.
+// delay needs to clear that write; it isn't otherwise meaningful.
 // OtaRebootFn has no failure-reporting contract (the 200 response is
 // already committed by the time this runs), so a scheduling failure
 // here has nothing left to report to - only worth logging.
@@ -116,8 +116,8 @@ void ScheduleReboot() {
 // Passed to RegisterWifiRoutes as its WifiResetFn. Same deferral reason as
 // ScheduleReboot() above, but sharper here: esp_wifi_restore() itself (not
 // just the later esp_restart()) tears down the STA association - calling
-// it synchronously inside the /api/wifi/reset handler severs the very
-// TCP connection the 200 response needs to travel back over, before
+// it synchronously inside the /api/wifi/reset handler severs the TCP
+// connection the 200 response needs to travel back over, before
 // httpd_resp_send() can flush it. The request hangs forever as a result
 // (no HTTP response ever arrives, so the Web UI's fetch() never resolves -
 // fetch has no built-in timeout), not merely a theoretical race.
@@ -129,7 +129,7 @@ void ScheduleReboot() {
 // re-evaluates "are credentials stored" and re-enters SoftAP setup inside
 // InitWifiAndCheckStoredCredentials(), which runs once at boot. Without
 // rebooting, wifi_setup.cpp's own normal (non-setup) reconnect path would
-// just keep retrying against the now-empty config indefinitely instead of
+// keep retrying against the now-empty config indefinitely instead of
 // ever reaching SoftAP mode - so this schedules the restore and the
 // reboot together, automatically, rather than leaving the reboot to a
 // second confirmed Web UI action that could never be clicked in time
@@ -222,8 +222,8 @@ void InitNvs() {
         [] { return nvs_flash_erase_partition(homedeck::FirmwareSecretStore::kPartitionName); });
 }
 
-// Not written back here, only read, so an unset name stays genuinely
-// unset rather than getting persisted as a default nobody chose.
+// Not written back here, only read, so an unset name stays unset
+// rather than getting persisted as a default nobody chose.
 std::string ResolveDeviceName(homedeck::Storage& storage) {
     auto device_name_setting = storage.GetSetting(homedeck::AdminAuthService::kModuleId, "device_name");
     return device_name_setting.has_value() ? device_name_setting->value : "homedeck";
@@ -255,7 +255,7 @@ void StartMdns(homedeck::Logger& logger) {
 // idempotent, so neither depends on the other having run first. app_main
 // itself calls mdns_init() once, before starting any task that browses
 // (see StartMdns()), so by the time this runs the component is already
-// up and this mdns_init() is just the defensive idempotent second call.
+// up and this mdns_init() is the defensive idempotent second call.
 // This makes the device reachable at <name>.local instead of requiring
 // the serial-logged IP.
 void RegisterMdns(const std::string& device_name, homedeck::Logger& logger) {
@@ -327,7 +327,7 @@ void StartTimeSync(homedeck::Rx8130TimeSource& time_source, homedeck::Logger& lo
     config.sync_cb = OnSntpTimeSync;
     esp_err_t err = esp_netif_sntp_init(&config);
     if (err != ESP_OK) {
-        // Time sync just never happens (OnSntpTimeSync() never fires) -
+        // Time sync never happens (OnSntpTimeSync() never fires) -
         // worth a log trace, though nothing here can retry init itself.
         printf("StartTimeSync: esp_netif_sntp_init failed: %s\n", esp_err_to_name(err));
     }
@@ -382,7 +382,7 @@ homedeck::OtaWriter BuildOtaWriter() {
 // Static asset serving stays here rather than in AppCore - the embedded
 // EMBED_FILES byte arrays above are firmware-only (the simulator reads
 // webui/dist/ off disk instead, see simulator/main.cpp), so this is the
-// one piece of Web UI wiring that's genuinely not shared.
+// one piece of Web UI wiring that's not shared.
 void ServeEmbeddedWebUi(homedeck::HttpServer& web_server) {
     homedeck::ServeStaticFiles(
         web_server,

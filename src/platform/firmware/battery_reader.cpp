@@ -31,9 +31,9 @@ constexpr float kMaxVoltage = 8.4f;  // 100%: 2 x 4.2V, full charge
 // unloaded output, swinging between roughly 4V and kMaxVoltage (8.4V)
 // every tick rather than settling. current_amps() doesn't have this
 // problem in general: with no battery it reads a flat 0.000000A (no
-// load to source/sink current), and settles to a small but clearly
-// nonzero, stable value (~0.02A on the reference unit) within one tick
-// of a real pack being connected - see hardware.md#power.
+// load to source/sink current), and settles to a small but nonzero,
+// stable value (~0.02A on the reference unit) within one tick of a
+// real pack being connected - see hardware.md#power.
 constexpr float kBatteryPresentCurrentThresholdAmps = 0.005f;
 
 // Current alone still isn't sufficient once a battery reaches full

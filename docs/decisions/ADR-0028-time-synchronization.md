@@ -61,7 +61,7 @@ so writing and reading stay consistent with each other; the net effect is
 that the clock is now *correct in UTC* rather than *meaningless*, a strict
 improvement, but still not corrected to the user's actual local timezone.
 Adding timezone support (a Web UI setting, offset/DST math) is a
-separate, genuinely new feature, not a natural extension of fixing RTC
+separate, new feature, not a natural extension of fixing RTC
 calibration - noted in [roadmap.md](../roadmap.md)'s M2 RTC item as a
 future item not yet placed against a specific milestone, not solved
 here.
@@ -93,8 +93,8 @@ is a firmware-only mechanism with nothing to simulate on the host side.
   offline-behavior philosophy.
 - Structured log timestamps ([ADR-0019](ADR-0019-structured-logging.md))
   are only as accurate as the RTC is at the moment each entry is logged -
-  entries from before the first successful sync (e.g. very early boot, or
-  a device with no internet route yet) keep whatever the RTC previously
+  entries from before the first successful sync (e.g. early boot, or a
+  device with no internet route yet) keep whatever the RTC previously
   held.
 - Timezone support remains a real, separate gap - tracked as its own future
   item, not solved by this ADR.

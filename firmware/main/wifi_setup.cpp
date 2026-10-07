@@ -28,8 +28,8 @@ namespace {
 constexpr char kTag[] = "wifi_setup";
 constexpr int kConnectedBit = BIT0;
 
-// Only enforced during the device's very first, no-stored-credentials
-// setup flow (WifiSetupState::initial_provisioning) - not during normal
+// Only enforced during the device's first, no-stored-credentials setup
+// flow (WifiSetupState::initial_provisioning) - not during normal
 // reconnects to a network the device already trusts, where giving up
 // would strand it with no Wi-Fi and no way back into setup mode.
 // Resubmitting the setup form resets the count, so a mistyped password
@@ -37,15 +37,15 @@ constexpr int kConnectedBit = BIT0;
 constexpr int kMaxSetupReconnectAttempts = 5;
 // A normal-mode (already-provisioned) reconnect never gives up per the
 // above, but silently retrying forever with no way for the user to
-// intervene is its own real gap if the stored network is genuinely gone
-// for good (moved house, router replaced) rather than just briefly down
+// intervene is its own real gap if the stored network is gone for good
+// (moved house, router replaced) rather than just briefly down
 // - see WifiReconnectPolicy::ShouldOfferRecovery() and
 // StartRecoveryAccessPoint() below. Each failed attempt costs ~2.9s
 // end to end (kReconnectBackoffMs's 500ms plus the SDIO round trip to
 // the C6 for esp_wifi_connect() to fail), not the bare 500ms backoff
 // alone - 40 attempts is ~2 minutes at that real rate, long enough to
 // ride out a router reboot without offering a recovery access point
-// prematurely, short enough that a genuinely-gone network doesn't leave
+// prematurely, short enough that a network gone for good doesn't leave
 // the device silently unreachable indefinitely.
 constexpr int kNormalModeRecoveryAttempts = 40;
 // Fixed, not exponential - this is a single always-on-battery-or-mains
@@ -114,8 +114,8 @@ struct WifiSetupState {
     // just executes whatever it decides via the ESP-IDF APIs it can't be
     // tested with.
     WifiReconnectPolicy reconnect_policy{kMaxSetupReconnectAttempts, kNormalModeRecoveryAttempts};
-    // True only during the device's very first, no-stored-credentials
-    // setup flow (set in ConnectToWifi() before StartSetupAccessPoint(),
+    // True only during the device's first, no-stored-credentials setup
+    // flow (set in ConnectToWifi() before StartSetupAccessPoint(),
     // cleared on a successful connect) - distinct from `setup_server !=
     // nullptr`, which also becomes true once StartRecoveryAccessPoint()
     // brings the *same* access point/form up as a later recovery path.
@@ -142,9 +142,9 @@ struct WifiSetupState {
 // OnEvent() runs on the ESP event-loop task, while ApplyWifiCredentials()/
 // ConnectToWifi() are called from either the SoftAP HTTP form's own worker
 // task, the Touch UI's LVGL task, or app startup (see wifi_setup.h's own
-// comment), so pending_ssid/reconnect_policy genuinely have multiple
-// unsynchronized writers/readers without this. Never held across a wait -
-// see g_reconnect_timer below for why the reconnect delay isn't a
+// comment), so pending_ssid/reconnect_policy have multiple unsynchronized
+// writers/readers without this. Never held across a wait - see
+// g_reconnect_timer below for why the reconnect delay isn't a
 // vTaskDelay() inside this lock.
 std::mutex g_state_mutex;
 WifiSetupState g_state;
@@ -399,8 +399,8 @@ void StartSetupAccessPoint() {
 // working after working once (moved house, router replaced) retries
 // forever with no user-reachable way back in: the Web UI never starts
 // (firmware/main/homedeck.cpp blocks in ConnectToWifi() until connected)
-// if this is the very first connect attempt of the boot, and the Touch UI
-// has no affordance to re-enter WifiSetupScreen outside the
+// if this is the first connect attempt of the boot, and the Touch UI has
+// no affordance to re-enter WifiSetupScreen outside the
 // no-stored-credentials path. Runs on kRecoveryHttpPort, not
 // kSetupHttpPort - unlike that first-boot case, this can *also* fire
 // after a long *mid-session* outage (Wi-Fi worked for a while, then a
@@ -715,7 +715,7 @@ void ConnectToWifi(const WifiUiCallbacks& ui_callbacks) {
     } else {
         // Set before StartSetupAccessPoint() (not held across it - see
         // OnEvent()'s own comment on why blocking esp_wifi_*() calls stay
-        // outside g_state_mutex) so the very first disconnect this flow
+        // outside g_state_mutex) so the first disconnect this flow
         // can generate already sees initial_provisioning as true.
         {
             std::lock_guard<std::mutex> lock(g_state_mutex);

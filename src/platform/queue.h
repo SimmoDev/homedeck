@@ -20,8 +20,8 @@ namespace homedeck {
 // std::mutex/condition_variable_any implementation works
 // on firmware too (see Logger, ADR-0020) - the same pthread-
 // backed primitives AdminAuthService's mutex already relies on there -
-// so a genuinely FreeRTOS-native backend (xQueueCreate) remains a
-// possible future optimization, not a correctness requirement.
+// so a FreeRTOS-native backend (xQueueCreate) remains a possible
+// future optimization, not a correctness requirement.
 template <typename T>
 class Queue {
 public:

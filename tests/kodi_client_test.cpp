@@ -2683,8 +2683,8 @@ TEST_F(KodiClientTest, RealBackendConnectsReconcilesAndHandlesAPushedNotificatio
     // an actual socket were correlated by id.
     EXPECT_EQ(client.Snapshot().app_version, "21.2");
     // muted comes only from the pushed Application.OnVolumeChanged - proof
-    // the 0ms drain saw a genuinely buffered frame through the
-    // libcurl-backed backend.
+    // the 0ms drain saw a buffered frame through the libcurl-backed
+    // backend.
     ASSERT_TRUE(WaitFor([&] { return client.Snapshot().muted; }, 600));
     client.Stop();
 }

@@ -46,7 +46,7 @@ void InitUiDispatchQueue() {
 void PostToUiThread(std::function<void()> fn) {
     // Pure application-level container operation, no LVGL interaction -
     // safe from any thread even before InitUiDispatchQueue() has run;
-    // an item just waits in the queue until the drain timer exists.
+    // an item waits in the queue until the drain timer exists.
     DispatchQueue().Push(std::move(fn));
 }
 

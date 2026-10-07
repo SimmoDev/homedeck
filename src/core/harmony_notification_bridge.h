@@ -18,7 +18,7 @@ namespace homedeck {
 // Also resets on HarmonyConfigUpdatedEvent - published (among other
 // things) whenever ConnectionLoop() starts trying a *different*
 // hub_host (see ClearConfigIfPresent()'s force_publish parameter), which
-// is not itself a recovery but does mean the very next kError is a fresh
+// is not itself a recovery but does mean the next kError is a fresh
 // address's own first failure, not a continuation of the previous
 // address's already-notified one; without this, editing hub_host from
 // one unreachable address to another would silently swallow the second

@@ -33,8 +33,8 @@ class I2cDevice;
 // combines with IsBatteryPresent() rather than using directly - see
 // that method's own comment for why.
 //
-// IsBatteryPresent() is thread-safe (locks mutex_) - genuinely needed,
-// not defensive, since it's called from at least three independently
+// IsBatteryPresent() is thread-safe (locks mutex_) - needed, not
+// defensive, since it's called from at least three independently
 // scheduled contexts: CriticalBatteryMonitor/LowBatteryMonitor on
 // Clock's Timer task (plain EventBus::Subscribe), StatusBar on the UI
 // task (SubscribeUi), and the Diagnostics/OTA HTTP routes on

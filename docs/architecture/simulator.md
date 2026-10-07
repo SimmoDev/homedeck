@@ -104,9 +104,9 @@ for why this ruled out a separate web-based mock UI.
 - Not a guarantee of identical behavior for the Web UI/API transport
   specifically — the simulator runs civetweb where firmware runs
   `esp_http_server` (see [web-ui.md](web-ui.md#transport) for why), so
-  unlike the LVGL rendering path, this one layer can genuinely diverge
-  between simulator and hardware. Web UI/API changes need a real
-  on-hardware check, not just a simulator pass.
+  unlike the LVGL rendering path, this one layer can diverge between
+  simulator and hardware. Web UI/API changes need a real on-hardware
+  check, not just a simulator pass.
 
 ## Status
 

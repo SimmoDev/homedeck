@@ -34,8 +34,8 @@ bool FirmwareAudioOutput::Play(const int16_t* samples, size_t sample_count, uint
     // esp_codec_dev_write() takes a non-const void* - the codec/volume
     // layer may adjust sample levels in place (see esp_codec_dev.h's
     // own "when software volume is enabled, it changes input data
-    // directly without copy" note), so it genuinely needs write access
-    // to the buffer, not just a cast-away-const formality.
+    // directly without copy" note), so it needs write access to the
+    // buffer, not just a cast-away-const formality.
     int write_result = esp_codec_dev_write(codec_, const_cast<int16_t*>(samples),
                                             static_cast<int>(sample_count * sizeof(int16_t)));
     int close_result = esp_codec_dev_close(codec_);

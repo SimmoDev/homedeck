@@ -15,8 +15,8 @@ namespace homedeck {
 // contract Task already gives every module's own background work.
 //
 // A module being "enabled" is Core constructing and Start()-ing an
-// instance of it; "disabled" is simply not doing so - see ADR-0003's
-// per-module-type instance list decision (docs/decisions/ADR-0003-module-architecture.md).
+// instance of it; "disabled" is not doing so - see ADR-0003's per-module-type
+// instance list decision (docs/decisions/ADR-0003-module-architecture.md).
 // AppCore holds exactly one HarmonyConnection and one KodiClient (the same
 // single-member shape every other Core service has - e.g.
 // OpenMeteoWeatherProvider), which generalizes to a list without

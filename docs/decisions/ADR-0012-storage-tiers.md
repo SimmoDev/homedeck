@@ -21,8 +21,8 @@ Home Assistant entity list, which can run to tens of KB) would be a real
 anti-pattern, not just inefficient. Separately, [CLAUDE.md](../../CLAUDE.md)'s target hardware
 list explicitly names microSD as a capability the firmware should use, but
 [hardware.md](../architecture/hardware.md) had miscategorized it as out of
-scope alongside genuinely-unused expansion hardware — corrected alongside
-this ADR.
+scope alongside unused expansion hardware — corrected alongside this
+ADR.
 
 ## Decision
 
@@ -63,12 +63,12 @@ convenience:
   why that's a Web UI download instead. This tier's actual use: **extended
   log archival** — the internal flash filesystem's logs are bounded/rotating
   (see above), so older diagnostic history that would otherwise be evicted
-  can optionally be archived to microSD if present, genuinely benefiting
-  from being larger-capacity and removable the way the internal tier isn't.
-  Per [CLAUDE.md](../../CLAUDE.md)'s "work fully using stock Tab5 hardware" requirement, and
+  can optionally be archived to microSD if present, benefiting from being
+  larger-capacity and removable the way the internal tier isn't. Per
+  [CLAUDE.md](../../CLAUDE.md)'s "work fully using stock Tab5 hardware" requirement, and
   since a card is not guaranteed present even when the slot is, nothing on
   this tier is required for core functionality — SD-backed features
-  degrade gracefully (clearly indicating "no card present," not silently
+  degrade gracefully (indicating "no card present," not silently
   failing) when no card is inserted.
 
 **Cache retention:** cached data (device lists, dashboard data) needs a
@@ -133,8 +133,8 @@ browser download has no real disadvantage — the SD-native path would add
 real implementation complexity (detecting card presence, handling
 write failures, a different UI flow) for a case that doesn't clearly need
 it. Restore is the same JSON file re-uploaded through the Web UI. This can
-be revisited if backup scope ever grows to include something genuinely
-too large for a convenient download (not currently the case).
+be revisited if backup scope ever grows to include something too
+large for a convenient download (not currently the case).
 
 **Secrets are excluded from this export.** The admin password hash and
 any future module credential are not "config" in the sense this export

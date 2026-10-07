@@ -190,8 +190,8 @@ ST7123)", matching the physical sticker. Touch initializes successfully
 (10-point multitouch).
 
 **Resolved: portrait, no rotation.** Reported resolution is `720x1280`
-(portrait), not the `1280x720` spec-sheet figure — and this is genuinely
-the panel's native scan direction, not just a default init flag: no
+(portrait), not the `1280x720` spec-sheet figure — and this is the
+panel's native scan direction, not just a default init flag: no
 software rotation is applied at panel-init time. See
 [ADR-0015](../decisions/ADR-0015-display-orientation.md) for why a
 software rotation to landscape was rejected instead.
@@ -286,9 +286,9 @@ that drives them is in
   hunts for its regulation target on the unloaded output, swinging
   between roughly 4V and the 100%-mapped voltage (8.4V, see below)
   every tick rather than settling. Current reads a flat 0.000000A with
-  no battery, and settles to a small but clearly nonzero, stable value
-  within one tick of a real pack connecting - but current alone also
-  can't distinguish "no battery" from "battery present, full, charging
+  no battery, and settles to a small but nonzero, stable value within
+  one tick of a real pack connecting - but current alone also can't
+  distinguish "no battery" from "battery present, full, charging
   terminated," since both read that same flat zero. Voltage remains
   usable there: an installed battery holds the rail steady via its own
   chemistry (consecutive readings stay within tens of mV even right at
@@ -321,20 +321,20 @@ that drives them is in
   `firmware/components/m5stack_tab5/include/bsp/m5stack_tab5.h`'s
   `BSP_LCD_TOUCH_INT` (`GPIO_NUM_23`). **BMI270's `INT1`/`INT2` pins and
   the RX8130's `nIRQ` pin each appear with no net name reaching
-  anywhere else in the document** - every genuinely-wired net in this
-  schematic (e.g. `BOOT_GPIO35`, `TP_INT_GPIO23`) shows up at both its
-  source and destination; these don't, which is genuine but not
-  certain evidence (noisy PDF-text extraction, not an explicit "NC"
-  label) that they're unconnected on this board. **Both P4-side pins found
-  (GPIO35, GPIO23) sit outside GPIO0-15** - confirmed against this
-  project's own generated `sdkconfig.h` for the `esp32p4` target: the
-  chip's standard deep-sleep wake APIs require the wake pin to be in the
-  RTC-IO domain (`SOC_RTCIO_PIN_COUNT=16`, i.e. GPIO0-15), which neither
-  pin is. Net effect: as currently understood, none of touch, IMU, or
-  RTC have a confirmed path to a P4 GPIO capable of waking the device
-  from deep sleep via those APIs. M5Stack's own official Tab5 firmware
-  doesn't route around this with wiring we missed - it doesn't use these
-  APIs either, for the same three sources - see
+  anywhere else in the document** - every wired net in this schematic
+  (e.g. `BOOT_GPIO35`, `TP_INT_GPIO23`) shows up at both its source and
+  destination; these don't, which is genuine but not certain evidence
+  (noisy PDF-text extraction, not an explicit "NC" label) that they're
+  unconnected on this board. **Both P4-side pins found (GPIO35, GPIO23)
+  sit outside GPIO0-15** - confirmed against this project's own generated
+  `sdkconfig.h` for the `esp32p4` target: the chip's standard deep-sleep
+  wake APIs require the wake pin to be in the RTC-IO domain
+  (`SOC_RTCIO_PIN_COUNT=16`, i.e. GPIO0-15), which neither pin is. Net
+  effect: as currently understood, none of touch, IMU, or RTC have a
+  confirmed path to a P4 GPIO capable of waking the device from deep sleep
+  via those APIs. M5Stack's own official Tab5 firmware doesn't route
+  around this with wiring we missed - it doesn't use these APIs either,
+  for the same three sources - see
   [ADR-0024](../decisions/ADR-0024-sleeping-wake-mechanism.md) for what
   it does instead and what that means for this project's design.
 

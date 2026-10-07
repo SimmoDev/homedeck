@@ -18,14 +18,14 @@ namespace homedeck {
 // together with esp_restart(), deferred past the handler returning, the
 // same reason OtaRebootFn's own reboot is deferred (see homedeck.cpp's
 // ScheduleReboot()) but sharper here: esp_wifi_restore() itself severs
-// the STA association carrying the very HTTP response back to the
-// caller, not just the later reboot - calling it synchronously leaves the
-// Web UI's request hanging forever with no response ever arriving. A reboot
+// the STA association carrying the HTTP response back to the caller, not
+// just the later reboot - calling it synchronously leaves the Web UI's
+// request hanging forever with no response ever arriving. A reboot
 // afterward isn't optional the way OTA's is either - restoring Wi-Fi
 // settings only clears stored credentials; the device only re-enters
 // SoftAP setup inside InitWifiAndCheckStoredCredentials(), which runs
 // once at boot, so without rebooting the normal (non-setup) reconnect
-// path in wifi_setup.cpp would just retry against the now-empty config
+// path in wifi_setup.cpp would retry against the now-empty config
 // indefinitely.
 //
 // Returns the SoftAP SSID the device will broadcast once it reboots

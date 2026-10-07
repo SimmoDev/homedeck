@@ -50,7 +50,7 @@ matching build. The dedicated partition is small (tens to a few hundred
 KB, configurable) and easily affordable on the confirmed 16MB flash.
 
 No special handling was rejected as inconsistent with "first-class"
-diagnostics — it means field crashes are simply unexplainable after the
+diagnostics — it means field crashes are unexplainable after the
 fact. Reset-reason-only was rejected as materially less useful for
 fixing a crash: knowing a device panicked without knowing where in
 the code is a much weaker starting point than a backtrace.

@@ -61,10 +61,10 @@ namespace homedeck {
 // The shared object graph both firmware/main/homedeck.cpp and
 // simulator/main.cpp build against - every Core service and dashboard
 // widget from Storage down through the Web Management UI's route
-// registration. Each entry point still owns what's genuinely
-// platform-specific: constructing the concrete platform backends passed
-// in below, Wi-Fi/mDNS bring-up (firmware) or debug buttons (simulator),
-// and the run loop.
+// registration. Each entry point still owns what's platform-specific:
+// constructing the concrete platform backends passed in below,
+// Wi-Fi/mDNS bring-up (firmware) or debug buttons (simulator), and the
+// run loop.
 //
 // Two-phase on purpose: the constructor builds every member below with
 // no ordering requirement on the caller, then Start() (see its own
@@ -74,10 +74,10 @@ namespace homedeck {
 // each entry point's own sequential construction.
 class AppCore {
 public:
-    // Everything genuinely platform-specific that AppCore still needs
-    // injected - the concrete backends behind Core's small abstract
-    // interfaces (see src/README.md), plus the handful of callbacks each
-    // target answers differently. See SetOnDeviceNameValidate()/
+    // Everything platform-specific that AppCore still needs injected -
+    // the concrete backends behind Core's small abstract interfaces (see
+    // src/README.md), plus the handful of callbacks each target answers
+    // differently. See SetOnDeviceNameValidate()/
     // SetOnDeviceNameCommitted() below for the two callbacks that aren't
     // here.
     struct Dependencies {
@@ -95,8 +95,8 @@ public:
         // instance - HarmonyConnection and KodiClient each own exactly one
         // at a time and replace it on every reconnect, the same shape
         // HttpClient's stateless-per-call Get()/Post() doesn't need but a
-        // stateful connection genuinely does. Firmware passes a factory
-        // returning FirmwareWebSocketClient, the simulator HostWebSocketClient.
+        // stateful connection does. Firmware passes a factory returning
+        // FirmwareWebSocketClient, the simulator HostWebSocketClient.
         // (Typedef'd on HarmonyConnection, but KodiClient's is the same
         // std::function type - one factory serves both.)
         HarmonyConnection::WebSocketClientFactory make_websocket_client;

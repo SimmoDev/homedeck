@@ -110,7 +110,7 @@ struct HarmonyConnectionSnapshot {
     // cache tier - a fresh device/activity list arrives from the hub
     // itself on every reconnect, so there is no offline value in caching
     // it the way weather's data (fetched from a third party, not the
-    // device being controlled) genuinely needs.
+    // device being controlled) needs.
     bool has_config = false;
     std::vector<HarmonyDevice> devices;
     std::vector<HarmonyActivity> activities;
@@ -222,7 +222,7 @@ public:
     // Asks the connection loop to start this activity - safe to call
     // from any thread (e.g. ActivitiesScreen on the UI thread), unlike
     // ws_client_ itself, which only the connection loop's own thread ever
-    // touches. A no-op if never connected: the request just waits
+    // touches. A no-op if never connected: the request waits
     // (harmlessly - see Sleep()'s watch_commands parameter) until a
     // connection exists to send it over.
     void StartActivity(const std::string& activity_id);
@@ -401,7 +401,7 @@ private:
     // pointed at a different address), and only when last_hub_host_ is
     // already non-empty at the call site (a genuine prior hub existed to
     // invalidate the queue against - see each call site's own comment for
-    // why the very first connect attempt of the process must not clear a
+    // why the first connect attempt of the process must not clear a
     // command queued before any hub was configured). A command queued
     // against the previous hub carries that hub's own ids/action strings
     // (see PendingCommand's own comment); left queued, it would otherwise
@@ -440,7 +440,7 @@ private:
     // the same hub" apart from "the user pointed this at a different
     // hub," see ConnectionLoop()'s own comment. Empty at construction,
     // matching state_.has_config's own default-false (nothing to clear
-    // on the very first connect attempt either way).
+    // on the first connect attempt either way).
     std::string last_hub_host_;
 
     mutable std::mutex mutex_;

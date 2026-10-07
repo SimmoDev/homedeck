@@ -43,7 +43,7 @@ discipline.
 
 - Plain-`malloc()` data (LVGL objects, JSON, strings) is accessed over
   the PSRAM bus, which has higher latency than internal RAM. The UI is
-  object bookkeeping, not per-frame-critical; scroll performance of very
+  object bookkeeping, not per-frame-critical; scroll performance of
   large lists is the case to watch.
 - Code that needs internal memory (an ISR-visible buffer, a DMA
   descriptor) must say so with `heap_caps_malloc(..., MALLOC_CAP_INTERNAL)`;

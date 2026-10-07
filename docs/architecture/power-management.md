@@ -157,8 +157,8 @@ a user actively driving the remote already keeps
 `PowerManager` in `Active` through `UserActivitySource`'s own
 touch-driven idle reset, and `HarmonyConnection`'s background
 reconnect/liveness loop has no reason to keep the display on while
-genuinely idle. Still available for a future module whose background
-work can't tolerate the display going dark mid-operation.
+idle. Still available for a future module whose background work
+can't tolerate the display going dark mid-operation.
 
 Neither `HarmonyConnection` nor `KodiClient` subscribes to power-state
 events: both keep their connection, Kodi's 250 ms notification pump and

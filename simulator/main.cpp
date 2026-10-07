@@ -38,12 +38,11 @@ static constexpr int32_t kWindowHeight = 1280;
 // 720x1280 logical canvas doesn't demand 1280px of vertical monitor
 // space. LVGL still renders at the real logical resolution above -
 // layout behaves identically to hardware, just displayed smaller. Any
-// zoom other than 1.0 softens text somewhat, even with UiTask's
-// scale-quality hint (see src/ui/ui_task.cpp) - real hardware is
-// unaffected, since it never scales at all. No single value fits every
-// desktop/taskbar layout, so override at runtime with HOMEDECK_SIM_ZOOM
-// (e.g. `HOMEDECK_SIM_ZOOM=0.6 ./homedeck_simulator`) rather than editing
-// this default.
+// zoom other than 1.0 softens text, even with UiTask's scale-quality hint
+// (see src/ui/ui_task.cpp) - real hardware is unaffected, since it never
+// scales at all. No single value fits every desktop/taskbar layout, so
+// override at runtime with HOMEDECK_SIM_ZOOM (e.g. `HOMEDECK_SIM_ZOOM=0.6
+// ./homedeck_simulator`) rather than editing this default.
 static constexpr float kDefaultWindowZoom = 0.75f;
 
 // The Web Management UI's default port. Real hardware uses 80 (see
@@ -198,7 +197,7 @@ int main() {
             .read_memory_stats = []() { return homedeck::MemoryStats{150000, 64000, 140000, 30000000}; },
             // No device-name callbacks - there's no mDNS to re-announce
             // and no hostname rules to check on the simulator, so a
-            // device name change just persists to storage like any other
+            // device name change persists to storage like any other
             // setting (see AppCore::SetOnDeviceNameValidate()/
             // SetOnDeviceNameCommitted()'s own comments on why both are
             // optional).

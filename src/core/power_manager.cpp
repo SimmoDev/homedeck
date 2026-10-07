@@ -59,8 +59,8 @@ PowerManager::PowerManager(EventBus& event_bus, UserActivitySource& user_activit
                 // suppressed for the whole write (see its own comment),
                 // so a write that outlasted kIdleTimeoutMs would otherwise
                 // flash to full Active brightness for one tick before the
-                // very next OnTick() immediately dims/sleeps it again.
-                // Land directly on the state inactivity already calls for.
+                // next OnTick() immediately dims/sleeps it again. Land
+                // directly on the state inactivity already calls for.
                 uint32_t inactive_ms = user_activity_source_.MillisecondsSinceLastActivity();
                 if (inactive_ms >= kSleepTimeoutMs && !HasActiveSleepVeto()) {
                     TransitionTo(PowerState::kSleeping);

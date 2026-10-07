@@ -12,8 +12,8 @@ figures, and what the simulator's window dimensions originally assumed
 [ADR-0014](ADR-0014-hardware-support-library.md) and
 [hardware.md](../architecture/hardware.md#display-driver-strategy))
 found the panel reports `720x1280` at runtime — portrait, not landscape —
-and that this is genuinely the panel's native scan direction, not a
-default init flag: `espressif/m5stack_tab5` hardcodes it as
+and that this is the panel's native scan direction, not a default
+init flag: `espressif/m5stack_tab5` hardcodes it as
 `BSP_LCD_H_RES`/`BSP_LCD_V_RES` in its own `display.h`, with no
 `swap_xy` applied during panel init.
 

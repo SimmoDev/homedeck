@@ -35,7 +35,7 @@ std::string KodiWidgetLine(const KodiSnapshot& snapshot) {
             }
             // More than one instance answered discovery but none is
             // saved - the user has to pick (ADR-0030). Otherwise there's
-            // simply nothing configured to connect to.
+            // nothing configured to connect to.
             return snapshot.discovered.size() > 1 ? "Choose a Kodi in settings" : "Not configured";
         case KodiConnectionState::kConnected:
             break;

@@ -30,8 +30,8 @@ constexpr int32_t kRowHeight =
     DashboardGrid::kColumns;
 
 // LV_EVENT_CLICKED callback wired to every widget's Root() below -
-// user_data is the Widget& itself, so this just forwards to its OnTap().
-// A free function/trampoline rather than a lambda: lv_obj_add_event_cb()
+// user_data is the Widget& itself, so this forwards to its OnTap(). A
+// free function/trampoline rather than a lambda: lv_obj_add_event_cb()
 // wants a plain function pointer with no captures.
 void OnWidgetTileTapped(lv_event_t* event) {
     auto* widget = static_cast<Widget*>(lv_event_get_user_data(event));
@@ -50,12 +50,12 @@ DashboardGrid::DashboardGrid(lv_obj_t* parent) : row_dsc_{kRowHeight, LV_GRID_TE
     lv_obj_set_style_pad_column(grid_, kCellGap, 0);
     lv_obj_set_style_border_width(grid_, 0, 0);
     // Unlike StatusBar (fixed height, never overflows its own bounds),
-    // this grid's content genuinely can exceed the visible screen as
-    // more widgets are added - rows have no fixed cap - so scrolling
-    // stays enabled here. This is the opposite fix from status_bar.cpp,
-    // which clears scrolling to prevent it happening *accidentally* from
-    // small content overflowing tight padding; this container's
-    // scrolling is deliberate and wanted, not a default left in by mistake.
+    // this grid's content can exceed the visible screen as more widgets are
+    // added - rows have no fixed cap - so scrolling stays enabled here.
+    // This is the opposite fix from status_bar.cpp, which clears scrolling
+    // to prevent it happening *accidentally* from small content overflowing
+    // tight padding; this container's scrolling is deliberate and wanted,
+    // not a default left in by mistake.
 }
 
 void DashboardGrid::EnsureRowExists(int row) {

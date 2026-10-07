@@ -118,9 +118,9 @@ interface."
 a retained-mode widget tree, which itself holds most "state" that matters
 for rendering — layering a second state-management framework on top would
 duplicate that and add indirection without a corresponding benefit at
-HomeDeck's UI complexity. Revisit only if screen state genuinely becomes
-hard to reason about in practice (e.g. deeply nested shared state across
-many widgets), not pre-emptively.
+HomeDeck's UI complexity. Revisit only if screen state becomes hard to
+reason about in practice (e.g. deeply nested shared state across many
+widgets), not pre-emptively.
 
 ## Consequences
 

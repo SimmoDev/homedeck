@@ -37,8 +37,8 @@ constexpr int kMaxConsecutiveRecvTimeouts = 3;
 // would reset that counter forever and hold the worker thread for as
 // long as it likes, up to kMaxHttpRequestBodyBytes. This is a separate,
 // never-reset budget across the whole request: 120 timeouts (~10 minutes
-// at the default 5s wait) comfortably covers even a genuinely slow
-// multi-MB OTA upload over a weak link, while still bounding the
+// at the default 5s wait) comfortably covers even a slow multi-MB
+// OTA upload over a weak link, while still bounding the
 // otherwise-unbounded worst case above.
 constexpr int kMaxTotalRecvTimeouts = 120;
 

@@ -161,9 +161,9 @@ constraint later.
   on-device dependency, but two different implementations behind one
   interface.
 - A third-party embeddable server (e.g. civetweb, mongoose) used
-  consistently on both firmware and simulator, for genuinely identical
-  behavior on both targets — at the cost of not using ESP-IDF's native
-  server on firmware.
+  consistently on both firmware and simulator, for identical behavior
+  on both targets — at the cost of not using ESP-IDF's native server
+  on firmware.
 
 **Decided:** the first option — a small abstract `HttpServer`/
 `WebSocketServer` interface in Core (per the hardware/service abstraction
@@ -209,7 +209,7 @@ to but implemented separately from the UI hand-off in
 `HttpServer` is implemented on both targets —
 `FirmwareHttpServer`/`HostHttpServer` in `src/platform/`, the simulator
 backed by civetweb v1.16 through its plain C API only (not its C++
-wrapper, which would just add a second abstraction layer under
+wrapper, which would add a second abstraction layer under
 `HttpServer`, already the abstraction callers see). Build-specific
 civetweb configuration lives in `src/CMakeLists.txt`, not here.
 `WebSocketServer` remains unbuilt — nothing needs it yet, and the
@@ -265,18 +265,17 @@ Concurrency Abstraction](#decision-core-concurrency-abstraction) above,
 Core's actual logic runs identically on both targets (the same
 Core/Task/Queue/Timer-based code, against different backends), so
 GoogleTest against the simulator already covers what a separate on-target
-Unity suite would exist to catch. What's left that's genuinely
-on-target-only (deep-sleep wake behavior, real display rendering, OTA
-flash writes, real Wi-Fi co-processor reconnect timing) doesn't suit
-unit-test assertions anyway — those are validated by manual/exploratory
-hardware bring-up during M1/M2, not automated tests, and a second test
-framework wouldn't change that. Mocking support matters for the GoogleTest
-choice specifically because Core's service-interface design (module
-lifecycle, event bus, storage) is explicitly meant to be testable in
-isolation. If a concrete need for automated on-target testing emerges later
-(timing-critical code, partition/flash edge cases), add Unity or ESP-IDF's
-QEMU-based test runner then, rather than carrying an unused second
-framework from M1.
+Unity suite would exist to catch. What's left that's on-target-only
+(deep-sleep wake behavior, real display rendering, OTA flash writes, real
+Wi-Fi co-processor reconnect timing) doesn't suit unit-test assertions
+anyway — those are validated by manual/exploratory hardware bring-up during
+M1/M2, not automated tests, and a second test framework wouldn't change
+that. Mocking support matters for the GoogleTest choice specifically
+because Core's service-interface design (module lifecycle, event bus,
+storage) is explicitly meant to be testable in isolation. If a concrete
+need for automated on-target testing emerges later (timing-critical code,
+partition/flash edge cases), add Unity or ESP-IDF's QEMU-based test runner
+then, rather than carrying an unused second framework from M1.
 
 ## Consequences
 

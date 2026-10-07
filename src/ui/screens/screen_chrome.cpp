@@ -31,8 +31,8 @@ ScreenChrome CreateScreenChrome(lv_obj_t* root, const char* title, const char* h
     lv_obj_remove_style_all(content_container);
     lv_obj_set_size(content_container, LV_PCT(90), LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(content_container, LV_FLEX_FLOW_COLUMN);
-    // Deliberate spacing between genuinely large buttons, not a tight list -
-    // see each button's own pad_ver comment (remote_button.cpp) for why
+    // Deliberate spacing between large buttons, not a tight list - see
+    // each button's own pad_ver comment (remote_button.cpp) for why
     // "large" is the deliberate target here, not a compact default. root
     // (the screen itself) is left scrollable, same as DashboardGrid's own
     // "content can exceed the visible screen" handling, so a longer list

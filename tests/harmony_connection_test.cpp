@@ -231,7 +231,7 @@ constexpr std::chrono::milliseconds kFastBackoff = std::chrono::milliseconds(30)
 // purpose test server - same scope websocket_client_test.cpp's own
 // helpers keep. Not shared with that file: each raw-socket test file in
 // this project builds its own minimal peer locally rather than a shared
-// abstraction serving two very different protocols end-to-end.
+// abstraction serving two different protocols end-to-end.
 //
 // HandshakeUrl()/WebSocketUrl() (harmony_connection.cpp) hardcode port
 // 8088 - the real hub's own port, and hub_host itself carries no port
@@ -571,7 +571,7 @@ TEST_F(HarmonyConnectionTest, NotConfiguredStaysDisconnectedAndNeverCallsOut) {
 
 // StartActivity()'s own header comment documents it as safe to call
 // before any hub is ever configured - "a no-op if never connected: the
-// request just waits harmlessly." No prior test called it in that state.
+// request waits harmlessly." No prior test called it in that state.
 TEST_F(HarmonyConnectionTest, StartActivityBeforeAnyHubIsConfiguredWaitsHarmlessly) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
@@ -1027,8 +1027,8 @@ TEST_F(HarmonyConnectionTest, HandshakeMissingActiveRemoteIdEntersErrorState) {
     connection.Stop();
 }
 
-// Well-formed JSON that's simply missing `data` (or has it as a
-// non-object) is a distinct guard clause from
+// Well-formed JSON that's missing `data` (or has it as a non-object) is
+// a distinct guard clause from
 // HandshakeMissingActiveRemoteIdEntersErrorState above, which needs
 // `data` to already be a present object before it can even look for
 // activeRemoteId inside it. Mirrors
@@ -1158,8 +1158,8 @@ TEST_F(HarmonyConnectionTest, ConfigFetchTransportFailureEntersErrorState) {
     connection.Stop();
 }
 
-// Well-formed JSON that's simply missing `data` (or has it as a non-object)
-// is a distinct guard clause in ConnectAndFetchConfig() from the malformed-
+// Well-formed JSON that's missing `data` (or has it as a non-object) is a
+// distinct guard clause in ConnectAndFetchConfig() from the malformed-
 // JSON-parse-failure case ConfigFetchWithMalformedJsonResponseEntersErrorState
 // above already covers.
 TEST_F(HarmonyConnectionTest, ConfigFetchResponseMissingDataObjectEntersErrorState) {
@@ -1561,7 +1561,7 @@ TEST_F(HarmonyConnectionTest, DrainStaleMessagesStopsAtItsOwnIterationCap) {
 
     auto script = std::make_shared<WsScript>();
     // One more than the 20-message cap - queued before Start() so all 21
-    // are already "buffered" for the very first DrainStaleMessages() call,
+    // are already "buffered" for the first DrainStaleMessages() call,
     // the one that runs right before the initial config request is sent.
     for (int i = 0; i < 21; ++i) {
         PushStaleResponse(script, R"({"data":{"result":"stray"}})");

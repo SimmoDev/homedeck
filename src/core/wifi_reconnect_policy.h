@@ -17,7 +17,7 @@ public:
 
     // `in_setup_mode` mirrors wifi_setup.cpp's own `state.initial_provisioning` -
     // the give-up cap only applies while a freshly-submitted, maybe-wrong
-    // set of credentials is still being tried during the device's very
+    // set of credentials is still being tried during the device's
     // first, no-stored-credentials setup flow. A normal post-setup
     // reconnect to an already-trusted network retries indefinitely
     // instead, since giving up there would strand the device with no
@@ -37,8 +37,8 @@ public:
     // Deliberately independent of Decision above: a normal-mode reconnect
     // never gives up (OnDisconnected() always returns kRetry there), so
     // silently retrying with no way for the user to intervene could
-    // otherwise continue indefinitely if the stored network is genuinely
-    // gone for good (moved house, router replaced) rather than just
+    // otherwise continue indefinitely if the stored network is gone
+    // for good (moved house, router replaced) rather than just
     // briefly down. This signals "also start offering a way back in
     // (recovery access point, alongside the continuing retries)," not
     // "stop retrying" - wifi_setup.cpp's own caller is what brings

@@ -8,11 +8,11 @@ namespace homedeck {
 // through - see ui_dispatch.cpp for why a single recurring timer
 // replaces lv_async_call()'s one-shot-timer-per-call default. Must be
 // called exactly once, from the UI thread, before PostToUiThread can
-// usefully run (calls made before this has run just wait in the queue).
-// It calls lv_timer_create(), itself an lv_* API call - see ADR-0011 -
-// so callers on firmware must wrap this in
-// bsp_display_lock()/bsp_display_unlock() (see firmware/main/homedeck.cpp);
-// UiTask's constructor needs no such lock, see its own call site.
+// usefully run (calls made before this has run wait in the queue). It calls
+// lv_timer_create(), itself an lv_* API call - see ADR-0011 - so callers on
+// firmware must wrap this in bsp_display_lock()/bsp_display_unlock() (see
+// firmware/main/homedeck.cpp); UiTask's constructor needs no such lock, see
+// its own call site.
 void InitUiDispatchQueue();
 
 // The hand-off EventBus's UI dispatch routes through - see

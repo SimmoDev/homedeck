@@ -55,12 +55,12 @@ for f in "$@"; do
     fi
 
     # Filler adverbs add nothing to a sentence. Warn-only: delete the word
-    # unless the sentence changes meaning without it. "actually" is checked
-    # everywhere; the others only in Markdown outside docs/decisions/.
-    filler='actually'
+    # unless the sentence changes meaning without it. A short list is checked
+    # everywhere; a wider one only in Markdown outside docs/decisions/.
+    filler='actually|genuinely'
     case "$f" in
         docs/decisions/*) ;;
-        *.md) filler='actually|simply|basically|essentially|obviously' ;;
+        *.md) filler='actually|genuinely|simply|basically|essentially|obviously|really|very|quite' ;;
     esac
     case "$f" in
         *CLAUDE.md|*m5stack_tab5*|*third_party*|*lib-narration-patterns.sh|*check-docs.sh) ;;

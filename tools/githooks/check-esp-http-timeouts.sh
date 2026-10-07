@@ -25,7 +25,7 @@
 # comment (unlike libcurl's multi-minute default, the reason
 # check-curl-timeouts.sh exists at all), so relying on that default isn't
 # the same unbounded-block risk this check exists to catch. Flagging it
-# anyway would just create permanent noise against
+# anyway would create permanent noise against
 # platform/firmware/websocket_client.cpp's own correct use of that
 # default. Non-blocking - see pre-commit.
 set -uo pipefail

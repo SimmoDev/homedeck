@@ -155,9 +155,9 @@ where date/time and battery live.
   of the interface — see [modules.md](../architecture/modules.md) for the
   general module/Core boundary this follows.
 - The dashboard's widget grid no longer includes date/time or battery —
-  its scope narrows to genuinely optional, reorderable content (weather,
-  Harmony activity, Uptime Kuma health, Home Assistant states, and future
-  module widgets).
+  its scope narrows to optional, reorderable content (weather, Harmony
+  activity, Uptime Kuma health, Home Assistant states, and future module
+  widgets).
 - [ui.md](../architecture/ui.md#navigation-model) should describe the
   status bar as a second, independent piece of persistent screen chrome
   alongside the home affordance, not part of the navigation manager itself.

@@ -12,7 +12,7 @@ status=0
 # noreturn - there is no value to check, assign, or wrap, so a bare call
 # is the only way to call them. Filtered out of all three passes below so
 # they don't produce a finding no one can action. Extend as new ones turn
-# up; keep it to functions genuinely declared void/noreturn in ESP-IDF.
+# up; keep it to functions declared void/noreturn in ESP-IDF.
 void_returning='(esp_restart|esp_chip_info|esp_deep_sleep_start|esp_system_abort|mdns_query_results_free|mdns_free)\('
 
 for f in "$@"; do

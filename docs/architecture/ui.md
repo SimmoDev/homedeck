@@ -73,10 +73,10 @@ navigated away from (e.g. a Harmony activity detail screen), so the
 ownership rule below is a requirement now, not a followup. In-place
 content refresh is a separate, already-exercised case: `ActivitiesScreen::Rebuild()`/
 `DevicesScreen::RebuildDeviceList()` already call `lv_obj_clean()` on
-their own list containers on every config refresh, genuinely tearing
-down and recreating the child buttons inside a still-live screen — the
-ownership rule below is about a *controller's own* destructor, not about
-whether any LVGL object anywhere has ever been deleted:
+their own list containers on every config refresh, tearing down and
+recreating the child buttons inside a still-live screen — the ownership
+rule below is about a *controller's own* destructor, not about whether
+any LVGL object anywhere has ever been deleted:
 
 - An LVGL object created as a child of another object the same class
   already owns (directly or transitively) needs no cleanup of its own —
@@ -233,14 +233,13 @@ built on both firmware and the simulator. `WifiSetupScreen`
 (`src/ui/screens/wifi_setup_screen.h`/`.cpp`), the Touch UI fallback for
 initial Wi-Fi setup (see
 [networking.md](networking.md#initial-wi-fi-provisioning)), is the
-genuine second screen registered alongside the dashboard on both
-targets (it omits the home affordance itself - see the Navigation model
-section above). Below its Connect button it shows instructions for
-setting up from a computer/phone instead (join the SoftAP SSID, then
-browse to the gateway IP), and a connect-failure message once
-`wifi_setup.cpp` gives up retrying a freshly-submitted set of credentials
-(`SetConnectError`, cleared again as soon as the user retries) - all
-screen text, including
+second screen registered alongside the dashboard on both targets (it
+omits the home affordance itself - see the Navigation model section
+above). Below its Connect button it shows instructions for setting up
+from a computer/phone instead (join the SoftAP SSID, then browse to the
+gateway IP), and a connect-failure message once `wifi_setup.cpp` gives up
+retrying a freshly-submitted set of credentials (`SetConnectError`,
+cleared again as soon as the user retries) - all screen text, including
 `OnScreenKeyboard`'s key labels (`src/ui/keyboard_input.h`/`.cpp` - a
 reusable on-screen keyboard that attaches to any `lv_textarea`, with no
 knowledge of what the text is for, so future screens needing text entry

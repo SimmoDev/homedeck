@@ -68,7 +68,7 @@ TEST(CommandButtonPressTrackerTest, TwoButtonsTrackIndependently) {
     // kButtonB was never long-pressed - a plain tap on it must not be
     // affected by kButtonA's own still-active long-press state.
     EXPECT_EQ(tracker.OnReleased(&kButtonB, /*is_scrolling=*/false), Action::kPressAndRelease);
-    // kButtonA is still genuinely mid-long-press.
+    // kButtonA is still mid-long-press.
     EXPECT_EQ(tracker.OnReleased(&kButtonA, /*is_scrolling=*/false), Action::kRelease);
 }
 

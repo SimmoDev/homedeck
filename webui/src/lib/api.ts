@@ -165,7 +165,7 @@ export async function getJson<T>(url: string): Promise<GetJsonResult<T>> {
 // Triggers a browser file download via fetch + Blob rather than a plain
 // <a href download> - a bare anchor navigates directly to the URL
 // outside of JS, so it has no way to notice a 401 (or any other
-// failure); a stale session would just download a small JSON error body
+// failure); a stale session would download a small JSON error body
 // under the intended filename instead of dropping back to login the way
 // every other authenticated action in this app does via
 // notifyIfSessionExpired()/readErrorBody().

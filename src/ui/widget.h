@@ -36,7 +36,7 @@ public:
     // which wires every widget's Root() to this uniformly. No-op default:
     // most widgets are glanceable-only, nothing to navigate to. HarmonyWidget
     // (src/ui/harmony_widget.h) is the first override - deferred until a
-    // widget genuinely needed tap-for-detail, per this project's "no
+    // widget needed tap-for-detail, per this project's "no
     // premature abstraction" discipline (see roadmap.md's M2 Widget
     // framework item).
     virtual void OnTap() {}

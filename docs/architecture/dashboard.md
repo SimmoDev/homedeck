@@ -161,7 +161,7 @@ The widget framework's interface and layout half is implemented: `Widget`
 accessor, a `ColumnSpan()`/`RowSpan()` footprint (both default to 1,
 override to occupy more), and an `OnTap()` handler (no-op default;
 `DashboardGrid::AddWidget()` wires every widget's `Root()` to it
-uniformly) - deferred until a widget genuinely needed tap-for-detail
+uniformly) - deferred until a widget needed tap-for-detail
 (`HarmonyWidget` below, M3), not designed speculatively against an
 earlier widget alone. No live/cached/offline freshness reporting yet,
 left out as ADR-0008 says it should be until a widget exists to
@@ -222,10 +222,10 @@ Web UI's Settings page calls this (via `POST /api/weather/refresh`, see
 location. Location search goes through Open-Meteo's own geocoding API,
 proxied through an admin-gated `GET /api/weather/geocode` endpoint.
 `Storage` (`src/core/storage.h`) is internally thread-safe (a single
-mutex guarding every method) - genuinely needed, not defensive:
-app_main's boot sequence, the Web UI's httpd worker thread, and this
-widget's poll `Task` all call into the same `Storage` instance with no
-coordination between them.
+mutex guarding every method) - needed, not defensive: app_main's boot
+sequence, the Web UI's httpd worker thread, and this widget's poll
+`Task` all call into the same `Storage` instance with no coordination
+between them.
 
 `NotificationWidget` (`src/ui/notification_widget.h`/`.cpp`) is the
 dashboard-indicator output [CLAUDE.md](../../CLAUDE.md)'s notification

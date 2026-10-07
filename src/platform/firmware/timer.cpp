@@ -15,7 +15,7 @@ namespace homedeck {
 // shared timer-service task regardless of how many Timers exist, which
 // is the right tradeoff here: periodic callbacks in this codebase are
 // lightweight (e.g. Clock publishing an event), so a dedicated task per
-// Timer would just be wasted stack/RAM.
+// Timer would be wasted stack/RAM.
 
 namespace {
 
@@ -24,7 +24,7 @@ namespace {
 // capturing closure. TimerTrampoline needs a type it can freely name
 // from outside Timer; Timer::Impl itself is private and only accessible
 // to Timer's own member functions, so this context is a separate,
-// ordinary struct that Impl merely owns a pointer to, not the same type.
+// ordinary struct that Impl owns a pointer to, not the same type.
 struct TimerContext {
     Timer::Callback callback;
     TimerHandle_t handle = nullptr;

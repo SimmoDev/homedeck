@@ -51,7 +51,7 @@
     if (!selectedFile) {
       return;
     }
-    // The server already rejects a genuinely concurrent upload
+    // The server already rejects a concurrent upload
     // (upload_in_progress, handled below), so this is purely to avoid
     // the redundant request in the first place.
     if (tripGuard(() => uploadState === "uploading", () => (uploadState = "uploading"))) {

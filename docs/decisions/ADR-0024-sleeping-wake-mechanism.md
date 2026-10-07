@@ -57,7 +57,7 @@ Because Core keeps running through `Sleeping` exactly as it does through
 `Idle`, the periodic RTC-wake-and-check mechanism ADR-0005 decided on for
 alert-priority notifications is no longer needed at all: nothing has
 stopped running that would need waking. Alert-priority notifications are
-simply handled immediately, the same way they would be in `Idle`.
+handled immediately, the same way they would be in `Idle`.
 
 This decision **replaces** ADR-0005's "Alert-priority wake cycle during
 Sleeping" decision (the periodic ~2-5 minute RTC-wake mechanism) in full.
@@ -69,7 +69,7 @@ and the OTA power gate — is unaffected and stands as decided.
 It's already shipped, already carries no differential behavior today (per
 its own file comment — no consumer branches on it yet), and remains a
 reasonable place to hang a future presentation difference (e.g. a distinct
-sound) if one is ever needed. It simply no longer has any wake-cycle
+sound) if one is ever needed. It no longer has any wake-cycle
 behavior to gate, because none exists.
 
 A further, smaller consequence: the still-open question of whether

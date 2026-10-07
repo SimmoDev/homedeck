@@ -46,12 +46,11 @@ allowed to layer service-specific reconnection semantics on top where the
 external protocol requires it (e.g. WebSocket reconnect/resubscribe logic
 for Home Assistant). This avoids every module reimplementing basic backoff
 without forcing a one-size-fits-all reconnection model onto integrations
-with genuinely different transport characteristics (Home Assistant's
-WebSocket reconnect semantics differ meaningfully from an HTTP-polling
-integration like Uptime Kuma). Worth re-checking once the second module
-(Kodi) is built, since a single module isn't enough to validate the shared
-utility fits multiple integrations' needs — but the default is
-settled.
+with different transport characteristics (Home Assistant's WebSocket
+reconnect semantics differ meaningfully from an HTTP-polling integration
+like Uptime Kuma). Worth re-checking once the second module (Kodi) is
+built, since a single module isn't enough to validate the shared utility
+fits multiple integrations' needs — but the default is settled.
 
 ## Decision: LAN discovery service shape
 
@@ -109,7 +108,7 @@ remaining available as a fallback for users without a second device handy.
 
 Touch-UI-only was rejected because it doesn't solve the complex-password
 problem at all. The camera QR-code option was rejected — and is worth
-recording why, since the Tab5's onboard camera made it a genuinely
+recording why, since the Tab5's onboard camera made it a
 plausible option: it would mean bringing up an entirely separate,
 currently-unverified hardware subsystem (MIPI-CSI camera driver, QR decode
 library — see [hardware.md](../architecture/hardware.md#camera-out-of-current-scope))

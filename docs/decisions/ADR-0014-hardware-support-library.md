@@ -58,7 +58,7 @@ exact detection logic roughly three months before this decision).
 - Hand-write MIPI-DSI + ST7123 panel/touch init directly against
   ESP-IDF's native `esp_lcd` APIs, bypassing both M5GFX and any
   third-party BSP — technically possible, but real evidence this is
-  genuinely hard to get right blind: Espressif's own official BSP had a
+  hard to get right blind: Espressif's own official BSP had a
   documented "doesn't init st7123" bug during its development, and the
   ESPHome community independently hit a black-screen bug on the same
   hardware needing a corrected init sequence before it worked. Writing
@@ -126,5 +126,5 @@ reference to build from).
   check found a different library that already does the detection, not
   M5Unified/M5GFX doing it directly. ADR-0009's own detection design
   (I2C address probing, persisted result, manual override) is superseded
-  by simply using this BSP's built-in probing — no separate detection
-  code needs writing.
+  by using this BSP's built-in probing — no separate detection code
+  needs writing.

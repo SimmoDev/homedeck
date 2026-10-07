@@ -53,10 +53,10 @@ bool IsValidWeatherCoordinate(const std::string& key, const std::string& value);
 // See docs/architecture/networking.md and ADR-0008's "Weather data
 // source" decision. No EventBus dependency here by design, same
 // reasoning as NetworkStatus (core/network_status_monitor.h) - except
-// unlike NetworkStatus, this interface's implementation genuinely does
-// need EventBus itself, since fetching weather is inherently async
-// (a network call, not a fast hardware-state read) - the interface
-// only commits callers to a synchronous Snapshot(), not to how a given
+// unlike NetworkStatus, this interface's implementation does need
+// EventBus itself, since fetching weather is inherently async (a
+// network call, not a fast hardware-state read) - the interface only
+// commits callers to a synchronous Snapshot(), not to how a given
 // implementation gets there.
 class WeatherProvider {
 public:

@@ -2,8 +2,8 @@
 
 HomeDeck follows a local-first philosophy: LAN communication and direct
 device control are preferred over cloud services wherever the integration
-allows it, and cloud dependencies are avoided unless genuinely unavoidable
-(e.g. currently-unknown constraints in a specific external service's own
+allows it, and cloud dependencies are avoided unless unavoidable (e.g.
+currently-unknown constraints in a specific external service's own
 architecture). See
 [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md) for
 the tradeoffs and rejected alternatives behind the decisions referenced
