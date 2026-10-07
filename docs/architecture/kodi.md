@@ -242,9 +242,8 @@ push notification of its own) and publishes the parsed result as
 `KodiMoviesFetchedEvent`/`KodiTvShowsFetchedEvent`/
 `KodiSeasonsFetchedEvent`/`KodiEpisodesFetchedEvent`. These share
 `pending_commands_`' bounded/drop-oldest queue shape
-(`pending_library_requests_`, `kMaxPendingLibraryRequests`), except that a
-request identical to one already waiting is dropped, but not its
-fire-and-forget send: a query is worthless without its reply, so
+(`pending_library_requests_`, `kMaxPendingLibraryRequests`; a request identical
+to one already waiting is dropped) but not its fire-and-forget send: a query is worthless without its reply, so
 `SendPendingLibraryRequests()` treats a failed `Call()` on a dead transport
 as fatal to the whole batch, the same as anywhere else in this module. A
 call that times out on a connection that is still open
