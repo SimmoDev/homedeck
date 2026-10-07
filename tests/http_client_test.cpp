@@ -15,8 +15,8 @@
 // instance - hermetic and non-flaky (no live internet dependency),
 // while still proving HostHttpClient does genuine network I/O rather
 // than exercising only its own internal logic. Matches this project's
-// "test for real, not mocked" precedent (AdminAuthService's real
-// PBKDF2 test, http_server_test.cpp's own raw-socket round trip).
+// real-backend approach (AdminAuthService's PBKDF2 test,
+// http_server_test.cpp's raw-socket round trip).
 //
 // Servers bind an ephemeral port (Start(0)) rather than a fixed one so
 // a parallel or rapidly-repeated run can't collide - see
@@ -84,8 +84,8 @@ TEST(HostHttpClient, PostSendsJsonBodyAndReturnsARealResponse) {
 // today - HostHttpServer can't prove an arbitrary outbound header was
 // sent the way PostSendsJsonBodyAndReturnsARealResponse above proves the
 // body was. A raw listening socket, reading the request as plain text,
-// is the only way to see it - the same "test for real, not mocked"
-// reasoning this file's own top comment already follows. This guards
+// is the only way to see it - the same real-backend
+// reasoning this file's own top comment follows. This guards
 // against a specific regression, not incidental coverage: extra_headers
 // exists because a live probe against the reference Harmony hub during
 // this feature's design found its handshake endpoint rejects the request

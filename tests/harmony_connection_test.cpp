@@ -2368,9 +2368,8 @@ TEST_F(HarmonyConnectionTest, StopDuringAnInFlightBatchSendPublishesADroppedEven
 
 // Real client/server round trip against real HostHttpClient/
 // HostWebSocketClient backends and RunFakeHarmonyHub's own raw-socket
-// stand-in hub (this file's own top comment) - the same "test for real,
-// not mocked" precedent http_client_test.cpp/websocket_client_test.cpp
-// already set for the two backends individually, extended here to prove
+// stand-in hub (this file's own top comment) - the same real-backend approach
+// http_client_test.cpp/websocket_client_test.cpp use for the two backends individually, extended here to prove
 // HarmonyConnection's actual connect pipeline (HTTP handshake, WS
 // upgrade, config fetch, current-activity probe) round-trips correctly
 // over genuine sockets end to end - every other test in this file only

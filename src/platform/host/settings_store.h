@@ -6,7 +6,7 @@
 
 namespace homedeck {
 
-// Real, disk-backed - not a mock. Unlike battery/RTC (no meaningful
+// Disk-backed - not a mock. Unlike battery/RTC (no meaningful
 // desktop equivalent), a filesystem is a genuine, working stand-in for
 // small persisted values, so this exercises real read/write/erase
 // behavior in ctest rather than approximating it. `root_dir` is supplied

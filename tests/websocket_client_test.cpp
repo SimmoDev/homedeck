@@ -19,14 +19,12 @@
 #include <vector>
 
 // A real client/server WebSocket round trip against a hand-rolled RFC 6455
-// server on a raw socket - the same "test for real, not mocked" precedent
-// http_client_test.cpp's PostSendsExtraHeaders test already sets, extended
-// to this transport. harmony_connection_test.cpp exercises HarmonyConnection
-// against a scriptable WebSocketClient fake; nothing exercised
-// HostWebSocketClient's actual libcurl-backed implementation until now -
-// three separate bugs in it (a ReceiveText(0) deadline race, an unbounded
-// SendText(), an unguarded closed_ write) were all found by hand across
-// prior review passes, none by a test.
+// server on a raw socket - the same real-backend approach
+// http_client_test.cpp's PostSendsExtraHeaders test uses, extended to this
+// transport. harmony_connection_test.cpp exercises HarmonyConnection
+// against a scriptable WebSocketClient fake, which cannot reach
+// HostWebSocketClient's libcurl-backed deadline handling (ReceiveText(0)),
+// bounded SendText() and closed-state tracking; this file does.
 //
 // civetweb (already vendored for HostHttpServer) has WebSocket support
 // available but disabled at this project's build (CIVETWEB_ENABLE_WEBSOCKETS
@@ -543,7 +541,7 @@ TEST(HostWebSocketClient, ConnectFailsWhenSecWebSocketAcceptIsMissingEntirely) {
 TEST(HostWebSocketClient, ConnectFailsWhenUpgradeHeaderIsMissingOrWrong) {
     // RFC 6455 4.2.2 requires the client to check the response's Upgrade
     // header too, not just Sec-WebSocket-Accept - a correct Accept key
-    // alone (this server computes one for real) doesn't by itself prove
+    // alone (this server computes a valid one) doesn't by itself prove
     // the response is shaped as a WebSocket upgrade.
     uint16_t port = 0;
     int listen_fd = ListenOnLoopback(&port);

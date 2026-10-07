@@ -20,7 +20,7 @@ any implementation begins.
       deferred to M3 by design)
 - [x] Development environment set up and verified — the
       `espressif/idf:v5.4.3` Docker image (`esp32p4` target support, a
-      real `idf.py build` producing a flashable `.bin` — see
+      an `idf.py build` producing a flashable `.bin` — see
       [hardware.md](architecture/hardware.md#display-and-touch) for why
       this specific version is pinned), and simulator build prerequisites
       (CMake, Ninja, SDL2, C++20 — see the [simulator
@@ -33,8 +33,8 @@ both targets.
 
 ## M1 — Platform (complete)
 
-A Tab5 boots into the real dashboard (live clock, real battery reading),
-and the same UI runs in the desktop simulator. The ESP32-C6 power/SDIO
+A Tab5 boots into the dashboard (live clock, battery reading from the
+INA226), and the same UI runs in the desktop simulator. The ESP32-C6 power/SDIO
 domain question resolved into two parts: wiring independence, confirmed
 here; a separate protocol-level question (whether ESP-Hosted/SDIO can
 stay associated while the P4 sleeps), tracked under M2's "Power
@@ -59,7 +59,7 @@ management state model" item instead.
       integrated display+touch driver, detected at runtime per
       [ADR-0009](decisions/ADR-0009-touch-display-detection.md).
 - [x] ESP-IDF project scaffolding — `idf.py set-target esp32p4 build`
-      produces a real `homedeck.bin` (see
+      produces a `homedeck.bin` (see
       [firmware/README.md](../firmware/README.md)).
 - [x] Tab5 boot over USB (see
       [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup) for the
@@ -79,11 +79,11 @@ management state model" item instead.
       [hardware.md](architecture/hardware.md#display-driver-strategy)).
       Panel orientation resolved as portrait, no rotation — see
       [ADR-0015](decisions/ADR-0015-display-orientation.md).
-- [x] Basic LVGL application running **on-device** — the real dashboard
+- [x] Basic LVGL application running **on-device** — the dashboard
       (`EventBus`, `Clock`, `DashboardScreen`, reused directly from
-      `src/`, not reimplemented) runs live on the Tab5, with real sensor
-      data: a live ticking clock and a real (not mocked) battery
-      percentage. Built on `src/platform/firmware/` — FreeRTOS-backed
+      `src/`, not reimplemented) runs live on the Tab5, with sensor
+      data: a live ticking clock and a battery percentage read from the
+      INA226. Built on `src/platform/firmware/` — FreeRTOS-backed
       `Task`/`Timer` (per ADR-0002), `BatteryReader` via the INA226
       (`espp/ina226`), and `TimeSource` via the RX8130CE RTC
       (`espp/rx8130ce`) — see
@@ -97,7 +97,7 @@ management state model" item instead.
       host-native CMake project, Core Concurrency Abstraction backed by
       the C++ standard library (see
       [ADR-0002](decisions/ADR-0002-technology-stack.md#decision-build-system)).
-      `Task`/`Queue`/`Timer`/`EventBus` all have real unit tests in
+      `Task`/`Queue`/`Timer`/`EventBus` all have unit tests in
       [tests/](../tests/). Portable source lives in
       [src/](../src/) — see [src/README.md](../src/README.md) for the
       layout.
@@ -125,7 +125,7 @@ management state model" item instead.
       returns a mock value; real hardware reads the actual INA226 (see
       the on-device dashboard item above).
 
-**Exit criteria:** a Tab5 boots into a minimal but real HomeDeck UI showing
+**Exit criteria:** a Tab5 boots into a minimal HomeDeck UI showing
 live clock and battery status, and the same UI runs in the desktop
 simulator.
 

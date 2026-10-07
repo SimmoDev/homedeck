@@ -119,7 +119,7 @@ TEST_F(LoggerTest, RotationOverwritesThePreviousRotatedEntry) {
     logger.ReadAll();
     logger.Log(homedeck::LogLevel::kInfo, "core", "three");
 
-    // "one" was rotated out for real once "two" pushed past the cap,
+    // "one" was rotated out once "two" pushed past the cap,
     // then rotated out of existence entirely once "three" pushed past
     // it again - only the two most recent entries survive by design
     // (bounded retention, not unbounded history).

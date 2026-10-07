@@ -6,7 +6,7 @@
 
 namespace homedeck {
 
-// Real, disk-backed - mirrors HostSettingsStore, kept as a distinct
+// Disk-backed - mirrors HostSettingsStore, kept as a distinct
 // type/directory ("secrets", not "settings") so the two never collide on
 // disk even when a module reuses the same ns/key pair across both
 // stores - see

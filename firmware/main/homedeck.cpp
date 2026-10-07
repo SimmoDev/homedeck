@@ -478,7 +478,7 @@ void BlockUntilWifiConnected(homedeck::AppCore& app_core) {
 // connected - time sync, mDNS self-advertisement, and finally starting the
 // Web Management UI itself (see ServeEmbeddedWebUi(), already called before
 // this - only the actual accept-connections Start() call waits for Wi-Fi).
-// Also where the OTA rollback confirmation lives: a real, meaningful "this
+// Also where the OTA rollback confirmation lives: a meaningful "this
 // boot actually worked" checkpoint belongs after the boot sequence has
 // gotten this far, not any earlier.
 void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, homedeck::FirmwareHttpServer& web_server,
@@ -505,7 +505,7 @@ void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, hom
         app_core.GetLogger().Log(homedeck::LogLevel::kError, "web_server", "Failed to start");
     }
 
-    // A real, meaningful "this boot actually worked" checkpoint - see
+    // A meaningful "this boot actually worked" checkpoint - see
     // sdkconfig.defaults' CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE comment.
     // Gated on the Web UI actually starting - it's the device's only
     // remote admin/recovery surface once provisioned, so an image that

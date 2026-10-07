@@ -6,7 +6,7 @@
 
 namespace homedeck {
 
-// Real, disk-backed - see HostSettingsStore's header comment for why.
+// Disk-backed - see HostSettingsStore's header comment for why.
 // `root_dir` is caller-supplied for the same reason.
 class HostCacheStore : public CacheStore {
 public:
