@@ -79,6 +79,11 @@ Against fake `MdnsBrowser`/`WebSocketClient` doubles:
   paging, the unpaged retry, the `kMaxLibraryItems` cap, the `truncated`
   flag for a failed later page and for a timeout (which keeps the link),
   and commands sent between pages.
+- Timeouts on an open link: a library listing or a reconcile poll that
+  times out keeps the connection.
+- The `library_busy` flag: raised by a slow library reply, cleared by any
+  reply (including a late one read while idle) and on disconnect, and never
+  raised by a fast reply.
 - Type-mismatched fields and wrongly typed notifications falling back to
   defaults instead of crashing.
 
