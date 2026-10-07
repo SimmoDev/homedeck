@@ -19,10 +19,10 @@ validation/error-mapping logic pulled out into
 component-testing stack (see `npm run test` below).
 Once authenticated, `App.svelte` composes three screens:
 `src/lib/Settings.svelte` (device name, weather location search/save,
-Harmony hub configuration, backup download/restore - each its own
-self-contained sub-component: `DeviceNameSettings.svelte`,
-`WeatherSettings.svelte`, `HarmonySettings.svelte`,
-`BackupSettings.svelte`), `src/lib/Ota.svelte` (current version, the
+Harmony hub configuration, Kodi instance selection, backup
+download/restore - each its own self-contained sub-component:
+`DeviceNameSettings.svelte`, `WeatherSettings.svelte`,
+`HarmonySettings.svelte`, `KodiSettings.svelte`, `BackupSettings.svelte`), `src/lib/Ota.svelte` (current version, the
 battery/power gate's status, upload progress, reboot), and
 `src/lib/Diagnostics.svelte` (also a thin composer of three
 self-contained sub-components: `CrashDiagnostics.svelte` - reset reason,

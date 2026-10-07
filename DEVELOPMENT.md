@@ -249,8 +249,6 @@ The desktop simulator (see
 intended primary environment for day-to-day UI development, since it
 avoids a flash/reboot cycle on real hardware for every change.
 
-Once the simulator target exists (M1):
-
 1. Build the Web UI bundle first if you haven't (see [Build/test
    workflow](#buildtest-workflow) below) — the simulator's CMake
    configure fails with a clear message if `webui/dist/` doesn't exist.
@@ -282,10 +280,9 @@ Once the simulator target exists (M1):
   [ADR-0025](docs/decisions/ADR-0025-webui-static-asset-storage.md)),
   which both the firmware and simulator builds below embed/read.
   `npm run check` runs `svelte-check` for type errors and `npm run test`
-  runs Vitest unit tests (currently `passwordValidation.ts`'s,
-  `harmonyValidation.ts`'s, and `deviceNameValidation.ts`'s pure
-  validation logic, `guardedAction.ts`'s double-submit guard, plus
-  `api.ts`'s fetch/JSON helpers - not a full
+  runs Vitest unit tests (the `*.test.ts` files beside `webui/src/lib/`'s
+  modules: the pure validation logic, `guardedAction.ts`'s double-submit
+  guard, `memoryFormat.ts` and `api.ts`'s fetch/JSON helpers - not a full
   component-testing stack, see
   [web-ui.md](docs/architecture/web-ui.md#status) for why), both
   independently of the build. Rebuild after any change under
@@ -368,6 +365,8 @@ not just a commit's diff" and non-blocking reasoning as `docs.yml`.
 The same workflow also runs `check-lvgl-version-sync.sh`, which is
 blocking because it is deterministic: it fails when the simulator's
 pinned LVGL release differs from the one in `firmware/dependencies.lock`.
+It also runs `shellcheck -x -S warning` over every tracked shell script,
+blocking for the same reason.
 
 ## Status
 
