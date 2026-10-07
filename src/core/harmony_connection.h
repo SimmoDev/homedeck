@@ -443,7 +443,9 @@ private:
     HarmonyConnectionSnapshot state_;
 
     std::mutex wake_mutex_;
-    std::condition_variable wake_cv_;
+    // _any for the stop_token-aware wait_for(): a stop request cannot be
+    // missed between the predicate check and the block.
+    std::condition_variable_any wake_cv_;
     bool wake_requested_ = false;
     // Guarded by wake_mutex_ too, not a separate mutex - StartActivity()/
     // Press/Hold/ReleaseDeviceCommand() and TriggerReconnect() both just

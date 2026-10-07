@@ -453,10 +453,9 @@ void KodiClient::SetState(KodiConnectionState state) {
 
 KodiClient::WakeReason KodiClient::Sleep(std::chrono::milliseconds delay, std::stop_token stop, bool watch_commands) {
     std::unique_lock<std::mutex> lock(wake_mutex_);
-    wake_cv_.wait_for(lock, delay, [this, &stop, watch_commands] {
+    wake_cv_.wait_for(lock, stop, delay, [this, watch_commands] {
         return wake_requested_ ||
-               (watch_commands && (!pending_commands_.empty() || !pending_library_requests_.empty())) ||
-               stop.stop_requested();
+               (watch_commands && (!pending_commands_.empty() || !pending_library_requests_.empty()));
     });
     if (stop.stop_requested()) {
         return WakeReason::kStopRequested;
@@ -555,8 +554,6 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
 }
 
 void KodiClient::ConnectionLoop(std::stop_token stop) {
-    std::stop_callback wake_on_stop(stop, [this] { wake_cv_.notify_one(); });
-
     while (!stop.stop_requested()) {
         std::optional<Target> target = ResolveTarget();
         if (!target.has_value()) {

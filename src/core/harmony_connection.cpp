@@ -260,8 +260,8 @@ void HarmonyConnection::EnqueueCommand(PendingCommand command) {
 HarmonyConnection::WakeReason HarmonyConnection::Sleep(std::chrono::milliseconds delay, std::stop_token stop,
                                                         bool watch_commands) {
     std::unique_lock<std::mutex> lock(wake_mutex_);
-    wake_cv_.wait_for(lock, delay, [this, &stop, watch_commands] {
-        return wake_requested_ || (watch_commands && !pending_commands_.empty()) || stop.stop_requested();
+    wake_cv_.wait_for(lock, stop, delay, [this, watch_commands] {
+        return wake_requested_ || (watch_commands && !pending_commands_.empty());
     });
     if (stop.stop_requested()) {
         return WakeReason::kStopRequested;
@@ -318,12 +318,6 @@ void HarmonyConnection::ClearPendingCommandsIfAny() {
 }
 
 void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
-    // Woken on request_stop() too, not just by TriggerReconnect() or a
-    // Sleep() timeout - preserves Task::~Task()'s "stops and joins
-    // promptly" contract, same reasoning as
-    // OpenMeteoWeatherProvider::PollLoop()'s identical stop_callback.
-    std::stop_callback wake_on_stop(stop, [this] { wake_cv_.notify_one(); });
-
     while (!stop.stop_requested()) {
         std::optional<VersionedValue> hub_host_setting = storage_.GetSetting(kModuleId, kHubHostKey);
         if (!hub_host_setting.has_value() || hub_host_setting->value.empty()) {

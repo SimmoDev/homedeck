@@ -61,17 +61,13 @@ WeatherState OpenMeteoWeatherProvider::Snapshot() const {
 }
 
 void OpenMeteoWeatherProvider::PollLoop(std::stop_token stop) {
-    // Woken on request_stop() too (via this stop_callback), not just by
-    // TriggerPoll() or the timeout below - preserves Task::~Task()'s
-    // "stops and joins promptly" contract without needing a chunked-
-    // sleep workaround.
-    std::stop_callback wake_on_stop(stop, [this] { wake_cv_.notify_one(); });
-
     while (!stop.stop_requested()) {
         PollOnce();
 
         std::unique_lock<std::mutex> lock(wake_mutex_);
-        wake_cv_.wait_for(lock, poll_interval_, [this, &stop] { return wake_requested_ || stop.stop_requested(); });
+        // Woken on request_stop() as well as TriggerPoll() or the timeout, so
+        // Task::~Task() stops and joins promptly.
+        wake_cv_.wait_for(lock, stop, poll_interval_, [this] { return wake_requested_; });
         wake_requested_ = false;
     }
 }

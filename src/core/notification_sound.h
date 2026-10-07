@@ -40,16 +40,11 @@ private:
     // condition_variable_any, not plain condition_variable - needed for
     // the stop_token-aware wait(lock, stop, pred) overload PlayLoop()
     // uses, the same primitive Queue<T>::Pop(std::stop_token)
-    // (platform/queue.h) and Logger::WorkerLoop() already rely on for
-    // an identical "wait until triggered or stopped, no polling
-    // interval to fall back on" shape. Unlike
-    // OpenMeteoWeatherProvider::PollLoop() (which can get away with a
-    // stop_callback on a plain condition_variable, since its
-    // wait_for()'s timeout is a real correctness backstop and the
-    // callback is only a "stop and join promptly" optimization on top
-    // of that), this loop has no interval to fall back on - without
-    // the stop_token-aware wait, Task::~Task()'s request_stop() would
-    // never be observed and the destructor would block forever.
+    // (platform/queue.h), Logger::WorkerLoop(), HarmonyConnection,
+    // KodiClient and OpenMeteoWeatherProvider rely on: a stop request
+    // cannot be missed between the predicate check and the block, so
+    // Task::~Task() never waits out a sleep. This loop has no interval to
+    // fall back on at all.
     std::condition_variable_any wake_cv_;
     bool pending_ = false;
     // Both guarded by wake_mutex_. A notification arriving while playing_
