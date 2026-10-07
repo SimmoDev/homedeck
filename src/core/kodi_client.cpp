@@ -13,11 +13,6 @@ namespace {
 
 constexpr int kCallTimeoutMs = 8000;
 
-// A directory on a cold network share can take well past kCallTimeoutMs to
-// list. A library listing that times out on an open connection keeps the
-// link (see CallLibrary()); Call() itself reports any timeout as nullopt.
-constexpr int kLibraryCallTimeoutMs = 30000;
-
 // Library listings are fetched this many items per request so one reply
 // stays far below kMaxWebSocketMessageBytes (~130 B per entry).
 constexpr int kLibraryPageSize = 500;
@@ -440,7 +435,7 @@ KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser
                        std::chrono::milliseconds max_backoff, std::chrono::milliseconds reconcile_interval,
                        std::chrono::milliseconds pump_interval, std::chrono::milliseconds browse_timeout,
                        std::chrono::milliseconds max_pending_command_age,
-                       std::chrono::milliseconds library_busy_after)
+                       std::chrono::milliseconds library_busy_after, std::chrono::milliseconds library_call_timeout)
     : make_websocket_client_(std::move(make_websocket_client)),
       mdns_browser_(mdns_browser),
       storage_(storage),
@@ -451,7 +446,8 @@ KodiClient::KodiClient(WebSocketClientFactory make_websocket_client, MdnsBrowser
       pump_interval_(pump_interval),
       browse_timeout_(browse_timeout),
       max_pending_command_age_(max_pending_command_age),
-      library_busy_after_(library_busy_after) {}
+      library_busy_after_(library_busy_after),
+      library_call_timeout_(library_call_timeout) {}
 
 void KodiClient::Start() {
     if (task_) {
@@ -775,6 +771,7 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
 std::optional<std::string> KodiClient::CallLibrary(const std::string& method, const std::string& params_json,
                                                     const char* result_key, std::stop_token stop, bool& truncated) {
     truncated = false;
+    const int library_call_timeout_ms = static_cast<int>(library_call_timeout_.count());
     // A reply no listing parser finds a list in, so a slow listing parses to
     // an empty one while the link stays up; `truncated` tells the screen it
     // is incomplete rather than empty.
@@ -787,7 +784,7 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
         return (!text.has_value() && last_call_timed_out_) ? std::optional<std::string>(timed_out_reply()) : text;
     };
 
-    // A listing holds the loop thread for up to kLibraryCallTimeoutMs per
+    // A listing holds the loop thread for up to library_call_timeout_ per
     // request, so queued transport commands are sent before each request
     // rather than waiting out the whole listing (and aging past
     // max_pending_command_age_). This cannot help while Kodi is still
@@ -797,7 +794,7 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
         return std::nullopt;
     }
     if (result_key == nullptr) {
-        return survive_timeout(Call(method, params_json, kLibraryCallTimeoutMs, stop, /*report_busy=*/true));
+        return survive_timeout(Call(method, params_json, library_call_timeout_ms, stop, /*report_busy=*/true));
     }
     nlohmann::json params = ParseBoundedJson(params_json);
     if (!params.is_object()) {
@@ -811,7 +808,7 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
         }
         params["limits"] = {{"start", start}, {"end", start + kLibraryPageSize}};
         std::optional<std::string> text =
-            Call(method, params.dump(), kLibraryCallTimeoutMs, stop, /*report_busy=*/true);
+            Call(method, params.dump(), library_call_timeout_ms, stop, /*report_busy=*/true);
         if (!text.has_value()) {
             if (!last_call_timed_out_) {
                 return std::nullopt;  // dead transport
@@ -829,7 +826,7 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
                 if (parsed.is_object() && parsed.contains("error")) {
                     params.erase("limits");
                     return survive_timeout(
-                        Call(method, params.dump(), kLibraryCallTimeoutMs, stop, /*report_busy=*/true));
+                        Call(method, params.dump(), library_call_timeout_ms, stop, /*report_busy=*/true));
                 }
                 return text;  // not a listing at all - the parser yields an empty list
             }
@@ -1019,6 +1016,12 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
     }
     auto method_it = frame.find("method");
     if (method_it == frame.end() || !method_it->is_string()) {
+        // A reply nobody is waiting for any more (the call timed out): Kodi
+        // answered, so it is no longer stuck on a listing.
+        auto id_it = frame.find("id");
+        if (id_it != frame.end() && id_it->is_number_integer()) {
+            SetLibraryBusy(false);
+        }
         return;
     }
     const std::string method = method_it->get<std::string>();

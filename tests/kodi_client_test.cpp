@@ -329,10 +329,12 @@ protected:
                                            homedeck::Storage& storage, homedeck::EventBus& bus,
                                            std::chrono::milliseconds reconcile = kFastReconcile,
                                            std::chrono::milliseconds max_command_age = std::chrono::seconds(5),
-                                           std::chrono::milliseconds library_busy_after = std::chrono::seconds(3)) {
+                                           std::chrono::milliseconds library_busy_after = std::chrono::seconds(3),
+                                           std::chrono::milliseconds library_call_timeout = std::chrono::seconds(30)) {
         return std::make_unique<KodiClient>(
             [script] { return std::make_unique<FakeWebSocketClient>(script); }, browser, storage, bus, kFastBackoff,
-            kFastBackoff, reconcile, kFastPump, kFastBrowse, max_command_age, library_busy_after);
+            kFastBackoff, reconcile, kFastPump, kFastBrowse, max_command_age, library_busy_after,
+            library_call_timeout);
     }
 
     static constexpr std::chrono::seconds kNoReconcile{30};
@@ -1493,6 +1495,34 @@ TEST_F(KodiClientTest, ASlowLibraryReplyRaisesLibraryBusyUntilKodiAnswers) {
 
     client->RequestMovies();
     EXPECT_TRUE(WaitFor([&] { return client->Snapshot().library_busy; }));
+    EXPECT_TRUE(WaitFor([&] { return !client->Snapshot().library_busy; }));
+    client->Stop();
+}
+
+// The reply to a call that already timed out is read by the idle pump, not by
+// a Call() waiting for it; it still proves Kodi is no longer stuck.
+TEST_F(KodiClientTest, ALateReplyReadWhileIdleClearsLibraryBusy) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->real_wait = true;
+        script->drop_request = [](const nlohmann::json& request) {
+            return request["method"].get<std::string>() == "VideoLibrary.GetMovies";
+        };
+    }
+    std::atomic<bool> listing_ended{false};
+    auto sub = bus.Subscribe<homedeck::KodiMoviesFetchedEvent>(
+        [&](const homedeck::KodiMoviesFetchedEvent&) { listing_ended = true; });
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile, std::chrono::seconds(5),
+                             std::chrono::milliseconds(50), std::chrono::milliseconds(300));
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    client->RequestMovies();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().library_busy; }));
+    ASSERT_TRUE(WaitFor([&] { return listing_ended.load(); }));
+    EXPECT_TRUE(client->Snapshot().library_busy);  // timed out, Kodi still silent
+
+    Push(script, R"({"jsonrpc":"2.0","id":9999,"result":{}})");
     EXPECT_TRUE(WaitFor([&] { return !client->Snapshot().library_busy; }));
     client->Stop();
 }

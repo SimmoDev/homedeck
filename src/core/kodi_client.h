@@ -343,7 +343,8 @@ public:
                std::chrono::milliseconds pump_interval = std::chrono::milliseconds(250),
                std::chrono::milliseconds browse_timeout = std::chrono::seconds(2),
                std::chrono::milliseconds max_pending_command_age = std::chrono::seconds(5),
-               std::chrono::milliseconds library_busy_after = std::chrono::seconds(3));
+               std::chrono::milliseconds library_busy_after = std::chrono::seconds(3),
+               std::chrono::milliseconds library_call_timeout = std::chrono::seconds(30));
 
     // Module:
     void Start() override;
@@ -523,7 +524,7 @@ private:
     // longer than library_busy_after_ (for library listings).
     std::optional<std::string> Call(const std::string& method, const std::string& params_json, int timeout_ms,
                                     std::stop_token stop, bool report_busy = false);
-    // A library listing via Call(), with the longer kLibraryCallTimeoutMs.
+    // A library listing via Call(), with the longer library_call_timeout_.
     // With a non-null result_key the listing is fetched in kLibraryPageSize
     // pages (Kodi's `limits` parameter) and merged into one
     // {"result":{<result_key>:[...]}} text, so no single reply approaches
@@ -606,6 +607,11 @@ private:
     std::chrono::milliseconds browse_timeout_;
     std::chrono::milliseconds max_pending_command_age_;
     std::chrono::milliseconds library_busy_after_;
+    // A directory on a cold network share can take well past the 8 s control
+    // call timeout to list. A listing that times out on an open connection
+    // keeps the link (see CallLibrary()); Call() itself reports any timeout
+    // as nullopt.
+    std::chrono::milliseconds library_call_timeout_;
 
     // Owned by, and only ever touched from, task_'s own thread - no
     // mutex, same single-owner reasoning as HarmonyConnection::ws_client_.
