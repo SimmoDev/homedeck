@@ -381,6 +381,13 @@ live status via `GET /api/kodi/status` with a manual Refresh button (no
 live-push mechanism exists for the Web UI yet). Saving triggers
 `POST /api/kodi/reconnect` (`src/core/kodi_routes.h`/`.cpp`).
 
+`GET /api/kodi/status` returns one JSON object: `state`
+(`disconnected`/`connecting`/`connected`/`error`), `resolvedHost`,
+`targetConfigured`, `selectedUuid`, `discovered` (a list of `name`, `host`,
+`uuid`), `appVersion`, `volume`, `muted`, `libraryBusy`, and `nowPlaying`
+(`playback`, `speed`, `title`, `showTitle`, `season`, `episode`,
+`mediaType`, `positionMs`, `durationMs`, `percent`, `canSeek`).
+
 ## Status
 
 Implemented for M4a: discovery/selection, connection, Now Playing state

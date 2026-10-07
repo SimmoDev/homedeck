@@ -463,7 +463,7 @@ private:
 
     // One queued library browse query (RequestMovies() etc.) - unlike
     // PendingCommand these are drained via Call() (request/response),
-    // not SendText(), since the whole point is the reply. tvshowid/season
+    // not SendText(), since the whole point is the reply. parent_id/season
     // are unused for kMovies/kTvShows.
     struct LibraryRequest {
         enum class Kind { kMovies, kTvShows, kSeasons, kEpisodes, kArtists, kAlbums, kSongs, kFileSources,
