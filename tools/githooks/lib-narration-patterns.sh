@@ -94,4 +94,10 @@ narration_patterns=(
     'bug it surfaced'
     'let a (real )?bug'
     'since (been )?(generali[sz]ed|fixed)'
+    'a prior version'
+    'used to (hold|use|call|do|return)'
+    'went unnoticed'
+    "its own fix for"
+    'was added for'
+    'finding that originally'
 )

@@ -159,8 +159,8 @@ Outbound HTTP(S) is also implemented — a portable `HttpClient` interface
 built-in certificate bundle rather than a pinned cert) and
 `HostHttpClient` (libcurl) for the simulator. The first consumer was the
 weather widget's Open-Meteo integration (GET-only, see
-[dashboard.md](dashboard.md#status)); `Post()` (with an optional
-extra-headers list) was added for Harmony's hub handshake (see
+[dashboard.md](dashboard.md#status)); `Post()` takes an optional
+extra-headers list, used by Harmony's hub handshake (see
 [ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md)). The same
 interface is expected to back Uptime Kuma's and Home Assistant's own
 outbound calls once those modules exist (M5-M6), not a single-purpose

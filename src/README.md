@@ -5,11 +5,8 @@ and [../simulator/](../simulator/) — see
 [docs/architecture/overview.md](../docs/architecture/overview.md#hardware-abstraction).
 Code here must never call ESP-IDF, the `espressif/m5stack_tab5` BSP, or
 SDL2/LVGL-driver APIs directly; each target links its own hardware-facing
-implementation against the interfaces declared here. (Not M5Unified/M5GFX
-specifically — see
-[ADR-0014](../docs/decisions/ADR-0014-hardware-support-library.md) for
-why firmware's actual hardware support library differs from [CLAUDE.md](../CLAUDE.md)'s
-originally-named one.)
+implementation against the interfaces declared here. (Firmware's hardware support library is not M5Unified/M5GFX - see
+[ADR-0014](../docs/decisions/ADR-0014-hardware-support-library.md).)
 
 ```text
 src/

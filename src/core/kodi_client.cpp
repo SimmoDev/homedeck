@@ -1110,12 +1110,10 @@ void KodiClient::EnqueueLibraryRequest(LibraryRequest request) {
     wake_cv_.notify_one();
 }
 
-// Every field named explicitly below, even when a Kind leaves it at its
-// struct default - a partial aggregate-init (e.g. just {kind, parent_id})
-// still triggers -Wmissing-field-initializers under ESP-IDF's stricter
-// default warning set (not under this project's host/simulator build
-// flags, which is how this went unnoticed) for any field left out,
-// designated or not.
+// Every field is named below, even when a Kind leaves it at its struct
+// default: ESP-IDF's warning set applies -Wmissing-field-initializers to a
+// partial aggregate-init (designated or not), unlike the host/simulator
+// build flags.
 void KodiClient::RequestMovies() {
     EnqueueLibraryRequest(LibraryRequest{.kind = LibraryRequest::Kind::kMovies, .parent_id = 0, .season = 0, .path = ""});
 }

@@ -2283,10 +2283,10 @@ TEST_F(HarmonyConnectionTest, HubHostChangeArrivingDuringAnInFlightConnectIsNotD
     connection.Stop();
 }
 
-// SendPendingCommands()'s own stop.stop_requested() check (harmony_connection.cpp)
-// used to return false without publishing HarmonyCommandDroppedEvent, silently
-// dropping every command still left in that batch - unlike the stale-age and
-// send-failure drops right next to it. Uses WsScript::block_next_send to pin the
+// When SendPendingCommands() sees stop.stop_requested() (harmony_connection.cpp),
+// every command still left in the batch is published as a
+// HarmonyCommandDroppedEvent, like the stale-age and send-failure drops right
+// next to it. Uses WsScript::block_next_send to pin the
 // connection loop's own thread inside the first command's SendText() call, so a
 // Stop() issued from a second thread is guaranteed to have set the stop token
 // before the loop moves on to check the second queued command.

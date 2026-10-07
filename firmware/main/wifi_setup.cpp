@@ -151,10 +151,9 @@ WifiSetupState g_state;
 
 // Schedules a delayed esp_wifi_connect() retry without blocking the
 // caller. OnEvent() runs on the shared ESP-IDF default event-loop task
-// while holding g_state_mutex - sleeping there (a prior version of this
-// file used vTaskDelay()) would stall every other event on that loop and
-// every other g_state_mutex waiter for the full retry interval, for as
-// long as the outage lasts. esp_timer's own callback runs on a dedicated
+// while holding g_state_mutex, so sleeping there would stall every other
+// event on that loop and every other g_state_mutex waiter for the full
+// retry interval, for as long as the outage lasts. esp_timer's own callback runs on a dedicated
 // task, and esp_timer_start_once()/esp_timer_stop() are safe to call from
 // any task, so scheduling one is a fast, non-blocking operation. Created
 // once in InitWifiAndCheckStoredCredentials(), before Wi-Fi can generate
@@ -255,9 +254,9 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     // A single httpd_req_recv() call is not guaranteed to return the full
     // body - it can arrive split across TCP segments (e.g. a max-length
     // WPA2 password), silently truncating whatever didn't fit into one
-    // read. Loop until the whole body is read, matching
-    // FirmwareHttpServer::DispatchTrampoline's own fix for this bug
-    // class (src/platform/firmware/http_server.cpp).
+    // read. Loop until the whole body is read, as
+    // FirmwareHttpServer::DispatchTrampoline does
+    // (src/platform/firmware/http_server.cpp).
     constexpr int kMaxConsecutiveRecvTimeouts = 3;
     // kMaxConsecutiveRecvTimeouts alone bounds silence, not total transfer
     // time - a client trickling in a single byte just under every timeout

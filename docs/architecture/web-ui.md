@@ -246,8 +246,8 @@ and rebooted into.
 admin-only, built directly on `Storage::SetSetting/GetSetting/EraseSetting`
 and a new `Storage::ListAllSettings()` (see
 [ADR-0023](../decisions/ADR-0023-settings-backup-api.md) for the
-enumeration mechanism and the security finding that originally shaped
-it, and [ADR-0027](../decisions/ADR-0027-secret-store-partition-separation.md)
+enumeration mechanism and the reserved-key guard it carries, and
+[ADR-0027](../decisions/ADR-0027-secret-store-partition-separation.md)
 for why `SettingsStore` and `SecretStore` no longer share physical NVS
 storage on firmware - the admin password hash still keeps its explicit
 reserved-key guard as a second-layer safeguard, covered by a dedicated
