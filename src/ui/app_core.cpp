@@ -21,7 +21,6 @@ constexpr ModuleSettingValidator kModuleSettingValidators[] = {
     {OpenMeteoWeatherProvider::kModuleId, &IsValidWeatherCoordinate},
 };
 
-
 // Shared by NotificationSound/PowerManager's initial volume/brightness
 // below - std::from_chars, not std::stoi, matches Storage's own internal
 // parsing (see storage.cpp's Decode()) for the same firmware-builds-
@@ -77,10 +76,10 @@ AppCore::AppCore(EventBus& event_bus, Dependencies deps)
       kodi_live_tv_screen_(event_bus, deps.battery_reader, deps.network_status, kodi_client_, navigation_),
       clock_(deps.time_source, event_bus),
       admin_auth_(storage_, auth_time_source_) {
-    // AddWidget order matches each widget's declaration order above,
-    // except harmony_widget_ and kodi_widget_ - declared later (they need
-    // navigation_, see the comment above harmony_widget_ in app_core.h) but placed here, last,
-    // which is where their grid positions belong regardless.
+    // AddWidget order matches each widget's declaration order above, except
+    // harmony_widget_ and kodi_widget_. They are declared later because
+    // they need navigation_ (see the comment above harmony_widget_ in
+    // app_core.h), but their grid positions are last.
     dashboard_.Grid().AddWidget(clock_widget_);
     dashboard_.Grid().AddWidget(network_status_widget_);
     dashboard_.Grid().AddWidget(weather_widget_);
