@@ -169,7 +169,7 @@ void OpenMeteoWeatherProvider::PollOnce() {
     }
     // Configured, but no reading has ever been obtained (first poll
     // still in flight or failed, and nothing cached from a prior
-    // session either) - has_reading=false, not a real 0.0/0 reading.
+    // session either) - has_reading=false, not a 0.0/0 reading.
     {
         std::lock_guard<std::mutex> lock(mutex_);
         state_ = WeatherState{true, false, false, 0.0, 0, name};

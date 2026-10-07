@@ -7,7 +7,7 @@
   // decision). Deliberately uses XMLHttpRequest for the upload call,
   // not fetch - fetch() has no equivalent to
   // XMLHttpRequest.upload.onprogress, and a multi-MB firmware image is
-  // worth real progress reporting.
+  // worth progress reporting.
   interface OtaStatus extends BatteryStatus {
     gateOpen: boolean;
     gateReason: string;
@@ -113,9 +113,9 @@
     rebootError = undefined;
     const result = await postJson("/api/ota/reboot");
     if (result.ok || result.kind === "network") {
-      // A network-level failure (as opposed to a real HTTP error
+      // A network-level failure (as opposed to an HTTP error
       // response below) usually means the device already rebooted and
-      // cut the connection - the expected outcome, not a real failure -
+      // cut the connection - the expected outcome, not a failure -
       // so `rebooting` stays true rather than resetting to an error.
       return;
     }

@@ -114,7 +114,7 @@
     results = [];
     query = "";
     // Without this, the dashboard widget would silently wait out the
-    // rest of the real ~30-minute poll interval before showing
+    // rest of the ~30-minute poll interval before showing
     // anything for the location just chosen - fire-and-forget, the
     // widget picks up the result via its own WeatherUpdatedEvent
     // subscription once the triggered fetch completes. postJson() (not a

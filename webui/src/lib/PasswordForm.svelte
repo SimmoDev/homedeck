@@ -35,7 +35,7 @@
     if (tripGuard(() => submitting, () => (submitting = true))) return;
     const result = await postJson(mode === "setup" ? "/api/auth/setup" : "/api/auth/login", { password });
     submitting = false;
-    // already_set means another request won first (the real race
+    // already_set means another request won first (the race
     // ADR-0007 accepts) - the password itself may now be wrong, but
     // the state genuinely changed, so re-checking status is still the
     // right move rather than treating this as this form's own error.

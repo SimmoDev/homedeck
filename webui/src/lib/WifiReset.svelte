@@ -51,12 +51,12 @@
     wifiResetError = undefined;
     const result = await postJson<{ apSsid: string }>("/api/wifi/reset");
     if (!result.ok) {
-      // A network-level failure here (as opposed to a real HTTP error
+      // A network-level failure here (as opposed to an HTTP error
       // response below) can still mean the device already rebooted
       // before this fetch's own connection fully settled - the same
       // "usually the expected outcome" reasoning Ota.svelte's reboot()
       // applies to its own post-reboot fetch - but unlike that case,
-      // failure here is also a plausible real error (the crash this
+      // failure here is also a plausible error (the crash this
       // action exists to reproduce, mid-request), so it's still surfaced
       // rather than assumed benign.
       wifiResetState = "error";

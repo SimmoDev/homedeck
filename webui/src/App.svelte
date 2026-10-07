@@ -53,7 +53,7 @@
   async function logout() {
     // Result deliberately ignored, unlike every other postJson() call in
     // this app - a failed logout isn't user-actionable (there's no retry
-    // affordance worth showing), and loadStatus() re-checking the real
+    // affordance worth showing), and loadStatus() re-checking the
     // session state afterward is correct either way: still logged in on
     // a network failure, logged out if the request actually landed.
     await postJson("/api/auth/logout");

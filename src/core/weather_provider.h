@@ -18,7 +18,7 @@ struct WeatherState {
     // False in the brief window after configuring but before any
     // fetch has ever succeeded (first poll still in flight, or failed
     // with no prior cache) - without this, temperature_c/weather_code
-    // would default to 0.0/0, which happens to also be a real WMO
+    // would default to 0.0/0, which happens to also be a valid WMO
     // reading ("clear sky, 0C"), not an obvious "no data yet" sentinel.
     // Only temperature_c/weather_code/live are meaningful once true.
     bool has_reading;
@@ -98,7 +98,7 @@ public:
     // of poll_interval_ - the Web UI's weather settings save flow calls
     // this (see core/weather_routes.cpp's POST /api/weather/refresh) so
     // a newly-chosen location shows up promptly instead of after up to
-    // 30 real minutes of silence. Asynchronous: returns immediately,
+    // 30 minutes of silence. Asynchronous: returns immediately,
     // the actual fetch happens on poll_task_'s own thread as usual, not
     // on the caller's.
     void TriggerPoll();

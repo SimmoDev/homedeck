@@ -102,7 +102,7 @@ export async function loadJson<T>(url: string): Promise<LoadResult<T>> {
 // "Not a valid device name.") and need to tell an HTTP-level failure
 // apart from a network-level one (some callers, e.g. Ota.svelte's
 // reboot(), deliberately treat a network failure as a likely-benign
-// "the device probably already rebooted" case rather than a real
+// "the device probably already rebooted" case rather than an
 // error) - hence the discriminated result instead of a single error
 // string.
 type JsonErrorResult =
