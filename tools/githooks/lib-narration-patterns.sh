@@ -105,4 +105,10 @@ narration_patterns=(
     # "implemented").
     'equally real'
     'test for real'
+    # "Regression: X previously did Y" bug stories, and present-perfect
+    # "is now built/confirmed" status narration; "but real on" is the
+    # implementation-status sense of "real".
+    'regression( test)?:? .{0,60}previously'
+    '(is|are) now (built|confirmed|three|two)'
+    '(but|and) real on'
 )
