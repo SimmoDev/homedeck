@@ -16,6 +16,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <utility>
 
 namespace homedeck {
 
@@ -439,7 +440,7 @@ private:
     };
 
     // Bounds how many commands accumulate while disconnected/reconnecting
-    // (a bug tap-storm, or the UI queuing while offline) - the oldest is
+    // (a tap storm, or the UI queuing while offline) - the oldest is
     // dropped first once full, same policy and reasoning as
     // HarmonyConnection::kMaxPendingCommands.
     static constexpr size_t kMaxPendingCommands = 20;
@@ -451,16 +452,30 @@ private:
     struct LibraryRequest {
         enum class Kind { kMovies, kTvShows, kSeasons, kEpisodes, kArtists, kAlbums, kSongs, kFileSources,
                           kDirectory, kChannelGroups, kChannels };
+        // A constructor rather than an aggregate: ESP-IDF's warning set
+        // flags a partial aggregate initialisation.
+        LibraryRequest(Kind kind, long long parent_id = 0, int season = 0, std::string path = "")
+            : kind(kind), parent_id(parent_id), season(season), path(std::move(path)) {}
+
         Kind kind;
         // The parent id a query is scoped to - tvshowid for
         // kSeasons/kEpisodes, artistid for kAlbums, albumid for kSongs,
         // channelgroupid for kChannels; unused for kMovies/kTvShows/
         // kArtists/kFileSources/kDirectory/kChannelGroups (nothing to
         // scope by, or scoped by `path` instead).
-        long long parent_id = 0;
-        int season = 0;      // kEpisodes only - the second id it needs alongside parent_id
+        long long parent_id;
+        int season;          // kEpisodes only - the second id it needs alongside parent_id
         std::string path;    // kDirectory only - the Files.GetDirectory path to list
     };
+    // What one LibraryRequest asks Kodi and how its reply is published.
+    // result_key is null for a listing that is not paged (see CallLibrary()).
+    struct LibraryQuery {
+        const char* method = "";
+        std::string params_json;
+        const char* result_key = nullptr;
+        std::function<void(const std::string& text, bool truncated)> publish;
+    };
+
     // Lower than kMaxPendingCommands - a browse screen issues at most one
     // request per user action (a tap into a show/season), so a deep
     // backlog only happens while disconnected, and nothing needs more
@@ -532,6 +547,7 @@ private:
 
     void EnqueueCommand(PendingCommand command);
     void EnqueueLibraryRequest(LibraryRequest request);
+    LibraryQuery BuildLibraryQuery(const LibraryRequest& request);
     // Drains pending_library_requests_ and, for each, issues the matching
     // VideoLibrary.Get* Call() and publishes its KodiXFetchedEvent.
     // Unlike SendPendingCommands() a send failure or a closed transport is
