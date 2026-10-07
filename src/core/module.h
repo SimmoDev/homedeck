@@ -4,9 +4,8 @@ namespace homedeck {
 
 // The lifecycle contract every module (docs/architecture/modules.md,
 // ADR-0003) implements - deliberately minimal, sized to what
-// HarmonyConnection (core/harmony_connection.h, the reference
-// implementation) actually needs, not designed speculatively ahead of a
-// second module.
+// its implementations (core/harmony_connection.h, core/kodi_client.h)
+// actually need, not designed speculatively.
 //
 // Init is the constructor (wiring only - Storage/EventBus/HttpClient
 // references, no I/O yet); Start()/Stop() bracket the module's actual
@@ -18,8 +17,8 @@ namespace homedeck {
 // A module being "enabled" is Core constructing and Start()-ing an
 // instance of it; "disabled" is simply not doing so - see ADR-0003's
 // per-module-type instance list decision (docs/decisions/ADR-0003-module-architecture.md).
-// AppCore holds exactly one HarmonyConnection today (the same
-// single-member shape every other Core service already has - e.g.
+// AppCore holds exactly one HarmonyConnection and one KodiClient (the same
+// single-member shape every other Core service has - e.g.
 // OpenMeteoWeatherProvider), which generalizes to a list without
 // redesign once a second concurrent instance of the same module type is
 // ever needed - not built now, since nothing needs it yet.

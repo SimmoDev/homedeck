@@ -292,12 +292,13 @@ struct KodiNowPlayingChangedEvent {};
 // MdnsBrowser&, a WebSocketClient factory, Storage&, EventBus&), and
 // host-testable via fakes for all four.
 //
-// Scope (M4a): discover/select a Kodi instance, connect its JSON-RPC
+// Scope: discover/select a Kodi instance, connect its JSON-RPC
 // WebSocket, and keep a fresh snapshot of connection state, app
 // volume/mute, and what's playing - driven by Kodi's own pushed
 // notifications, with a periodic reconcile-poll as the liveness check
-// and a backstop for any missed push. Playback/input commands and
-// library browsing are separate, later pieces (roadmap M4).
+// and a backstop for any missed push. It also queues playback/input
+// commands and request/response library browse queries onto the same
+// connection loop.
 //
 // Unlike HarmonyConnection this class correlates JSON-RPC responses to
 // requests by numeric `id` while applying interleaved notifications,
@@ -533,11 +534,12 @@ private:
     void EnqueueLibraryRequest(LibraryRequest request);
     // Drains pending_library_requests_ and, for each, issues the matching
     // VideoLibrary.Get* Call() and publishes its KodiXFetchedEvent.
-    // Unlike SendPendingCommands() a send failure or timeout is fatal to
-    // the whole batch (false => reconnect) rather than something later
-    // entries can route around - a query is worthless without its reply,
-    // so there is no "keep_when_stale"-style partial-success case to
-    // preserve. Loop-thread only, same ws_client_ ownership as Call().
+    // Unlike SendPendingCommands() a send failure or a closed transport is
+    // fatal to the whole batch (false => reconnect) rather than something
+    // later entries can route around - a query is worthless without its
+    // reply, so there is no "keep_when_stale"-style partial-success case to
+    // preserve. A timeout on an open connection is not fatal (see
+    // CallLibrary()). Loop-thread only, same ws_client_ ownership as Call().
     bool SendPendingLibraryRequests(std::stop_token stop);
     // Drains pending_commands_ and sends each - fire-and-forget SendText,
     // not Call(): a command's reply carries no state this class needs

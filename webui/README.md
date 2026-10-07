@@ -31,7 +31,7 @@ downloadable core dump, live battery/power state;
 view; `WifiReset.svelte` - the Wi-Fi credential reset diagnostic aid).
 See [docs/architecture/web-ui.md](../docs/architecture/web-ui.md) for
 the full scope, including what's still open (WebSockets for live
-updates, module configuration for a second module, Wi-Fi management).
+updates, Wi-Fi management).
 
 Build:
 

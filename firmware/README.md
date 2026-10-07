@@ -14,7 +14,8 @@ open, and [DEVELOPMENT.md](../DEVELOPMENT.md#esp-idf-setup) for the
 build/flash procedure.
 
 `main/homedeck.cpp` builds `AppCore` (`../src/ui/app_core.cpp`), which
-registers Dashboard plus `WifiSetupScreen`, `ActivitiesScreen`, and
-`DevicesScreen` on `Navigation` the same as on the simulator — see
+registers the Dashboard and every module's screens (listed in
+[modules.md](../docs/architecture/modules.md#status)) on `Navigation` the
+same as on the simulator — see
 [ui.md](../docs/architecture/ui.md#navigation-model) for the persistent
 home affordance every non-dashboard screen among them shares.

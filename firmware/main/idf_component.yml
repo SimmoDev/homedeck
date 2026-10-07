@@ -47,7 +47,8 @@ dependencies:
   espressif/mdns: "*"
   # Espressif's own WebSocket client - backs
   # src/platform/firmware/websocket_client.h, the transport
-  # HarmonyConnection (src/core/harmony_connection.h) uses for the
-  # Harmony Hub's local control API - see
-  # docs/decisions/ADR-0029-harmony-local-protocol.md.
+  # HarmonyConnection (src/core/harmony_connection.h) and KodiClient
+  # (src/core/kodi_client.h) use - see
+  # docs/decisions/ADR-0029-harmony-local-protocol.md and
+  # docs/decisions/ADR-0030-kodi-jsonrpc-transport.md.
   espressif/esp_websocket_client: "*"

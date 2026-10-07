@@ -13,7 +13,8 @@ namespace {
 constexpr int kCallTimeoutMs = 8000;
 
 // A directory on a cold network share can take well past kCallTimeoutMs to
-// list, and a timeout is treated as a dead transport (see Call()).
+// list. A library listing that times out on an open connection keeps the
+// link (see CallLibrary()); Call() itself reports any timeout as nullopt.
 constexpr int kLibraryCallTimeoutMs = 30000;
 
 // Library listings are fetched this many items per request so one reply

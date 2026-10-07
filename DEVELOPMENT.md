@@ -5,7 +5,7 @@ This document describes the development workflow for HomeDeck. See
 
 ## Where to start
 
-The architecture documentation has grown large (14 architecture docs, 30
+The architecture documentation has grown large (14 architecture docs, 31
 ADRs) across M0's design work and the M1/M2/M3/M4 implementation work
 since. Not all of it is relevant to building a new module — most of the
 M1/M2-specific bring-up detail is settled and only worth consulting when
@@ -80,10 +80,9 @@ re-reading in full up front.
   independent build definitions, not one shared one — see
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system)
   for why.
-- **A C++17/C++20 toolchain** for the host (GCC or Clang) — used for the
-  simulator build and host-side unit tests. Exact standard pinned alongside
-  the ESP-IDF version decision (see
-  [ADR-0002](docs/decisions/ADR-0002-technology-stack.md)).
+- **A C++20 toolchain** for the host (GCC or Clang) — used for the
+  simulator build and host-side unit tests, whose `CMakeLists.txt` files
+  set `CMAKE_CXX_STANDARD 20`.
 - **SDL2 development libraries** — required for the desktop simulator's
   LVGL rendering backend (see
   [docs/architecture/simulator.md](docs/architecture/simulator.md)). Exact
@@ -120,8 +119,8 @@ re-reading in full up front.
   auto-invoked from CMake.
 - **Pre-commit hooks** — run `git config core.hooksPath tools/githooks`
   once per clone to activate them. Only `check-secrets.sh` blocks a
-  commit; the rest (narration/wording, hardware.md scope, ESP-IDF
-  returns, curl/HTTP timeouts, unauthenticated routes) warn only — see
+  commit; the rest warn only (the checks are listed in
+  [tools/README.md](tools/README.md#commit-hooks)) — see
   [Continuous integration](#continuous-integration) below for the
   full-repo CI sweeps that back these up regardless of local
   activation.

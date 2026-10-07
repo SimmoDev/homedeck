@@ -180,6 +180,8 @@ ADR-0029's Consequences section for why. `FirmwareWebSocketClient`
 bridges `espressif/esp_websocket_client`'s event-callback API to the same
 blocking shape on firmware. `HarmonyConnection`
 (`src/core/harmony_connection.h`) was the first consumer (see ADR-0029);
-`KodiClient` (`src/core/kodi_client.h`, M4a) is the second, reusing it
-unchanged for Kodi's JSON-RPC WebSocket (see
+`KodiClient` (`src/core/kodi_client.h`, M4a) is the second, for Kodi's
+JSON-RPC WebSocket. It relies on `IsOpen()`, which tells a `ReceiveText()`
+timeout on a live link from a dead transport (see
+[kodi.md](kodi.md#library-browsing-m4b) and
 [ADR-0030](../decisions/ADR-0030-kodi-jsonrpc-transport.md)).
