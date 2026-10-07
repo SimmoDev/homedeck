@@ -65,7 +65,13 @@ std::vector<MdnsService> FirmwareMdnsBrowser::Browse(const std::string& service_
         }
         svc.port = r->port;
 
-        if (r->addr != nullptr && r->addr->addr.type == ESP_IPADDR_TYPE_V4) {
+        // espressif/mdns prepends each address it learns, so the list head
+        // is whichever of an instance's A/AAAA records arrived last. Walk
+        // the whole list for the IPv4 address.
+        for (const mdns_ip_addr_t* a = r->addr; a != nullptr; a = a->next) {
+            if (a->addr.type != ESP_IPADDR_TYPE_V4) {
+                continue;
+            }
             char buf[16] = {0};
             // esp_ip4addr_ntoa() returns nullptr if buf is too small to
             // hold the formatted address - shouldn't happen (16 bytes is
@@ -73,8 +79,9 @@ std::vector<MdnsService> FirmwareMdnsBrowser::Browse(const std::string& service_
             // checked rather than assumed; svc.address stays empty on
             // failure and falls back to `hostname` below, the same path
             // an IPv6-only instance already takes.
-            if (esp_ip4addr_ntoa(&r->addr->addr.u_addr.ip4, buf, sizeof(buf)) != nullptr) {
+            if (esp_ip4addr_ntoa(&a->addr.u_addr.ip4, buf, sizeof(buf)) != nullptr) {
                 svc.address = buf;
+                break;
             }
         }
         // IPv6-only instances fall back to `hostname` - no Kodi/Home
