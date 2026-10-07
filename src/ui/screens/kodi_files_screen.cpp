@@ -47,6 +47,7 @@ KodiFilesScreen::KodiFilesScreen(EventBus& event_bus, BatteryReader& battery_rea
     files_sub_ = event_bus.SubscribeUi<KodiFilesFetchedEvent>([this](const KodiFilesFetchedEvent& event) {
         if (event.path == requested_path_) {
             RebuildList(event.items, event.truncated);
+            loader_.OnLoaded(event.items.size(), event.truncated);
         }
     });
 
