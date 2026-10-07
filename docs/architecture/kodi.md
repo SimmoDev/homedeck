@@ -242,21 +242,22 @@ push notification of its own) and publishes the parsed result as
 `KodiMoviesFetchedEvent`/`KodiTvShowsFetchedEvent`/
 `KodiSeasonsFetchedEvent`/`KodiEpisodesFetchedEvent`. These share
 `pending_commands_`' bounded/drop-oldest queue shape
-(`pending_library_requests_`, `kMaxPendingLibraryRequests`; a request identical
-to one already waiting is dropped) but not its fire-and-forget send: a query is worthless without its reply, so
-`SendPendingLibraryRequests()` treats a failed `Call()` on a dead transport
-as fatal to the whole batch, the same as anywhere else in this module. A
-call that times out on a connection that is still open
+(`pending_library_requests_`, `kMaxPendingLibraryRequests`; a request
+identical to one already waiting is dropped) but not its fire-and-forget
+send: a query is worthless without its reply, so
+`SendPendingLibraryRequests()` treats a failed `Call()` on a dead
+transport as fatal to the whole batch, the same as anywhere else in this
+module. A call that times out on a connection that is still open
 (`WebSocketClient::IsOpen()`) is not: the late reply is dropped by id when
 it arrives, the screen gets what had arrived (an empty list when nothing
-had), and the listing is flagged `truncated`.
-The periodic reconcile poll treats a timeout the same way: it is abandoned
-until the next interval and the link is kept, unless three polls in a row
-get no answer at all (`kMaxToleratedPollTimeouts`), which reconnects. That
-detects a half-dead link in about a minute on both targets: the firmware
-WebSocket client's own ping/pong timeout is 120 s and the simulator's
-client has no keepalive. The poll that follows a new connection must always be answered, since it is
-what proves the connection works.
+had), and the listing is flagged `truncated`. The periodic reconcile poll
+treats a timeout the same way: it is abandoned until the next interval and
+the link is kept, unless three polls in a row get no answer at all
+(`kMaxToleratedPollTimeouts`), which reconnects. That detects a half-dead
+link in about a minute on both targets: the firmware WebSocket client's
+own ping/pong timeout is 120 s and the simulator's client has no
+keepalive. The poll that follows a new connection must always be answered,
+since it is what proves the connection works.
 
 Listings are fetched through `CallLibrary()`: a 30 s timeout (a cold
 network share can list slowly) and, for every list except file sources and
