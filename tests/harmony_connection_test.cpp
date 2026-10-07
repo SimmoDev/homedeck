@@ -2246,8 +2246,8 @@ TEST_F(HarmonyConnectionTest, HubHostChangeArrivingDuringAnInFlightConnectIsNotD
     // The new-address attempt's own responses, queued up front - WsScript
     // has no per-hub distinction, only connect_urls' recorded order below
     // proves which attempt reached the hub.
-    PushResponse(script, kConfigSuccessBody); PushResponse(script,
-    CurrentActivityResponseBody("-1"));
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
 
     {
         std::lock_guard<std::mutex> lock(script->mutex);
