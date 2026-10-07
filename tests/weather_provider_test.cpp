@@ -211,7 +211,7 @@ TEST_F(WeatherProviderTest, ExcessivelyNestedForecastResponseReportsNoReading) {
 // just a hypothetical (an API change, a differently-shaped error payload,
 // a proxy) - and nlohmann::json::get<T>() throws json::type_error on a
 // type mismatch, which is std::abort() on firmware (exceptions are
-// compiled out there, same hazard kodi_client.cpp's GetInt()/GetDouble()/
+// compiled out there, same hazard kodi_json.h's GetInt()/GetDouble()/
 // GetBool() guard against). Without is_number() checked before
 // temperature_2m/weather_code are extracted, this test crashes the whole
 // process rather than failing an assertion.

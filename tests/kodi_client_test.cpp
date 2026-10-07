@@ -1324,7 +1324,7 @@ TEST_F(KodiClientTest, RequestMoviesFetchesAndParsesTheLibrary) {
 // has to be reached with entries of the wrong shape (not an object at all,
 // or an object whose fields have the wrong types) and deliver an event
 // rather than abort the process (std::abort() on firmware - see GetInt()'s
-// comment in kodi_client.cpp).
+// comment in kodi_json.h).
 TEST_F(KodiClientTest, EveryLibraryListToleratesMalformedEntriesInsteadOfCrashing) {
     KODI_COMMAND_RIG();
     const auto garbage = [](const std::string& key, const std::string& id_field) {
@@ -1916,7 +1916,7 @@ TEST_F(KodiClientTest, ALibraryCallThatTimesOutAfterTheFirstPageKeepsThatPageAsT
 // field isn't just a hypothetical - any device on the LAN can send one.
 // nlohmann::json::value()/get<T>() throw on a type mismatch, which is
 // std::abort() on firmware (exceptions are disabled there - see GetInt()'s
-// own comment in kodi_client.cpp): a regression aborts the whole test
+// own comment in kodi_json.cpp): a regression aborts the whole test
 // binary rather than failing one assertion.
 TEST_F(KodiClientTest, RequestMoviesWithATypeMismatchedFieldFallsBackToDefaultsInsteadOfCrashing) {
     KODI_COMMAND_RIG();

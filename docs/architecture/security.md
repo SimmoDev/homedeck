@@ -161,7 +161,7 @@ category of risk.
 
 `KodiClient` (`src/core/kodi_client.h`/`.cpp`) treats every response the
 same defensive way `HarmonyConnection` does: bounded JSON nesting depth
-(`ParseBoundedJson()` in `kodi_client.cpp`, sharing the same
+(`ParseBoundedJson()` in `kodi_json.cpp`, sharing the same
 `src/core/json_request.h` utility), the same bounded WebSocket message
 size and receive-queue depth Harmony's transport already enforces
 (`platform/websocket_client.h`, both backends - shared code, not

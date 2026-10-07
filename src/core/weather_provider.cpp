@@ -115,7 +115,7 @@ void OpenMeteoWeatherProvider::PollOnce() {
         // is_number(), not just contains() - .get<T>() throws
         // json::type_error on a type-mismatched field (not just a missing
         // one), which is std::abort() on firmware (exceptions disabled -
-        // see kodi_client.cpp's GetInt()/GetDouble()/GetBool() for the
+        // see kodi_json.h's GetInt()/GetDouble()/GetBool() for the
         // full hazard). Open-Meteo is a single trusted HTTPS endpoint, not
         // an unauthenticated LAN peer, but a differently-shaped response
         // (an API change, a proxy, an error payload) still reaches here.
