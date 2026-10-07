@@ -610,8 +610,9 @@ hold.
       screens (Movies/TV Shows/Music/Files/Live TV), mDNS discovery, and
       `instance_uuid`-based selection from the Web UI's radio list, plus
       reconnecting after the Kodi server restarts or the item changes during
-      an outage (Now Playing shows the new item), and scrolling and
-      selecting in every browse list (see
+      an outage (Now Playing shows the new item), a slow listing's busy hint
+      and timeout message with the link kept, a timed-out list loading on
+      its next show, and scrolling and selecting in every browse list (see
       [ui.md](architecture/ui.md#long-lists)). Per
       [simulator.md](architecture/simulator.md#what-the-simulator-is-not)
       a milestone is only releasable after an on-hardware pass.
