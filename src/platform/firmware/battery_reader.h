@@ -40,8 +40,7 @@ class I2cDevice;
 // task (SubscribeUi), and the Diagnostics/OTA HTTP routes on
 // esp_http_server's own worker threads. Without the lock, two
 // interleaved calls could race on last_voltage_volts_/has_last_voltage_
-// below - the same hazard class already fixed for Rx8130TimeSource's
-// Now()/SetTime(). ReadPercent() touches no shared mutable state of its
+// below. ReadPercent() touches no shared mutable state of its
 // own, so it doesn't need the same guard.
 class Ina226BatteryReader : public BatteryReader {
 public:

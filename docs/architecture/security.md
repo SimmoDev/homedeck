@@ -212,7 +212,7 @@ fields independently at its own handler — the mechanism decision this
 requirement calls out (centralized vs. per-endpoint) landed as
 per-endpoint by default, not a deliberate centralized design. Harmony's
 own routes (`GET /api/harmony/status`, `POST /api/harmony/reconnect`)
-take no body; its data (`hub_host`) is validated where it's actually
+take no body; its data (`hub_host`) is validated where it's
 written, the generic settings API's `SettingValidateFn` — both the
 direct write and the backup-restore replay path (see
 [harmony.md](harmony.md#status)).

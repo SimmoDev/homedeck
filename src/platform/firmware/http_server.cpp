@@ -109,8 +109,8 @@ esp_err_t FirmwareHttpServer::DispatchTrampoline(httpd_req_t* req) {
         }
         request.body.resize(req->content_len);
         // A single httpd_req_recv() call is not guaranteed to return the
-        // full body - fine for the small JSON bodies used so far, a real
-        // bug for anything larger (e.g. an OTA image upload), which
+        // full body - fine for a small JSON body, truncating
+        // anything larger (e.g. an OTA image upload), which
         // arrives across multiple underlying reads. Loop until the whole
         // body is read; HTTPD_SOCK_ERR_TIMEOUT is retryable per
         // esp_http_server's own documented recv() contract, any other

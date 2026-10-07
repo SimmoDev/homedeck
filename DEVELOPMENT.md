@@ -26,7 +26,7 @@ the essential reading, in order:
 4. [docs/architecture/core.md](docs/architecture/core.md#status) — what
    Core offers a module to build against: the event bus,
    `Storage`/`SecretStore`, the widget system, and Notifications, all
-   implemented, not just the design each originally named.
+   implemented, not just designed.
 5. [docs/architecture/networking.md](docs/architecture/networking.md) —
    LAN discovery and the offline-behaviour contract a module's own
    connection state should follow.

@@ -11,7 +11,7 @@ firmware — not a reimplementation or visual approximation. This is only
 possible because business logic is written against the [hardware
 abstraction layer](overview.md#hardware-abstraction) rather than directly
 against the hardware BSP (see that section for which library that
-actually is) or ESP-IDF APIs. See
+is) or ESP-IDF APIs. See
 [ADR-0002](../decisions/ADR-0002-technology-stack.md#1-simulator-rendering-backend)
 for why this ruled out a separate web-based mock UI.
 

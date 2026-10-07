@@ -242,10 +242,9 @@ esp_err_t HandleGetSetupPage(httpd_req_t* req) {
 esp_err_t HandlePostConnect(httpd_req_t* req) {
     // Worst case is a fully percent-encoded SSID (32 raw bytes -> up to
     // 96) plus password (64 raw bytes -> up to 192, WPA2's own max PSK
-    // length), plus "ssid=" and "&password=" field-name overhead - a
-    // smaller fixed buffer that just truncated whatever didn't fit
-    // silently corrupted long/complex passwords instead of rejecting
-    // them outright.
+    // length), plus "ssid=" and "&password=" field-name overhead. A body over
+    // this is rejected rather than truncated, which would corrupt a long
+    // password.
     constexpr size_t kMaxBodyBytes = 320;
     if (req->content_len <= 0 || static_cast<size_t>(req->content_len) > kMaxBodyBytes) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Request body missing or too large");
@@ -261,12 +260,10 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     // kMaxConsecutiveRecvTimeouts alone bounds silence, not total transfer
     // time - a client trickling in a single byte just under every timeout
     // would reset that counter forever and hold this server's one worker
-    // thread indefinitely, blocking the setup form for anyone else -
-    // matching http_server.cpp's own kMaxTotalRecvTimeouts fix for the
-    // identical bug class, same reasoning, same value even though this
-    // body is far smaller (consistency over precision - the bound is a
-    // safety ceiling, not something a legitimate 320-byte form submission
-    // ever approaches).
+    // thread indefinitely, blocking the setup form for anyone else. This is
+    // the same bound as http_server.cpp's kMaxTotalRecvTimeouts, though this
+    // body is far smaller: it is a safety ceiling a legitimate 320-byte form
+    // submission never approaches.
     constexpr int kMaxTotalRecvTimeouts = 120;
     char body[kMaxBodyBytes + 1] = {};
     size_t total_received = 0;

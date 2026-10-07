@@ -32,7 +32,7 @@ Core's networking service and Core's HTTP server registration mechanism.
 
 ## Initial Wi-Fi provisioning
 
-The device has no Wi-Fi credentials out of the box, so it can't simply serve
+The device has no Wi-Fi credentials out of the box, so it can't serve
 its own setup UI over the LAN the way the rest of the Web Management UI
 does. First-run setup uses a SoftAP: the device broadcasts its own
 temporary access point, a computer or phone connects to it, and a minimal

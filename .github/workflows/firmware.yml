@@ -35,8 +35,8 @@ jobs:
       # nuisance (see DEVELOPMENT.md's ESP-IDF setup for the local case).
       #
       # Mounts the repo root, not just firmware/ - the firmware component
-      # now reuses portable source directly from ../../src (see
-      # firmware/main/CMakeLists.txt), which needs to actually be visible
+      # reuses portable source directly from ../../src (see
+      # firmware/main/CMakeLists.txt), which needs to be visible
       # inside the container. Working directory is set to firmware/ so
       # idf.py's own behavior (build/, sdkconfig, etc.) is unaffected.
       - name: Build via ESP-IDF Docker image

@@ -132,7 +132,7 @@ shared `RetryBackoff`
 unchanged.
 
 A module being "enabled" is Core constructing and `Start()`-ing an
-instance of it; "disabled" is simply not doing so. `AppCore` holds
+instance of it; "disabled" is not doing so. `AppCore` holds
 exactly one `HarmonyConnection` and one `KodiClient` today — the same
 single-member shape every other Core service already has (e.g.
 `OpenMeteoWeatherProvider`) — which generalizes to a per-module-type

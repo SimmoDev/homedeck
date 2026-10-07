@@ -18,7 +18,7 @@ on:
     branches: [main]
   schedule:
     # Weekly rather than only on push/PR - catches drift in files that
-    # simply haven't been touched by any commit recently.
+    # haven't been touched by any commit recently.
     - cron: "0 6 * * 1"
 
 jobs:

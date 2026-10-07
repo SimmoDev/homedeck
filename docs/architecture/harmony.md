@@ -216,7 +216,7 @@ section above); the full device/activity list is fetched once, in
 (including a config-changed notification) is explicitly discarded by
 `DrainStaleMessages()` rather than acted on. Renaming, adding, or
 removing an activity or device on the hub (e.g. via the MyHarmony app)
-is invisible to HomeDeck until the WebSocket connection actually drops
+is invisible to HomeDeck until the WebSocket connection drops
 and reconnects, which for a healthy connection may not happen for hours.
 The Web UI's manual "Reconnect" button
 (`POST /api/harmony/reconnect`) is the only way to force a refresh

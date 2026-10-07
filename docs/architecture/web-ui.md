@@ -244,12 +244,12 @@ and rebooted into.
 `POST /api/settings/erase`, `GET /api/backup`, `POST
 /api/backup/restore` (`src/core/settings_routes.h`/`.cpp`), all
 admin-only, built directly on `Storage::SetSetting/GetSetting/EraseSetting`
-and a new `Storage::ListAllSettings()` (see
+and `Storage::ListAllSettings()` (see
 [ADR-0023](../decisions/ADR-0023-settings-backup-api.md) for the
 enumeration mechanism and the reserved-key guard it carries, and
 [ADR-0027](../decisions/ADR-0027-secret-store-partition-separation.md)
-for why `SettingsStore` and `SecretStore` no longer share physical NVS
-storage on firmware - the admin password hash still keeps its explicit
+for why `SettingsStore` and `SecretStore` use separate NVS storage
+on firmware - the admin password hash still keeps its explicit
 reserved-key guard as a second-layer safeguard, covered by a dedicated
 regression test). `webui/src/lib/Settings.svelte` shows a concrete
 device name field (the first setting exposed this way - controls the
@@ -259,7 +259,7 @@ deliberately not a generic raw settings editor, since device name alone
 gave the design nothing to check itself against.
 
 **Weather location is the second setting exposed this way** - a
-place-name search box backed by a new
+place-name search box backed by
 `GET /api/weather/geocode?query=<name>` endpoint
 (`src/core/weather_routes.h`/`.cpp`, admin-only like every other
 endpoint here), proxying Open-Meteo's own free geocoding API rather

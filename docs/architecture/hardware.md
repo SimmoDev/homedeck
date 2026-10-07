@@ -67,7 +67,7 @@ if a fact drifts.
   that doesn't matter today, since the P4 never enters deep sleep at
   all. Whether it would matter for a possible future full board
   power-off feature depends on what `VDD_STBY` on the PMS150G-U06
-  actually powers, which isn't confirmed — see [Wake sources](#power)
+  powers, which isn't confirmed — see [Wake sources](#power)
   under Power below.
 
 ### Wi-Fi bring-up
@@ -203,15 +203,12 @@ input event, not a stream repeating for the duration of a press.
 
 ## On-device dashboard
 
-**Confirmed:** runs live on the Tab5, not just the simulator - a real
-ticking clock and a real (not mocked) battery percentage, both sourced
-directly from hardware: the INA226 (see [Power](#power) above) and the
-RX8130CE RTC (see [RTC](#rtc) above), via a third hardware support
-library (`espp`), distinct from `espressif/m5stack_tab5`, since its
-capability table doesn't cover either peripheral (see
-[ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)). Both reuse
-the BSP's existing I2C bus rather than a second, conflicting one on the
-same physical pins.
+The clock and the battery percentage come from two peripherals the
+BSP's capability table does not cover: the INA226 (see [Power](#power)
+above) and the RX8130CE RTC (see [RTC](#rtc) above). Both sit on the same
+I2C bus as the BSP's peripherals (SCL GPIO32, SDA GPIO31); the library
+that drives them is in
+[ADR-0016](../decisions/ADR-0016-battery-rtc-library.md).
 
 ## IMU
 
@@ -257,7 +254,7 @@ same physical pins.
   which labels them `E1`/`E2` respectively. On `E2` (`0x44`), `P7` is
   `CHG_EN`: not automatic - the enable line needs its high-Z
   (open-drain) bit cleared as well as its output level set, or it stays
-  electrically floating rather than actually driving. **Confirmed:**
+  electrically floating rather than driving. **Confirmed:**
   battery percentage climbs normally under USB-C power once both are set.
 - **Charge status:** `E2.P6` is `CHG_STAT`, also confirmed against the
   official pinmap - high only while the IP2326 is actively driving
@@ -328,7 +325,7 @@ same physical pins.
   schematic (e.g. `BOOT_GPIO35`, `TP_INT_GPIO23`) shows up at both its
   source and destination; these don't, which is genuine but not
   certain evidence (noisy PDF-text extraction, not an explicit "NC"
-  label) that they're unconnected on this board. **Both P4-side pins actually found
+  label) that they're unconnected on this board. **Both P4-side pins found
   (GPIO35, GPIO23) sit outside GPIO0-15** - confirmed against this
   project's own generated `sdkconfig.h` for the `esp32p4` target: the
   chip's standard deep-sleep wake APIs require the wake pin to be in the
@@ -369,7 +366,7 @@ hypothetical gap in what's currently verified:
 
 - The battery (see [Power](#power) above) clips onto the back of the
   device, on the opposite short edge from the USB ports.
-- Held in the portrait orientation the software now uses (see [Display
+- Held in the portrait orientation the display is driven in (see [Display
   driver strategy](#display-driver-strategy) above), the battery sits at
   the **top** edge, USB ports at the bottom — the natural grip for a
   handheld remote, cable/charging access at the bottom like a phone.
