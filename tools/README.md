@@ -18,6 +18,45 @@ read that first if a script here does something unexpected.
 
 All four target the K145 reference unit.
 
+## Kodi on-hardware checks
+
+`kodi-hardware-test/` supports the Kodi part of a Tab5 verification pass
+against a Kodi running on the development machine. Needs Python 3, and
+`pip install websocket-client` for `block_kodi.py`. The admin password goes
+in `HOMEDECK_PASSWORD`.
+
+- `device_check.py discovery` - the device is connected to Kodi through
+  an address found by mDNS discovery.
+- `device_check.py restart` - stops the local Kodi, expects the device to
+  report the link down, starts Kodi again and expects the device to
+  reconnect.
+- `device_check.py monitor [seconds]` - watches the busy flag while you
+  tap through the Touch UI; passes when it is raised, cleared and the link
+  never dropped.
+- `slow_source.py` - an HTTP server on `127.0.0.1:8099` that answers every
+  request after 50 s, longer than the 30 s listing timeout.
+- `block_kodi.py` - sends Kodi a listing of that server, which blocks every
+  other JSON-RPC call on all connections for 50 s.
+
+To exercise a timed-out listing:
+
+1. Run `slow_source.py`. Add a video source named `SlowTest` with path
+   `http://127.0.0.1:8099/` to `~/.kodi/userdata/sources.xml`. Create
+   `~/.kodi/userdata/advancedsettings.xml` with `<network>` children
+   `curlclienttimeout` and `curllowspeedtime` set to `120`; Kodi aborts
+   a silent HTTP source after 20 s otherwise.
+2. Restart Kodi, waiting for the old process to exit (a second instance
+   cannot bind ports 9090 and 8080). The restart also marks every browse
+   list stale; lists are cached per connection and reload only after a
+   reconnect or a timed-out result.
+3. With the device on the dashboard, run `block_kodi.py`, then open Movies
+   (or TV Shows, Music or Live TV) on the device. After 30 s it shows
+   "Kodi took too long to list this." Once `block_kodi.py` reports Kodi
+   is free, leave the screen and open it again: the list loads.
+   `Files > SlowTest` is the manual case, and Back then reopen retries it.
+4. Restore `sources.xml`, delete `advancedsettings.xml` and stop the
+   server.
+
 ## Commit hooks
 
 Two git hook stages. Only the secret scan blocks a commit; every other

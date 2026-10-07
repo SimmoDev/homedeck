@@ -315,6 +315,8 @@ avoids a flash/reboot cycle on real hardware for every change.
   used — hardware-dependent behavior (deep sleep/wake, display, OTA, Wi-Fi
   reconnect, mDNS discovery) is validated by manual bring-up checks on
   hardware instead, not automated on-target tests.
+  The Kodi checks that can be driven from the development machine are in
+  [tools/README.md](tools/README.md#kodi-on-hardware-checks).
 
 ## Continuous integration
 
