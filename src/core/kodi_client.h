@@ -545,7 +545,11 @@ private:
     // Application.GetProperties + Player.GetActivePlayers (+ GetProperties
     // /GetItem when something is playing). Refreshes the snapshot and is
     // the periodic liveness probe. false => transport dead, reconnect.
-    bool ReconcilePoll(std::stop_token stop);
+    // tolerate_timeout: a call that times out on a still-open link ends the
+    // poll with true instead (Kodi is busy, not gone). The up-front poll in
+    // ConnectAndPrime() does not tolerate it: it is what proves a new
+    // connection answers.
+    bool ReconcilePoll(std::stop_token stop, bool tolerate_timeout);
     // Applies one pushed notification (Player.On* / Application.OnVolumeChanged),
     // given as raw frame text, to the snapshot and publishes
     // KodiNowPlayingChangedEvent if anything changed. Sets

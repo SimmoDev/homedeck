@@ -661,7 +661,7 @@ void KodiClient::ConnectionLoop(std::stop_token stop) {
             auto now = std::chrono::steady_clock::now();
             if (needs_immediate_poll_ || now - last_reconcile >= reconcile_interval_) {
                 needs_immediate_poll_ = false;
-                if (!ReconcilePoll(stop)) {
+                if (!ReconcilePoll(stop, /*tolerate_timeout=*/true)) {
                     break;  // transport dead
                 }
                 last_reconcile = std::chrono::steady_clock::now();
@@ -690,7 +690,7 @@ bool KodiClient::ConnectAndPrime(const Target& target, std::stop_token stop) {
     // something is already playing shows it immediately, rather than
     // blank until the first pushed notification. Doubles as a check
     // that the socket is actually alive.
-    return ReconcilePoll(stop);
+    return ReconcilePoll(stop, /*tolerate_timeout=*/false);
 }
 
 void KodiClient::PumpNotifications() {
@@ -860,13 +860,23 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
     return result.dump();
 }
 
-bool KodiClient::ReconcilePoll(std::stop_token stop) {
+bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
+    bool changed = false;
+    // A reply that does not arrive on a link that is still open means Kodi
+    // is busy (it answers one call at a time), not that the transport is
+    // dead. The poll is abandoned until the next interval; what it had
+    // already read stays published.
+    const auto call_failed = [&] {
+        if (changed) {
+            event_bus_.Publish(KodiNowPlayingChangedEvent{});
+        }
+        return tolerate_timeout && last_call_timed_out_;
+    };
     std::optional<std::string> app_text =
         Call("Application.GetProperties", R"({"properties":["volume","muted","version"]})", kCallTimeoutMs, stop);
     if (!app_text.has_value()) {
-        return false;
+        return call_failed();
     }
-    bool changed = false;
     {
         nlohmann::json app = ParseBoundedJson(*app_text);
         auto result_it = app.is_object() ? app.find("result") : app.end();
@@ -901,7 +911,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
     std::optional<std::string> players_text =
         Call("Player.GetActivePlayers", "", kCallTimeoutMs, stop);
     if (!players_text.has_value()) {
-        return false;
+        return call_failed();
     }
     nlohmann::json players = ParseBoundedJson(*players_text);
     auto players_result = players.is_object() ? players.find("result") : players.end();
@@ -940,7 +950,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
                  R"(,"properties":["speed","percentage","time","totaltime","canseek"]})",
              kCallTimeoutMs, stop);
     if (!props_text.has_value()) {
-        return false;
+        return call_failed();
     }
     std::optional<std::string> item_text =
         Call("Player.GetItem",
@@ -948,7 +958,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop) {
                  R"(,"properties":["title","showtitle","season","episode"]})",
              kCallTimeoutMs, stop);
     if (!item_text.has_value()) {
-        return false;
+        return call_failed();
     }
 
     {

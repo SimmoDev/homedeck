@@ -250,6 +250,10 @@ call that merely times out on a connection that is still open
 (`WebSocketClient::IsOpen()`) is not: the late reply is dropped by id when
 it arrives, the screen gets what had arrived (an empty list when nothing
 had), and the listing is flagged `truncated`.
+The periodic reconcile poll treats a timeout the same way: it is abandoned
+until the next interval and the link is kept. Only the poll that follows a
+new connection must be answered, since it is what proves the connection
+works.
 
 Listings are fetched through `CallLibrary()`: a 30 s timeout (a cold
 network share can list slowly) and, for every list except file sources and

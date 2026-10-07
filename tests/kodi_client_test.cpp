@@ -1711,6 +1711,31 @@ TEST_F(KodiClientTest, ALibraryCallThatTimesOutOnAnOpenConnectionKeepsTheLink) {
     client->Stop();
 }
 
+// Kodi answers one call at a time, so a periodic poll that gets no reply on an
+// open link means "busy", not "gone": the link must not be torn down and
+// re-established while Kodi works through a slow call.
+TEST_F(KodiClientTest, AReconcilePollThatTimesOutOnAnOpenConnectionKeepsTheLink) {
+    KODI_COMMAND_RIG();
+    auto stalled = std::make_shared<std::atomic<bool>>(false);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->drop_request = [stalled](const nlohmann::json&) { return stalled->load(); };
+    }
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    stalled->store(true);
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));  // several reconcile intervals
+
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->connect_urls.size(), 1u);  // never reconnected
+    }
+    client->Stop();
+}
+
 // The unpaged lists (channel groups, file sources) flag a timeout too, so a
 // screen can tell a slow listing from an empty one.
 TEST_F(KodiClientTest, AChannelGroupListingThatTimesOutIsFlaggedTruncated) {
