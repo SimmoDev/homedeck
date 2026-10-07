@@ -13,6 +13,11 @@ namespace {
 
 constexpr int kCallTimeoutMs = 8000;
 
+// ReceiveText() may return a few milliseconds before the slice it was given
+// has fully elapsed (millisecond truncation, scheduler granularity); a
+// return this close to the busy deadline counts as having reached it.
+constexpr std::chrono::milliseconds kBusySliceSlack{5};
+
 // Library listings are fetched this many items per request so one reply
 // stays far below kMaxWebSocketMessageBytes (~130 B per entry).
 constexpr int kLibraryPageSize = 500;
@@ -740,7 +745,7 @@ std::optional<std::string> KodiClient::Call(const std::string& method, const std
         std::optional<std::string> text = ws_client_->ReceiveText(std::max(slice, 1));
         if (!text.has_value()) {
             if (wait_until < deadline && ws_client_->IsOpen() &&
-                std::chrono::steady_clock::now() >= wait_until - std::chrono::milliseconds(5)) {
+                std::chrono::steady_clock::now() >= wait_until - kBusySliceSlack) {
                 SetLibraryBusy(true);  // the first slice elapsed with no reply
                 continue;
             }
