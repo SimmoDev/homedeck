@@ -134,10 +134,9 @@ std::vector<MdnsService> HostMdnsBrowser::Browse(const std::string& service_type
             }
             const auto remaining =
                 std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now).count();
-            // Re-check the deadline a few times a second rather than
-            // blocking the whole window in one iterate() call, so a
-            // burst of answers early doesn't keep us waiting the full
-            // timeout with nothing left to do.
+            // Slices of at most 250 ms rather than one iterate() call for
+            // the whole window, so the deadline is re-evaluated between
+            // slices.
             const int slice_ms = static_cast<int>(std::min<std::int64_t>(remaining, 250));
             // Non-zero => quit requested (browser/client failure) or an
             // internal error; either way, stop pumping.

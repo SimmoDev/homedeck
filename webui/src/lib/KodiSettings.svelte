@@ -198,7 +198,7 @@
         </label>
       {/if}
       {#if status && status.discovered.length > 0}
-        {#each status.discovered as instance (instance.uuid)}
+        {#each status.discovered as instance (instance.uuid || `${instance.name}|${instance.host}`)}
           <label class="choice">
             <input type="radio" name="kodi-instance" bind:group={choice} value={instance.uuid} disabled={saving} />
             {instance.name} <span class="hint">({instance.host})</span>

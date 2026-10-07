@@ -62,6 +62,10 @@ Kodi is its first consumer.
   host carries userinfo, a path, or whitespace/control bytes before it
   can reach the `ws://` URL - a hostile mDNS responder on the
   unauthenticated LAN otherwise redirects the connection.
+- The browse result is first reduced to one entry per instance (by `uuid`,
+  else name and port): a Kodi answering over both IPv4 and IPv6, or on
+  several interfaces, would otherwise look like several instances. The
+  IPv4 address is preferred.
 - Otherwise the browse result is matched against the saved
   **`instance_uuid`** (module `kodi`, key `instance_uuid`) - the `uuid`
   from the instance's mDNS TXT record, **not its IP**, so a DHCP lease

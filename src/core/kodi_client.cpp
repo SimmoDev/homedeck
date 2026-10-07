@@ -5,6 +5,7 @@
 #include "third_party/nlohmann/json.hpp"
 
 #include <algorithm>
+#include <map>
 
 namespace homedeck {
 
@@ -81,6 +82,34 @@ bool GetBool(const nlohmann::json& j, const char* key, bool fallback) {
     }
     auto it = j.find(key);
     return (it != j.end() && it->is_boolean()) ? it->get<bool>() : fallback;
+}
+
+// One mDNS browse can report the same Kodi once per interface and IP
+// protocol (an IPv4 and an IPv6 answer). Keeps one entry per instance -
+// keyed by its TXT `uuid`, else by name and port - preferring one with a
+// resolved IPv4 address, then any resolved address.
+std::vector<MdnsService> DeduplicateInstances(std::vector<MdnsService> instances) {
+    const auto rank = [](const MdnsService& s) {
+        if (s.address.empty()) {
+            return 0;
+        }
+        return s.address.find(':') == std::string::npos ? 2 : 1;
+    };
+    std::vector<MdnsService> unique;
+    std::map<std::string, size_t> index_by_key;
+    for (MdnsService& s : instances) {
+        const auto uuid_it = s.txt.find("uuid");
+        const std::string key = (uuid_it != s.txt.end() && !uuid_it->second.empty())
+                                    ? "u:" + uuid_it->second
+                                    : "n:" + s.instance_name + ":" + std::to_string(s.port);
+        const auto [it, inserted] = index_by_key.emplace(key, unique.size());
+        if (inserted) {
+            unique.push_back(std::move(s));
+        } else if (rank(s) > rank(unique[it->second])) {
+            unique[it->second] = std::move(s);
+        }
+    }
+    return unique;
 }
 
 // Brackets a bare IPv6 literal so it is a valid URL authority. A
@@ -496,6 +525,7 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
                                               HasUnsafeHostChars(host, /*allow_colon=*/true);
                                    }),
                     instances.end());
+    instances = DeduplicateInstances(std::move(instances));
 
     std::optional<VersionedValue> uuid_setting = storage_.GetSetting(kModuleId, kInstanceUuidKey);
     const std::string selected_uuid =

@@ -373,6 +373,32 @@ TEST_F(KodiClientTest, SingleDiscoveredInstanceIsAutoSelected) {
     client->Stop();
 }
 
+// The same Kodi can answer once per interface and IP protocol; that is one
+// instance, so it is still auto-selected, and over its IPv4 address.
+TEST_F(KodiClientTest, ADualStackInstanceAnsweringTwiceIsOneInstance) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    browser.SetInstances({Instance("Shield", "fe80::1", "uuid-a"), Instance("Shield", "10.0.30.20", "uuid-a")});
+    auto script = std::make_shared<WsScript>();
+    ScriptIdleKodi(script);
+
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    EXPECT_EQ(client->Snapshot().discovered.size(), 1u);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->connect_urls.front(), "ws://10.0.30.20:9090/jsonrpc");
+    }
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, SavedUuidSelectsTheMatchingInstanceAmongSeveral) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
