@@ -368,15 +368,9 @@ item names. The `VideoLibrary.GetMovies`/`GetTVShows`/`GetSeasons`/
 `GetChannels` response shapes `KodiClient` parses match a live Kodi 21
 instance field-for-field.
 
-`KodiClient`'s connect/reconcile/notification loop and its
-discovery/selection policy are host-tested against fake `MdnsBrowser` /
-`WebSocketClient` doubles plus one test over a libcurl-backed
-`HostWebSocketClient` and a raw-socket loopback JSON-RPC peer
-(`tests/kodi_client_test.cpp`), which also covers the eleven
-`VideoLibrary.Get*`/`AudioLibrary.Get*`/`Files.Get*`/`PVR.Get*`
-request/parse/publish paths and the queued-while-disconnected case. The
-`MdnsBrowser` backend adapters themselves are not unit-tested and the
-firmware one is on-device only — see
+`KodiClient` and its routes are host-tested; what each test file covers is
+listed in [tests/README.md](../../tests/README.md). The `MdnsBrowser` backend
+adapters are not unit-tested and the firmware one is on-device only — see
 [networking.md](networking.md#status) for why, and for which part of M4
 that verification belongs to.
 

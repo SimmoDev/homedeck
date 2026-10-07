@@ -176,36 +176,10 @@ files it needs directly, rather than nesting this plain-CMake build
 inside ESP-IDF's own component system (see
 `firmware/main/CMakeLists.txt`'s own comment for why).
 
-`core/module.h` is the module lifecycle contract ADR-0003 deferred until
-Harmony (the reference module) needed it - `Start()`/`Stop()`,
-construction as Init, the destructor as teardown. `core/harmony_connection.h`/
-`.cpp` is the first implementation: hub connection over
-a new `platform/websocket_client.h` (`HostWebSocketClient`/
-`FirmwareWebSocketClient`, see
-[ADR-0029](../docs/decisions/ADR-0029-harmony-local-protocol.md)), a
-generic `core/retry_backoff.h` exponential-backoff utility (see
-[ADR-0006](../docs/decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership)),
-and `core/harmony_routes.h`/`.cpp` for its
-Web UI status/reconnect endpoints. `ui/screens/activities_screen.h`/`.cpp`
-and `devices_screen.h`/`.cpp` are its Touch UI screens,
-`ui/harmony_widget.h`/`.cpp` is its dashboard widget, and
-`HarmonyConnection::PressDeviceCommand()`/`HoldDeviceCommand()`/
-`ReleaseDeviceCommand()` send commands to the hub - see
-[roadmap.md](../docs/roadmap.md)'s M3 section for the full detail.
-
-`core/kodi_client.h`/`.cpp` is the second `Module` implementation:
-connection over the same `platform/websocket_client.h` (no new platform
-code needed, see
-[ADR-0030](../docs/decisions/ADR-0030-kodi-jsonrpc-transport.md)), plus
-a new `platform/mdns_browser.h` (`HostMdnsBrowser`/`FirmwareMdnsBrowser`)
-for discovering an instance on the LAN, and `core/kodi_routes.h`/`.cpp`
-for its Web UI status/reconnect endpoints. `ui/screens/now_playing_screen.h`/
-`.cpp`, `kodi_remote_screen.h`/`.cpp` and the five library-browse screens
-(`kodi_movies_screen`, `kodi_tv_shows_screen`, `kodi_music_screen`,
-`kodi_files_screen`, `kodi_live_tv_screen`, each `.h`/`.cpp`) are its
-Touch UI screens (all built on the `ScreenChrome` helper shared with
-Harmony's two screens above), `ui/kodi_widget.h`/`.cpp` is its dashboard widget, and
-`ui/kodi_display.h`/`.cpp` holds its LVGL-free, host-tested display-string
-formatting, the browse screens' lists are `ui/virtual_list.h`/`.cpp`
-(see [ui.md](../docs/architecture/ui.md#long-lists)) - see [roadmap.md](../docs/roadmap.md)'s M4 section and
-[kodi.md](../docs/architecture/kodi.md) for the full detail.
+`core/module.h` is the module lifecycle contract (`Start()`/`Stop()`, construction
+as Init, the destructor as teardown) - see
+[ADR-0003](../docs/decisions/ADR-0003-module-architecture.md). Each module's
+files, screens and widget are listed once, in
+[modules.md](../docs/architecture/modules.md#status), with the detail in
+[harmony.md](../docs/architecture/harmony.md) and
+[kodi.md](../docs/architecture/kodi.md).
