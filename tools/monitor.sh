@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Opens an interactive serial monitor against real Tab5 hardware. Ctrl+]
+# Opens an interactive serial monitor against Tab5 hardware. Ctrl+]
 # exits; Ctrl+C does not, since the monitor forwards most keystrokes to
 # the device instead of treating them as terminal control - see
 # DEVELOPMENT.md's ESP-IDF setup section.

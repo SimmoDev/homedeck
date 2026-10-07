@@ -131,11 +131,11 @@ enabled identically on both targets (see `simulator/lv_conf.h` and
 `firmware/sdkconfig.defaults`).
 
 `BatteryReader` is mocked in the simulator (a fixed value, adjustable via
-debug buttons — see [simulator.md](simulator.md#how-it-works)) but real on
+debug buttons — see [simulator.md](simulator.md#how-it-works)) but implemented on
 firmware, reading the INA226 power monitor. The status bar reflects three
 states (see [hardware.md](hardware.md#power) for how each is derived):
 battery percentage alone; a charge icon plus percentage while a present
-battery is actually charging; and a USB icon with no percentage when no
+battery is charging; and a USB icon with no percentage when no
 battery is installed, since the percentage reading isn't meaningful in
 that state. `ReadPercent()`'s own approximation accuracy is unchanged
 by this — see [hardware.md](hardware.md#power) for its known margin; a

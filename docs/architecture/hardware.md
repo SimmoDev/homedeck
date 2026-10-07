@@ -156,7 +156,7 @@ headroom instead, 4MB each for `ota_0`/`ota_1`.
   [ADR-0009](../decisions/ADR-0009-touch-display-detection.md) for why a
   compile-time approach was rejected (it breaks the single-OTA-image
   model), and the "Confirmed" bullet below for how detection is
-  actually implemented.
+  implemented.
 - **Confirmed:** the project's reference unit uses the **ST7123**
   integrated display+touch driver (I2C address 0x55) — read directly off
   the physical unit's sticker, no probing needed for this fact. The
@@ -164,7 +164,7 @@ headroom instead, 4MB each for `ota_0`/`ota_1`.
   design above — see [Display driver
   strategy](#display-driver-strategy) below: `espressif/m5stack_tab5`
   provides its own built-in probing between the two known hardware
-  revisions, which is what actually covers detection across units in the
+  revisions, which is what covers detection across units in the
   field (a single reference unit knowing its own driver doesn't, by
   itself).
 - **M5Stack's own I2C address map for Tab5** (SCL: GPIO32, SDA: GPIO31),

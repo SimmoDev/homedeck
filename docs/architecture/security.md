@@ -90,7 +90,7 @@ partition scheme is in place — `ota_0`/`ota_1` app partitions plus
 bootloader app-rollback (see
 [ADR-0017](../decisions/ADR-0017-partition-table.md)) — and protects
 against *boot-time corruption* from an interrupted OTA write. It does not
-verify that an OTA image actually came from the project itself. Today, the
+verify that an OTA image came from the project itself. Today, the
 only barrier to pushing an arbitrary firmware image is the Web UI's admin
 authentication gating the OTA endpoint (see
 [web-ui.md](web-ui.md#security)) — so the realistic exposure is an

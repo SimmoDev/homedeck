@@ -24,7 +24,7 @@ the essential reading, in order:
    Local Control" section is a worked example of scoping a module's own
    external-system risk, not a template to copy literally.
 4. [docs/architecture/core.md](docs/architecture/core.md#status) — what
-   Core actually offers a module to build against: the event bus,
+   Core offers a module to build against: the event bus,
    `Storage`/`SecretStore`, the widget system, and Notifications, all
    implemented, not just the design each originally named.
 5. [docs/architecture/networking.md](docs/architecture/networking.md) —

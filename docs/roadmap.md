@@ -69,7 +69,7 @@ management state model" item instead.
       independently switchable (I2C GPIO expander, no hardware coupling
       to P4 sleep state — see
       [hardware.md](architecture/hardware.md#wireless)). Whether
-      ESP-Hosted/SDIO can actually keep the C6 usefully associated while
+      ESP-Hosted/SDIO can keep the C6 usefully associated while
       the P4 itself is asleep is moot: the P4 never enters
       deep sleep in this project's design at all — see
       [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md).
@@ -404,7 +404,7 @@ this until it's done — see
       and refreshed on the existing liveness-probe cycle),
       `HarmonyCurrentActivityChangedEvent`, and `StartActivity()`
       (`src/core/harmony_connection.h`/`.cpp`) — a UI-thread-safe call
-      that wakes the connection loop's own thread to actually send the
+      that wakes the connection loop's own thread to send the
       command, since `ws_client_` stays single-owner. Freshness is
       best-effort, not push-driven — up to `liveness_interval` stale in
       the worst case, see
@@ -427,7 +427,7 @@ this until it's done — see
       its remote-control commands are the same data
       (`controlGroup: [{name, function: [{name, label, action}]}]`,
       `action` a ready-to-send command string the hub hands back verbatim)
-      — a read-only capability browser first, wired up to actually send
+      — a read-only capability browser first, wired up to send
       later, would have meant shipping un-tappable buttons first. "Inputs"
       are just more commands in a `Miscellaneous` group, not a separate
       structure. "Power state" (`Capabilities`/`powerFeatures`) comes back
@@ -747,7 +747,7 @@ UI and start playback of a chosen item, and the whole Kodi module
 - [ ] Web Management UI factory-reset option (clearing stored Wi-Fi
       credentials, per
       [hardware.md](architecture/hardware.md#wi-fi-bring-up) for where
-      those actually live, plus Core's own `Storage` state) - scope (a
+      those live, plus Core's own `Storage` state) - scope (a
       dedicated action vs. part of a broader reset, what exactly gets
       cleared) isn't decided yet
 - [ ] Harmony Activities/Devices custom ordering, configurable from the
@@ -852,7 +852,7 @@ UI and start playback of a chosen item, and the whole Kodi module
       mark-as-seen rule (on dashboard view? on tap?) that doesn't exist
       yet and has no natural trigger point today, deliberately deferred
       rather than built speculatively ahead of a second notification
-      publisher actually existing
+      publisher existing
 
 ## Architectural Decisions Index
 

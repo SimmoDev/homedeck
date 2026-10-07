@@ -66,7 +66,7 @@ now.
 
 Every screen and module-registered screens alike are constructed once for
 the program's lifetime today, so no *screen-level controller* (e.g.
-`ActivitiesScreen`, `DevicesScreen`) has ever actually had its own
+`ActivitiesScreen`, `DevicesScreen`) has ever had its own
 destructor run in practice — nothing removes a screen once Navigation
 has shown it. That won't hold once a module screen is created and later
 navigated away from (e.g. a Harmony activity detail screen), so the

@@ -79,11 +79,11 @@ the module boundary does for it.
 | MQTT, Jellyfin, Plex, Spotify, Prometheus, Grafana, ESPHome, Shelly, Gotify | Future | Not scoped |
 
 Each module-specific architecture document is written once that
-module's design is actually being implemented, not speculatively ahead
+module's design is being implemented, not speculatively ahead
 of it — see the scope-control guidance in
 [CLAUDE.md](../../CLAUDE.md). [harmony.md](harmony.md) (M3) and
 [kodi.md](kodi.md) (M4) are the examples so far, each written once that
-module's design was actually being implemented; later modules follow
+module's design was being implemented; later modules follow
 the same rule.
 
 ## Status

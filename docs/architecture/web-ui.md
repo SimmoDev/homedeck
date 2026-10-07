@@ -93,7 +93,7 @@ name the exact network to reconnect to rather than a generic "look for
 SoftAP" message. This matters because the browser's own session and the
 LAN address it's talking to are both about to become unreachable: rather
 than leave the Settings/OTA/Diagnostics panels sitting there looking
-normal while actually dead, `App.svelte` replaces the entire
+normal while dead, `App.svelte` replaces the entire
 authenticated view with one dedicated message naming that network -
 client-side only, not a real page redirect, since the device won't be
 reachable at this address to serve one.

@@ -18,7 +18,7 @@ useful recent history, not an unbounded archive on that tier. Older
 history that would otherwise be evicted can optionally be archived to
 microSD if a card is present, per
 [ADR-0012](../decisions/ADR-0012-storage-tiers.md#decision) — the one
-concrete use case that tier actually has.
+concrete use case that tier has.
 
 ## Requirement: module status
 
