@@ -326,9 +326,9 @@ std::vector<KodiSong> ParseSongs(const std::string& text) {
 // Shared by Files.GetSources' reply ("sources") and Files.GetDirectory's
 // ("files") - result_key and all_folders are the only differences
 // between the two shapes. A source item carries no "filetype" field at
-// all - it's always a folder by definition (a configured root), so all_folders=true skips
-// the "filetype" check entirely rather than reading a field that isn't
-// there and misreading every source as a file.
+// all - it is always a folder by definition (a configured root), so
+// all_folders=true skips the "filetype" check rather than reading a field
+// that isn't there and misreading every source as a file.
 std::vector<KodiFileItem> ParseFileItems(const std::string& text, const char* result_key, bool all_folders) {
     std::vector<KodiFileItem> items;
     nlohmann::json parsed = ParseBoundedJson(text);
