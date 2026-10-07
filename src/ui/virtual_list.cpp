@@ -142,14 +142,12 @@ void VirtualList::Rebind(bool force) {
             slot_row_[slot] = kUnbound;
             continue;
         }
-        // The one row in [first, first + count) whose slot this is, if any.
-        const size_t offset = (slot + pool_size - rows.first % pool_size) % pool_size;
-        if (offset >= rows.count) {
+        const size_t row = RowForSlot(slot, pool_size, rows);
+        if (row == kNoRow) {
             lv_obj_set_hidden(button, true);
             slot_row_[slot] = kUnbound;
             continue;
         }
-        const size_t row = rows.first + offset;
         if (force || slot_row_[slot] != row) {
             lv_label_set_text(RemoteButtonLabel(button), label_at_(row).c_str());
             lv_obj_set_pos(button, 0, static_cast<int32_t>(row) * kRowPitch);

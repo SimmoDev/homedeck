@@ -38,6 +38,21 @@ inline VisibleRows ComputeVisibleRows(int32_t list_top, int32_t view_height, int
     return {static_cast<size_t>(first), static_cast<size_t>(last - first + 1)};
 }
 
+// The row in `window` that pool slot `slot` shows, given that row r uses
+// slot r % pool_size, or `kNoRow` when the slot has none (it is beyond the
+// pool, or its row is outside the window). `pool_size` must not exceed the
+// list's row count, so every slot below it is used when the whole list is
+// visible.
+inline constexpr size_t kNoRow = static_cast<size_t>(-1);
+
+inline size_t RowForSlot(size_t slot, size_t pool_size, VisibleRows window) {
+    if (pool_size == 0 || slot >= pool_size || window.count == 0) {
+        return kNoRow;
+    }
+    const size_t offset = (slot + pool_size - window.first % pool_size) % pool_size;
+    return offset < window.count ? window.first + offset : kNoRow;
+}
+
 // The most rows ComputeVisibleRows() can return for these dimensions - what
 // a VirtualList's button pool has to hold. The +2 covers a row partly off
 // both the top and the bottom edge at once.

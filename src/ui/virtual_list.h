@@ -22,8 +22,10 @@ namespace homedeck {
 // always uses pool slot r % pool size, so a scroll only rebinds the slots
 // whose row changed.
 //
-// Must be destroyed no later than its parent screen, and only touches LVGL
-// from the UI thread like everything else in src/ui/.
+// The owning screen deletes its LVGL tree in its destructor body, so this
+// list is destroyed after the screen object it listens to; the destructor
+// checks the screen is still valid before removing its scroll callback. It
+// only touches LVGL from the UI thread like everything else in src/ui/.
 class VirtualList {
 public:
     using LabelFn = std::function<std::string(size_t row)>;

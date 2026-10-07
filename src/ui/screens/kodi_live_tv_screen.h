@@ -68,7 +68,7 @@ private:
     lv_obj_t* channels_container_;  // back button + group label + channels_list_, sibling of groups_container_
     lv_obj_t* channels_title_label_;
 
-    // Declared after root_ so they are destroyed before it is: see
+    // Destroyed after the screen's LVGL tree is deleted: see
     // VirtualList's own lifetime note.
     std::unique_ptr<VirtualList> groups_list_;
     std::unique_ptr<VirtualList> channels_list_;

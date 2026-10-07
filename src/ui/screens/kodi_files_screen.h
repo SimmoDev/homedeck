@@ -77,7 +77,7 @@ private:
     lv_obj_t* back_button_;  // hidden at the source-list level (path_stack_ empty)
     lv_obj_t* heading_label_;
 
-    // Declared after root_ so it is destroyed before it is: see
+    // Destroyed after the screen's LVGL tree is deleted: see
     // VirtualList's own lifetime note.
     std::unique_ptr<VirtualList> list_;
 

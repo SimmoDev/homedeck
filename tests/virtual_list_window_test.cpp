@@ -73,4 +73,32 @@ TEST(VirtualListWindowTest, DegenerateDimensionsYieldNoRows) {
     EXPECT_EQ(MaxVisibleRows(kView, 0, 1), 0u);
 }
 
+TEST(VirtualListWindowTest, EachRowInTheWindowGetsItsOwnSlot) {
+    // 10 rows, 4 slots, window rows 5..8: row r lives in slot r % 4.
+    const VisibleRows window{5, 4};
+    EXPECT_EQ(homedeck::RowForSlot(1, 4, window), 5u);
+    EXPECT_EQ(homedeck::RowForSlot(2, 4, window), 6u);
+    EXPECT_EQ(homedeck::RowForSlot(3, 4, window), 7u);
+    EXPECT_EQ(homedeck::RowForSlot(0, 4, window), 8u);
+}
+
+TEST(VirtualListWindowTest, ASlotWhoseRowIsOutsideTheWindowHasNone) {
+    const VisibleRows window{5, 2};  // rows 5 and 6 -> slots 1 and 2 of 4
+    EXPECT_EQ(homedeck::RowForSlot(0, 4, window), homedeck::kNoRow);
+    EXPECT_EQ(homedeck::RowForSlot(3, 4, window), homedeck::kNoRow);
+}
+
+TEST(VirtualListWindowTest, SlotsBeyondTheUsedPoolAreNotAliasedOntoRows) {
+    // A pool of 12 buttons reused for a 3-row list: only slots 0..2 are used.
+    const VisibleRows window{0, 3};
+    EXPECT_EQ(homedeck::RowForSlot(2, 3, window), 2u);
+    EXPECT_EQ(homedeck::RowForSlot(3, 3, window), homedeck::kNoRow);
+    EXPECT_EQ(homedeck::RowForSlot(9, 3, window), homedeck::kNoRow);
+}
+
+TEST(VirtualListWindowTest, AnEmptyWindowOrPoolHasNoRows) {
+    EXPECT_EQ(homedeck::RowForSlot(0, 4, VisibleRows{0, 0}), homedeck::kNoRow);
+    EXPECT_EQ(homedeck::RowForSlot(0, 0, VisibleRows{0, 3}), homedeck::kNoRow);
+}
+
 }  // namespace

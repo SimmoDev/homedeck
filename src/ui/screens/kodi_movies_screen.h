@@ -65,7 +65,7 @@ private:
     lv_obj_t* movie_title_label_;
     lv_obj_t* resume_button_;  // hidden unless the selected movie has a resume point
 
-    // Declared after root_ so it is destroyed before it is: see
+    // Destroyed after the screen's LVGL tree is deleted: see
     // VirtualList's own lifetime note.
     std::unique_ptr<VirtualList> movie_list_;
 

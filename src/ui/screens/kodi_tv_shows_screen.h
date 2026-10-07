@@ -84,7 +84,7 @@ private:
     lv_obj_t* episode_title_label_;
     lv_obj_t* resume_button_;  // hidden unless the selected episode has a resume point
 
-    // Declared after root_ so they are destroyed before it is: see
+    // Destroyed after the screen's LVGL tree is deleted: see
     // VirtualList's own lifetime note.
     std::unique_ptr<VirtualList> shows_list_;
     std::unique_ptr<VirtualList> seasons_list_;

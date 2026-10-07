@@ -116,8 +116,10 @@ Kodi library-browse list.
   rows, replaces the empty text with a timeout note.
 - A list inside a hidden container has no layout, so a screen calls
   `Refresh()` after showing the container.
-- It must be destroyed no later than its screen: screens hold it as a
-  member declared after `root_`.
+- It outlives its screen's LVGL tree: a screen deletes `root_` in its
+  destructor body and the member is destroyed afterwards, so the list's
+  destructor checks the screen is still valid (`lv_obj_is_valid`) before
+  removing its scroll callback.
 
 The visible-row arithmetic is `ComputeVisibleRows()` in
 `src/ui/virtual_list_window.h`, LVGL-free and host-tested

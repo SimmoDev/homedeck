@@ -77,7 +77,7 @@ private:
     lv_obj_t* songs_container_;  // back button + "<artist> - <album>" heading + songs_list_
     lv_obj_t* songs_title_label_;
 
-    // Declared after root_ so they are destroyed before it is: see
+    // Destroyed after the screen's LVGL tree is deleted: see
     // VirtualList's own lifetime note.
     std::unique_ptr<VirtualList> artists_list_;
     std::unique_ptr<VirtualList> albums_list_;
