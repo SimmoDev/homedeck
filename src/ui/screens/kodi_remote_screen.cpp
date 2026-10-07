@@ -1,6 +1,7 @@
 #include "ui/screens/kodi_remote_screen.h"
 
 #include "ui/remote_button.h"
+#include "ui/screens/kodi_busy_hint.h"
 #include "ui/screens/screen_chrome.h"
 
 #include <cstdint>

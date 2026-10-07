@@ -45,12 +45,6 @@ lv_obj_t* CreateChromeStatusLabel(lv_obj_t* container);
 // DevicesScreen and KodiLiveTvScreen, 12 for the others).
 lv_obj_t* CreateChromeDetailContainer(lv_obj_t* parent, int32_t pad_row);
 
-// A hidden, centered, word-wrapping note a Kodi control screen shows while
-// KodiSnapshot::library_busy is set (Kodi answers nothing else while it
-// finishes a slow listing). Created as `parent`'s first child, so it sits
-// above the controls it explains.
-lv_obj_t* CreateKodiBusyHint(lv_obj_t* parent);
-
 // A left-aligned, word-wrapping heading label (e.g. a selected show's
 // title atop its season list) - full width, with a top margin separating
 // it from the "back" button a detail container's own first child usually

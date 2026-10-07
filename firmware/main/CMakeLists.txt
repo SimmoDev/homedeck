@@ -64,6 +64,7 @@ idf_component_register(
         "../../src/ui/screens/kodi_files_screen.cpp"
         "../../src/ui/screens/kodi_live_tv_screen.cpp"
         "../../src/ui/screens/screen_chrome.cpp"
+        "../../src/ui/screens/kodi_busy_hint.cpp"
         "../../src/ui/harmony_widget.cpp"
         "../../src/ui/kodi_widget.cpp"
         "../../src/ui/kodi_display.cpp"
