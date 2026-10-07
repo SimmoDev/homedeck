@@ -88,11 +88,11 @@ hardware, in order, with accurate individual timestamps.
 **The worker batches, rather than writing one entry at a time.** After
 waking for the first queued item, it drains everything else already
 available (`Queue<T>::TryPop()`, non-blocking) before doing a single
-`WriteBatch()` covering the whole group. This is what
-coalesces near-simultaneous `Log()` calls into one flash write instead
-of several - moving the write off the caller's task alone doesn't
-reduce how many flash operations happen, only where they happen;
-coalescing is what reduces the count. On hardware, the three original
+`WriteBatch()` covering the whole group. This is what coalesces
+near-simultaneous `Log()` calls into one flash write instead of
+several - moving the write off the caller's task alone doesn't reduce
+how many flash operations happen, only where they happen; coalescing
+is what reduces the count. On hardware, the three original
 boot-sequence entries now share one write (identical timestamps, one
 write instead of three).
 
@@ -127,8 +127,8 @@ documented hardware/BSP limitation for now - see
   rewrites the entire current blob, just for a batch of entries instead
   of one, and now off the caller's task.
 - `Queue<T>`'s firmware/FreeRTOS backend question its own header
-  previously left open (deferred "to when firmware bring-up
-  needs it") is resolved: the existing generic
+  previously left open (deferred "to when firmware bring-up needs it")
+  is resolved: the existing generic
   `std::mutex`/`condition_variable_any` implementation works correctly
   on firmware as-is. A FreeRTOS-native backend (`xQueueCreate`) remains
   a possible future optimization, not something blocking correctness.

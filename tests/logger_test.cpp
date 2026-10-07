@@ -79,8 +79,8 @@ TEST_F(LoggerTest, MultipleEntriesAccumulateInOrder) {
 TEST_F(LoggerTest, RotatesOnceSizeThresholdIsExceeded) {
     // A tiny cap - well under one entry's real size - so the second
     // Log() call is guaranteed to push the running total over it and
-    // trigger rotation, without needing hundreds of calls to
-    // cross the real 64KB production default.
+    // trigger rotation, without needing hundreds of calls to cross
+    // the real 64KB production default.
     homedeck::Logger logger(*storage_, time_source_, /*max_log_file_bytes=*/10);
 
     // ReadAll() between calls flushes the background worker, forcing
@@ -143,8 +143,8 @@ TEST_F(LoggerTest, OneOversizedBatchIsTrimmedToTheCapNotStoredInFull) {
     logger.Log(homedeck::LogLevel::kInfo, "core", "second-entry-in-the-batch");
     logger.Log(homedeck::LogLevel::kInfo, "core", "third-entry-in-the-batch");
 
-    // ReadAll() blocks until the background worker has written
-    // the batch - checking storage_ directly beforehand would race it.
+    // ReadAll() blocks until the background worker has written the
+    // batch - checking storage_ directly beforehand would race it.
     std::string read_all_result = logger.ReadAll();
 
     auto current = storage_->ReadCache("core", "log_current");
@@ -166,8 +166,8 @@ TEST_F(LoggerTest, ConcurrentLogCallsAreCoalescedIntoOneBatch) {
     // as separate flash writes - this is what fixed a real display
     // glitch on hardware (see docs/architecture/ui.md#status). The
     // default cap is plenty for three short entries in one batch; the
-    // "no rotation happened" assertion below is what proves
-    // they landed in a single write rather than three.
+    // "no rotation happened" assertion below is what proves they
+    // landed in a single write rather than three.
     homedeck::Logger logger(*storage_, time_source_);
 
     logger.Log(homedeck::LogLevel::kInfo, "wifi", "a");

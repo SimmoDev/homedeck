@@ -202,8 +202,8 @@ std::array<unsigned char, 20> Sha1(const std::string& input) {
 
 // RFC 6455 section 1.3's handshake verification: base64(SHA1(key +
 // this fixed GUID)) - confirms the response came from something that
-// understood the request as a WebSocket upgrade, not just
-// something that happened to answer "101" (a misconfigured device, a
+// understood the request as a WebSocket upgrade, not just something
+// that happened to answer "101" (a misconfigured device, a
 // captive-portal-style proxy, a different service that took over the
 // hub's IP after a DHCP lease change).
 std::string ComputeAcceptKey(const std::string& client_key) {
@@ -267,11 +267,11 @@ int RemainingMs(std::chrono::steady_clock::time_point deadline) {
 // CONNECT_ONLY use case ("let the application drive the transfer using
 // curl_easy_send()/curl_easy_recv()"). poll() on the raw fd is still valid
 // for readiness-waiting regardless: it operates below the TLS layer,
-// which needs a readable socket to make its own progress on
-// either side. Used for both the frame header/payload reads in
-// ReceiveText() and the handshake response read in Connect() below, since
-// any of them can arrive split across more than one read. False on
-// timeout, error, or a clean close before `len` bytes arrive.
+// which needs a readable socket to make its own progress on either side.
+// Used for both the frame header/payload reads in ReceiveText() and the
+// handshake response read in Connect() below, since any of them can
+// arrive split across more than one read. False on timeout, error, or a
+// clean close before `len` bytes arrive.
 bool ReadExact(CURL* curl, curl_socket_t fd, unsigned char* buf, size_t len, std::chrono::steady_clock::time_point deadline) {
     size_t got = 0;
     while (got < len) {
@@ -429,8 +429,8 @@ bool HostWebSocketClient::Connect(const std::string& url) {
     }
 
     // A bare "101" isn't enough on its own - RFC 6455's own handshake
-    // verification step confirms the far end understood the
-    // request as a WebSocket upgrade (see ComputeAcceptKey()'s own
+    // verification step confirms the far end understood the request
+    // as a WebSocket upgrade (see ComputeAcceptKey()'s own
     // comment), not just something that happens to answer 101.
     std::optional<std::string> accept = FindHeaderValue(response, "Sec-WebSocket-Accept");
     if (!accept.has_value() || *accept != ComputeAcceptKey(key)) {

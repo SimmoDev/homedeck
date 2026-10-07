@@ -542,9 +542,9 @@ std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
     }
 
     std::vector<MdnsService> instances = mdns_browser_.Browse(kServiceType, browse_timeout_);
-    // Keep only instances we could connect to: a usable host,
-    // a non-zero port, and a host string safe to concatenate into a
-    // ws:// authority. A discovered host never came from the user, so it
+    // Keep only instances we could connect to: a usable host, a non-zero
+    // port, and a host string safe to concatenate into a ws://
+    // authority. A discovered host never came from the user, so it
     // bypasses IsValidKodiHost() - screen it here instead, allowing ':'
     // since WebSocketUrl() brackets a resolved IPv6 literal itself.
     instances.erase(std::remove_if(instances.begin(), instances.end(),

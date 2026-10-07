@@ -60,12 +60,12 @@ components (`firmware/main/idf_component.yml`). Both a battery
 percentage and RTC time read successfully on the reference hardware,
 not mocked — see
 [hardware.md](../architecture/hardware.md#on-device-dashboard) for what
-those reads showed, including two gaps this surfaced (a
-simple linear battery-percentage approximation, not true fuel-gauge
-coulomb-counting; and the RTC having never been set, both pre-flagged
-limitations, not library bugs). Both components communicate through
-function-pointer glue matching their shared `BasePeripheral` shape rather
-than a bus handle directly; a small shared `I2cDevice` helper
+those reads showed, including two gaps this surfaced (a simple linear
+battery-percentage approximation, not true fuel-gauge coulomb-counting;
+and the RTC having never been set, both pre-flagged limitations, not
+library bugs). Both components communicate through function-pointer glue
+matching their shared `BasePeripheral` shape rather than a bus handle
+directly; a small shared `I2cDevice` helper
 (`src/platform/firmware/i2c_device.h`) wraps ESP-IDF's `i2c_master`
 driver once and is reused by both, rather than duplicated. Both reuse the
 BSP's existing shared I2C bus (`bsp_i2c_get_handle()`) instead of

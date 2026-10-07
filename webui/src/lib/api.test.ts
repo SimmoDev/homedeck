@@ -261,8 +261,8 @@ describe("downloadFile", () => {
   // No jsdom/happy-dom dependency in this project (see
   // passwordValidation.ts's own comment on why a DOM-testing stack isn't
   // yet justified here) - document/URL are stubbed directly with the
-  // minimal shape downloadFile() calls, rather than pulling one
-  // in for this single function.
+  // minimal shape downloadFile() calls, rather than pulling one in
+  // for this single function.
   it("creates an object URL, clicks a download link, and revokes the URL on success", async () => {
     const blob = new Blob(["coredump bytes"]);
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(blob, { status: 200 })));

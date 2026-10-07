@@ -166,8 +166,8 @@ TEST_F(HarmonyRoutesTest, StatusReportsDisconnectedWithNoConfigBeforeAnyHubIsCon
 // StatusReportsDisconnectedWithNoConfigBeforeAnyHubIsConfigured above only
 // exercises SnapshotToJson()'s empty-state branch - the device/activity
 // array population and currentActivityId it wires up once a hub is
-// configured had no dedicated coverage through the real
-// GET /api/harmony/status wire format.
+// configured had no dedicated coverage through the real GET
+// /api/harmony/status wire format.
 TEST_F(HarmonyRoutesTest, StatusReportsPopulatedSnapshotOnceConnected) {
     ASSERT_TRUE(storage_->SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
     FixedSuccessHttpClient connected_http_client;

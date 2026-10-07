@@ -42,10 +42,10 @@ enum class HarmonyConnectionState {
 // surfaces reject the same values - this is the server-side half,
 // invoked from POST /api/settings via core/settings_routes.h's generic
 // SettingValidateFn (wired in ui/app_core.cpp), since that generic
-// settings API - not a Harmony-specific endpoint - is what
-// persists this value (see kHubHostKey below). Empty is accepted - it
-// isn't this function's concern, since ConnectionLoop() already treats
-// it as "not yet configured," not a malformed address.
+// settings API - not a Harmony-specific endpoint - is what persists
+// this value (see kHubHostKey below). Empty is accepted - it isn't
+// this function's concern, since ConnectionLoop() already treats it as
+// "not yet configured," not a malformed address.
 bool IsValidHubHost(const std::string& value);
 
 // Validates one of HarmonyConnection's settings for POST /api/settings
@@ -328,11 +328,11 @@ private:
     // own dedicated request/response slot this class's simple
     // synchronous transport doesn't have - see this class's own header
     // comment on current-activity freshness); ADR-0029 leaves it an open
-    // question whether the hub sends one. If it does, that
-    // reply would otherwise sit unconsumed until the next ReceiveText()
-    // call and get wrongly parsed as whatever that call
-    // expects. Bounded by kMaxPendingCommands so a hub that keeps
-    // sending unsolicited messages can't loop this forever - same cap
+    // question whether the hub sends one. If it does, that reply would
+    // otherwise sit unconsumed until the next ReceiveText() call and
+    // get wrongly parsed as whatever that call expects. Bounded by
+    // kMaxPendingCommands so a hub that keeps sending unsolicited
+    // messages can't loop this forever - same cap
     // FirmwareWebSocketClient::message_queue_ itself uses. A 0ms
     // ReceiveText() is a non-blocking poll on both backends (see each
     // one's own implementation), not a wait, so this never adds latency
@@ -424,11 +424,10 @@ private:
     std::chrono::milliseconds liveness_interval_;
     // SendPendingCommands() drops any entry older than this rather than
     // sending it - a queued command from long enough ago no longer
-    // reflects what the user wants sent to a hub whose
-    // real-world state has moved on. Not applied to a release-status
-    // device command - see that method's own comment on why a release is
-    // always worth attempting once a connection exists to send it over,
-    // however late.
+    // reflects what the user wants sent to a hub whose real-world state
+    // has moved on. Not applied to a release-status device command - see
+    // that method's own comment on why a release is always worth
+    // attempting once a connection exists to send it over, however late.
     std::chrono::milliseconds max_pending_command_age_;
 
     // Owned by, and only ever touched from, task_'s own thread - no mutex

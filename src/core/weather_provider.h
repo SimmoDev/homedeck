@@ -45,9 +45,9 @@ struct WeatherUpdatedEvent {};  // marker only - handlers call Snapshot()
 // from POST /api/settings via core/settings_routes.h's generic
 // SettingValidateFn (wired in ui/app_core.cpp), since the generic
 // settings API - not a dedicated weather-config endpoint - is what
-// persists these values. display_name carries no format
-// constraint beyond the settings API's own generic length cap - it's
-// just a label.
+// persists these values. display_name carries no format constraint
+// beyond the settings API's own generic length cap - it's just a
+// label.
 bool IsValidWeatherCoordinate(const std::string& key, const std::string& value);
 
 // See docs/architecture/networking.md and ADR-0008's "Weather data

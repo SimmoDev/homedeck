@@ -51,10 +51,10 @@ public:
     // "no timezone handling" convention above: Now() feeds the RTC's raw
     // fields into mktime() with no TZ offset applied, so writing back the
     // same raw UTC fields here (rather than applying a TZ conversion this
-    // project doesn't have) is what round-trips correctly given
-    // that existing behavior, not a second, inconsistent interpretation
-    // of what the RTC's fields mean. Returns false if the I2C write
-    // itself fails; the RTC is left holding whatever it held before.
+    // project doesn't have) is what round-trips correctly given that
+    // existing behavior, not a second, inconsistent interpretation of
+    // what the RTC's fields mean. Returns false if the I2C write itself
+    // fails; the RTC is left holding whatever it held before.
     bool SetTime(std::time_t utc_time);
 
 private:

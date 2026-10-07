@@ -69,11 +69,11 @@ void DashboardGrid::EnsureRowExists(int row) {
     // LVGL's grid style property stores this pointer directly rather
     // than copying the array, so growing row_dsc_ - which may reallocate
     // its buffer - requires re-pointing LVGL at wherever the data
-    // lives now. Skipping
-    // this after a reallocation would leave LVGL holding a dangling
-    // pointer into freed memory. Harmless to call even when
-    // GrowRowDescriptorArray() above was a no-op (row already covered) -
-    // re-pointing LVGL at an unchanged buffer costs nothing meaningful.
+    // lives now. Skipping this after a reallocation would leave LVGL
+    // holding a dangling pointer into freed memory. Harmless to call
+    // even when GrowRowDescriptorArray() above was a no-op (row already
+    // covered) - re-pointing LVGL at an unchanged buffer costs nothing
+    // meaningful.
     lv_obj_set_grid_dsc_array(grid_, kColumnTemplate, row_dsc_.data());
 }
 

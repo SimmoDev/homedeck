@@ -12,8 +12,8 @@
 namespace {
 
 // Records Play() calls and signals a condition variable so the test can
-// wait for NotificationSound's background Task to invoke it,
-// rather than a blind sleep - the same synchronization need
+// wait for NotificationSound's background Task to invoke it, rather
+// than a blind sleep - the same synchronization need
 // weather_provider_test.cpp's TriggerPoll test has for its own
 // background Task.
 class FakeAudioOutput : public homedeck::AudioOutput {

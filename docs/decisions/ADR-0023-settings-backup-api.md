@@ -130,15 +130,15 @@ injected callbacks for `(module="core", key="device_name")` writes:
 1035/6763 label rules - charset, ≤63 chars - returning `false` makes the
 route respond 400 rather than persisting a value that was rejected), and
 `DeviceNameCommittedFn`, called only once `Storage::SetSetting()` has
-persisted the new value. Firmware's `DeviceNameCommittedFn`
-re-calls `mdns_hostname_set()` - live-apply, no reboot required, since
-ESP-IDF's mdns component supports re-announcing - deliberately kept out
-of the validator so a live re-announce is never applied against a value
-a subsequent storage-write failure didn't save. On the
-simulator both callbacks are omitted entirely (no mDNS to update, no
-hostname rules to check) - keeps `settings_routes.cpp` fully portable,
-matching `ota_routes.cpp`'s `OtaWriter` injection pattern for the same
-reason. `POST /api/backup/restore`'s generic replay loop does
+persisted the new value. Firmware's `DeviceNameCommittedFn` re-calls
+`mdns_hostname_set()` - live-apply, no reboot required, since ESP-IDF's
+mdns component supports re-announcing - deliberately kept out of the
+validator so a live re-announce is never applied against a value a
+subsequent storage-write failure didn't save. On the simulator both
+callbacks are omitted entirely (no mDNS to update, no hostname rules to
+check) - keeps `settings_routes.cpp` fully portable, matching
+`ota_routes.cpp`'s `OtaWriter` injection pattern for the same reason.
+`POST /api/backup/restore`'s generic replay loop does
 **not** invoke either callback - an accepted simplification, not an
 oversight: restoring a backup containing a device name change persists
 correctly but only takes effect on the next reboot, since making restore

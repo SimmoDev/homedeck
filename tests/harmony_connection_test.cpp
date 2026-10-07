@@ -76,9 +76,9 @@ struct WsScript {
     // that arrived before the drain runs. `responses` models this test's
     // own expected reply to whatever request follows the drain, and must
     // stay untouched by it regardless of when the test pushed it relative
-    // to the connection loop running - a real backend's 0ms
-    // receive only ever sees what's already buffered, never something a
-    // later, bounded-timeout receive is the one meant to wait for.
+    // to the connection loop running - a real backend's 0ms receive
+    // only ever sees what's already buffered, never something a later,
+    // bounded-timeout receive is the one meant to wait for.
     std::deque<std::string> stale_responses;
     int close_count = 0;
     // Ordered log of "send:<text>" / "receive0" (a 0ms/drain poll) /
@@ -223,8 +223,8 @@ constexpr std::chrono::milliseconds kFastBackoff = std::chrono::milliseconds(30)
 // below - every other test in this file drives HarmonyConnection against
 // FakeHttpClient/FakeWebSocketClient, scriptable doubles that can't
 // reproduce real socket/timing behavior (e.g. DrainStaleMessages()'s own
-// 0ms ReceiveText() poll, which depends on what a real backend
-// does with a zero timeout - see HostWebSocketClient's own
+// 0ms ReceiveText() poll, which depends on what a real backend does with a
+// zero timeout - see HostWebSocketClient's own
 // ReceiveTextZeroDoesNotBlockWhenNothingIsPending regression test in
 // websocket_client_test.cpp). Deliberately minimal - just enough of HTTP/1.1
 // and RFC 6455 framing to complete one connect pipeline, not a general-
@@ -531,8 +531,8 @@ TEST(IsValidHubIdTest, RejectsEmpty) {
 TEST(IsValidHubIdTest, RejectsUrlStructuralCharacters) {
     // '&'/'#' would otherwise reach WebSocketUrl()'s raw concatenation
     // unchanged and, like IsValidHubHost()'s own '#'/'?'/'@' case, change
-    // what the connect URL's query string contains rather than
-    // just failing to connect.
+    // what the connect URL's query string contains rather than just
+    // failing to connect.
     EXPECT_FALSE(homedeck::IsValidHubId("74494839&evil=1"));
     EXPECT_FALSE(homedeck::IsValidHubId("74494839#fragment"));
 }
@@ -1530,9 +1530,9 @@ TEST_F(HarmonyConnectionTest, DrainsStaleMessagesBeforeSendingTheInitialConfigRe
     // WsScript::stale_responses can't model a real transport's shared
     // receive buffer (a real socket doesn't know which call is
     // "supposed" to get which message the way two separate fake queues
-    // would), so this checks the one thing that matters
-    // instead: that ConnectAndFetchConfig()'s own 0ms drain poll runs
-    // before the config request itself is sent.
+    // would), so this checks the one thing that matters instead: that
+    // ConnectAndFetchConfig()'s own 0ms drain poll runs before the
+    // config request itself is sent.
     std::lock_guard<std::mutex> lock(script->mutex);
     auto first_receive0 = std::find(script->call_log.begin(), script->call_log.end(), "receive0");
     auto config_send = std::find_if(script->call_log.begin(), script->call_log.end(),
@@ -1910,16 +1910,15 @@ TEST_F(HarmonyConnectionTest, EnqueueingPastTheCapDropsTheOldestEntriesFirst) {
         kFastBackoff);
     connection.Start();
 
-    // Waits for the connection loop's own thread to have reached
-    // its unconfigured wait, rather than assuming it gets there before the
-    // 25 enqueues below run - Start() only requests the background thread
-    // start, with no guarantee about when it begins executing.
-    // Without this wait, a slow-to-schedule thread (seen in CI under load)
-    // could still be sitting on a stale, pre-Start() TriggerReconnect()-style
-    // wake_requested_ once it finally connects, tripping an extra,
-    // unnecessary reconnect cycle - kDisconnected is set synchronously
-    // before the connection loop's first Sleep() call, so waiting for it
-    // here closes that window.
+    // Waits for the connection loop's own thread to have reached its
+    // unconfigured wait, rather than assuming it gets there before the 25
+    // enqueues below run - Start() only requests the background thread start,
+    // with no guarantee about when it begins executing. Without this wait, a
+    // slow-to-schedule thread (seen in CI under load) could still be sitting
+    // on a stale, pre-Start() TriggerReconnect()-style wake_requested_ once
+    // it finally connects, tripping an extra, unnecessary reconnect cycle -
+    // kDisconnected is set synchronously before the connection loop's first
+    // Sleep() call, so waiting for it here closes that window.
     ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kDisconnected; }));
 
     constexpr int kEnqueued = 25;
@@ -2247,8 +2246,8 @@ TEST_F(HarmonyConnectionTest, HubHostChangeArrivingDuringAnInFlightConnectIsNotD
     // The new-address attempt's own responses, queued up front - WsScript
     // has no per-hub distinction, only connect_urls' recorded order below
     // proves which attempt reached the hub.
-    PushResponse(script, kConfigSuccessBody);
-    PushResponse(script, CurrentActivityResponseBody("-1"));
+    PushResponse(script, kConfigSuccessBody); PushResponse(script,
+    CurrentActivityResponseBody("-1"));
 
     {
         std::lock_guard<std::mutex> lock(script->mutex);

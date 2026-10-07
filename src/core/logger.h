@@ -57,8 +57,8 @@ public:
     // Rotated + current entries, oldest first, as a JSON array (each
     // stored line is already valid JSON, so this joins them rather than
     // parsing and re-serializing). Blocks until every Log() call made
-    // before this one has been persisted, so a caller never
-    // sees a view that's missing something it already logged.
+    // before this one has been persisted, so a caller never sees a
+    // view that's missing something it already logged.
     std::string ReadAll();
 
 private:

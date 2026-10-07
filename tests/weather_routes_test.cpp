@@ -334,8 +334,8 @@ TEST_F(WeatherRoutesTest, GeocodeReturnsEmptyResultsWhenUpstreamOmitsResultsKey)
 
 TEST_F(WeatherRoutesTest, RefreshTriggersAnImmediatePoll) {
     // Configured (unlike the other tests here) so TriggerPoll()'s own
-    // PollOnce() reaches Get() - proving the endpoint is wired
-    // to the real provider, not just returning 200 without effect.
+    // PollOnce() reaches Get() - proving the endpoint is wired to
+    // the real provider, not just returning 200 without effect.
     ASSERT_TRUE(storage_->SetSetting("weather", "latitude", 1, "52.52"));
     ASSERT_TRUE(storage_->SetSetting("weather", "longitude", 1, "13.41"));
     geocode_http_client_.SetResponse(

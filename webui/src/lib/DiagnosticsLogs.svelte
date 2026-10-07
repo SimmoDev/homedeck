@@ -50,8 +50,8 @@
     (logs ?? [])
       .filter((entry) => levelFilter === "all" || entry.level === levelFilter)
       .filter((entry) => componentFilter === "all" || entry.component === componentFilter)
-      // Newest first - matches how a developer wants to scan
-      // recent activity, not the storage order ReadAll() returns.
+      // Newest first - matches how a developer wants to scan recent
+      // activity, not the storage order ReadAll() returns.
       .slice()
       .reverse(),
   );

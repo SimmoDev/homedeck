@@ -33,10 +33,10 @@ struct TaskContext {
     std::stop_source stop_source;
     Task::Function function;
     // Given by the task right before it self-deletes, so the destructor
-    // can block until the task has finished - not just been
-    // asked to stop - matching std::jthread's join-on-destroy semantics
-    // the host backend gets for free. FreeRTOS has no built-in "join"
-    // for a self-deleting task.
+    // can block until the task has finished - not just been asked to
+    // stop - matching std::jthread's join-on-destroy semantics the host
+    // backend gets for free. FreeRTOS has no built-in "join" for a
+    // self-deleting task.
     SemaphoreHandle_t finished = nullptr;
 };
 

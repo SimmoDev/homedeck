@@ -79,8 +79,8 @@ struct KodiNowPlaying {
     // the rest of this struct once playback stops.
     bool can_seek = false;
 
-    // Lets ReconcilePoll() tell a poll that moved something from
-    // one that found the exact same state (a long pause), so it only
+    // Lets ReconcilePoll() tell a poll that moved something from one
+    // that found the exact same state (a long pause), so it only
     // republishes KodiNowPlayingChangedEvent on an actual delta.
     bool operator==(const KodiNowPlaying&) const = default;
 };

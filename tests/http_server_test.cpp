@@ -11,8 +11,8 @@
 namespace {
 
 // A minimal real HTTP/1.1 client over a raw socket - proving
-// HostHttpServer accepts and answers a real TCP connection, not
-// just that its internal dispatch logic runs. No new dependency: plain
+// HostHttpServer accepts and answers a real TCP connection, not just
+// that its internal dispatch logic runs. No new dependency: plain
 // POSIX sockets, matching how this project already avoids adding a
 // library where the standard one suffices.
 std::string HttpGet(uint16_t port, const std::string& path, const std::string& extra_request_headers = "") {

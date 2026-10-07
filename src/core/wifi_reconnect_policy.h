@@ -22,8 +22,8 @@ public:
     // reconnect to an already-trusted network retries indefinitely
     // instead, since giving up there would strand the device with no
     // Wi-Fi and no way back into setup mode - see ShouldOfferRecovery()
-    // below for how it gets one anyway, without ever giving up
-    // the underlying retry loop.
+    // below for how it gets one anyway, without ever giving up the
+    // underlying retry loop.
     Decision OnDisconnected(bool in_setup_mode) {
         if (in_setup_mode && attempts_ >= max_setup_attempts_) {
             return Decision::kGiveUp;
@@ -41,8 +41,8 @@ public:
     // gone for good (moved house, router replaced) rather than just
     // briefly down. This signals "also start offering a way back in
     // (recovery access point, alongside the continuing retries)," not
-    // "stop retrying" - wifi_setup.cpp's own caller is what
-    // brings up that access point once this returns true.
+    // "stop retrying" - wifi_setup.cpp's own caller is what brings
+    // up that access point once this returns true.
     bool ShouldOfferRecovery(bool in_setup_mode) const {
         return !in_setup_mode && attempts_ == normal_mode_recovery_attempts_;
     }

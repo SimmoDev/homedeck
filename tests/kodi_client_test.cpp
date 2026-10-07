@@ -2588,9 +2588,9 @@ int ListenLoopback(uint16_t* out_port) {
 // Answers the JSON-RPC methods ReconcilePoll() issues, then pushes one
 // unsolicited notification - enough to prove KodiClient drives the
 // libcurl-backed HostWebSocketClient (id correlation across genuine
-// frames, a 0ms drain that sees a buffered push) end to end.
-// A scripted FakeWebSocketClient cannot show whether the real backend's
-// zero-timeout receive behaves as modelled, so this one runs over sockets.
+// frames, a 0ms drain that sees a buffered push) end to end. A scripted
+// FakeWebSocketClient cannot show whether the real backend's zero-timeout
+// receive behaves as modelled, so this one runs over sockets.
 void RunFakeKodi(int listen_fd, std::atomic<bool>& stop) {
     // Bounded accept() so a test that fails before the client ever
     // connects still lets this thread observe `stop` and exit, rather

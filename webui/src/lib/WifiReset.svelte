@@ -31,10 +31,10 @@
   // rebooting, this browser's session and the LAN address it's talking
   // to are both about to become invalid, and every other panel on this
   // page (Settings, OTA, the rest of Diagnostics) would otherwise sit
-  // there looking normal while unreachable. onWifiReset() hands
-  // off to App.svelte instead, which replaces the entire authenticated
-  // view with one dedicated message - not a page redirect (the device
-  // won't be reachable at this address to serve one).
+  // there looking normal while unreachable. onWifiReset() hands off to
+  // App.svelte instead, which replaces the entire authenticated view
+  // with one dedicated message - not a page redirect (the device won't
+  // be reachable at this address to serve one).
   type WifiResetState = "idle" | "confirming" | "resetting" | "error";
   let wifiResetState: WifiResetState = $state("idle");
   let wifiResetError: string | undefined = $state(undefined);

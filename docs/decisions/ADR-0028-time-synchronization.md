@@ -25,11 +25,11 @@ hardware, indefinitely, with no path to fixing it.
 **SNTP over Wi-Fi**, not a manual set-time Web UI/Touch UI field. Once the
 device has Wi-Fi (this project's whole reason a reliable wall clock matters
 beyond a single boot), a public NTP pool gives an always-correct time with no
-per-device setup step - a manual field would require a person to set
-it, on every device, and wouldn't self-correct if left wrong or if the RTC's
-backup eventually drifts. A manual affordance remains a plausible future
-addition for permanently-offline installations, but isn't built now - no
-resolved gap prompted it, unlike SNTP resolving a real, already-flagged one.
+per-device setup step - a manual field would require a person to set it, on
+every device, and wouldn't self-correct if left wrong or if the RTC's backup
+eventually drifts. A manual affordance remains a plausible future addition
+for permanently-offline installations, but isn't built now - no resolved gap
+prompted it, unlike SNTP resolving a real, already-flagged one.
 
 **Mechanism:** ESP-IDF's `esp_netif_sntp` component (`esp_netif_sntp_init()`
 with `ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org")`, `firmware/main/homedeck.cpp`),

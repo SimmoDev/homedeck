@@ -75,8 +75,8 @@ concerns generally: the WebSocket relay has its own, different
 dispatch-safety requirement (`esp_http_server`'s connection state is no
 safer to touch from an arbitrary task than LVGL's is) — see
 [ADR-0002](ADR-0002-technology-stack.md#3-embedded-webwebsocket-server)
-for what that requirement is and what's still unconfirmed about
-it. The general lesson generalizes beyond LVGL: *any* dedicated-resource
+for what that requirement is and what's still unconfirmed about it. The
+general lesson generalizes beyond LVGL: *any* dedicated-resource
 subscriber needs its own hand-off, evaluated on its own terms, not assumed
 safe by default just because it isn't LVGL.
 
@@ -89,9 +89,9 @@ single `void*` user-data argument. If an event carries a payload (e.g.
 passes a pointer into the publishing module's transient state — a stack
 local, or any buffer the publisher might reuse or free once its call
 returns — that pointer can be dangling by the time the deferred callback
-runs. This is a real use-after-free risk, not a hypothetical one,
-and it would surface as an intermittent, timing-dependent crash rather
-than a reliably reproducible one — exactly the kind of bug that's cheap to
+runs. This is a real use-after-free risk, not a hypothetical one, and it
+would surface as an intermittent, timing-dependent crash rather than a
+reliably reproducible one — exactly the kind of bug that's cheap to
 prevent architecturally and expensive to debug once shipped.
 
 **Options:**

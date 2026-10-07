@@ -6,8 +6,8 @@ Accepted — the Decision section's "(from M3 onward) module credentials"
 characterization is corrected by
 [ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's local protocol
 has no credential of any kind, so M3 didn't introduce one. The NVS tier
-still holds module credentials whenever a future module needs
-one; the tiering decision itself is unaffected.
+still holds module credentials whenever a future module needs one;
+the tiering decision itself is unaffected.
 
 ## Context
 
@@ -42,10 +42,10 @@ convenience:
 
 - **NVS:** small, sensitive, frequently-read data — the admin password
   hash, small settings/preferences, and (from M3 onward) module
-  credentials. What NVS is designed for. Encryption for this
-  tier is staged by [ADR-0018](ADR-0018-staged-security-hardening.md),
-  not activated from the start — see that ADR for why. Wi-Fi credentials
-  are not part of this tier: they live on the C6 co-processor's own flash
+  credentials. What NVS is designed for. Encryption for this tier is
+  staged by [ADR-0018](ADR-0018-staged-security-hardening.md), not
+  activated from the start — see that ADR for why. Wi-Fi credentials are
+  not part of this tier: they live on the C6 co-processor's own flash
   (see [hardware.md](../architecture/hardware.md#wi-fi-bring-up)).
 - **Internal flash filesystem** (see [Decision: filesystem
   choice](#decision-internal-flash-filesystem-choice) below for which one):

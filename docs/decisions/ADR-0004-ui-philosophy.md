@@ -48,9 +48,9 @@ default, persistent view — see
 UI components subscribe to Core's event bus and re-render in response to
 events (e.g. `ActivityChanged`, `MonitorStatusChanged`) rather than polling
 module or Core state on a timer. Modules own the responsibility of deciding
-when their state has changed and publishing an event; UI code
-should never need to guess an appropriate poll interval. This keeps UI code
-simple and keeps polling policy (which affects battery life) centralized in
+when their state has changed and publishing an event; UI code should never
+need to guess an appropriate poll interval. This keeps UI code simple and
+keeps polling policy (which affects battery life) centralized in
 modules/Core rather than scattered across screens.
 
 ### Centralized navigation
@@ -86,10 +86,10 @@ affordance, and centralized navigation alone doesn't specify what it is.
 
 **Decided:** a persistent on-screen affordance, as the guaranteed baseline.
 This was chosen specifically because it's the only option that can
-be guaranteed to hold on *every* screen without relying on
-unconfirmed assumptions: an edge-swipe gesture risks silent conflicts with
-whatever gesture an arbitrary future module's screen assumes is available
-to it (e.g. a horizontal swipe through a media carousel, a vertical scroll
+be guaranteed to hold on *every* screen without relying on unconfirmed
+assumptions: an edge-swipe gesture risks silent conflicts with whatever
+gesture an arbitrary future module's screen assumes is available to it
+(e.g. a horizontal swipe through a media carousel, a vertical scroll
 gesture near an edge) — the framework can't rule this out for screens that
 don't exist yet. A power-button long-press depends on hardware behavior
 (whether the button is readable as a general input outside its wake-source

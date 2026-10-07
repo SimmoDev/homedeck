@@ -209,9 +209,9 @@ TEST_F(AdminAuthServiceTest, RequireAuthReturns401WithoutAValidSessionCookie) {
 
 namespace {
 // Decorates a real SecretStore to count Get() calls - a proxy for "how
-// many Login() calls got past the lockout gate to attempt a
-// real password comparison," since Login() only reads the stored hash
-// from inside that gate.
+// many Login() calls got past the lockout gate to attempt a real
+// password comparison," since Login() only reads the stored hash from
+// inside that gate.
 class CountingSecretStore : public homedeck::SecretStore {
 public:
     explicit CountingSecretStore(homedeck::SecretStore& inner) : inner_(inner) {}

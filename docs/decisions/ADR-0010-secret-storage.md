@@ -54,9 +54,9 @@ development cost: once enabled it complicates the re-flashing workflow
 used throughout M1/M2 iteration (production builds typically need a
 separate unencrypted development flow), which is a real ongoing cost for a
 project still establishing its build/bring-up process — more than a Wi-Fi
-password and one password hash require. NVS encryption targets
-the same secrets without that cost. Plaintext storage was rejected outright
-as a direct violation of an explicit [CLAUDE.md](../../CLAUDE.md) requirement, not a genuine
+password and one password hash require. NVS encryption targets the same
+secrets without that cost. Plaintext storage was rejected outright as a
+direct violation of an explicit [CLAUDE.md](../../CLAUDE.md) requirement, not a genuine
 option.
 
 **Which NVS encryption scheme, specifically — confirmed against current

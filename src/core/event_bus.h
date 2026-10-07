@@ -32,8 +32,8 @@ public:
     // Safe even against a SubscribeUi callback already dispatched from a
     // publish on another thread (e.g. Clock's Timer) before this handle
     // is destroyed: PublishImpl re-checks whether the subscriber is still
-    // registered at the point the deferred call executes, not
-    // at the point it was queued, so a callback belonging to an
+    // registered at the point the deferred call executes, not at
+    // the point it was queued, so a callback belonging to an
     // already-destroyed subscriber is never invoked (see ADR-0011's
     // "Resolved (M2)" note).
     class ScopedSubscription {

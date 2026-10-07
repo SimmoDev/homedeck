@@ -101,8 +101,8 @@ Logger::~Logger() = default;
 
 void Logger::Log(LogLevel level, const std::string& component, const std::string& message) {
     // Timestamp captured now, not whenever WorkerLoop() eventually
-    // persists this - callers need the time the event
-    // happened, not whenever the write got around to running.
+    // persists this - callers need the time the event happened, not
+    // whenever the write got around to running.
     Record record{std::chrono::system_clock::to_time_t(time_source_.Now()), level, component, message};
     pending_.Push(Item{std::move(record), nullptr});
 }

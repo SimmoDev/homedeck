@@ -70,16 +70,16 @@ HMAC-peripheral NVS encryption, per ADR-0010's scheme choice — still no
 Secure Boot or flash encryption, preserving the re-flashing workflow that
 motivated rejecting the flash-encryption-based scheme in the first place.
 Activated once a module credential (not just the admin password
-hash) is being stored, at which point flash-extraction of a
-stolen device becomes a threat worth this tier's one-time hardware cost.
+hash) is being stored, at which point flash-extraction of a stolen
+device becomes a threat worth this tier's one-time hardware cost.
 
 ### Hardened
 
 Secure Boot + flash encryption + HMAC-peripheral NVS encryption as a
 coordinated bundle, with real per-unit factory key provisioning — the
-tier where NVS encryption's protection closes, since Secure Boot
-stops an attacker from just flashing a different image to read the same
-keys. Relevant only if HomeDeck becomes a manufactured product with real
+tier where NVS encryption's protection closes, since Secure Boot stops
+an attacker from just flashing a different image to read the same keys.
+Relevant only if HomeDeck becomes a manufactured product with real
 distribution; not a milestone today, recorded here so the option exists
 on the record rather than being reinvented later.
 

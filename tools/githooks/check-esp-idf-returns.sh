@@ -69,18 +69,18 @@ for f in "$@"; do
     # statement-boundary call start (same (^|[{};]) requirement as above,
     # so an ESP_ERROR_CHECK(-wrapped or assigned multi-line call is still
     # correctly excluded) AND has more '(' than ')' on that single line -
-    # i.e. a unclosed call, not just a line whose trailing
-    # punctuation happens not to match the single-line pass's own closing
-    # shape (e.g. a lambda assigned to a variable, `cb = [](){ f(); };`,
-    # is already fully balanced on one line and must never be treated as
-    # multi-line, or the join would run away consuming the rest of the
-    # file looking for a close that will never come). It then appends
-    # subsequent lines until parens balance, and only reports if the
-    # balanced result's own trailing shape confirms a bare, terminated
-    # statement (mirroring the single-line pass's own closing check, with
-    # an optional trailing `;` to also cover a `};`-closed lambda body) -
-    # silently drops anything else (e.g. the call's result feeding into a
-    # further expression) rather than risk a false positive.
+    # i.e. a unclosed call, not just a line whose trailing punctuation
+    # happens not to match the single-line pass's own closing shape (e.g.
+    # a lambda assigned to a variable, `cb = [](){ f(); };`, is already
+    # fully balanced on one line and must never be treated as multi-line,
+    # or the join would run away consuming the rest of the file looking
+    # for a close that will never come). It then appends subsequent lines
+    # until parens balance, and only reports if the balanced result's own
+    # trailing shape confirms a bare, terminated statement (mirroring the
+    # single-line pass's own closing check, with an optional trailing `;`
+    # to also cover a `};`-closed lambda body) - silently drops anything
+    # else (e.g. the call's result feeding into a further expression)
+    # rather than risk a false positive.
     ml_matches=$(awk '
         { lines[NR] = $0 }
         END {
@@ -124,9 +124,9 @@ for f in "$@"; do
     # line start. Walks the line by character to find the condition's own
     # balanced close (so a for-loop's internal `;`s, e.g.
     # `for (int i = 0; i < 3; i++) esp_foo();`, don't confuse where the
-    # condition ends), then checks whether what follows is a
-    # bare call with the same closing shape and paren-balance guard as
-    # the single-line pass above.
+    # condition ends), then checks whether what follows is a bare call
+    # with the same closing shape and paren-balance guard as the
+    # single-line pass above.
     cf_matches=$(awk '
         {
             line = $0

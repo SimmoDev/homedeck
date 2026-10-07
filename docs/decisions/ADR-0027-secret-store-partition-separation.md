@@ -73,14 +73,14 @@ so an already-provisioned device's existing wear-levelling state is
 left misaligned with the new, smaller boundary - every write to
 `storage` fails (`FirmwareCacheStore`, FatFs `FR_DENIED`/"no free
 cluster", `esp_vfs_fat_info()` reporting 0 bytes free regardless of how
-little the volume holds), deterministically on every boot, not
-as an intermittent race. The fix is the same shape as the admin
-password's: a one-time `storage` partition erase (`esptool.py
-erase_region`), letting `format_if_mount_failed` rebuild it fresh. No
-code-level fix exists, since the corruption is structural to the
-repartition itself, not a defect in the storage code - a real migration
-path (or a full-flash erase as part of the update step) would be needed
-before shipping if a repartition like this were made again.
+little the volume holds), deterministically on every boot, not as an
+intermittent race. The fix is the same shape as the admin password's: a
+one-time `storage` partition erase (`esptool.py erase_region`), letting
+`format_if_mount_failed` rebuild it fresh. No code-level fix exists,
+since the corruption is structural to the repartition itself, not a
+defect in the storage code - a real migration path (or a full-flash
+erase as part of the update step) would be needed before shipping if a
+repartition like this were made again.
 
 ## Consequences
 

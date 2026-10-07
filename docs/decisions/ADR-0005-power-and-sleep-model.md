@@ -100,8 +100,8 @@ application/module faults (a module crashing, a failed network request) are
 not Error; those go through Core's diagnostics/notifications service, which
 already owns error reporting (see [diagnostics.md](../architecture/diagnostics.md)).
 The broad catch-all was rejected because it has no well-defined entry/exit
-conditions and can't be implemented correctly. Removing it entirely
-was rejected because it loses a clean way to represent "force a safe
+conditions and can't be implemented correctly. Removing it entirely was
+rejected because it loses a clean way to represent "force a safe
 shutdown right now regardless of what the UI is doing," which a critical
 battery fault genuinely needs as a distinct state.
 

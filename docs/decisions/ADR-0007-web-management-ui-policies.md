@@ -11,8 +11,8 @@ scope and transport. Two decisions within it involved real tradeoffs and
 rejected alternatives: how users authenticate to it, and — once initial
 Wi-Fi provisioning moved to a separate SoftAP flow (see
 [ADR-0006](ADR-0006-networking-discovery-provisioning.md)) — when the admin
-credential that authentication depends on gets created. This ADR
-records both, so the architecture doc can state the current design without
+credential that authentication depends on gets created. This ADR records
+both, so the architecture doc can state the current design without
 carrying the full rationale inline.
 
 ## Decision: Authentication mechanism

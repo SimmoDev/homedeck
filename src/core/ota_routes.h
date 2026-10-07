@@ -38,8 +38,8 @@ struct OtaWriter {
 
 // Reboots the device. Must not block waiting for the reboot to
 // complete - the handler still needs to return so its 200 response is
-// sent first (firmware: schedules esp_restart() a short delay
-// out on a timer/task; simulator: a no-op, doesn't exit the process).
+// sent first (firmware: schedules esp_restart() a short delay out on
+// a timer/task; simulator: a no-op, doesn't exit the process).
 using OtaRebootFn = std::function<void()>;
 
 // Registers GET /api/ota/status, POST /api/ota/upload, and

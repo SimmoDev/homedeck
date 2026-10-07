@@ -37,8 +37,8 @@ for f in "$@"; do
     # Trailing `//` comments stripped first - a prose mention of
     # esp_http_client_perform() (e.g. explaining what it does) must not
     # count as an actual call, and a comment mentioning timeout_ms must
-    # not count as setting it. Still not real parsing, so a
-    # /* */ block comment isn't handled the same way - same tradeoff
+    # not count as setting it. Still not real parsing, so a /* */
+    # block comment isn't handled the same way - same tradeoff
     # check-curl-timeouts.sh's identical strip already accepts.
     stripped=$(sed -E 's#//.*$##' "$f")
     echo "$stripped" | grep -q 'esp_http_client_perform(' || continue

@@ -122,9 +122,9 @@
     // so a lapsed session still routes through notifyIfSessionExpired()
     // like every other request in this app. Still only a best-effort
     // ordering, not a guarantee the connect loop has acted on the
-    // trigger by the time the status GET below runs - it's a
-    // background Task on its own thread (src/core/harmony_connection.h),
-    // not something this request waits on synchronously.
+    // trigger by the time the status GET below runs - it's a background
+    // Task on its own thread (src/core/harmony_connection.h), not
+    // something this request waits on synchronously.
     await postJson("/api/harmony/reconnect");
     // The Refresh button below covers whatever this snapshot doesn't
     // catch, since no live-push mechanism exists yet for the Web UI (see

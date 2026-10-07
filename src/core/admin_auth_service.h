@@ -90,10 +90,9 @@ public:
     HttpServer::Handler RequireAuth(HttpServer::Handler inner);
 
     // Test-only: exposes sessions_.size() to prove SweepExpiredSessions()
-    // bounds memory growth from an abandoned session (one
-    // nobody ever calls ValidateSession() on again, which would
-    // otherwise lazily erase it on its own) - not part of the API
-    // surface.
+    // bounds memory growth from an abandoned session (one nobody
+    // ever calls ValidateSession() on again, which would otherwise
+    // lazily erase it on its own) - not part of the API surface.
     size_t ActiveSessionCountForTesting();
 
 private:

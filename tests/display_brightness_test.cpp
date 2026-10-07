@@ -3,9 +3,9 @@
 #include <gtest/gtest.h>
 
 // ClampBrightnessPercent() is the one piece of DisplayBrightness's two
-// implementations (Host/FirmwareDisplayBrightness) that's
-// portable; this exercises it directly, which neither LVGL- nor
-// ESP-IDF-coupled implementation could be tested through in this suite.
+// implementations (Host/FirmwareDisplayBrightness) that's portable;
+// this exercises it directly, which neither LVGL- nor ESP-IDF-coupled
+// implementation could be tested through in this suite.
 
 TEST(DisplayBrightnessTest, ClampsBelowZeroUpToZero) {
     EXPECT_EQ(homedeck::ClampBrightnessPercent(-5), 0);

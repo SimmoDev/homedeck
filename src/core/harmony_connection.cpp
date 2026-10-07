@@ -322,12 +322,12 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         std::optional<VersionedValue> hub_host_setting = storage_.GetSetting(kModuleId, kHubHostKey);
         if (!hub_host_setting.has_value() || hub_host_setting->value.empty()) {
             ClearConfigIfPresent();
-            // Only once a previous hub was configured - a command
-            // queued before any hub has ever been set (last_hub_host_ still
-            // empty) has no prior hub to have been wrongly addressed to; it
-            // stays queued, waiting for whichever hub is configured first,
-            // same as StartActivity()'s own "no-op if never connected"
-            // contract already documents.
+            // Only once a previous hub was configured - a command queued
+            // before any hub has ever been set (last_hub_host_ still empty)
+            // has no prior hub to have been wrongly addressed to; it stays
+            // queued, waiting for whichever hub is configured first, same
+            // as StartActivity()'s own "no-op if never connected" contract
+            // already documents.
             if (!last_hub_host_.empty()) {
                 ClearPendingCommandsIfAny();
             }

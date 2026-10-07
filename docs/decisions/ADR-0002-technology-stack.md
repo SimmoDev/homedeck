@@ -94,9 +94,9 @@ primitives — a plain host C++ toolchain doesn't provide those, and this
 needs an explicit resolution, not a gap.
 
 **Decided:** a small set of Core-owned concurrency types — `Task`,
-`Queue`, and `Timer` — covering what Core and modules use
-(background tasks, the event bus's internal dispatch, and periodic/
-one-shot scheduling). Core and module code is written against these types
+`Queue`, and `Timer` — covering what Core and modules use (background
+tasks, the event bus's internal dispatch, and periodic/one-shot
+scheduling). Core and module code is written against these types
 exclusively, never against `xTaskCreate`/`xQueueCreate`/FreeRTOS APIs or
 `std::thread`/host APIs directly:
 

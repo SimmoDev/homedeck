@@ -106,8 +106,8 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             if (!storage.SetSetting(module, key, schema_it->get<int>(), value)) {
                 return HttpResponse{500, "application/json", R"({"error":"write_failed"})", {}};
             }
-            // Only applied once the value above is persisted -
-            // see DeviceNameCommittedFn's own comment for why the ordering
+            // Only applied once the value above is persisted - see
+            // DeviceNameCommittedFn's own comment for why the ordering
             // matters.
             if (is_device_name && on_device_name_committed) {
                 on_device_name_committed(value);
