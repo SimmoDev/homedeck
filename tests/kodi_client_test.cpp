@@ -2084,6 +2084,46 @@ TEST_F(KodiClientTest, ALibraryRequestQueuedWhileDisconnectedIsSentOnceConnected
     client->Stop();
 }
 
+TEST_F(KodiClientTest, IdenticalLibraryRequestsQueuedTogetherAreSentOnce) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["VideoLibrary.GetMovies"] = R"({"movies":[]})";
+        script->results["VideoLibrary.GetSeasons"] = R"({"seasons":[]})";
+        script->connect_ok = false;
+    }
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kError; }));
+
+    client->RequestMovies();
+    client->RequestMovies();
+    client->RequestSeasons(7);
+    client->RequestSeasons(8);  // a different show is a different request
+    client->RequestSeasons(7);
+    client->RequestMovies();
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->connect_ok = true;
+    }
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "VideoLibrary.GetSeasons") == 2; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    EXPECT_EQ(CountSent(script, "VideoLibrary.GetMovies"), 1);
+    EXPECT_EQ(CountSent(script, "VideoLibrary.GetSeasons"), 2);
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, RequestArtistsAlbumsAndSongsSendTheRightParamsAndParseTheReply) {
     KODI_COMMAND_RIG();
     {

@@ -482,6 +482,11 @@ private:
         long long parent_id;
         int season;          // kEpisodes only - the second id it needs alongside parent_id
         std::string path;    // kDirectory only - the Files.GetDirectory path to list
+
+        bool operator==(const LibraryRequest& other) const {
+            return kind == other.kind && parent_id == other.parent_id && season == other.season &&
+                   path == other.path;
+        }
     };
     // What one LibraryRequest asks Kodi and how its reply is published.
     // result_key is null for a listing that is not paged (see CallLibrary()).

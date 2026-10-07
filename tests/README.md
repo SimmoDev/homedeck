@@ -84,6 +84,7 @@ Against fake `MdnsBrowser`/`WebSocketClient` doubles:
 - Timeouts on an open link: a library listing or a reconcile poll that
   times out keeps the connection, except that repeated unanswered polls
   reconnect.
+- Identical library requests waiting in the queue being sent once.
 - The `library_busy` flag: raised by a slow library reply, cleared by any
   reply (including a late one read while idle) and on disconnect, and never
   raised by a fast reply.

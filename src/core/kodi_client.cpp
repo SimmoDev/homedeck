@@ -1216,6 +1216,14 @@ void KodiClient::PlayFile(const std::string& path) {
 void KodiClient::EnqueueLibraryRequest(LibraryRequest request) {
     {
         std::lock_guard<std::mutex> lock(wake_mutex_);
+        // An identical request already waiting answers this one too. Kodi
+        // runs every listing to completion, so each duplicate sent behind a
+        // slow listing is more work Kodi must finish before it answers the
+        // request the user is waiting for.
+        if (std::find(pending_library_requests_.begin(), pending_library_requests_.end(), request) !=
+            pending_library_requests_.end()) {
+            return;
+        }
         pending_library_requests_.push_back(std::move(request));
         while (pending_library_requests_.size() > kMaxPendingLibraryRequests) {
             pending_library_requests_.pop_front();
