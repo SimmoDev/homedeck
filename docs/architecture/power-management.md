@@ -201,7 +201,7 @@ regardless. Safety here comes from `esp_ota_end()` already validating an
 image before it can become bootable, not from PowerManager stopping the
 write: a genuine power loss during the write leaves that image
 unvalidated and un-bootable, which is what fails safe. Of the other two
-fault types ADR-0005 originally scoped Error to cover:
+fault types ADR-0005 scopes Error to cover:
 charging-fault detection is a permanent limitation of this board
 revision, not outstanding work - `CHG_STAT` (see [hardware.md](hardware.md#power))
 can't distinguish a stalled charge from a unplugged or
@@ -232,7 +232,7 @@ hardware reset) and replaces the baseline `TransitionTo()` uses for
 already `kActive` - Idle's dim/Sleeping's off stay untouched by the
 user's chosen "on" brightness, the same way a phone still dims on
 timeout regardless of brightness setting. `TransitionTo()`'s Idle
-dimming itself now clamps to
+dimming clamps to
 `min(kDimBrightnessPercent, active_brightness_percent_)`, so a chosen
 Active brightness below the normal 20% dim level can't dim "up" past
 it. Both settings apply live on every slider drag tick and persist to

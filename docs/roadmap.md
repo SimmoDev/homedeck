@@ -502,12 +502,10 @@ this until it's done — see
       `PowerOff`/`PowerOn`/`PowerToggle` (LVGL has exactly one power icon
       for three different actions) are the commands that have no fitting icon
       and stay as text. `CreateRemoteButton()`
-      (`src/ui/remote_button.h`/`.cpp`) gained an optional `width`
-      parameter (existing callers unaffected, still default full-width)
-      and now explicitly wraps and vertically centers its label - neither
-      was needed while every button auto-fit its own one-line content;
-      both matter now that DevicesScreen's grid gives every button the
-      same fixed width regardless of its own label's line count. Height
+      (`src/ui/remote_button.h`/`.cpp`) takes an optional `width`
+      (default full-width) and wraps and vertically centers its label,
+      since DevicesScreen's grid gives every button the same fixed width
+      regardless of its own label's line count. Height
       is fixed (`kRemoteButtonHeight`, not a parameter) across every
       remote-control button - activity/device list buttons included, for
       one consistent look rather than list buttons auto-fitting their own
@@ -529,18 +527,18 @@ this until it's done — see
 - [x] Status/events integrated with Core's event bus and notifications.
       `HarmonyConnectionStateChangedEvent`/`HarmonyConfigUpdatedEvent`/
       `HarmonyCurrentActivityChangedEvent` (`src/core/harmony_connection.h`)
-      already published over the `EventBus` as part of the Hub connection/
-      Activities items above; the missing piece was a `NotificationEvent`
-      on a connection failure, now `HarmonyNotificationBridge`
-      (`src/core/harmony_notification_bridge.h`/`.cpp`) - subscribes to
+      published over the `EventBus` by the Hub connection/Activities items
+      above. `HarmonyNotificationBridge`
+      (`src/core/harmony_notification_bridge.h`/`.cpp`) publishes the
+      `NotificationEvent` for a connection failure: it subscribes to
       `HarmonyConnectionStateChangedEvent` directly (it already carries
       the new state, so there's nothing to poll) and publishes once on
       entering `kError`, latched the same way `LowBatteryMonitor`'s own
       `NotificationEvent` is so a sustained outage's retry/backoff loop
       doesn't spam one notification per attempt. `NotificationBanner`/
       `NotificationWidget`/`NotificationSound` already subscribe
-      generically to `NotificationEvent`, so this one small bridge class
-      was the only piece needed.
+      generically to `NotificationEvent`, so this bridge is the only
+      Harmony-specific piece.
 - [x] Web Management UI module configuration page for Harmony (hub
       address only — no credential exists in this protocol, see
       [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md)).

@@ -335,9 +335,6 @@ three build/test commands above:
   [ESP-IDF setup](#esp-idf-setup). The type-check gate isn't repeated
   here — one CI job running it is enough.
 
-All three were verified locally with [`act`](https://github.com/nektos/act)
-before being relied on.
-
 A fourth, [`docs.yml`](.github/workflows/docs.yml), runs
 `tools/githooks/check-docs.sh` and `check-hardware-md-scope.sh` against
 every tracked doc/code file (push, PR, and weekly) rather than just a

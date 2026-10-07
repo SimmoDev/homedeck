@@ -101,8 +101,7 @@ Two Core services are implemented, built during M1 rather than waiting for
 M2 because the dedicated-UI-task work needed them directly: the **Event
 bus** (`EventBus` in `src/core/`) and **Time/date services** (`Clock`).
 Both are unit-tested in `tests/`. On firmware, the RTC `Clock` reads from is
-also now kept accurate via SNTP once Wi-Fi connects, not just ticking a
-value nobody ever corrected — see
+corrected via SNTP once Wi-Fi connects — see
 [ADR-0028](../decisions/ADR-0028-time-synchronization.md). **Navigation**
 also has a minimal
 implementation — a route registry (`Register`/`GoTo`/`GoHome`),
@@ -111,7 +110,7 @@ exercised across a deliberately throwaway second screen — though it lives in
 implementation detail (`EventBus` stays LVGL-free for the same reason, so it is unit-testable;
 see [src/README.md](../../src/README.md)).
 
-**Configuration and Storage** are also implemented now (`Storage` in
+**Configuration and Storage** are implemented (`Storage` in
 `src/core/`, unit-tested in `tests/`) — the two named responsibilities
 above map onto one class: schema-versioned settings/cache/secret
 read-write (Configuration) backed by the NVS and internal-flash-FAT tiers
@@ -134,9 +133,8 @@ storage for now by design — see
 [ADR-0018](../decisions/ADR-0018-staged-security-hardening.md) for the
 staged security model that decides when it activates. The microSD tier
 is still deferred - its one named use, extended log archival past the
-internal tier's bounded/rotating retention, needs that base logging
-facility to exist first, which it now does (see below), but archival
-to SD itself isn't wired up yet.
+internal tier's bounded/rotating retention, builds on the base logging
+facility (see below), but archival to SD itself isn't wired up yet.
 
 **Crash and reboot diagnostics** — one specific, fully-specified slice of
 Diagnostics — are also implemented (`firmware/main/crash_diagnostics.cpp`):

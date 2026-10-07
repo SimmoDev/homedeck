@@ -483,7 +483,7 @@ void BlockUntilWifiConnected(homedeck::AppCore& app_core) {
 // gotten this far, not any earlier.
 void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, homedeck::FirmwareHttpServer& web_server,
                                      homedeck::AppCore& app_core) {
-    // See ADR-0028 - corrects the RTC's previously-never-calibrated time
+    // See ADR-0028 - corrects the RTC's uncalibrated time
     // once Wi-Fi (and, implicitly, internet reachability) is available.
     StartTimeSync(time_source, app_core.GetLogger());
 

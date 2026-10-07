@@ -15,8 +15,8 @@ namespace homedeck {
 
 namespace {
 
-// kModuleId/kPasswordKey live on the class itself now (see
-// admin_auth_service.h) - Storage's reserved-key guard needs to
+// kModuleId/kPasswordKey live on the class itself (see
+// admin_auth_service.h) because Storage's reserved-key guard needs to
 // reference them too. 13 chars - NVS keys are capped at 15
 // (NVS_KEY_NAME_MAX_SIZE - 1, see platform/firmware/secret_store.h). A
 // longer key silently fails every read/write on firmware
