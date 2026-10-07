@@ -2,6 +2,7 @@
 
 #include "core/host_validation.h"
 #include "core/json_request.h"
+#include "platform/websocket_message_assembler.h"
 #include "third_party/nlohmann/json.hpp"
 
 #include <cctype>
@@ -34,6 +35,8 @@ constexpr std::chrono::seconds kUnconfiguredRecheckInterval{5};
 // oldest, so one drain empties a full queue. Distinct from
 // kMaxPendingCommands, which only happens to share the value.
 constexpr size_t kMaxDrainIterations = 20;
+static_assert(kMaxDrainIterations >= kMaxQueuedWebSocketMessages,
+              "one drain must be able to empty a full firmware receive queue");
 
 // Parses `text` as JSON, discarded (same convention as a parse error) if
 // it exceeds kMaxJsonNestingDepth (core/json_request.h) - every hub-response

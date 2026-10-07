@@ -2,6 +2,7 @@
 
 #include "core/host_validation.h"
 #include "core/json_request.h"
+#include "platform/websocket_message_assembler.h"
 #include "third_party/nlohmann/json.hpp"
 
 #include <algorithm>
@@ -38,6 +39,8 @@ constexpr std::chrono::milliseconds kNoTargetMaxRecheckInterval{30000};
 // that keeps a client's receive buffer permanently full can't turn one
 // drain into an unbounded loop.
 constexpr size_t kMaxPumpIterations = 32;
+static_assert(kMaxPumpIterations >= kMaxQueuedWebSocketMessages,
+              "one drain must be able to empty a full firmware receive queue");
 
 // See harmony_connection.cpp's ParseBoundedJson() - every frame here
 // also comes off an unauthenticated LAN transport (ADR-0030).
