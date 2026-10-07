@@ -313,7 +313,8 @@ top-level list when it is first shown (`ScreenLoader`, on
 `LV_EVENT_SCREEN_LOAD_START`) and again after each transition into
 `KodiConnectionState::kConnected` - at once if it is showing, otherwise at
 its next show. Opening Kodi therefore costs no library queries until a
-browse screen is opened. A reconnect returns the fixed-depth screens to
+browse screen is opened. A top-level list that timed out with no rows is
+requested again at the screen's next show. A reconnect returns the fixed-depth screens to
 their top-level list, since a request in flight when the link dropped is
 lost; `KodiFilesScreen` keeps its `path_stack_` and reloads the folder the
 user was in. A show's seasons/episodes aren't known until that show/season

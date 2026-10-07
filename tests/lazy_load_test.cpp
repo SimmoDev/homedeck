@@ -28,3 +28,12 @@ TEST(LazyLoadTest, EachReconnectMakesTheDataStaleAgain) {
     EXPECT_FALSE(lazy.OnConnected(false));
     EXPECT_TRUE(lazy.OnShown(true));
 }
+
+TEST(LazyLoadTest, AnUnusableResultLetsTheNextShowRetry) {
+    homedeck::LazyLoad lazy;
+    ASSERT_TRUE(lazy.OnShown(true));
+    EXPECT_FALSE(lazy.OnShown(true));
+    lazy.MarkStale();
+    EXPECT_FALSE(lazy.OnShown(/*connected=*/false)) << "still waits for a connection";
+    EXPECT_TRUE(lazy.OnShown(/*connected=*/true));
+}

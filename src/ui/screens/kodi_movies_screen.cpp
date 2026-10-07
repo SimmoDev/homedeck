@@ -81,6 +81,7 @@ void KodiMoviesScreen::Refresh() {
 }
 
 void KodiMoviesScreen::RebuildMovieList(const std::vector<KodiMovie>& movies, bool truncated) {
+    loader_.OnLoaded(movies.size(), truncated);
     movies_ = movies;
     movie_list_->SetItems(
         movies_.size(),

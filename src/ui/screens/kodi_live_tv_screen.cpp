@@ -87,6 +87,7 @@ void KodiLiveTvScreen::Refresh() {
 }
 
 void KodiLiveTvScreen::RebuildGroupList(const std::vector<KodiChannelGroup>& groups, bool truncated) {
+    loader_.OnLoaded(groups.size(), truncated);
     groups_ = groups;
     groups_list_->SetItems(
         groups_.size(), [this](size_t row) { return groups_[row].label; },

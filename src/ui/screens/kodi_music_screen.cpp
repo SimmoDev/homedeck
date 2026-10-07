@@ -94,6 +94,7 @@ void KodiMusicScreen::Refresh() {
 }
 
 void KodiMusicScreen::RebuildArtistList(const std::vector<KodiArtist>& artists, bool truncated) {
+    loader_.OnLoaded(artists.size(), truncated);
     artists_ = artists;
     artists_list_->SetItems(
         artists_.size(), [this](size_t row) { return artists_[row].name; },

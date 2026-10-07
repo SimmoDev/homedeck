@@ -60,7 +60,7 @@ for why.
 | `kodi_routes_test.cpp` | `/api/kodi/status` and `/api/kodi/reconnect`: authentication and snapshot serialisation, including non-UTF-8 discovered strings |
 | `kodi_display_test.cpp` | The Kodi widget line, Now Playing subtitle and clock formatting |
 | `virtual_list_window_test.cpp` | `ComputeVisibleRows()`, the arithmetic behind `VirtualList` |
-| `lazy_load_test.cpp` | `LazyLoad`, which decides when a browse screen requests its list |
+| `lazy_load_test.cpp` | `LazyLoad`, which decides when a browse screen requests its list, including the retry after a failed load |
 
 ### `kodi_client_test.cpp`
 

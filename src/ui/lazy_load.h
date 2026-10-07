@@ -16,6 +16,11 @@ public:
         return TakeIf(screen_active);
     }
 
+    // The load returned nothing usable (a timed-out listing), so the next
+    // OnShown() must request it again rather than keep the empty result
+    // until the next reconnect.
+    void MarkStale() { stale_ = true; }
+
     // The screen is about to be shown. True if it holds no current data
     // and the source is connected.
     bool OnShown(bool connected) { return TakeIf(connected); }

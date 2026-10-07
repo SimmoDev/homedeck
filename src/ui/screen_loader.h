@@ -3,6 +3,7 @@
 #include "lvgl.h"
 #include "ui/lazy_load.h"
 
+#include <cstddef>
 #include <functional>
 
 namespace homedeck {
@@ -25,6 +26,14 @@ public:
 
     // Call when the source has just (re)connected.
     void OnConnected();
+
+    // Call with each load's result. A timed-out listing with no rows is
+    // not data worth keeping, so showing the screen again retries it.
+    void OnLoaded(size_t item_count, bool truncated) {
+        if (truncated && item_count == 0) {
+            lazy_load_.MarkStale();
+        }
+    }
 
 private:
     static void OnScreenLoadStart(lv_event_t* e);

@@ -119,6 +119,7 @@ void KodiTvShowsScreen::Refresh() {
 }
 
 void KodiTvShowsScreen::RebuildShowList(const std::vector<KodiTvShow>& shows, bool truncated) {
+    loader_.OnLoaded(shows.size(), truncated);
     shows_ = shows;
     shows_list_->SetItems(
         shows_.size(),
