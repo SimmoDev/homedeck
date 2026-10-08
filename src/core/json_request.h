@@ -50,6 +50,18 @@ inline bool ExceedsJsonNestingDepth(const std::string& text, int max_depth = kMa
     return false;
 }
 
+// Parses `text` as any JSON value, returning a discarded value for
+// malformed text or text nested deeper than kMaxJsonNestingDepth. For
+// frames from an unauthenticated LAN peer (Harmony, Kodi), where the caller
+// type-checks the result itself; allow_exceptions=false because firmware
+// builds without exceptions.
+inline nlohmann::json ParseBoundedJson(const std::string& text) {
+    if (ExceedsJsonNestingDepth(text)) {
+        return nlohmann::json(nlohmann::json::value_t::discarded);
+    }
+    return nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
+}
+
 // The "parse the request body as JSON, reject anything that isn't a
 // well-formed JSON object" check every route handler taking a JSON body
 // needs before it can look at individual fields. Firmware builds with

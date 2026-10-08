@@ -15,10 +15,6 @@ namespace homedeck::kodi_json {
 // Portable and host-tested through KodiClient's listing and notification
 // tests.
 
-// Parses a frame, returning a discarded value for malformed or
-// deeply nested text.
-nlohmann::json ParseBoundedJson(const std::string& text);
-
 // Typed field readers: the receiver and the field are type-checked before
 // extraction, and `fallback` is returned for anything else.
 long long GetInt(const nlohmann::json& j, const char* key, long long fallback);

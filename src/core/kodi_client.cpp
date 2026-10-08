@@ -1,6 +1,7 @@
 #include "core/kodi_client.h"
 
 #include "core/host_validation.h"
+#include "core/json_request.h"
 #include "core/kodi_json.h"
 #include "platform/websocket_message_assembler.h"
 #include "third_party/nlohmann/json.hpp"

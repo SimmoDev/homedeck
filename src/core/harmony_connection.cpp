@@ -38,18 +38,6 @@ constexpr size_t kMaxDrainIterations = 20;
 static_assert(kMaxDrainIterations >= kMaxQueuedWebSocketMessages,
               "one drain must be able to empty a full firmware receive queue");
 
-// Parses `text` as JSON, discarded (same convention as a parse error) if
-// it exceeds kMaxJsonNestingDepth (core/json_request.h) - every hub-response
-// parse in this file goes through this rather than nlohmann::json::parse()
-// directly, since every one of them ingests data from this protocol's
-// unauthenticated transport (see ExceedsJsonNestingDepth()'s own comment).
-nlohmann::json ParseBoundedJson(const std::string& text) {
-    if (ExceedsJsonNestingDepth(text)) {
-        return nlohmann::json(nlohmann::json::value_t::discarded);
-    }
-    return nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
-}
-
 // Both build their URL by raw concatenation, not a URL builder - a
 // `hub_host` containing `#`/`?`/`@` would otherwise change what the
 // underlying URL parser (curl/esp_http_client) treats as the actual

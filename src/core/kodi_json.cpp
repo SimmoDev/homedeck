@@ -4,15 +4,6 @@
 
 namespace homedeck::kodi_json {
 
-// See harmony_connection.cpp's ParseBoundedJson() - every frame here
-// also comes off an unauthenticated LAN transport (ADR-0030).
-nlohmann::json ParseBoundedJson(const std::string& text) {
-    if (ExceedsJsonNestingDepth(text)) {
-        return nlohmann::json(nlohmann::json::value_t::discarded);
-    }
-    return nlohmann::json::parse(text, nullptr, /*allow_exceptions=*/false);
-}
-
 // nlohmann::json::value()/get<T>() throw json::type_error when a present
 // field (or the receiver itself) is not the requested type - and firmware
 // builds with C++ exceptions disabled (CONFIG_COMPILER_CXX_EXCEPTIONS is

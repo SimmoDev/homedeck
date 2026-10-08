@@ -121,8 +121,8 @@ HomeDeck implementation gap.
 `HarmonyConnection` (`src/core/harmony_connection.h`/`.cpp`) treats every
 hub response as coming from a source the LAN doesn't otherwise vouch for:
 bounded JSON nesting depth (`kMaxJsonNestingDepth`, `ParseBoundedJson()`
-in `harmony_connection.cpp`, sharing the depth-bounded parse utility in
-`src/core/json_request.h` that every Web UI JSON route also uses) guards
+in `src/core/json_request.h`, the depth-bounded parse utility that every
+Web UI JSON route and the Kodi client also use) guards
 against a stack-overflow attempt via deeply-nested JSON; bounded
 WebSocket message size (`kMaxWebSocketMessageBytes`,
 `src/platform/websocket_client.h`, both backends) and a bounded
@@ -161,8 +161,8 @@ category of risk.
 
 `KodiClient` (`src/core/kodi_client.h`/`.cpp`) treats every response the
 same defensive way `HarmonyConnection` does: bounded JSON nesting depth
-(`ParseBoundedJson()` in `kodi_json.cpp`, sharing the same
-`src/core/json_request.h` utility), the same bounded WebSocket message
+(the same `ParseBoundedJson()` in
+`src/core/json_request.h`), the same bounded WebSocket message
 size and receive-queue depth Harmony's transport already enforces
 (`platform/websocket_client.h`, both backends - shared code, not
 duplicated per-module), and every parsed field type-checked before use
