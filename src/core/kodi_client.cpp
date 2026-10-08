@@ -733,15 +733,13 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (method == "Application.OnVolumeChanged") {
-            if (data.is_object()) {
-                if (data.contains("volume") && data["volume"].is_number_integer()) {
-                    state_.volume = data["volume"].get<int>();
-                    changed = true;
-                }
-                if (data.contains("muted") && data["muted"].is_boolean()) {
-                    state_.muted = data["muted"].get<bool>();
-                    changed = true;
-                }
+            if (data.contains("volume") && data["volume"].is_number_integer()) {
+                state_.volume = data["volume"].get<int>();
+                changed = true;
+            }
+            if (data.contains("muted") && data["muted"].is_boolean()) {
+                state_.muted = data["muted"].get<bool>();
+                changed = true;
             }
         } else if (method == "Player.OnStop") {
             if (state_.now_playing.playback != KodiPlaybackState::kInactive || !state_.now_playing.title.empty()) {
@@ -753,36 +751,34 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
             // OnPlay / OnAVStart / OnAVChange / OnPause / OnResume /
             // OnSpeedChanged - all carry data.item (identity) and
             // data.player.speed (state). No timing fields (ADR-0030).
-            if (data.is_object()) {
-                auto item_it = data.find("item");
-                if (item_it != data.end()) {
-                    // OnPlay marks a new item starting. ApplyItemFields()
-                    // is merge-only (it never clears a field), so without
-                    // this a movie started straight after an episode -
-                    // no intervening OnStop - would keep the episode's
-                    // stale show_title / season / episode. Reset first,
-                    // then let the notification's own item repopulate.
-                    // OnAVChange / OnResume etc. are the *same* item and
-                    // must not reset.
-                    if (method == "Player.OnPlay") {
-                        state_.now_playing.title.clear();
-                        state_.now_playing.show_title.clear();
-                        state_.now_playing.season = -1;
-                        state_.now_playing.episode = -1;
-                        state_.now_playing.media_type.clear();
-                    }
-                    ApplyItemFields(*item_it, state_.now_playing);
-                    identity_from_notification_ = true;
+            auto item_it = data.find("item");
+            if (item_it != data.end()) {
+                // OnPlay marks a new item starting. ApplyItemFields()
+                // is merge-only (it never clears a field), so without
+                // this a movie started straight after an episode -
+                // no intervening OnStop - would keep the episode's
+                // stale show_title / season / episode. Reset first,
+                // then let the notification's own item repopulate.
+                // OnAVChange / OnResume etc. are the *same* item and
+                // must not reset.
+                if (method == "Player.OnPlay") {
+                    state_.now_playing.title.clear();
+                    state_.now_playing.show_title.clear();
+                    state_.now_playing.season = -1;
+                    state_.now_playing.episode = -1;
+                    state_.now_playing.media_type.clear();
                 }
-                auto player_it = data.find("player");
-                if (player_it != data.end() && player_it->is_object() && player_it->contains("speed") &&
-                    (*player_it)["speed"].is_number_integer()) {
-                    state_.now_playing.speed = (*player_it)["speed"].get<int>();
-                }
-                state_.now_playing.playback = PlaybackFromSpeed(state_.now_playing.speed);
-                needs_immediate_poll_ = true;  // refresh position/duration now, not at the next interval
-                changed = true;
+                ApplyItemFields(*item_it, state_.now_playing);
+                identity_from_notification_ = true;
             }
+            auto player_it = data.find("player");
+            if (player_it != data.end() && player_it->is_object() && player_it->contains("speed") &&
+                (*player_it)["speed"].is_number_integer()) {
+                state_.now_playing.speed = (*player_it)["speed"].get<int>();
+            }
+            state_.now_playing.playback = PlaybackFromSpeed(state_.now_playing.speed);
+            needs_immediate_poll_ = true;  // refresh position/duration now, not at the next interval
+            changed = true;
         }
     }
     if (changed) {
@@ -1032,10 +1028,10 @@ std::string Params(const nlohmann::json& params) { return params.dump(); }
 KodiClient::LibraryQuery KodiClient::BuildLibraryQuery(const LibraryRequest& request) {
     // Sorted by label - Kodi's own database order (insertion order) has
     // no relation to how a user browses.
-    static const nlohmann::json kSortByLabel = {{"method", "label"}, {"order", "ascending"}};
     const auto sort_by = [](const char* method) {
         return nlohmann::json{{"method", method}, {"order", "ascending"}};
     };
+    const nlohmann::json kSortByLabel = sort_by("label");
 
     switch (request.kind) {
         case LibraryRequest::Kind::kMovies:

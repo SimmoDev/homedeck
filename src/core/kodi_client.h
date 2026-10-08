@@ -10,13 +10,17 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <stop_token>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace homedeck {
 
