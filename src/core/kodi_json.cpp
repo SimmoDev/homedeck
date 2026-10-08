@@ -98,143 +98,93 @@ const nlohmann::json* ResultArray(const nlohmann::json& parsed, const char* key)
     return &*array_it;
 }
 
-std::vector<KodiMovie> ParseMovies(const std::string& text) {
-    std::vector<KodiMovie> movies;
-    // Named, not inline in the ResultArray() call - ResultArray() returns
-    // a pointer into whatever nlohmann::json it's given, so the parsed
-    // value has to outlive that pointer's use below, not end at the end
-    // of the call expression the way an inline temporary would.
+namespace {
+
+// Parses `text` and builds one T per element of the reply's `key` array with
+// `fill(element, T&)`. `parsed` stays alive for the loop because ResultArray()
+// returns a pointer into it.
+template <typename T, typename Fill>
+std::vector<T> ParseList(const std::string& text, const char* key, Fill fill) {
+    std::vector<T> out;
     nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "movies");
+    const nlohmann::json* array = ResultArray(parsed, key);
     if (array == nullptr) {
-        return movies;
+        return out;
     }
-    movies.reserve(array->size());
-    for (const auto& m : *array) {
-        KodiMovie movie;
+    out.reserve(array->size());
+    for (const auto& element : *array) {
+        T item;
+        fill(element, item);
+        out.push_back(std::move(item));
+    }
+    return out;
+}
+
+}  // namespace
+
+std::vector<KodiMovie> ParseMovies(const std::string& text) {
+    return ParseList<KodiMovie>(text, "movies", [](const nlohmann::json& m, KodiMovie& movie) {
         movie.movieid = GetInt(m, "movieid", -1);
         movie.title = TitleOrLabel(m);
         movie.year = static_cast<int>(GetInt(m, "year", 0));
         movie.resume_position_ms = ResumePositionMs(m);
-        movies.push_back(std::move(movie));
-    }
-    return movies;
+    });
 }
 
 std::vector<KodiTvShow> ParseTvShows(const std::string& text) {
-    std::vector<KodiTvShow> shows;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "tvshows");
-    if (array == nullptr) {
-        return shows;
-    }
-    shows.reserve(array->size());
-    for (const auto& s : *array) {
-        KodiTvShow show;
+    return ParseList<KodiTvShow>(text, "tvshows", [](const nlohmann::json& s, KodiTvShow& show) {
         show.tvshowid = GetInt(s, "tvshowid", -1);
         show.title = TitleOrLabel(s);
         show.year = static_cast<int>(GetInt(s, "year", 0));
         show.episode_count = static_cast<int>(GetInt(s, "episode", 0));
         show.watched_episode_count = static_cast<int>(GetInt(s, "watchedepisodes", 0));
-        shows.push_back(std::move(show));
-    }
-    return shows;
+    });
 }
 
 std::vector<KodiSeason> ParseSeasons(const std::string& text) {
-    std::vector<KodiSeason> seasons;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "seasons");
-    if (array == nullptr) {
-        return seasons;
-    }
-    seasons.reserve(array->size());
-    for (const auto& s : *array) {
-        KodiSeason season;
+    return ParseList<KodiSeason>(text, "seasons", [](const nlohmann::json& s, KodiSeason& season) {
         season.season = static_cast<int>(GetInt(s, "season", 0));
         season.label = TitleOrLabel(s);
         season.episode_count = static_cast<int>(GetInt(s, "episode", 0));
         season.watched_episode_count = static_cast<int>(GetInt(s, "watchedepisodes", 0));
-        seasons.push_back(std::move(season));
-    }
-    return seasons;
+    });
 }
 
 std::vector<KodiEpisode> ParseEpisodes(const std::string& text) {
-    std::vector<KodiEpisode> episodes;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "episodes");
-    if (array == nullptr) {
-        return episodes;
-    }
-    episodes.reserve(array->size());
-    for (const auto& e : *array) {
-        KodiEpisode episode;
+    return ParseList<KodiEpisode>(text, "episodes", [](const nlohmann::json& e, KodiEpisode& episode) {
         episode.episodeid = GetInt(e, "episodeid", -1);
         episode.episode = static_cast<int>(GetInt(e, "episode", 0));
         episode.title = TitleOrLabel(e);
         episode.resume_position_ms = ResumePositionMs(e);
-        episodes.push_back(std::move(episode));
-    }
-    return episodes;
+    });
 }
 
 std::vector<KodiArtist> ParseArtists(const std::string& text) {
-    std::vector<KodiArtist> artists;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "artists");
-    if (array == nullptr) {
-        return artists;
-    }
-    artists.reserve(array->size());
-    for (const auto& a : *array) {
-        KodiArtist artist;
+    return ParseList<KodiArtist>(text, "artists", [](const nlohmann::json& a, KodiArtist& artist) {
         artist.artistid = GetInt(a, "artistid", -1);
         // "artist" (Kodi's own artist-name field), falling back to the
         // always-present `label` - same fallback shape as TitleOrLabel(),
         // just a different primary field name (artists have no "title").
         std::string name = GetString(a, "artist", "");
         artist.name = !name.empty() ? name : GetString(a, "label", "");
-        artists.push_back(std::move(artist));
-    }
-    return artists;
+    });
 }
 
 std::vector<KodiAlbum> ParseAlbums(const std::string& text) {
-    std::vector<KodiAlbum> albums;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "albums");
-    if (array == nullptr) {
-        return albums;
-    }
-    albums.reserve(array->size());
-    for (const auto& a : *array) {
-        KodiAlbum album;
+    return ParseList<KodiAlbum>(text, "albums", [](const nlohmann::json& a, KodiAlbum& album) {
         album.albumid = GetInt(a, "albumid", -1);
         album.title = TitleOrLabel(a);
         album.year = static_cast<int>(GetInt(a, "year", 0));
-        albums.push_back(std::move(album));
-    }
-    return albums;
+    });
 }
 
 std::vector<KodiSong> ParseSongs(const std::string& text) {
-    std::vector<KodiSong> songs;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "songs");
-    if (array == nullptr) {
-        return songs;
-    }
-    songs.reserve(array->size());
-    for (const auto& s : *array) {
-        KodiSong song;
+    return ParseList<KodiSong>(text, "songs", [](const nlohmann::json& s, KodiSong& song) {
         song.songid = GetInt(s, "songid", -1);
         song.track = static_cast<int>(GetInt(s, "track", 0));
         song.title = TitleOrLabel(s);
         song.duration_seconds = static_cast<int>(GetInt(s, "duration", 0));
-        songs.push_back(std::move(song));
-    }
-    return songs;
+    });
 }
 
 // Shared by Files.GetSources' reply ("sources") and Files.GetDirectory's
@@ -244,55 +194,25 @@ std::vector<KodiSong> ParseSongs(const std::string& text) {
 // all_folders=true skips the "filetype" check rather than reading a field
 // that isn't there and misreading every source as a file.
 std::vector<KodiFileItem> ParseFileItems(const std::string& text, const char* result_key, bool all_folders) {
-    std::vector<KodiFileItem> items;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, result_key);
-    if (array == nullptr) {
-        return items;
-    }
-    items.reserve(array->size());
-    for (const auto& f : *array) {
-        KodiFileItem item;
+    return ParseList<KodiFileItem>(text, result_key, [all_folders](const nlohmann::json& f, KodiFileItem& item) {
         item.path = GetString(f, "file", "");
         item.label = TitleOrLabel(f);
         item.is_folder = all_folders || GetString(f, "filetype", "") == "directory";
-        items.push_back(std::move(item));
-    }
-    return items;
+    });
 }
 
 std::vector<KodiChannelGroup> ParseChannelGroups(const std::string& text) {
-    std::vector<KodiChannelGroup> groups;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "channelgroups");
-    if (array == nullptr) {
-        return groups;
-    }
-    groups.reserve(array->size());
-    for (const auto& g : *array) {
-        KodiChannelGroup group;
+    return ParseList<KodiChannelGroup>(text, "channelgroups", [](const nlohmann::json& g, KodiChannelGroup& group) {
         group.channelgroupid = GetInt(g, "channelgroupid", -1);
         group.label = TitleOrLabel(g);
-        groups.push_back(std::move(group));
-    }
-    return groups;
+    });
 }
 
 std::vector<KodiChannel> ParseChannels(const std::string& text) {
-    std::vector<KodiChannel> channels;
-    nlohmann::json parsed = ParseBoundedJson(text);
-    const nlohmann::json* array = ResultArray(parsed, "channels");
-    if (array == nullptr) {
-        return channels;
-    }
-    channels.reserve(array->size());
-    for (const auto& c : *array) {
-        KodiChannel channel;
+    return ParseList<KodiChannel>(text, "channels", [](const nlohmann::json& c, KodiChannel& channel) {
         channel.channelid = GetInt(c, "channelid", -1);
         channel.label = TitleOrLabel(c);
-        channels.push_back(std::move(channel));
-    }
-    return channels;
+    });
 }
 
 // Pulls title/show/season/episode/type out of a notification's or a
