@@ -57,7 +57,7 @@ for f in "$@"; do
     # Filler adverbs add nothing to a sentence. Warn-only: delete the word
     # unless the sentence changes meaning without it. A short list is checked
     # everywhere; a wider one only in Markdown outside docs/decisions/.
-    filler='actually|genuinely'
+    filler='actually|genuinely|truly'
     case "$f" in
         docs/decisions/*) ;;
         *.md) filler='actually|genuinely|simply|basically|essentially|obviously|really|very|quite' ;;

@@ -307,7 +307,7 @@ simulator.
       Wi-Fi connectivity icon backed by the portable `NetworkStatus`/
       `NetworkStatusMonitor` abstraction (see
       [networking.md](architecture/networking.md#status)). Still open:
-      the Web UI's Wi-Fi management page, a separate, now-unblocked
+      the Web UI's Wi-Fi management page, a separate
       follow-up; and `clock_label_` showing blank for up to one Clock
       period (~1s) after construction rather than the correct time
       immediately, a minor, non-jarring gap deferred until `TimeSource`

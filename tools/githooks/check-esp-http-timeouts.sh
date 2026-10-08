@@ -14,7 +14,7 @@
 # config elsewhere in the file happens to. Every esp_http_client_config_t
 # declaration line resets the "seen timeout_ms" state; an
 # esp_http_client_perform() call checks whether timeout_ms was set since
-# the most recent declaration before it - not truly variable-name-aware
+# the most recent declaration before it - not variable-name-aware
 # (real C++ parsing would be needed for that), but matches this
 # codebase's own established declare-configure-use-per-function style
 # (see http_client.cpp), which is what matters here.

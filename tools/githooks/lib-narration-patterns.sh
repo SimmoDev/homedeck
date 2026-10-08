@@ -126,4 +126,13 @@ narration_patterns=(
     'implemented now'
     'it now does'
     'originally scoped'
+    # Build-process narration: a "pass" of the build, a milestone as a point
+    # in time, a version "this replaces", a feature that "stopped being"
+    # something. ADRs record decisions as of when they were made, so
+    # patterns here avoid wording an ADR legitimately uses ("for this pass").
+    '(built|gap) in this pass'
+    'as of this milestone'
+    '(inline|old|previous) version (this|it) replaces'
+    'stopped being'
+    'now-unblocked'
 )
