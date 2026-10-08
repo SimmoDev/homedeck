@@ -118,8 +118,10 @@ the five library-browse screens (`KodiMoviesScreen`, `KodiTvShowsScreen`,
 `src/ui/screens/`) are its registered screens; `KodiWidget`
 (`src/ui/kodi_widget.h`/`.cpp`) is its dashboard widget;
 `RegisterKodiRoutes` (`src/core/kodi_routes.h`/`.cpp`) plus the generic
-settings API are its API endpoints; and `KodiConnectionStateChangedEvent`/
-`KodiNowPlayingChangedEvent` are its `EventBus` events. It has no
+settings API are its API endpoints; and its `EventBus` events are
+`KodiConnectionStateChangedEvent`, `KodiNowPlayingChangedEvent` and one
+`Kodi*FetchedEvent` per library listing (movies, TV shows, seasons,
+episodes, artists, albums, songs, files, channel groups, channels). It has no
 notification bridge — an unreachable Kodi is a normal resting state on
 Android/Google TV, not a fault (see [kodi.md](kodi.md#connection)).
 
