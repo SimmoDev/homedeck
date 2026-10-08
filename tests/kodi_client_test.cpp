@@ -418,6 +418,32 @@ TEST_F(KodiClientTest, SingleDiscoveredInstanceIsAutoSelected) {
     client->Stop();
 }
 
+// An IPv6 literal is bracketed in both the ws:// authority and the host
+// shown on the Web UI settings page.
+TEST_F(KodiClientTest, AnIpv6OnlyInstanceIsConnectedThroughABracketedAuthority) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    browser.SetInstances({Instance("Shield", "2001:db8::5", "uuid-a")});
+    auto script = std::make_shared<WsScript>();
+    ScriptIdleKodi(script);
+
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    EXPECT_EQ(client->Snapshot().resolved_host, "[2001:db8::5]:9090");
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->connect_urls.front(), "ws://[2001:db8::5]:9090/jsonrpc");
+    }
+    client->Stop();
+}
+
 // The same Kodi can answer once per interface and IP protocol; that is one
 // instance, so it is still auto-selected, and over its IPv4 address.
 TEST_F(KodiClientTest, ADualStackInstanceAnsweringTwiceIsOneInstance) {

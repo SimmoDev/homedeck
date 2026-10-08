@@ -68,7 +68,8 @@ for why.
 Against fake `MdnsBrowser`/`WebSocketClient` doubles:
 
 - Discovery and selection: manual host override, saved `uuid`, single-instance
-  auto-select, ambiguous, offline and address-less instances, unsafe hosts.
+  auto-select, ambiguous, offline and address-less instances, unsafe hosts,
+  an IPv6-only instance connecting through a bracketed authority.
 - The JSON-RPC `id`-correlation loop with interleaved notifications.
 - Notification-driven Now Playing state, `can_seek`, idle or paused
   reconcile polls not republishing an unchanged snapshot, and identity
