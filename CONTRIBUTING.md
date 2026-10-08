@@ -40,5 +40,6 @@ squash-merged and deleted automatically after.
 ## Reporting bugs / requesting features
 
 Open a GitHub issue. For anything security-related, see
+[SECURITY.md](SECURITY.md) for how to report it privately, and
 [docs/architecture/security.md](docs/architecture/security.md) for the
-project's current security posture and known gaps first.
+project's current security posture and known gaps.
