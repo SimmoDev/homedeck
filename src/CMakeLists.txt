@@ -96,7 +96,7 @@ add_library(homedeck_core
   core/kodi_json.cpp
   core/kodi_routes.cpp
   # Lives in ui/ (it's a UI-formatting concern, called from
-  # ClockWidget/StatusBar), but is genuinely LVGL-free - built here
+  # ClockWidget/StatusBar), but is LVGL-free - built here
   # instead of homedeck_ui below so it's covered by tests/, which never
   # fetches LVGL. homedeck_ui already links homedeck_core, so this is
   # still reachable identically from every existing call site.
@@ -122,7 +122,7 @@ target_link_libraries(homedeck_core PUBLIC homedeck_platform_host mbedcrypto)
 # Only defined when a target named `lvgl` already exists in this
 # directory's scope - i.e. only for consumers (simulator/) that fetched
 # LVGL before adding this directory. tests/ never fetches LVGL, so it
-# simply doesn't get this target, keeping Core's unit tests LVGL-free.
+# does not get this target, keeping Core's unit tests LVGL-free.
 if(TARGET lvgl)
   # HostMdnsBrowser (platform/host/mdns_browser.h) needs libavahi-client.
   # It lives in this simulator-only target, not homedeck_platform_host,

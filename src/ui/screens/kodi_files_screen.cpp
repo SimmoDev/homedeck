@@ -114,7 +114,7 @@ void KodiFilesScreen::Enter(const KodiFileItem& item) {
 
 void KodiFilesScreen::GoBack() {
     if (path_stack_.empty()) {
-        return;  // stale tap - the back button is hidden at this level (defensive, not observed)
+        return;  // stale tap - the back button is hidden at this level
     }
     path_stack_.pop_back();
     RequestCurrentLevel();

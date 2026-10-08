@@ -401,9 +401,9 @@ void ServeEmbeddedWebUi(homedeck::HttpServer& web_server) {
 // has no long-lived object of its own worth returning (bsp_display_start()'s
 // own lv_display_t* is never referenced again once this succeeds), so this
 // is void rather than needing a caller to hold onto anything. Halts forever
-// rather than returning on failure, the same as the inline version this
-// replaces - there's no meaningful degraded mode without a display, and
-// nothing later in app_main() could safely proceed without one.
+// rather than returning on failure - there's no meaningful degraded mode
+// without a display, and nothing later in app_main() could safely proceed
+// without one.
 void InitDisplayOrHalt() {
     printf("Starting display...\n");
     lv_display_t* display = bsp_display_start();

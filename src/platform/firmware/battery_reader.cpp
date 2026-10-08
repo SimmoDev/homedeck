@@ -45,7 +45,7 @@ constexpr float kBatteryPresentCurrentThresholdAmps = 0.005f;
 // the rail via its own chemistry, so consecutive readings stay within
 // tens of mV of each other even right at the charging-terminates
 // transition (~0.02V between samples on the reference unit), nowhere
-// near the multi-volt hunting swing a truly empty charge path produces
+// near the multi-volt hunting swing an empty charge path produces
 // every tick. This is a >60x margin between
 // the two cases, wide enough for a single-sample delta check.
 constexpr float kVoltageStabilityThresholdVolts = 0.5f;

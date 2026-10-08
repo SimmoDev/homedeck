@@ -763,8 +763,8 @@ UI and start playback of a chosen item, and the whole Kodi module
 - [ ] Extended log archival to microSD, once a card is present - the
       internal flash filesystem's logs (M2) are bounded/rotating;
       [ADR-0012](decisions/ADR-0012-storage-tiers.md) decides this is
-      the microSD tier's purpose, degrading gracefully (clearly
-      indicating "no card present") when none is inserted, per
+      the microSD tier's purpose, degrading gracefully (showing
+      "no card present") when none is inserted, per
       [CLAUDE.md](../CLAUDE.md)'s "work fully using stock Tab5 hardware" requirement
 - [ ] Gesture navigation (Android-style): swipe up from the bottom edge
       to go home, swipe in from the left/right edge to go back. The
