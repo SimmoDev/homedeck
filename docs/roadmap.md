@@ -88,8 +88,7 @@ management state model" item instead.
       (`espp/ina226`), and `TimeSource` via the RX8130CE RTC
       (`espp/rx8130ce`) — see
       [hardware.md](architecture/hardware.md#on-device-dashboard).
-      `Queue<T>`'s firmware backend was still unused as of this milestone
-      — M2's Logging item below is its first firmware use (see
+      `Queue<T>`'s firmware backend is used by M2's Logging item below (see
       [ADR-0020](decisions/ADR-0020-async-log-persistence.md)).
       Navigation, the home affordance, and a second screen are out of
       scope for this item specifically.
@@ -273,8 +272,7 @@ simulator.
       urgency distinction this service carries does not gate any
       wake-cycle behavior (see
       [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)) - it
-      remains available for a future presentation difference, not a gap
-      in this pass. `PostToUiThread` (`src/ui/ui_dispatch.h`/`.cpp`)
+      remains available for a future presentation difference, not a gap. `PostToUiThread` (`src/ui/ui_dispatch.h`/`.cpp`)
       queues UI-bound updates through its own `Queue<T>` and drains it
       via a single recurring timer, guaranteeing FIFO delivery order
       independent of `lv_async_call`'s own ordering - see
@@ -291,11 +289,9 @@ simulator.
       [dashboard.md](architecture/dashboard.md#status) for the
       `Widget`/`DashboardGrid` interface and every widget built on it
       (`ClockWidget`, `NetworkStatusWidget`, `WeatherWidget`,
-      `NotificationWidget`). Still open, deliberately out of scope for
-      this pass: weather condition icons and Fahrenheit/Celsius
-      selection (both M7 polish, see the M7 section below). A tap
-      handler on `Widget` itself, deferred here until Harmony (M3) or
-      Kodi (M4) first needed tap-for-detail, is built — see the M3
+      `NotificationWidget`). Weather condition icons and Fahrenheit/Celsius
+      selection are M7 polish (see the M7 section below). The tap
+      handler on `Widget` itself is built — see the M3
       Activities item below. The enable/disable/reorder widget
       customization named in
       [dashboard.md](architecture/dashboard.md#customization-future),
@@ -366,11 +362,10 @@ this until it's done — see
 
 - [x] Hub connection (scoped to already-paired hubs — see [known risk in
       ADR-0003](decisions/ADR-0003-module-architecture.md#known-external-risk-harmony-hub-local-control)).
-      Combines the milestone's original "Hub discovery on the LAN" and
-      "Local authentication" items, reworded: a live probe against the
-      project's own reference hub found it speaks a local WebSocket/JSON
-      API with no discovery protocol and no authentication step at all,
-      not the XMPP-based, discoverable protocol originally assumed — see
+      Covers hub discovery and local authentication: the project's own
+      reference hub speaks a local WebSocket/JSON API with no discovery
+      protocol and no authentication step at all, not an XMPP-based,
+      discoverable protocol — see
       [ADR-0029](decisions/ADR-0029-harmony-local-protocol.md) for the
       full protocol facts and why. Implemented as `HarmonyConnection`
       (`src/core/harmony_connection.h`/`.cpp`, this module's first Core
@@ -380,8 +375,8 @@ this until it's done — see
       generic settings API from M2 already covers it) drives a background
       connect/handshake/config-fetch loop with exponential-backoff retry
       (`src/core/retry_backoff.h`, the generic Core utility
-      [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership)
-      already named but nothing had built yet), publishing connection-
+      [ADR-0006](decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership)),
+      publishing connection-
       state and config-fetched events over the `EventBus`. A new
       `WebSocketClient` platform capability
       (`src/platform/websocket_client.h`) backs the WebSocket half — see
@@ -392,10 +387,8 @@ this until it's done — see
       fetched and the connection stays live across the liveness-probe
       interval. First-time cloud
       pairing remains out of scope, unconfirmed either way. Devices/
-      activities screens, remote control, and a Web UI settings *page*
-      (the field exists via the generic settings API; a dedicated Harmony
-      settings UI in `webui/` does not yet) are separate items below, not
-      built in this pass.
+      activities screens, remote control, and the Web UI settings page
+      are separate items below.
 - [x] Activities (list, start, current, status). Touch UI scope (Web UI
       is administration, not day-to-day control — see
       [CLAUDE.md](../CLAUDE.md)), and the module's first Touch UI screen

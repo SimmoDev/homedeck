@@ -110,11 +110,10 @@ simulator-side equivalent needed (the simulator is already reachable at
 `localhost`, and desktop OSes run their own mDNS responder for the
 machine itself).
 
-The mDNS *browsing* wrapper is also implemented, as of M4 (Kodi is its
-first consumer — the point at which it stopped being the speculative
-Core abstraction
+The mDNS *browsing* wrapper is also implemented. Kodi is its first
+consumer, which is what
 [ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-lan-discovery-service-shape)
-rejected building ahead of one). A portable `MdnsBrowser` interface
+required before building it. A portable `MdnsBrowser` interface
 (`src/platform/mdns_browser.h`) exposes a single
 `Browse(service_type, timeout)` that returns **every** resolved
 instance — never a single "the" result, since multiple instances of one
@@ -150,8 +149,7 @@ icon is the first consumer, and the network-status dashboard widget
 (`NetworkStatusWidget`, see [dashboard.md](dashboard.md#status)) is the
 second. A Web UI Wi-Fi management page (viewing/changing stored
 credentials post-provisioning, see [web-ui.md](web-ui.md#status) and the
-M7 item in [roadmap.md](../roadmap.md)) is a now-unblocked follow-up, not
-built yet.
+M7 item in [roadmap.md](../roadmap.md)) is not built yet.
 
 Outbound HTTP(S) is also implemented — a portable `HttpClient` interface
 (`src/platform/http_client.h`, `Get()`/`Post()`) backed by
