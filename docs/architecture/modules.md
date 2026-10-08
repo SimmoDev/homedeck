@@ -108,7 +108,8 @@ plus the generic settings API are its API endpoints;
 `.cpp`) publishes its notifications; and `EventBus` events cover
 connection state, fetched config, and current-activity changes.
 
-`KodiClient` (`src/core/kodi_client.h`/`.cpp`) is the second —
+`KodiClient` (`src/core/kodi_client.h`/`.cpp`, with its reply parsing in
+`src/core/kodi_json.h`/`.cpp`) is the second —
 Storage-backed settings (a manually-entered host, or an
 mDNS-discovered instance keyed by its `uuid`) plus a background
 `Task`-owned connection loop; `NowPlayingScreen`, `KodiRemoteScreen` and

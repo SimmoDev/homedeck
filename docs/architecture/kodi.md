@@ -21,6 +21,12 @@ API over an **unauthenticated WebSocket on port 9090**, path `/jsonrpc`
 the `WebSocketClient` platform capability built for Harmony in M3. There
 is no credential of any kind.
 
+`kodi_json.h`/`.cpp` (`src/core/`) holds the JSON side: bounded parsing,
+the type-checked field readers (`GetInt()` etc.), `ApplyItemFields()`, and
+the `Parse*` functions that turn each library listing reply into structs.
+`KodiClient` owns the connection, queues and snapshot; `kodi_json`
+depends only on the structs `kodi_client.h` declares.
+
 Connection failures use the shared `RetryBackoff` utility
 ([ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership)).
 `KodiConnectionState` (`kDisconnected`/`kConnecting`/`kConnected`/

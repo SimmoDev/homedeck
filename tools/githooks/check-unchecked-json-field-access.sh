@@ -10,7 +10,7 @@
 # there - a crash on any external response with an unexpected field
 # type, not just a hypothetical, since this project's own modules
 # connect to unauthenticated LAN services (ADR-0029/ADR-0030). See
-# kodi_client.cpp's GetInt()/GetDouble()/GetString()/GetBool() and
+# kodi_json.cpp's GetInt()/GetDouble()/GetString()/GetBool() and
 # weather_provider.cpp's is_number() guards for the established fix
 # pattern this flags deviation from. Heuristic, not data-flow analysis -
 # a same-named key checked in an unrelated object elsewhere in the file
@@ -28,7 +28,7 @@ for f in "$@"; do
     # A default that's itself a json value (nlohmann::json::object()/
     # array(), or anything mentioning nlohmann::json) is an identity
     # conversion that can't throw regardless of the field's actual type -
-    # see kodi_client.cpp's MillisFromTimeObject() callers for the
+    # see the MillisFromTimeObject() call sites in kodi_client.cpp's ReconcilePoll() for the
     # established, deliberately-safe exception to this check.
     value_hits=$(echo "$stripped" | grep -nE '(->|\.)value\("[^"]+", *[^){]' |
         grep -vE 'json::(object|array)\(\)|nlohmann::json')
