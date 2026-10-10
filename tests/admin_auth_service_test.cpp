@@ -5,6 +5,7 @@
 #include "platform/host/settings_store.h"
 
 #include <gtest/gtest.h>
+#include <mbedtls/pkcs5.h>
 
 #include <atomic>
 #include <filesystem>
@@ -75,6 +76,51 @@ TEST_F(AdminAuthServiceTest, LoginWithCorrectPasswordSucceeds) {
     auto token = auth.Login("correct horse battery staple");
     ASSERT_TRUE(token.has_value());
     EXPECT_TRUE(auth.ValidateSession(*token));
+}
+
+namespace {
+
+std::string HexOf(const unsigned char* data, size_t len) {
+    static const char kDigits[] = "0123456789abcdef";
+    std::string out;
+    for (size_t i = 0; i < len; i++) {
+        out.push_back(kDigits[data[i] >> 4]);
+        out.push_back(kDigits[data[i] & 0x0f]);
+    }
+    return out;
+}
+
+// Stores a password hash the way SetInitialPassword() does, but with a
+// caller-chosen iteration field; `hash_iterations` is what the hash is
+// actually computed with.
+void StoreHash(homedeck::Storage& storage, const std::string& password, const std::string& iterations_field,
+               unsigned int hash_iterations) {
+    const std::vector<unsigned char> salt(16, 0x07);
+    unsigned char hash[32] = {};
+    ASSERT_EQ(0, mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA256, reinterpret_cast<const unsigned char*>(password.data()),
+                                                password.size(), salt.data(), salt.size(), hash_iterations,
+                                                sizeof(hash), hash));
+    ASSERT_TRUE(storage.SetSecret(homedeck::AdminAuthService::kModuleId, homedeck::AdminAuthService::kPasswordKey, 1,
+                                  "pbkdf2-sha256$" + iterations_field + "$" + HexOf(salt.data(), salt.size()) + "$" +
+                                      HexOf(hash, sizeof(hash))));
+}
+
+}  // namespace
+
+TEST_F(AdminAuthServiceTest, LoginVerifiesAgainstTheIterationCountStoredWithTheHash) {
+    StoreHash(*storage_, "correct horse battery staple", "1000", 1000);
+    homedeck::AdminAuthService auth(*storage_, time_source_);
+
+    EXPECT_TRUE(auth.Login("correct horse battery staple").has_value());
+    EXPECT_FALSE(auth.Login("wrong password here").has_value());
+}
+
+TEST_F(AdminAuthServiceTest, LoginRejectsAStoredIterationCountThatIsMissingOrOutOfRange) {
+    for (const char* field : {"", "0", "abc", "12x", "99999999999", "1000001"}) {
+        StoreHash(*storage_, "correct horse battery staple", field, 1000);
+        homedeck::AdminAuthService auth(*storage_, time_source_);
+        EXPECT_FALSE(auth.Login("correct horse battery staple").has_value()) << "iterations field '" << field << "'";
+    }
 }
 
 TEST_F(AdminAuthServiceTest, LoginWithWrongPasswordFails) {

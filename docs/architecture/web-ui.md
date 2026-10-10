@@ -159,8 +159,9 @@ first-login-sets-the-password flow: `GET /api/auth/status`,
 `POST /api/auth/setup`, `POST /api/auth/login`, and
 `POST /api/auth/logout`, plus a `RequireAuth()` wrapper other endpoints
 will use once they exist. Passwords are PBKDF2-SHA256 hashed (salted,
-25,000 iterations - see `admin_auth_service.cpp`'s own comment for the
-latency/brute-force-resistance rationale behind that specific count)
+25,000 iterations for a new hash - see `admin_auth_service.cpp`'s own comment for the
+latency/brute-force-resistance rationale behind that specific count; each
+stored hash records its own count, which login verifies with)
 via mbedtls, the same library on both targets
 (fetched with `FetchContent` for the host build in `src/CMakeLists.txt`,
 ESP-IDF's own copy on firmware); mbedtls also

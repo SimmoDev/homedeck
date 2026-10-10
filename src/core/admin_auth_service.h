@@ -101,7 +101,8 @@ private:
     // there is no safe default value for security-relevant material.
     std::optional<SessionToken> GenerateSessionToken();
     std::optional<std::vector<unsigned char>> GenerateSalt();
-    std::optional<std::string> HashPasswordHex(const std::string& password, const std::vector<unsigned char>& salt);
+    std::optional<std::string> HashPasswordHex(const std::string& password, const std::vector<unsigned char>& salt,
+                                               unsigned int iterations);
     // Erases every expired entry from sessions_ - see its own comment
     // for why this is needed at all. Caller must already hold mutex_.
     void SweepExpiredSessions();

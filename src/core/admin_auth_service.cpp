@@ -5,6 +5,7 @@
 
 #include <mbedtls/pkcs5.h>
 
+#include <charconv>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -40,6 +41,9 @@ constexpr int kPasswordSchemaVersion = 1;
 // that latency/brute-force-resistance trade acceptable; an
 // internet-facing account would need a very different number.
 constexpr unsigned int kPbkdf2Iterations = 25000;
+// Upper bound on a stored hash's iteration count, so a corrupted record
+// cannot make one login attempt run PBKDF2 for minutes.
+constexpr unsigned int kMaxStoredPbkdf2Iterations = 1000000;
 constexpr size_t kSaltBytes = 16;
 constexpr size_t kHashBytes = 32;
 constexpr size_t kSessionTokenBytes = 32;
@@ -125,14 +129,16 @@ bool ConstantTimeEquals(const std::string& a, const std::string& b) {
 }
 
 struct StoredPasswordHash {
+    unsigned int iterations;
     std::vector<unsigned char> salt;
     std::vector<unsigned char> hash;
 };
 
 // Parses the "pbkdf2-sha256$<iterations>$<salt_hex>$<hash_hex>" format
-// SetInitialPassword() writes (iterations_str is parsed and discarded,
-// not used - verification always hashes at the current
-// kPbkdf2Iterations constant). Pulled out of Login() so the parsing -
+// SetInitialPassword() writes. The stored iteration count is the one
+// verification hashes with, so changing kPbkdf2Iterations only affects
+// newly written hashes and never invalidates an existing password.
+// Pulled out of Login() so the parsing -
 // fast, and the only part of password verification that touches
 // Storage - is separated from the expensive hash-and-compare step that
 // follows it, which needs none of Login()'s own locked state.
@@ -149,12 +155,18 @@ std::optional<StoredPasswordHash> ParseStoredPasswordHash(const std::optional<Ve
     if (algorithm != "pbkdf2-sha256" || salt_hex.empty() || hash_hex.empty()) {
         return std::nullopt;
     }
+    unsigned int iterations = 0;
+    const char* const iterations_end = iterations_str.data() + iterations_str.size();
+    auto [ptr, ec] = std::from_chars(iterations_str.data(), iterations_end, iterations);
+    if (ec != std::errc() || ptr != iterations_end || iterations == 0 || iterations > kMaxStoredPbkdf2Iterations) {
+        return std::nullopt;
+    }
     auto salt = FromHex(salt_hex);
     auto hash = FromHex(hash_hex);
     if (!salt.has_value() || !hash.has_value()) {
         return std::nullopt;
     }
-    return StoredPasswordHash{*salt, *hash};
+    return StoredPasswordHash{iterations, *salt, *hash};
 }
 
 // Splits a raw "a=1; b=2" Cookie header (RFC 6265) looking for one
@@ -237,10 +249,11 @@ std::optional<SessionToken> AdminAuthService::GenerateSessionToken() {
 // with no lock of any kind, unlike GenerateSalt()/GenerateSessionToken()
 // above.
 std::optional<std::string> AdminAuthService::HashPasswordHex(const std::string& password,
-                                                               const std::vector<unsigned char>& salt) {
+                                                               const std::vector<unsigned char>& salt,
+                                                               unsigned int iterations) {
     unsigned char output[kHashBytes] = {};
     if (mbedtls_pkcs5_pbkdf2_hmac_ext(MBEDTLS_MD_SHA256, reinterpret_cast<const unsigned char*>(password.data()),
-                                       password.size(), salt.data(), salt.size(), kPbkdf2Iterations, sizeof(output),
+                                       password.size(), salt.data(), salt.size(), iterations, sizeof(output),
                                        output) != 0) {
         return std::nullopt;
     }
@@ -284,7 +297,7 @@ std::optional<SessionToken> AdminAuthService::SetInitialPassword(const std::stri
     if (!salt.has_value()) {
         return std::nullopt;
     }
-    auto hash_hex = HashPasswordHex(password, *salt);
+    auto hash_hex = HashPasswordHex(password, *salt, kPbkdf2Iterations);
     if (!hash_hex.has_value()) {
         return std::nullopt;
     }
@@ -340,7 +353,7 @@ std::optional<SessionToken> AdminAuthService::Login(const std::string& password)
     // other authenticated endpoint - for the full ~2s each.
     bool authenticated = false;
     if (stored_hash.has_value()) {
-        auto hash_hex = HashPasswordHex(password, stored_hash->salt);
+        auto hash_hex = HashPasswordHex(password, stored_hash->salt, stored_hash->iterations);
         auto computed = hash_hex.has_value() ? FromHex(*hash_hex) : std::nullopt;
         authenticated = computed.has_value() && ConstantTimeEquals(*computed, stored_hash->hash);
     }
