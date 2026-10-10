@@ -3,6 +3,7 @@
 #include "core/json_request.h"
 #include "third_party/nlohmann/json.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstdlib>
 #include <optional>
@@ -13,6 +14,10 @@ namespace {
 
 constexpr char kCacheKey[] = "last_reading";
 constexpr int kCacheSchemaVersion = 1;
+
+// WMO weather interpretation codes run 0-99. Clamped in double before the
+// narrowing: converting an out-of-range double to int is undefined.
+int ClampWeatherCode(double code) { return static_cast<int>(std::clamp(code, 0.0, 99.0)); }
 
 // A full, successful strtod parse of the whole string - not just a
 // leading numeric prefix - the same defensive-input-validation
@@ -123,7 +128,7 @@ void OpenMeteoWeatherProvider::PollOnce() {
             current->contains("temperature_2m") && current->at("temperature_2m").is_number() &&
             current->contains("weather_code") && current->at("weather_code").is_number()) {
             double temperature_c = current->at("temperature_2m").get<double>();
-            int weather_code = current->at("weather_code").get<int>();
+            int weather_code = ClampWeatherCode(current->at("weather_code").get<double>());
 
             nlohmann::json cache = {
                 {"temperature_c", temperature_c},
@@ -161,7 +166,7 @@ void OpenMeteoWeatherProvider::PollOnce() {
             {
                 std::lock_guard<std::mutex> lock(mutex_);
                 state_ = WeatherState{true, true, false, parsed->at("temperature_c").get<double>(),
-                                       parsed->at("weather_code").get<int>(), name};
+                                       ClampWeatherCode(parsed->at("weather_code").get<double>()), name};
             }
             event_bus_.Publish(WeatherUpdatedEvent{});
             return;

@@ -1,4 +1,5 @@
 #include "core/kodi_client.h"
+#include "core/kodi_json.h"
 
 #include "core/notification.h"
 #include "platform/host/cache_store.h"
@@ -1181,6 +1182,36 @@ TEST_F(KodiClientTest, StopNotificationDuringAPollIsNotOverwrittenByThePollsStal
     homedeck::KodiNowPlaying np = client->Snapshot().now_playing;
     EXPECT_EQ(np.playback, KodiPlaybackState::kInactive);
     EXPECT_TRUE(np.title.empty());
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, OutOfRangeNumbersInAReplyAreClampedInsteadOfOverflowing) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Application.GetProperties"] = R"({"volume":99999999999,"muted":false})";
+        script->results["Player.GetProperties"] =
+            R"({"speed":-99999999999,"percentage":25.0,"time":{"hours":9000000000000000,"minutes":0,"seconds":0,)"
+            R"("milliseconds":0},"totaltime":{"hours":0,"minutes":20,"seconds":0,"milliseconds":0}})";
+    }
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    const homedeck::KodiSnapshot snapshot = client->Snapshot();
+    EXPECT_EQ(snapshot.volume, 100);
+    EXPECT_EQ(snapshot.now_playing.speed, -1000);
+    EXPECT_EQ(snapshot.now_playing.position_ms, 1000000LL * 3600 * 1000);
     client->Stop();
 }
 
@@ -2808,3 +2839,12 @@ TEST_F(KodiClientTest, RealBackendConnectsReconcilesAndHandlesAPushedNotificatio
 }
 
 }  // namespace
+
+TEST(KodiJson, AnOutOfRangeResumePositionIsClampedInsteadOfOverflowing) {
+    const auto movies = homedeck::kodi_json::ParseMovies(
+        R"({"result":{"movies":[{"movieid":1,"title":"A","resume":{"position":1e300,"total":1}},)"
+        R"({"movieid":2,"title":"B","resume":{"position":-5,"total":1}}]}})");
+    ASSERT_EQ(movies.size(), 2u);
+    EXPECT_EQ(movies[0].resume_position_ms, 1000000LL * 3600 * 1000);
+    EXPECT_EQ(movies[1].resume_position_ms, 0);
+}

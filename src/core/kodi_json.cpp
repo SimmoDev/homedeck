@@ -2,6 +2,8 @@
 
 #include "core/json_request.h"
 
+#include <algorithm>
+
 namespace homedeck::kodi_json {
 
 // nlohmann::json::value()/get<T>() throw json::type_error when a present
@@ -30,6 +32,10 @@ double GetDouble(const nlohmann::json& j, const char* key, double fallback) {
     return (it != j.end() && it->is_number()) ? it->get<double>() : fallback;
 }
 
+int GetBoundedInt(const nlohmann::json& j, const char* key, int fallback, int min, int max) {
+    return static_cast<int>(std::clamp<long long>(GetInt(j, key, fallback), min, max));
+}
+
 std::string GetString(const nlohmann::json& j, const char* key, const std::string& fallback) {
     if (!j.is_object()) {
         return fallback;
@@ -46,9 +52,18 @@ bool GetBool(const nlohmann::json& j, const char* key, bool fallback) {
     return (it != j.end() && it->is_boolean()) ? it->get<bool>() : fallback;
 }
 
+namespace {
+
+// Largest value accepted for one field of a time object: far beyond any
+// real media length, small enough that seconds * 1000 cannot overflow.
+constexpr int kMaxTimeFieldValue = 1000000;
+
+}  // namespace
+
 long long MillisFromTimeObject(const nlohmann::json& t) {
-    long long seconds = GetInt(t, "hours", 0) * 3600LL + GetInt(t, "minutes", 0) * 60LL + GetInt(t, "seconds", 0);
-    return seconds * 1000LL + GetInt(t, "milliseconds", 0);
+    const auto field = [&t](const char* key) { return static_cast<long long>(GetBoundedInt(t, key, 0, 0, kMaxTimeFieldValue)); };
+    long long seconds = field("hours") * 3600LL + field("minutes") * 60LL + field("seconds");
+    return seconds * 1000LL + field("milliseconds");
 }
 
 KodiPlaybackState PlaybackFromSpeed(int speed) {
@@ -69,7 +84,8 @@ long long ResumePositionMs(const nlohmann::json& item) {
     if (resume_it == item.end()) {
         return 0;
     }
-    return static_cast<long long>(GetDouble(*resume_it, "position", 0.0) * 1000.0);
+    const double seconds = std::clamp(GetDouble(*resume_it, "position", 0.0), 0.0, kMaxTimeFieldValue * 3600.0);
+    return static_cast<long long>(seconds * 1000.0);
 }
 
 // title, falling back to Kodi's own always-present `label` when the
@@ -233,17 +249,13 @@ void ApplyItemFields(const nlohmann::json& item, KodiNowPlaying& now_playing) {
     if (item.contains("showtitle") && item["showtitle"].is_string() && !item["showtitle"].get<std::string>().empty()) {
         now_playing.show_title = item["showtitle"].get<std::string>();
     }
-    if (item.contains("season") && item["season"].is_number_integer()) {
-        int season = item["season"].get<int>();
-        if (season >= 0) {
-            now_playing.season = season;
-        }
+    const int season = GetBoundedInt(item, "season", -1, -1, kMaxTimeFieldValue);
+    if (season >= 0) {
+        now_playing.season = season;
     }
-    if (item.contains("episode") && item["episode"].is_number_integer()) {
-        int episode = item["episode"].get<int>();
-        if (episode >= 0) {
-            now_playing.episode = episode;
-        }
+    const int episode = GetBoundedInt(item, "episode", -1, -1, kMaxTimeFieldValue);
+    if (episode >= 0) {
+        now_playing.episode = episode;
     }
     if (item.contains("type") && item["type"].is_string()) {
         std::string type = item["type"].get<std::string>();

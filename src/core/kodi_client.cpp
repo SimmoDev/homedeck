@@ -575,7 +575,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
             // cycle would re-render the widget/screen while connected and
             // idle, when nothing about playback has moved.
             if (result_it->contains("volume") && (*result_it)["volume"].is_number_integer()) {
-                int volume = (*result_it)["volume"].get<int>();
+                int volume = ClampVolume((*result_it)["volume"].get<long long>());
                 if (volume != state_.volume) {
                     state_.volume = volume;
                     changed = true;
@@ -675,7 +675,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
             // extraction is an identity conversion that can't throw
             // regardless of the field's actual type, and
             // MillisFromTimeObject() does its own per-field type checks.
-            np.speed = static_cast<int>(GetInt(*props_result, "speed", np.speed));
+            np.speed = ClampSpeed(GetInt(*props_result, "speed", np.speed));
             np.playback = PlaybackFromSpeed(np.speed);
             np.percent = GetDouble(*props_result, "percentage", np.percent);
             np.position_ms = MillisFromTimeObject(props_result->value("time", nlohmann::json::object()));
@@ -745,7 +745,7 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
         std::lock_guard<std::mutex> lock(mutex_);
         if (method == "Application.OnVolumeChanged") {
             if (data.contains("volume") && data["volume"].is_number_integer()) {
-                state_.volume = data["volume"].get<int>();
+                state_.volume = ClampVolume(data["volume"].get<long long>());
                 changed = true;
             }
             if (data.contains("muted") && data["muted"].is_boolean()) {
@@ -786,7 +786,7 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
             auto player_it = data.find("player");
             if (player_it != data.end() && player_it->is_object() && player_it->contains("speed") &&
                 (*player_it)["speed"].is_number_integer()) {
-                state_.now_playing.speed = (*player_it)["speed"].get<int>();
+                state_.now_playing.speed = ClampSpeed((*player_it)["speed"].get<long long>());
             }
             state_.now_playing.playback = PlaybackFromSpeed(state_.now_playing.speed);
             needs_immediate_poll_ = true;  // refresh position/duration now, not at the next interval

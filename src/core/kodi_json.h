@@ -19,10 +19,24 @@ namespace homedeck::kodi_json {
 // extraction, and `fallback` is returned for anything else.
 long long GetInt(const nlohmann::json& j, const char* key, long long fallback);
 double GetDouble(const nlohmann::json& j, const char* key, double fallback);
+// GetInt() limited to [min, max]: a value outside the range is clamped, so
+// a hostile reply cannot push an out-of-range number into later arithmetic
+// or an int narrowing.
+int GetBoundedInt(const nlohmann::json& j, const char* key, int fallback, int min, int max);
 std::string GetString(const nlohmann::json& j, const char* key, const std::string& fallback);
 bool GetBool(const nlohmann::json& j, const char* key, bool fallback);
 
+// Ranges Kodi's volume (percent) and playback speed (multiples of normal)
+// are clamped to wherever they are read from a reply.
+constexpr int kMaxVolume = 100;
+constexpr int kMaxSpeed = 1000;
+inline int ClampVolume(long long volume) { return static_cast<int>(volume < 0 ? 0 : (volume > kMaxVolume ? kMaxVolume : volume)); }
+inline int ClampSpeed(long long speed) {
+    return static_cast<int>(speed < -kMaxSpeed ? -kMaxSpeed : (speed > kMaxSpeed ? kMaxSpeed : speed));
+}
+
 // Kodi's {hours,minutes,seconds,milliseconds} time object, in milliseconds.
+// Each field is clamped to [0, 1,000,000] so the arithmetic cannot overflow.
 long long MillisFromTimeObject(const nlohmann::json& t);
 KodiPlaybackState PlaybackFromSpeed(int speed);
 
