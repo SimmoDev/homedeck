@@ -60,7 +60,7 @@ for f in "$@"; do
     filler='actually|genuinely|truly'
     case "$f" in
         docs/decisions/*) ;;
-        *.md) filler='actually|genuinely|simply|basically|essentially|obviously|really|very|quite' ;;
+        *.md) filler='actually|genuinely|truly|simply|basically|essentially|obviously|really|very|quite' ;;
     esac
     case "$f" in
         *CLAUDE.md|*m5stack_tab5*|*third_party*|*lib-narration-patterns.sh|*check-docs.sh) ;;
