@@ -384,6 +384,12 @@ cmake --build build-tsan && ctest --test-dir build-tsan -j2
 under a sanitizer is timing-dependent or racy; repeat it with
 `--gtest_repeat` before treating it as a flake.
 
+Every workflow declares `permissions: contents: read` and references its
+actions by full commit SHA with the release tag in a trailing comment, so a
+moved tag cannot change what CI runs. [Dependabot](.github/dependabot.yml)
+proposes the SHA bumps weekly; a new workflow must follow the same two
+conventions.
+
 ## Status
 
 See [docs/roadmap.md](docs/roadmap.md) for what's built and what's still
