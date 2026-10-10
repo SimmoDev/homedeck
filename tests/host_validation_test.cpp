@@ -39,3 +39,23 @@ TEST(HasUnsafeHostCharsTest, AColonIsAllowedOnlyWhenAsked) {
 TEST(HasUnsafeHostCharsTest, AnEmptyStringHasNothingUnsafe) {
     EXPECT_FALSE(HasUnsafeHostChars("", false));
 }
+
+TEST(IsValidHostnameLabelTest, AcceptsLettersDigitsAndInnerHyphens) {
+    EXPECT_TRUE(homedeck::IsValidHostnameLabel("homedeck"));
+    EXPECT_TRUE(homedeck::IsValidHostnameLabel("living-room-2"));
+    EXPECT_TRUE(homedeck::IsValidHostnameLabel(std::string(63, 'a')));
+}
+
+TEST(IsValidHostnameLabelTest, RejectsEmptyOverlongAndMisplacedHyphens) {
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel(""));
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel(std::string(64, 'a')));
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel("-room"));
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel("room-"));
+}
+
+TEST(IsValidHostnameLabelTest, RejectsEverythingElse) {
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel("living room"));
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel("room.local"));
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel("under_score"));
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel("k\xc3\xb6di"));
+}

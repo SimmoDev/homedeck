@@ -51,4 +51,17 @@ inline bool HasUnsafeHostChars(const std::string& value, bool allow_colon) {
     return false;
 }
 
+// RFC 1035/6763 label rules for the mDNS hostname set from the Web UI's
+// device-name field: non-empty, at most 63 characters, alphanumeric or
+// hyphen only, no leading or trailing hyphen. Mirrored on the frontend by
+// webui/src/lib/deviceNameValidation.ts.
+inline bool IsValidHostnameLabel(const std::string& label) {
+    if (label.empty() || label.size() > 63) return false;
+    if (label.front() == '-' || label.back() == '-') return false;
+    for (char c : label) {
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-') return false;
+    }
+    return true;
+}
+
 }  // namespace homedeck

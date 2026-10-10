@@ -1,7 +1,7 @@
 // Pure validation logic pulled out of DeviceNameSettings.svelte so it's
 // unit-testable without a component-testing stack - same reasoning as
 // harmonyValidation.ts/passwordValidation.ts. Mirrors the backend's
-// IsValidHostnameLabel() (firmware/main/homedeck.cpp): RFC 1035/6763
+// IsValidHostnameLabel() (src/core/host_validation.h): RFC 1035/6763
 // label rules - non-empty, at most 63 characters, alphanumeric or hyphen
 // only, no leading/trailing hyphen. The simulator's DeviceNameValidateFn
 // is omitted entirely (see docs/decisions/ADR-0023-settings-backup-api.md),

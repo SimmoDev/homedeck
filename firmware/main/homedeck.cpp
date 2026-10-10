@@ -1,4 +1,3 @@
-#include <cctype>
 #include <cstdio>
 
 #include "bsp/m5stack_tab5.h"
@@ -22,6 +21,7 @@
 
 #include "core/admin_auth_service.h"
 #include "core/event_bus.h"
+#include "core/host_validation.h"
 #include "core/storage.h"
 #include "crash_diagnostics.h"
 #include "platform/firmware/audio_output.h"
@@ -175,20 +175,6 @@ lv_obj_t* ShowSplashScreen() {
     lv_obj_center(label);
     lv_scr_load(splash);
     return splash;
-}
-
-// RFC 1035/6763 label rules for the mDNS hostname a user sets via the
-// Web UI's Settings page - checked here rather than left to
-// mdns_hostname_set() itself, whose failure mode (silently not
-// re-announcing) would otherwise be indistinguishable from any other
-// cause at the settings_routes.cpp call site.
-bool IsValidHostnameLabel(const std::string& label) {
-    if (label.empty() || label.size() > 63) return false;
-    if (label.front() == '-' || label.back() == '-') return false;
-    for (char c : label) {
-        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-') return false;
-    }
-    return true;
 }
 
 // Shared by both InitNvs() partitions below - a fresh/corrupt partition
@@ -673,7 +659,7 @@ extern "C" void app_main(void) {
     // on a name this validator itself already rejected, and never left
     // applied against a value a later storage-write failure didn't save.
     app_core.SetOnDeviceNameValidate(
-        [](const std::string& value) -> bool { return IsValidHostnameLabel(value); });
+        [](const std::string& value) -> bool { return homedeck::IsValidHostnameLabel(value); });
     app_core.SetOnDeviceNameCommitted([&app_core](const std::string& value) {
         if (mdns_hostname_set(value.c_str()) == ESP_OK) {
             printf("mDNS re-announced as %s.local\n", value.c_str());
