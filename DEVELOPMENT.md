@@ -367,6 +367,23 @@ pinned LVGL release differs from the one in `firmware/dependencies.lock`.
 It also runs `shellcheck -x -S warning` over every tracked shell script,
 blocking for the same reason.
 
+A seventh, [`sanitizers.yml`](.github/workflows/sanitizers.yml), builds the
+unit tests twice - under AddressSanitizer with UndefinedBehaviorSanitizer,
+and under ThreadSanitizer - and runs the suite on push, PR and weekly.
+Blocking: both are deterministic given a clean tree. To reproduce locally,
+configure a separate build directory with the same flags:
+
+```sh
+cd tests && cmake -B build-tsan -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer" \
+  -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=thread"
+cmake --build build-tsan && ctest --test-dir build-tsan -j2
+```
+
+(`-fsanitize=address,undefined` for the other job.) A test that fails only
+under a sanitizer is timing-dependent or racy; repeat it with
+`--gtest_repeat` before treating it as a flake.
+
 ## Status
 
 See [docs/roadmap.md](docs/roadmap.md) for what's built and what's still
