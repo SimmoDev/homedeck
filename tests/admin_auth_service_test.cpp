@@ -92,7 +92,7 @@ std::string HexOf(const unsigned char* data, size_t len) {
 
 // Stores a password hash the way SetInitialPassword() does, but with a
 // caller-chosen iteration field; `hash_iterations` is what the hash is
-// actually computed with.
+// computed with.
 void StoreHash(homedeck::Storage& storage, const std::string& password, const std::string& iterations_field,
                unsigned int hash_iterations) {
     const std::vector<unsigned char> salt(16, 0x07);
