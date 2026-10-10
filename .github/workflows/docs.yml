@@ -23,6 +23,9 @@ on:
     # haven't been touched by any commit recently.
     - cron: "0 6 * * 1"
 
+permissions:
+  contents: read
+
 jobs:
   check-docs:
     name: Full-repo check-docs.sh sweep
