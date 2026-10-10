@@ -165,7 +165,8 @@ same defensive way `HarmonyConnection` does: bounded JSON nesting depth
 `src/core/json_request.h`), the same bounded WebSocket message
 size and receive-queue depth Harmony's transport already enforces
 (`platform/websocket_client.h`, both backends - shared code, not
-duplicated per-module), and every parsed field type-checked before use
+duplicated per-module), and every parsed field type-checked, and every numeric field that feeds
+arithmetic or a narrowing range-clamped, before use
 (`GetInt()`/`GetDouble()`/`GetString()`/`GetBool()` and `ApplyItemFields()`
 leave a missing *or type-mismatched* field at its struct default rather
 than surfacing broken state or, on firmware, aborting the process -
@@ -199,18 +200,23 @@ password hashing (satisfying the "avoid insecure secret storage"
 requirement's hashing half) and the `RequireAuth()` gate (satisfying
 "do not expose unauthenticated management controls by default" and
 "protect configuration changes" for whatever it wraps). Its two
-endpoints that take a request body (`setup`/`login`), and every other
-JSON-body route across the API surface (diagnostics, OTA, settings,
-weather, Wi-Fi reset), parse through the shared
+endpoints that take a request body (`setup`/`login`), and the settings
+API's write, erase and restore routes (`POST /api/settings`, `POST
+/api/settings/erase`, `POST /api/backup/restore`), parse through the shared
 `TryParseJsonObject()`/`ExceedsJsonNestingDepth()` (`src/core/json_request.h`)
 — well-formed JSON and a bounded nesting depth are both checked before
-any handler looks at a field, since every one of these routes is
-reachable pre-authentication or from any device on the LAN and a deeply
-nested body would otherwise recurse past a firmware task's own bounded
-stack. Beyond that shared parse step, each route validates its own
-fields independently at its own handler — the mechanism decision this
-requirement calls out (centralized vs. per-endpoint) landed as
-per-endpoint by default, not a deliberate centralized design. Harmony's
+any handler looks at a field, since the auth routes are reachable
+pre-authentication and a deeply nested body would otherwise recurse past a
+firmware task's own bounded stack. The remaining routes take no JSON
+request body: the diagnostics, OTA status and Wi-Fi reset routes take
+none, `POST /api/ota/upload` takes a raw image bounded by the target
+partition's size, and `GET /api/weather/geocode` takes a length-bounded
+query parameter (the upstream geocoding reply is parsed through
+`TryParseJsonObject()` too). Beyond that shared parse step, each route
+validates its own fields independently at its own handler — the
+mechanism decision this requirement calls out (centralized vs.
+per-endpoint) landed as per-endpoint by default, not a deliberate
+centralized design. Harmony's
 own routes (`GET /api/harmony/status`, `POST /api/harmony/reconnect`)
 take no body; its data (`hub_host`) is validated where it's
 written, the generic settings API's `SettingValidateFn` — both the
