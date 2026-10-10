@@ -64,18 +64,11 @@ inline nlohmann::json ParseBoundedJson(const std::string& text) {
 
 // The "parse the request body as JSON, reject anything that isn't a
 // well-formed JSON object" check every route handler taking a JSON body
-// needs before it can look at individual fields. Firmware builds with
-// exceptions disabled (ESP-IDF's default), so every caller needs
-// nlohmann::json's allow_exceptions=false parse form - centralized here so
-// that requirement (and the is_discarded()/is_object() check it implies)
-// isn't re-derived at each call site. Depth-bounded via ExceedsJsonNestingDepth() for the same
-// reason that function documents - every caller here also parses a
-// network-supplied request body.
+// needs before it can look at individual fields. Built on ParseBoundedJson()
+// for the same reasons it documents: firmware builds without exceptions, and
+// every caller parses a network-supplied body, so the depth bound applies.
 inline std::optional<nlohmann::json> TryParseJsonObject(const std::string& body) {
-    if (ExceedsJsonNestingDepth(body)) {
-        return std::nullopt;
-    }
-    nlohmann::json parsed = nlohmann::json::parse(body, nullptr, /*allow_exceptions=*/false);
+    nlohmann::json parsed = ParseBoundedJson(body);
     if (parsed.is_discarded() || !parsed.is_object()) {
         return std::nullopt;
     }
