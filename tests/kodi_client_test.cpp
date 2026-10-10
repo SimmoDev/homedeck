@@ -1120,15 +1120,24 @@ TEST_F(KodiClientTest, ReconcilePollWithTypeMismatchedPlayerPropertiesFallsBackI
     client->TriggerReconnect();
     // Reconnecting re-runs ConnectAndPrime()'s own initial ReconcilePoll
     // against the now-malformed script - the crash this guards against
-    // happens inside that poll, before kConnected is republished.
+    // happens inside that poll. The second connect is awaited first: the
+    // state is already kConnected before the reconnect begins, so it alone
+    // cannot show that the poll has run.
+    ASSERT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->connect_urls.size() >= 2;
+    }));
     ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }))
         << "a type-mismatched field must not abort the process before the connection can even settle";
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.position_ms == 5 * 60 * 1000; }))
+        << "the well-typed fields of the same reply are still applied";
 
+    // A reconnect starts from an empty snapshot, so every wrong-typed field
+    // keeps its default rather than the previous connection's value.
     homedeck::KodiNowPlaying np = client->Snapshot().now_playing;
-    EXPECT_EQ(np.speed, 1) << "wrong-typed speed leaves the previous value in place, not a crash";
-    EXPECT_EQ(np.playback, homedeck::KodiPlaybackState::kPlaying);
-    EXPECT_DOUBLE_EQ(np.percent, 25.0) << "wrong-typed percentage leaves the previous value in place";
-    EXPECT_TRUE(np.can_seek) << "wrong-typed canseek leaves the previous value in place";
+    EXPECT_EQ(np.speed, 0);
+    EXPECT_DOUBLE_EQ(np.percent, 0.0);
+    EXPECT_FALSE(np.can_seek);
     client->Stop();
 }
 
