@@ -3,6 +3,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <mutex>
 #include <optional>
 #include <thread>
 
@@ -46,14 +47,21 @@ TEST(Clock, PublishesTickEventPeriodically) {
     // Short period so this test doesn't take a full second-plus to run.
     homedeck::Clock clock(time_source, bus, std::chrono::milliseconds(20));
 
+    // Written by the Clock's timer thread, read by this one.
+    std::mutex mutex;
     std::optional<homedeck::ClockTickEvent> received;
-    auto sub = bus.Subscribe<homedeck::ClockTickEvent>(
-        [&received](const homedeck::ClockTickEvent& e) { received = e; });
+    auto sub = bus.Subscribe<homedeck::ClockTickEvent>([&](const homedeck::ClockTickEvent& e) {
+        std::lock_guard<std::mutex> lock(mutex);
+        received = e;
+    });
 
-    for (int i = 0; i < 50 && !received.has_value(); ++i) {
+    std::optional<homedeck::ClockTickEvent> tick;
+    for (int i = 0; i < 50 && !tick.has_value(); ++i) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        std::lock_guard<std::mutex> lock(mutex);
+        tick = received;
     }
 
-    ASSERT_TRUE(received.has_value());
-    EXPECT_EQ(received->time, time_source.fixed_time);
+    ASSERT_TRUE(tick.has_value());
+    EXPECT_EQ(tick->time, time_source.fixed_time);
 }
