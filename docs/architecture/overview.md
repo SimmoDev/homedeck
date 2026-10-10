@@ -67,9 +67,9 @@ rather than requiring every module to know about UI threading — see
 ## Hardware abstraction
 
 The Tab5 is the primary and only currently-supported target, but Core and
-modules must not call the hardware BSP (M5Unified/M5GFX, or — for
-display/touch specifically — `espressif/m5stack_tab5`, per
-[ADR-0014](../decisions/ADR-0014-hardware-support-library.md)) or any
+modules must not call a hardware support library (`espressif/m5stack_tab5`
+per [ADR-0014](../decisions/ADR-0014-hardware-support-library.md), `espp`
+per [ADR-0016](../decisions/ADR-0016-battery-rtc-library.md)) or any
 ESP-IDF API directly. Hardware access is mediated through a thin
 hardware-facing interface layer, for two reasons:
 
@@ -116,6 +116,8 @@ bottom.
   directory described above)
 - [harmony.md](harmony.md) — the Harmony module (connection, activities,
   devices/remote control, status/notifications, Web UI)
+- [kodi.md](kodi.md) — the Kodi module (connection, discovery, Now Playing,
+  library browsing, Web UI)
 - [security.md](security.md) — cross-cutting security requirements and
   where each is addressed
 - [diagnostics.md](diagnostics.md) — cross-cutting diagnostics requirements
