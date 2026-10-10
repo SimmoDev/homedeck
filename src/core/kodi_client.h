@@ -648,6 +648,10 @@ private:
     // still polled and used as the *initial* identity when a client
     // connects to a Kodi that is already playing (no notification seen).
     bool identity_from_notification_ = false;
+    // Counts Player.OnStop notifications. A reconcile poll that saw one
+    // arrive between its calls discards the player properties it read: they
+    // describe playback that has since ended.
+    unsigned player_stop_count_ = 0;
 
     mutable std::mutex mutex_;
     KodiSnapshot state_;

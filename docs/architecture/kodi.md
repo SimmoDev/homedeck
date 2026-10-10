@@ -121,7 +121,9 @@ to every connected client, with no subscribe call.
   carry no timing fields). The poll is `Application.GetProperties` →
   `Player.GetActivePlayers` → `Player.GetProperties` + `Player.GetItem`,
   and doubles as the liveness check - a transport failure during it
-  triggers a reconnect.
+  triggers a reconnect. A poll during which `Player.OnStop` arrives
+  discards its player replies, which describe playback that has ended,
+  and polls again.
 
 ### Identity vs. timing
 

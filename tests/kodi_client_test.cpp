@@ -915,6 +915,9 @@ TEST_F(KodiClientTest, PauseThenStopNotificationsTrackPlaybackState) {
                  R"("player":{"playerid":1,"speed":0}}}})");
     ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.playback == KodiPlaybackState::kPaused; }));
 
+    // Kodi reports no active player once playback has stopped; a poll queued
+    // by the pause notification must not find one and repopulate the snapshot.
+    ScriptIdleKodi(script);
     Push(script, R"({"jsonrpc":"2.0","method":"Player.OnStop","params":{"data":{"end":false,"item":{"title":"X"}}}})");
     ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.playback == KodiPlaybackState::kInactive; }));
     EXPECT_TRUE(client->Snapshot().now_playing.title.empty());
@@ -1138,6 +1141,46 @@ TEST_F(KodiClientTest, ReconcilePollWithTypeMismatchedPlayerPropertiesFallsBackI
     EXPECT_EQ(np.speed, 0);
     EXPECT_DOUBLE_EQ(np.percent, 0.0);
     EXPECT_FALSE(np.can_seek);
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, StopNotificationDuringAPollIsNotOverwrittenByThePollsStaleReplies) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting(KodiClient::kModuleId, KodiClient::kHostKey, 1, "10.0.30.20"));
+
+    homedeck::EventBus bus;
+    FakeMdnsBrowser browser;
+    auto script = std::make_shared<WsScript>();
+    ScriptPlayingKodi(script);
+    {
+        // The stop lands while the connect poll is between its calls: it is
+        // delivered ahead of Player.GetItem's reply, and Kodi reports no
+        // active player from then on. The handler runs with script->mutex held.
+        std::lock_guard<std::mutex> lock(script->mutex);
+        auto fired = std::make_shared<bool>(false);
+        script->handlers["Player.GetItem"] = [raw = script.get(), fired](const nlohmann::json&) {
+            // A raw pointer: the handler lives inside the script it refers to.
+            if (!*fired) {
+                *fired = true;
+                raw->pushed.push_back(
+                    R"({"jsonrpc":"2.0","method":"Player.OnStop","params":{"data":{"end":false,"item":{"title":"X"}}}})");
+                raw->results["Player.GetActivePlayers"] = R"([])";
+            }
+            return nlohmann::json{{"result", {{"item", {{"title", "X"}, {"type", "movie"}}}}}};
+        };
+    }
+
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    // kConnected is published after the connect poll has finished applying
+    // its replies, so the snapshot is final here.
+    homedeck::KodiNowPlaying np = client->Snapshot().now_playing;
+    EXPECT_EQ(np.playback, KodiPlaybackState::kInactive);
+    EXPECT_TRUE(np.title.empty());
     client->Stop();
 }
 

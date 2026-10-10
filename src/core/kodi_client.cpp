@@ -632,6 +632,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
         return true;
     }
 
+    const unsigned stops_before_player_calls = player_stop_count_;
     std::optional<std::string> props_text =
         Call("Player.GetProperties",
              R"({"playerid":)" + std::to_string(player_id) +
@@ -647,6 +648,16 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
              kCallTimeoutMs, stop);
     if (!item_text.has_value()) {
         return call_failed();
+    }
+
+    if (player_stop_count_ != stops_before_player_calls) {
+        // Playback stopped while these replies were in flight; the next poll
+        // reads the state after the stop.
+        needs_immediate_poll_ = true;
+        if (changed) {
+            event_bus_.Publish(KodiNowPlayingChangedEvent{});
+        }
+        return true;
     }
 
     {
@@ -742,6 +753,7 @@ void KodiClient::HandleNotification(const std::string& frame_text) {
                 changed = true;
             }
         } else if (method == "Player.OnStop") {
+            ++player_stop_count_;
             if (state_.now_playing.playback != KodiPlaybackState::kInactive || !state_.now_playing.title.empty()) {
                 state_.now_playing = KodiNowPlaying{};
                 changed = true;
