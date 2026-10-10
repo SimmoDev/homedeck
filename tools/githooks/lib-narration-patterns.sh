@@ -135,4 +135,12 @@ narration_patterns=(
     '(inline|old|previous) version (this|it) replaces'
     'stopped being'
     'now-unblocked'
+    # Comparisons with an earlier state ("unlike before", "the original
+    # three-writes case") and comments naming the past fix or review
+    # finding a test guards ("regression test for the ... race"). State
+    # the current invariant instead.
+    'unlike before'
+    'the original [a-z-]+ case'
+    'regression test for the'
+    'for the [a-z-]+ finding'
 )
