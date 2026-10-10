@@ -96,6 +96,17 @@ void PrintBootBanner() {
     printf("  Free PSRAM:   %zu bytes\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 }
 
+// Runs `callback` once, 500 ms from now, from the esp_timer task. The delay
+// has to clear the in-flight HTTP response write; it isn't otherwise
+// meaningful. false if the timer could not be created or started.
+bool RunOnceAfterResponseDelay(const char* name, esp_timer_cb_t callback) {
+    esp_timer_handle_t timer = nullptr;
+    esp_timer_create_args_t args = {};
+    args.callback = callback;
+    args.name = name;
+    return esp_timer_create(&args, &timer) == ESP_OK && esp_timer_start_once(timer, 500 * 1000) == ESP_OK;
+}
+
 // Passed to RegisterOtaRoutes as its OtaRebootFn - esp_restart() can't
 // be called directly from the /api/ota/reboot handler, since the
 // handler still has to return so its 200 response is sent first. The
@@ -104,11 +115,7 @@ void PrintBootBanner() {
 // already committed by the time this runs), so a scheduling failure
 // here has nothing left to report to - only worth logging.
 void ScheduleReboot() {
-    esp_timer_handle_t timer = nullptr;
-    esp_timer_create_args_t args = {};
-    args.callback = [](void*) { esp_restart(); };
-    args.name = "ota_reboot";
-    if (esp_timer_create(&args, &timer) != ESP_OK || esp_timer_start_once(timer, 500 * 1000) != ESP_OK) {
+    if (!RunOnceAfterResponseDelay("ota_reboot", [](void*) { esp_restart(); })) {
         printf("ScheduleReboot: failed to schedule the deferred reboot\n");
     }
 }
@@ -141,9 +148,7 @@ void ScheduleReboot() {
 // the Web UI in that case, since neither the credential clear nor the
 // reboot will happen.
 bool ScheduleWifiResetAndReboot() {
-    esp_timer_handle_t timer = nullptr;
-    esp_timer_create_args_t args = {};
-    args.callback = [](void*) {
+    const bool scheduled = RunOnceAfterResponseDelay("wifi_reset_reboot", [](void*) {
         esp_err_t err = esp_wifi_restore();
         if (err != ESP_OK) {
             // Logged, not acted on - esp_restart() below is unconditional
@@ -152,13 +157,11 @@ bool ScheduleWifiResetAndReboot() {
             printf("ScheduleWifiResetAndReboot: esp_wifi_restore failed: %s\n", esp_err_to_name(err));
         }
         esp_restart();
-    };
-    args.name = "wifi_reset_reboot";
-    if (esp_timer_create(&args, &timer) != ESP_OK || esp_timer_start_once(timer, 500 * 1000) != ESP_OK) {
+    });
+    if (!scheduled) {
         printf("ScheduleWifiResetAndReboot: failed to schedule the deferred Wi-Fi reset/reboot\n");
-        return false;
     }
-    return true;
+    return scheduled;
 }
 
 // Shown immediately after display start, before the Wi-Fi credentials
