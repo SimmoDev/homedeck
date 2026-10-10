@@ -14,13 +14,13 @@ jobs:
     name: Build firmware
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       # The Web UI's Svelte/Vite bundle is a build prerequisite, not
       # auto-invoked from CMake/idf.py (see
       # docs/decisions/ADR-0025-webui-static-asset-storage.md)
       # - EMBED_FILES needs webui/dist/ to exist before idf.py build runs.
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: npm
