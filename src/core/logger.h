@@ -40,18 +40,13 @@ public:
     // Never blocks on flash I/O - captures the entry (with a real
     // timestamp, taken now) and hands it to a background task for
     // persistence, batched with whatever else is pending at the time.
-    // See ADR-0020: a synchronous flash write here was confirmed to
-    // cause a real display glitch when multiple Log() calls landed
-    // within the same second during boot (each esp_flash write can
-    // transiently disrupt DMA access to the PSRAM-backed display
-    // framebuffer). Moving the write off the caller's task doesn't
-    // reduce how many flash writes happen on its own - coalescing
-    // near-simultaneous calls into one write is what does that, cutting
-    // the original three-writes-per-boot case down to one. This
-    // measurably reduces the glitch's likelihood but doesn't eliminate
-    // it - a single write during active viewing can still glitch on
-    // this hardware, a known limitation with no complete fix available
-    // yet (see ADR-0020's Context for what was ruled out and why).
+    // See ADR-0020: a flash write can transiently disrupt DMA access to
+    // the PSRAM-backed display framebuffer and glitch the display, so
+    // near-simultaneous Log() calls are coalesced into one write. That
+    // lowers the glitch's likelihood but does not eliminate it: a single
+    // write during active viewing can still glitch on this hardware, a
+    // known limitation with no complete fix (see ADR-0020's Context for
+    // what was ruled out and why).
     void Log(LogLevel level, const std::string& component, const std::string& message);
 
     // Rotated + current entries, oldest first, as a JSON array (each

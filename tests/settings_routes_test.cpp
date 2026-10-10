@@ -191,11 +191,11 @@ TEST_F(SettingsRoutesTest, EraseRemovesAKey) {
     EXPECT_EQ(get.body, "[]");
 }
 
-// Regression test for the shared-NVS-namespace finding
-// (docs/decisions/ADR-0023-settings-backup-api.md): SettingsStore and
-// SecretStore write into the same physical NVS namespace-per-module on
-// firmware, so a fully generic settings write/list could otherwise read
-// or overwrite the admin password hash through the wrong door.
+// The reserved-key guard (docs/decisions/ADR-0023-settings-backup-api.md):
+// SettingsStore and SecretStore write into the same physical NVS
+// namespace-per-module on firmware, so a fully generic settings write/list
+// could otherwise read or overwrite the admin password hash through the
+// wrong door.
 TEST_F(SettingsRoutesTest, ReservedAdminPasswordKeyIsRejectedAndNeverExposed) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);

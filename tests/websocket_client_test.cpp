@@ -596,11 +596,9 @@ TEST(HostWebSocketClient, ConnectFailsWhenConnectionHeaderIsMissingOrWrong) {
 }
 
 TEST(HostWebSocketClient, ReceiveTextZeroDoesNotBlockWhenNothingIsPending) {
-    // Regression test for the ReceiveText(0) deadline race that made
-    // HarmonyConnection::DrainStaleMessages()'s own zero-timeout poll a
-    // silent no-op on this backend: with nothing pending, ReceiveText(0)
-    // must return promptly rather than blocking for the connection's
-    // full lifetime.
+    // HarmonyConnection::DrainStaleMessages() polls with a zero timeout: with
+    // nothing pending, ReceiveText(0) must return promptly rather than
+    // blocking for the connection's full lifetime.
     uint16_t port = 0;
     int listen_fd = ListenOnLoopback(&port);
     ASSERT_GE(listen_fd, 0);

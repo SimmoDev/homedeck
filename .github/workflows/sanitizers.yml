@@ -1,0 +1,52 @@
+name: Sanitizers
+
+# Runs the unit tests under AddressSanitizer + UndefinedBehaviorSanitizer and
+# under ThreadSanitizer. The normal build hides tests that pass only because
+# of thread timing, and unsynchronised test state; slower, instrumented
+# builds surface both.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  sanitize:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: AddressSanitizer + UndefinedBehaviorSanitizer
+            flags: -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer
+            dir: build-asan
+          - name: ThreadSanitizer
+            flags: -fsanitize=thread -fno-omit-frame-pointer
+            dir: build-tsan
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev
+
+      - name: Configure
+        working-directory: tests
+        run: |
+          cmake -B ${{ matrix.dir }} -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" \
+            -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
+
+      - name: Build
+        working-directory: tests
+        run: cmake --build ${{ matrix.dir }}
+
+      - name: Run tests
+        working-directory: tests
+        run: ctest --test-dir ${{ matrix.dir }} -j2 --output-on-failure

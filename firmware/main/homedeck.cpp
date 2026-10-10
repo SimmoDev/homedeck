@@ -653,11 +653,11 @@ extern "C" void app_main(void) {
     // See settings_routes.h/AppCore::SetOnDeviceNameValidate()/
     // SetOnDeviceNameCommitted()'s own comments - deferred until after
     // AppCore's construction so the committed callback can safely
-    // reference GetLogger(). Split across two calls (not one, unlike
-    // before) specifically so the live mDNS re-announce below only ever
-    // runs once Storage::SetSetting() has persisted the new name - never
-    // on a name this validator itself already rejected, and never left
-    // applied against a value a later storage-write failure didn't save.
+    // reference GetLogger(). Validation and commit are separate callbacks
+    // so the live mDNS re-announce below only runs once
+    // Storage::SetSetting() has persisted the new name - never on a name
+    // the validator rejected, and never against a value a storage-write
+    // failure didn't save.
     app_core.SetOnDeviceNameValidate(
         [](const std::string& value) -> bool { return homedeck::IsValidHostnameLabel(value); });
     app_core.SetOnDeviceNameCommitted([&app_core](const std::string& value) {
