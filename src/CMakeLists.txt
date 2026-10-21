@@ -14,9 +14,10 @@ FetchContent_Declare(
 set(CIVETWEB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(CIVETWEB_ENABLE_CXX OFF CACHE BOOL "" FORCE)
 # Defaults ON in Debug builds and compiles civetweb's own object files with
-# -fsanitize=..., but that flag never reaches our own targets' link line
-# (this repo doesn't build with sanitizers), leaving unresolved __ubsan_*/
-# __asan_* symbols at link time in a Debug build.
+# -fsanitize=..., but that flag never reaches our own targets' link line,
+# leaving unresolved __ubsan_*/__asan_* symbols at link time in a Debug
+# build. Sanitizer builds of tests/ pick their sanitizers through
+# CMAKE_CXX_FLAGS and CMAKE_EXE_LINKER_FLAGS instead.
 set(CIVETWEB_ENABLE_ASAN OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(civetweb)
 
