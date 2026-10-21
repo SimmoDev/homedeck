@@ -1,7 +1,12 @@
-# Keeps the SHA-pinned actions in .github/workflows/ current.
+# Keeps the SHA-pinned actions in .github/workflows/ and the Web UI's npm
+# dependencies current.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    schedule:
+      interval: weekly
+  - package-ecosystem: npm
+    directory: /webui
     schedule:
       interval: weekly

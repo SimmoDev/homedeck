@@ -390,8 +390,8 @@ under a sanitizer is timing-dependent or racy; repeat it with
 Every workflow declares `permissions: contents: read` and references its
 actions by full commit SHA with the release tag in a trailing comment, so a
 moved tag cannot change what CI runs. [Dependabot](.github/dependabot.yml)
-proposes the SHA bumps weekly; a new workflow must follow the same two
-conventions.
+proposes the SHA bumps and the Web UI's npm dependency updates weekly; a new
+workflow must follow the same two conventions.
 
 ## Status
 
