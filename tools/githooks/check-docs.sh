@@ -47,7 +47,15 @@ for f in "$@"; do
         fi
     done
 
-    real_matches=$(grep -niE '\breal\b' "$f" || true)
+    # The full-repo CI sweep sets CHECK_DOCS_REAL_STATUS_ONLY so only the
+    # banned implementation-status sense is reported; every other use of the
+    # word would otherwise be a permanent baseline that hides new hits. The
+    # pre-commit run, over a handful of staged files, keeps the wide check.
+    real_pattern='\breal\b'
+    if [ -n "${CHECK_DOCS_REAL_STATUS_ONLY:-}" ]; then
+        real_pattern='\b(is|are|was|were|be|been) (a )?real\b|\breal (implementation|thing)\b'
+    fi
+    real_matches=$(grep -niE "$real_pattern" "$f" || true)
     if [ -n "$real_matches" ]; then
         echo "[wording] $f: '\breal\b' hit - check it isn't the banned 'is real/are real' implementation-status sense (use 'implemented'):"
         echo "$real_matches" | sed 's/^/    /'

@@ -342,8 +342,9 @@ every tracked doc/code file (push, PR, and weekly) rather than just a
 commit's own diff, the way the pre-commit hook is scoped — catching
 narration/wording drift and hardware.md scope creep in files nobody
 happens to touch again. Deliberately non-blocking (`continue-on-error`),
-same as the hooks themselves: a full-repo run also surfaces plenty of
-pre-existing, legitimate usage not worth gating a build on.
+same as the hooks themselves. The sweep reports only the banned
+implementation-status sense of "real" (`CHECK_DOCS_REAL_STATUS_ONLY`); the
+pre-commit run keeps the wider check on the files it stages.
 
 A fifth, [`secrets.yml`](.github/workflows/secrets.yml), runs
 `tools/githooks/check-secrets.sh` against every tracked file (push and
