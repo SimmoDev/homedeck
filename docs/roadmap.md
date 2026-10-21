@@ -272,10 +272,11 @@ simulator.
       urgency distinction this service carries does not gate any
       wake-cycle behavior (see
       [ADR-0024](decisions/ADR-0024-sleeping-wake-mechanism.md)) - it
-      remains available for a future presentation difference, not a gap. `PostToUiThread` (`src/ui/ui_dispatch.h`/`.cpp`)
-      queues UI-bound updates through its own `Queue<T>` and drains it
-      via a single recurring timer, guaranteeing FIFO delivery order
-      independent of `lv_async_call`'s own ordering - see
+      remains available for a future presentation difference, not a gap.
+      `PostToUiThread` (`src/ui/ui_dispatch.h`/`.cpp`) queues UI-bound
+      updates through its own `Queue<T>` and drains it via a single
+      recurring timer, guaranteeing FIFO delivery order independent of
+      `lv_async_call`'s own ordering - see
       [ADR-0011](decisions/ADR-0011-lvgl-thread-safety.md)'s Consequences
       for detail. Distinct sounds per severity (deferred until a second
       severity has a publisher) and an unread-count badge (as an
