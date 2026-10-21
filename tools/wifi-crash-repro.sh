@@ -5,9 +5,11 @@
 # in https://github.com/SimmoDev/homedeck/issues/8 happens in. The next boot
 # after a crash reports its reset reason through GET /api/diagnostics.
 #
-# Usage: HOMEDECK_PASSWORD=... tools/wifi-crash-repro.sh [host] [max-reboots]
-#   host         default homedeck.local (pass an IP if mDNS does not resolve)
-#   max-reboots  default 50
+# Usage: HOMEDECK_PASSWORD=... tools/wifi-crash-repro.sh [host] [max-reboots] [settle-seconds]
+#   host            default homedeck.local (pass an IP if mDNS does not resolve)
+#   max-reboots     default 50
+#   settle-seconds  how long the device runs after each boot before the next
+#                   reboot, default 5; a larger value reboots less often
 #
 # Needs curl and jq. Run tools/monitor.sh in another terminal to capture the
 # serial log around the fault. Decode the dump with tools/decode-coredump.sh,
@@ -21,6 +23,7 @@ done
 
 HOST="${1:-homedeck.local}"
 MAX="${2:-50}"
+SETTLE="${3:-5}"
 BASE="http://$HOST"
 JAR="$(mktemp)"
 trap 'rm -f "$JAR"' EXIT
@@ -72,7 +75,7 @@ for i in $(seq 1 "$MAX"); do
   retry curl -sf --max-time 15 -b "$JAR" -X POST "$BASE/api/ota/reboot" >/dev/null
   sleep 5   # the device restarts 500 ms after the response; let the old server go away
   wait_for_device || exit 2
-  sleep 5   # let the boot finish before the next request
+  sleep "$SETTLE"   # let the boot finish, and the device run, before the next request
   retry login
   reason="$(retry diagnostics_reset_reason)"
   echo "reboot $i/$MAX: previous boot ended with '$reason'"
