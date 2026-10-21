@@ -380,7 +380,9 @@ cd tests && cmake -B build-tsan -G Ninja -DCMAKE_BUILD_TYPE=Debug \
 cmake --build build-tsan && ctest --test-dir build-tsan -j2
 ```
 
-(`-fsanitize=address,undefined` for the other job.) A test that fails only
+(For the other job use `-fsanitize=address,undefined
+-fno-sanitize-recover=undefined` in both flag variables, so a UBSan finding
+fails the test as it does in CI.) A test that fails only
 under a sanitizer is timing-dependent or racy; repeat it with
 `--gtest_repeat` before treating it as a flake.
 
