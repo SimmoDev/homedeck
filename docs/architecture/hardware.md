@@ -69,6 +69,15 @@ if a fact drifts.
   power-off feature depends on what `VDD_STBY` on the PMS150G-U06
   powers, which isn't confirmed — see [Wake sources](#power)
   under Power below.
+- **C6 programming connector.** A 6-pin connector (`J1`, net label
+  `C6_ISP`) exposes the C6's UART and boot straps, per the
+  [official schematic](https://m5stack-doc.oss-cn-shenzhen.aliyuncs.com/1132/Tab5_Schematics_PDF.pdf)
+  (read from the drawing, not probed on a board). Pin 1 is `WLAN_3.3V`,
+  the C6's switched supply, an output of the Tab5 and not an input; pin 2
+  `RF_C6_TXD`; pin 3 `RF_C6_RXD`; pin 4 `RF_C6_RST` (C6 reset); pin 5
+  `RF_C6_IO9` (the C6's boot-mode strap, low at reset selects download
+  mode); pin 6 GND. The C6's `IO8` strap has a 10 kΩ pull-up to the same
+  rail.
 
 ### Wi-Fi bring-up
 
