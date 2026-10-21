@@ -88,9 +88,8 @@ constexpr uint16_t kRecoveryHttpCtrlPort = ESP_HTTPD_DEF_CTRL_PORT + 1;
 // connections ("httpd_accept_conn: error in accept (23)" server-side, a
 // dropped connection client-side). This server only ever needs to serve
 // one client's setup form at a time, so a small fixed value both avoids
-// that and leaves real headroom in the shared budget (see
-// sdkconfig.defaults' CONFIG_LWIP_MAX_SOCKETS override for the other
-// half of this fix).
+// that and leaves headroom in the shared budget (see sdkconfig.defaults'
+// CONFIG_LWIP_MAX_SOCKETS override, which sizes the budget itself).
 constexpr size_t kSetupHttpMaxOpenSockets = 3;
 
 // "HomeDeck-" (9 chars) + 6 hex digits of MAC + null terminator, shared

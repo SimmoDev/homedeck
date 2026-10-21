@@ -16,7 +16,7 @@ constexpr char kTag[] = "http_server";
 // grammar requires a reason-phrase after the status code and some HTTP
 // clients handle a missing one poorly (see DispatchTrampoline's own
 // comment on this same status line for a different malformed-status-line
-// failure this project already hit on real hardware). The code->phrase
+// case). The code->phrase
 // table itself is shared with the host backend - see HttpReasonPhrase()
 // (platform/http_server.h).
 std::string StatusLine(int status_code) {
