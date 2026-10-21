@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Runs the doc-narration, hardware.md-scope, ESP-IDF-return, curl-timeout,
 # esp-http-timeout, unauthenticated-route, json-field-type,
-# json-dump-strict, build-artifact, comment-path, shellcheck, and secret-scan checks
+# json-dump-strict, build-artifact, comment-path, security-surface, shellcheck, and
+# secret-scan checks
 # against staged files.
 # Only check-secrets.sh blocks the commit - its patterns are narrow and
 # high-precision (private key headers, known credential-token shapes) and a
-# missed leak is high-severity and hard to reverse once pushed. The other eleven checks
+# missed leak is high-severity and hard to reverse once pushed. The other twelve checks
 # are heuristic (free-text wording/narration, or syntactic checks that
 # sometimes need human judgment) and stay warn-only, so a false positive
 # there can't force a --no-verify habit that would also bypass the secret
@@ -53,6 +54,8 @@ if [ -n "$esp_files" ]; then
     "$repo_root/tools/githooks/check-esp-idf-returns.sh" $esp_files || found_issue=1
     # shellcheck disable=SC2086
     "$repo_root/tools/githooks/check-esp-http-timeouts.sh" $esp_files || found_issue=1
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-security-surface.sh" $esp_files || found_issue=1
 fi
 
 if [ -n "$cpp_files" ]; then
