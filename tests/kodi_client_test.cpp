@@ -2848,3 +2848,16 @@ TEST(KodiJson, AnOutOfRangeResumePositionIsClampedInsteadOfOverflowing) {
     EXPECT_EQ(movies[0].resume_position_ms, 1000000LL * 3600 * 1000);
     EXPECT_EQ(movies[1].resume_position_ms, 0);
 }
+
+TEST(KodiJson, OutOfRangeSeasonAndEpisodeNumbersAreClamped) {
+    homedeck::KodiNowPlaying np;
+    homedeck::kodi_json::ApplyItemFields(
+        nlohmann::json::parse(R"({"season":99999999999,"episode":99999999999,"type":"episode"})"), np);
+    EXPECT_EQ(np.season, 1000000);
+    EXPECT_EQ(np.episode, 1000000);
+
+    homedeck::KodiNowPlaying negative;
+    homedeck::kodi_json::ApplyItemFields(nlohmann::json::parse(R"({"season":-99999999999,"episode":-4})"), negative);
+    EXPECT_EQ(negative.season, homedeck::KodiNowPlaying{}.season);
+    EXPECT_EQ(negative.episode, homedeck::KodiNowPlaying{}.episode);
+}

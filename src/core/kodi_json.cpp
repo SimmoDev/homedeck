@@ -58,6 +58,10 @@ namespace {
 // real media length, small enough that seconds * 1000 cannot overflow.
 constexpr int kMaxTimeFieldValue = 1000000;
 
+// Season and episode numbers are display values; this bound only keeps the
+// narrowing to int defined.
+constexpr int kMaxSeasonOrEpisode = 1000000;
+
 }  // namespace
 
 long long MillisFromTimeObject(const nlohmann::json& t) {
@@ -249,11 +253,11 @@ void ApplyItemFields(const nlohmann::json& item, KodiNowPlaying& now_playing) {
     if (item.contains("showtitle") && item["showtitle"].is_string() && !item["showtitle"].get<std::string>().empty()) {
         now_playing.show_title = item["showtitle"].get<std::string>();
     }
-    const int season = GetBoundedInt(item, "season", -1, -1, kMaxTimeFieldValue);
+    const int season = GetBoundedInt(item, "season", -1, -1, kMaxSeasonOrEpisode);
     if (season >= 0) {
         now_playing.season = season;
     }
-    const int episode = GetBoundedInt(item, "episode", -1, -1, kMaxTimeFieldValue);
+    const int episode = GetBoundedInt(item, "episode", -1, -1, kMaxSeasonOrEpisode);
     if (episode >= 0) {
         now_playing.episode = episode;
     }
