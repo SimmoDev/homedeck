@@ -29,10 +29,11 @@ JAR="$(mktemp)"
 trap 'rm -f "$JAR"' EXIT
 
 # The device can answer /api/auth/status before the rest of the Web UI is
-# ready, so a request that fails is retried for a while before giving up.
+# ready, and its Wi-Fi can drop for a while, so a request that fails is retried
+# for up to two minutes before giving up.
 retry() {
   local _
-  for _ in 1 2 3 4 5 6 7 8 9 10; do
+  for _ in $(seq 1 40); do
     "$@" && return 0
     sleep 3
   done
