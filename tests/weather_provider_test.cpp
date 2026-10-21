@@ -123,6 +123,25 @@ TEST_F(WeatherProviderTest, NotConfiguredReportsConfiguredFalse) {
     EXPECT_EQ(http_client.GetCount(), 0);  // never attempted a fetch - nothing configured
 }
 
+TEST_F(WeatherProviderTest, OutOfRangeWeatherCodeIsClampedInsteadOfOverflowing) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("weather", "latitude", 1, "52.52"));
+    ASSERT_TRUE(storage.SetSetting("weather", "longitude", 1, "13.41"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(
+        homedeck::HttpClientResponse{true, 200, R"({"current":{"temperature_2m":1.0,"weather_code":1e300}})"});
+
+    homedeck::OpenMeteoWeatherProvider provider(http_client, storage, bus, kFastPollInterval);
+
+    ASSERT_TRUE(WaitFor([&] { return provider.Snapshot().has_reading; }));
+    EXPECT_EQ(provider.Snapshot().weather_code, 99);
+}
+
 TEST_F(WeatherProviderTest, ConfiguredAndSuccessfulFetchReportsLiveReading) {
     homedeck::HostSettingsStore settings_store(root_dir_);
     homedeck::HostCacheStore cache_store(root_dir_);
