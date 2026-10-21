@@ -24,9 +24,12 @@ fi
 read -r -s -p "New admin password for $HOST: " PASSWORD
 echo
 
-RESPONSE=$(curl -s -X POST "http://$HOST/api/auth/setup" \
-  -H "Content-Type: application/json" \
-  -d "$(jq -n --arg password "$PASSWORD" '{password: $password}')")
+# Body on stdin, not in argv: a command-line argument is readable by other
+# local users through the process list.
+RESPONSE=$(jq -n --arg password "$PASSWORD" '{password: $password}' |
+  curl -s -X POST "http://$HOST/api/auth/setup" \
+    -H "Content-Type: application/json" \
+    -d @-)
 
 if echo "$RESPONSE" | grep -q '"ok":true'; then
   echo "Password set."
