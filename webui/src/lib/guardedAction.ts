@@ -1,13 +1,8 @@
-// This project's own double-fired-click guard, extracted after being
-// copy-pasted (a check line plus an identical explanatory comment)
-// across HarmonySettings/WeatherSettings/DeviceNameSettings/
-// PasswordForm/BackupSettings/Ota (x2)/WifiReset - one of which
-// (PasswordForm) once shipped with the comment but not the actual
-// guard line, since nothing forced the two to travel together. A
-// second click/submit event dispatched before Svelte reactively
-// applies a `disabled` binding can otherwise reach a handler twice
-// before that handler's own synchronous "busy" state change has taken
-// effect in the DOM.
+// Double-fired-click guard shared by every submit/action handler. A
+// second click/submit event dispatched before Svelte reactively applies a
+// `disabled` binding can otherwise reach a handler twice before that
+// handler's own synchronous "busy" state change has taken effect in the
+// DOM.
 //
 // isBusy/markBusy are closures rather than a single owned flag because
 // callers use different state shapes for "busy" - a plain boolean in

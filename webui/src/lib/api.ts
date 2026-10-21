@@ -1,8 +1,6 @@
-// Shared fetch/JSON helpers - every page-level component was hand-
-// rolling the same "fetch, check response.ok, parse JSON" sequence for
-// its GET loads (identical down to the "Request failed: ${status}"
-// wording), and the same untyped `.catch(() => ({}))` error-body parse
-// for POST failures.
+// Shared fetch/JSON helpers: the "fetch, check response.ok, parse JSON"
+// sequence for GET loads (with one "Request failed: ${status}" wording) and
+// a typed error-body parse for failed POSTs.
 
 // The shape of this server's own JSON error responses (e.g.
 // core/settings_routes.cpp's {"error":"invalid_value"} bodies) - not
