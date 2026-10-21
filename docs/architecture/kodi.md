@@ -329,9 +329,10 @@ request in flight when the link dropped is lost; `KodiFilesScreen` keeps
 its `path_stack_` and reloads the folder the user was in. A show's
 seasons/episodes aren't known until that show/season is chosen, so those
 queries fire only when that level is entered. Kodi's database order has no
-relation to how a user browses, so every query sorts by label
-(`VideoLibrary.GetMovies`/`GetTVShows`) or by season/episode number, not
-left at Kodi's own insertion order.
+relation to how a user browses, so the library queries sort: movies, TV
+shows and artists by label, seasons by season number, episodes by episode
+number, albums by year and songs by track. `Files.GetDirectory` and the
+PVR queries keep Kodi's own order.
 
 `KodiMusicScreen` follows the video screens' `RequestX()`/
 `KodiXFetchedEvent` pattern for its own `AudioLibrary.GetArtists`/
