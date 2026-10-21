@@ -37,9 +37,16 @@ for f in "$@"; do
     # spaces between the two halves of a phrase, which a pattern written
     # with a single literal space (e.g. "confirmed manually") then fails
     # to match at all.
-    flattened=$(tr '\n' ' ' < "$f" | tr -s '[:space:]' ' ')
+    # hardware.md is skipped: its documented **Confirmed** convention and its
+    # subject make "confirmed" and "hardware" co-occur within 80 characters
+    # across unrelated sentences once the file is flattened.
+    flattened=""
+    case "$f" in
+        *docs/architecture/hardware.md) ;;
+        *) flattened=$(tr '\n' ' ' < "$f" | tr -s '[:space:]' ' ') ;;
+    esac
     for pat in "${narration_patterns[@]}"; do
-        if echo "$flattened" | grep -qiE "$pat"; then
+        if [ -n "$flattened" ] && echo "$flattened" | grep -qiE "$pat"; then
             if ! grep -qiE "$pat" "$f"; then
                 echo "[narration] $f: possible verification-log narration split across a line wrap (pattern: $pat)"
                 status=1

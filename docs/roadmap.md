@@ -54,7 +54,7 @@ management state model" item instead.
       workflows have been added since (doc/lint/secret sweeps) — see
       [DEVELOPMENT.md](../DEVELOPMENT.md#continuous-integration) for the
       current full list.
-- [x] Reference hardware confirmed — the K145 kit (see
+- [x] Reference hardware — the K145 kit (see
       [hardware.md](architecture/hardware.md#power)) with the **ST7123**
       integrated display+touch driver, detected at runtime per
       [ADR-0009](decisions/ADR-0009-touch-display-detection.md).
@@ -244,7 +244,7 @@ simulator.
       glitch root cause this resolves). Extended log archival to microSD
       is tracked as its own M7 item below.
 - [x] Audio bring-up (ES8388 codec, 1W speaker output — see
-      [hardware.md](architecture/hardware.md#audio) for the confirmed
+      [hardware.md](architecture/hardware.md#audio) for the
       pins/I2C/feature-enable facts). A platform capability in its own
       right, not Notifications-specific — Notifications' sound
       presentation (below) depends on this rather than duplicating it.
