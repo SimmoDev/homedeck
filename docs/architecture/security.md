@@ -36,6 +36,13 @@ is the same "single-user home LAN" trust boundary this document's OTA
 image integrity section already accepts elsewhere — a LAN-local
 nuisance DoS, not a way to bypass authentication itself.
 
+The lockout window and the 24-hour session lifetime are measured on the
+device's wall clock (`TimeSource::Now()`), which the SNTP sync can step. A
+step forward ends sessions early; a step back, or an RTC that read ahead of
+real time before the first sync, extends a lockout or session until the clock
+catches up, and a reboot clears both. **Accepted risk:** a LAN-local
+inconvenience on a single-admin device, not a way past authentication.
+
 State-changing endpoints rely on
 the session cookie's `SameSite=Strict` attribute as their CSRF
 mitigation — a deliberate choice, not an oversight — rather than a
