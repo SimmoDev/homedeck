@@ -109,8 +109,7 @@ bool RunOnceAfterResponseDelay(const char* name, esp_timer_cb_t callback) {
 
 // Passed to RegisterOtaRoutes as its OtaRebootFn - esp_restart() can't
 // be called directly from the /api/ota/reboot handler, since the
-// handler still has to return so its 200 response is sent first. The
-// delay needs to clear that write; it isn't otherwise meaningful.
+// handler still has to return so its 200 response is sent first.
 // OtaRebootFn has no failure-reporting contract (the 200 response is
 // already committed by the time this runs), so a scheduling failure
 // here has nothing left to report to - only worth logging.
