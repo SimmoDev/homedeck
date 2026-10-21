@@ -260,10 +260,9 @@ simulator.
       (see [ui.md](architecture/ui.md#notification-presentation)) —
       vibration is out of scope, no motor exists on the confirmed BOM.
       All three presentation outputs are implemented: `NotificationEvent`/
-      `NotificationSeverity` (`src/core/notification.h`, carrying the
-      alert-priority/deferred urgency
-      [ADR-0005](decisions/ADR-0005-power-and-sleep-model.md#decision-alert-priority-wake-cycle-during-sleeping)
-      requires) published via `EventBus`, with `LowBatteryMonitor`
+      `NotificationSeverity` (`src/core/notification.h`, carrying an
+      alert-priority/deferred urgency that gates no wake behaviour, see
+      below) published via `EventBus`, with `LowBatteryMonitor`
       (`src/core/`) as the first publisher (latched so a sustained
       low-battery state notifies once, not once a second). The three
       outputs — `NotificationBanner`, `NotificationSound`, and
