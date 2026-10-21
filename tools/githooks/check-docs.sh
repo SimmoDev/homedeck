@@ -82,6 +82,20 @@ for f in "$@"; do
             ;;
     esac
 
+    # A C/C++ hex escape swallows every hex digit that follows it, so
+    # "\xb6di" is one out-of-range escape, not "\xb6" then "di". Split the
+    # literal ("\xb6" "di") instead.
+    case "$f" in
+        *.cpp|*.h|*.hpp|*.cc)
+            hex_matches=$(grep -nE '\\x[0-9a-fA-F]{2}[0-9a-fA-F]' "$f" || true)
+            if [ -n "$hex_matches" ]; then
+                echo "[literal] $f: hex escape followed by another hex digit - the escape consumes it; split the string literal:"
+                echo "$hex_matches" | sed 's/^/    /'
+                status=1
+            fi
+            ;;
+    esac
+
     # Bare date parenthetical in prose, e.g. "...done. (2026-07-30)" - git
     # history already carries "when".
     date_matches=$(grep -nE '\([0-9]{4}-[0-9]{2}-[0-9]{2}\)' "$f" || true)
