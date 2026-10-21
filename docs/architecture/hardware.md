@@ -99,8 +99,9 @@ panicked (`Guru Meditation Error: Instruction access fault`, Core 1) a few
 hundred milliseconds after logging a successful IP acquisition, during the
 highest-SDIO-traffic window in the boot sequence. The fault signature
 doesn't match any currently-open upstream issue for this exact
-ESP32-P4+C6 combination, and diagnosing it further needs JTAG hardware
-debug tooling this project doesn't have.
+ESP32-P4+C6 combination. Debugging it further needs a debugger attached:
+the P4's built-in USB-Serial/JTAG controller on the USB-C port is reachable
+over JTAG with no external probe (both RISC-V cores examine cleanly).
 
 Reproducing this repeatedly doesn't need a full
 `tools/factory-reset.sh` erase-and-reflash cycle per attempt - see
@@ -110,7 +111,7 @@ credentials diagnostic aid.
 **Accepted risk:** carried forward into M3 as a known, explicitly
 accepted gap, not resolved. The device recovers on its own (a
 self-triggered reboot, not a hang). Accepted specifically because every
-root-cause avenue available without JTAG or upstream engagement has
+root-cause avenue available without a debugger or upstream engagement has
 already been exhausted, not because the reproduction rate is considered
 acceptable in the abstract. M3 added more background network activity at
 connect time (see [harmony.md](harmony.md#connection)), but the crash

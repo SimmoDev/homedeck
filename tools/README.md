@@ -16,7 +16,21 @@ read that first if a script here does something unexpected.
   that doesn't have one yet (default host `homedeck.local` - pass an IP
   if mDNS resolution doesn't work on your machine). Needs `curl` and `jq`.
 
-All four target the K145 reference unit.
+- `wifi-crash-repro.sh [host] [max-reboots]` - reboots the device through
+  the Web UI until a boot ends in a crash (every boot repeats the Wi-Fi
+  connect burst of [issue #8](https://github.com/SimmoDev/homedeck/issues/8))
+  and saves the core dump. The admin password goes in `HOMEDECK_PASSWORD`;
+  needs `curl` and `jq`.
+- `decode-coredump.sh <coredump.bin> [elf]` - decodes a downloaded core dump
+  into a backtrace in the `espressif/idf:v5.4.3` container. The ELF must be
+  from the flashed build (default `firmware/build/homedeck.elf`).
+- `jtag-probe.sh` - checks that OpenOCD reaches both ESP32-P4 cores over the
+  USB-C port's built-in USB-Serial/JTAG, with no external probe. Needs
+  access to `/dev/bus/usb`. To attach GDB, run
+  `openocd -f board/esp32p4-builtin.cfg` in the same container (GDB server on
+  port 3333) instead of the probe's one-shot command.
+
+All of these target the K145 reference unit.
 
 ## Kodi on-hardware checks
 
