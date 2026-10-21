@@ -235,7 +235,11 @@ initial Wi-Fi setup (see
 [networking.md](networking.md#initial-wi-fi-provisioning)), is the
 second screen registered alongside the dashboard on both targets (it
 omits the home affordance itself - see the Navigation model section
-above). Below its Connect button it shows instructions for setting up
+above). While the recovery access point is up it also shows, above the
+fields, a request to switch to the network a browser visitor submitted, with
+Allow and Deny buttons (`ShowPendingRequest`/`ClearPendingRequest`; see
+[networking.md](networking.md#recovery-access-point)). Below its Connect
+button it shows instructions for setting up
 from a computer/phone instead (join the SoftAP SSID, then browse to the
 gateway IP), and a connect-failure message once `wifi_setup.cpp` gives up
 retrying a freshly-submitted set of credentials (`SetConnectError`,

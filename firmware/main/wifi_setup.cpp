@@ -1,5 +1,6 @@
 #include "wifi_setup.h"
 
+#include "core/pending_wifi_credentials.h"
 #include "core/url_codec.h"
 #include "core/wifi_credentials.h"
 #include "core/wifi_reconnect_policy.h"
@@ -9,6 +10,7 @@
 #include <cstring>
 #include <functional>
 #include <mutex>
+#include <optional>
 
 #include "bsp/m5stack_tab5.h"
 #include "esp_event.h"
@@ -124,6 +126,11 @@ struct WifiSetupState {
     // otherwise stop retrying almost immediately once setup_server
     // became non-null for the recovery reason instead).
     bool initial_provisioning = false;
+    // The Wi-Fi change a visitor to the recovery access point's form has
+    // asked for, applied only after ApproveRecoveryCredentials(). The
+    // first-run form applies what it receives directly (see
+    // HandlePostConnect()).
+    PendingWifiCredentials pending_credentials;
     WifiUiCallbacks ui_callbacks;
     FirmwareNetworkStatus* network_status = nullptr;
     // The SSID we're configured/attempting to connect to - captured from
@@ -238,6 +245,37 @@ esp_err_t HandleGetSetupPage(httpd_req_t* req) {
     return httpd_resp_send(req, kPage, HTTPD_RESP_USE_STRLEN);
 }
 
+// The recovery access point is open and its form unauthenticated, so a
+// submission there changes nothing by itself: it becomes a pending request
+// that the Touch UI shows and a person at the device approves or rejects
+// (ApproveRecoveryCredentials()/RejectRecoveryCredentials()). Otherwise
+// anyone in radio range of a provisioned device that has lost its network
+// could replace the stored Wi-Fi credentials.
+esp_err_t HandleRecoveryRequest(httpd_req_t* req, const std::string& ssid, const std::string& password) {
+    const std::optional<uint32_t> request_id = g_state.pending_credentials.Submit(ssid, password);
+    if (!request_id.has_value()) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                             "Network name (SSID) is required, and both fields must be within Wi-Fi's length limits");
+        return ESP_FAIL;
+    }
+    std::function<void(const std::string&, uint32_t)> on_credentials_pending;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        on_credentials_pending = g_state.ui_callbacks.on_credentials_pending;
+    }
+    if (on_credentials_pending) {
+        on_credentials_pending(ssid, *request_id);
+    }
+
+    static const char kResponse[] =
+        "<!DOCTYPE html><html><body style=\"font-family:sans-serif;max-width:400px;"
+        "margin:40px auto;padding:0 16px\">"
+        "<p>Waiting for approval on the HomeDeck screen. Tap Allow there to switch networks.</p>"
+        "</body></html>";
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, kResponse, HTTPD_RESP_USE_STRLEN);
+}
+
 esp_err_t HandlePostConnect(httpd_req_t* req) {
     // Worst case is a fully percent-encoded SSID (32 raw bytes -> up to
     // 96) plus password (64 raw bytes -> up to 192, WPA2's own max PSK
@@ -295,6 +333,14 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     // still percent-encoded and could never associate.
     std::string ssid = ParseFormField(body, "ssid").value_or("");
     std::string password = ParseFormField(body, "password").value_or("");
+    bool first_run_form;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        first_run_form = g_state.initial_provisioning;
+    }
+    if (!first_run_form) {
+        return HandleRecoveryRequest(req, ssid, password);
+    }
     if (!ApplyWifiCredentials(ssid, password)) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
                              "Network name (SSID) is required, and both fields must be within Wi-Fi's length limits");
@@ -334,9 +380,9 @@ esp_err_t StartSetupHttpServer(uint16_t port, uint16_t ctrl_port) {
     }
 
     // Neither handler needs a user_ctx of its own - HandlePostConnect
-    // reaches WifiSetupState only indirectly, through the public
-    // ApplyWifiCredentials() below, the same entry point the Touch UI
-    // fallback screen uses.
+    // reads g_state directly, and applies first-run submissions through the
+    // public ApplyWifiCredentials() below, the same entry point the Touch
+    // UI fallback screen uses.
     httpd_uri_t root_uri = {.uri = "/", .method = HTTP_GET, .handler = HandleGetSetupPage, .user_ctx = nullptr};
     httpd_uri_t connect_uri = {
         .uri = "/connect", .method = HTTP_POST, .handler = HandlePostConnect, .user_ctx = nullptr};
@@ -610,6 +656,9 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                 ESP_LOGW(kTag, "Failed to drop out of AP+STA mode after recovery - staying in AP+STA");
             }
         }
+        // A request left pending belongs to the recovery form that just
+        // closed.
+        state.pending_credentials.Clear();
         if (on_connected) {
             on_connected();
         }
@@ -650,6 +699,16 @@ bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     }
     return true;
 }
+
+bool ApproveRecoveryCredentials(uint32_t request_id) {
+    const std::optional<WifiCredentials> credentials = g_state.pending_credentials.Take(request_id);
+    if (!credentials.has_value()) {
+        return false;
+    }
+    return ApplyWifiCredentials(credentials->ssid, credentials->password);
+}
+
+void RejectRecoveryCredentials() { g_state.pending_credentials.Clear(); }
 
 WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& network_status) {
     // Set before registering the event handlers below, not after - see

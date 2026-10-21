@@ -70,6 +70,32 @@ void CreateTestWifiSetupNavButton(lv_obj_t* parent, Navigation& navigation) {
 
 namespace {
 
+struct WifiChangeRequestTarget {
+    Navigation* navigation;
+    WifiSetupScreen* screen;
+    uint32_t next_request_id;
+};
+
+void OnTestWifiChangeRequestClicked(lv_event_t* e) {
+    auto* target = static_cast<WifiChangeRequestTarget*>(lv_event_get_user_data(e));
+    target->screen->ShowPendingRequest("Example Network", ++target->next_request_id);
+    target->navigation->GoTo(routes::kWifiSetup);
+}
+
+}  // namespace
+
+void CreateTestWifiChangeRequestButton(lv_obj_t* parent, Navigation& navigation, WifiSetupScreen& screen) {
+    // Lives as long as the button, i.e. the process.
+    static WifiChangeRequestTarget target{&navigation, &screen, 0};
+    lv_obj_t* button = lv_button_create(parent);
+    lv_obj_add_event_cb(button, OnTestWifiChangeRequestClicked, LV_EVENT_CLICKED, &target);
+
+    lv_obj_t* label = lv_label_create(button);
+    lv_label_set_text(label, "Test: show Wi-Fi change request");
+}
+
+namespace {
+
 void OnTestWifiDisconnectClicked(lv_event_t* e) {
     auto* network_status = static_cast<HostNetworkStatus*>(lv_event_get_user_data(e));
     network_status->SetConnected(!network_status->Snapshot().connected);

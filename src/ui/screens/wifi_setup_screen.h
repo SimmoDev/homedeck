@@ -36,9 +36,12 @@ public:
     // user via SetConnectError rather than proceeding as if it had
     // worked.
     using SubmitCallback = std::function<bool(const std::string& ssid, const std::string& password)>;
+    // The answer to a request shown by ShowPendingRequest(): `request_id` is
+    // the id it was shown with, `allow` is false for Deny.
+    using DecisionCallback = std::function<void(uint32_t request_id, bool allow)>;
 
     WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
-                     SubmitCallback on_submit);
+                     SubmitCallback on_submit, DecisionCallback on_decision);
     // root_ has no owning parent (see ui.md#object-lifecycle) - deleting
     // it recursively deletes status_bar_/keyboard_'s LVGL objects too,
     // since both are its children.
@@ -65,8 +68,21 @@ public:
     // as the user retries (see OnConnectClicked).
     void SetConnectError(const std::string& message);
 
+    // Asks the person holding the device to allow or deny a Wi-Fi network
+    // change requested through the recovery access point's unauthenticated
+    // form (see wifi_setup.cpp). Nothing is applied until Allow is tapped.
+    // A newer request replaces the one shown.
+    void ShowPendingRequest(const std::string& ssid, uint32_t request_id);
+
+    // Hides the request, if one is shown, without answering it.
+    void ClearPendingRequest();
+
 private:
     static void OnConnectClicked(lv_event_t* e);
+    static void OnAllowClicked(lv_event_t* e);
+    static void OnDenyClicked(lv_event_t* e);
+
+    void Decide(bool allow);
 
     lv_obj_t* root_;
     StatusBar status_bar_;
@@ -75,7 +91,12 @@ private:
     lv_obj_t* ssid_field_;
     lv_obj_t* password_field_;
     lv_obj_t* error_label_;
+    lv_obj_t* request_box_;
+    lv_obj_t* request_label_;
+    bool has_pending_request_ = false;
+    uint32_t pending_request_id_ = 0;
     SubmitCallback on_submit_;
+    DecisionCallback on_decision_;
 };
 
 }  // namespace homedeck

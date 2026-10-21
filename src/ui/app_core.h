@@ -106,6 +106,9 @@ public:
         // passes Rx8130TimeSource, the simulator HostTimeSource.
         TimeSource& time_source;
         WifiSetupScreen::SubmitCallback wifi_submit;
+        // Answer to a Wi-Fi change requested through the recovery access
+        // point (firmware only; the simulator has no such access point).
+        WifiSetupScreen::DecisionCallback wifi_pending_decision;
         WifiResetFn wifi_reset;
         OtaWriter ota_writer;
         OtaRebootFn ota_reboot;

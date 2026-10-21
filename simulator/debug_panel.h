@@ -7,6 +7,7 @@
 #include "platform/host/network_status.h"
 #include "platform/user_activity_source.h"
 #include "ui/navigation.h"
+#include "ui/screens/wifi_setup_screen.h"
 
 #include "lvgl.h"
 
@@ -80,6 +81,11 @@ void CreateTestBackToDashboardButton(lv_obj_t* parent, Navigation& navigation);
 // naturally (see ui/screens/wifi_setup_screen.h). Removed once a
 // trigger exists.
 void CreateTestWifiSetupNavButton(lv_obj_t* parent, Navigation& navigation);
+
+// Shows WifiSetupScreen's Allow/Deny request for a sample network - the
+// simulator has no recovery access point for a visitor to submit through
+// (see networking.md#recovery-access-point).
+void CreateTestWifiChangeRequestButton(lv_obj_t* parent, Navigation& navigation, WifiSetupScreen& screen);
 
 // Temporary test-only wiring to exercise StatusBar's and
 // NetworkStatusWidget's disconnected rendering - HostNetworkStatus

@@ -3,14 +3,17 @@
 #include "ui/remote_button.h"
 #include "ui/theme.h"
 
+#include <utility>
+
 namespace homedeck {
 
 WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
-                                  SubmitCallback on_submit)
+                                  SubmitCallback on_submit, DecisionCallback on_decision)
     : root_(lv_obj_create(nullptr)),
       status_bar_(root_, event_bus, battery_reader, network_status),
       keyboard_(root_),
-      on_submit_(std::move(on_submit)) {
+      on_submit_(std::move(on_submit)),
+      on_decision_(std::move(on_decision)) {
     // Applied at root_ so every label/textarea/button on this screen
     // inherits it rather than falling back to LVGL's small 14pt default.
     // The on-screen keyboard needs its own separate font setting - see
@@ -29,6 +32,32 @@ WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_rea
 
     lv_obj_t* title = lv_label_create(container);
     lv_label_set_text(title, "Connect to Wi-Fi");
+
+    request_box_ = lv_obj_create(container);
+    lv_obj_remove_style_all(request_box_);
+    lv_obj_set_size(request_box_, LV_PCT(90), LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(request_box_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(request_box_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_row(request_box_, 12, 0);
+    request_label_ = lv_label_create(request_box_);
+    lv_label_set_long_mode(request_label_, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(request_label_, LV_PCT(100));
+    lv_obj_set_style_text_align(request_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_t* decision_row = lv_obj_create(request_box_);
+    lv_obj_remove_style_all(decision_row);
+    lv_obj_set_size(decision_row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(decision_row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(decision_row, 16, 0);
+    for (const auto& [text, handler] : {std::pair<const char*, lv_event_cb_t>{"Allow", OnAllowClicked},
+                                        std::pair<const char*, lv_event_cb_t>{"Deny", OnDenyClicked}}) {
+        lv_obj_t* button = lv_button_create(decision_row);
+        lv_obj_set_style_min_width(button, kMinNavTouchTarget, 0);
+        lv_obj_set_style_min_height(button, kMinNavTouchTarget, 0);
+        lv_obj_add_event_cb(button, handler, LV_EVENT_CLICKED, this);
+        lv_obj_t* label = lv_label_create(button);
+        lv_label_set_text(label, text);
+    }
+    lv_obj_set_hidden(request_box_, true);
 
     ssid_field_ = lv_textarea_create(container);
     lv_textarea_set_one_line(ssid_field_, true);
@@ -93,6 +122,40 @@ void WifiSetupScreen::SetApInfo(const std::string& ap_ssid, const std::string& a
                                "navigate to http://%s:%u/ in a web browser.",
                                ap_ssid.c_str(), ap_ip.c_str(), port);
     }
+}
+
+void WifiSetupScreen::ShowPendingRequest(const std::string& ssid, uint32_t request_id) {
+    lv_label_set_text_fmt(request_label_,
+                           "A device connected to this HomeDeck's Wi-Fi network asked it to switch to \"%s\". "
+                           "Allow only if you asked for this.",
+                           ssid.c_str());
+    pending_request_id_ = request_id;
+    has_pending_request_ = true;
+    lv_obj_set_hidden(request_box_, false);
+}
+
+void WifiSetupScreen::ClearPendingRequest() {
+    has_pending_request_ = false;
+    lv_obj_set_hidden(request_box_, true);
+}
+
+void WifiSetupScreen::Decide(bool allow) {
+    if (!has_pending_request_) {
+        return;
+    }
+    const uint32_t request_id = pending_request_id_;
+    ClearPendingRequest();
+    if (on_decision_) {
+        on_decision_(request_id, allow);
+    }
+}
+
+void WifiSetupScreen::OnAllowClicked(lv_event_t* e) {
+    static_cast<WifiSetupScreen*>(lv_event_get_user_data(e))->Decide(true);
+}
+
+void WifiSetupScreen::OnDenyClicked(lv_event_t* e) {
+    static_cast<WifiSetupScreen*>(lv_event_get_user_data(e))->Decide(false);
 }
 
 void WifiSetupScreen::SetConnectError(const std::string& message) { lv_label_set_text(error_label_, message.c_str()); }

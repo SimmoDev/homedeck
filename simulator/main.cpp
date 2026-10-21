@@ -173,6 +173,13 @@ int main() {
                     std::printf("Wi-Fi setup submitted (no-op in simulator): SSID=%s\n", ssid.c_str());
                     return true;
                 },
+            // Only the "Test: show Wi-Fi change request" button raises a
+            // request here - the simulator has no recovery access point.
+            .wifi_pending_decision =
+                [](uint32_t request_id, bool allow) {
+                    std::printf("Wi-Fi change request %u %s (no-op in simulator)\n", static_cast<unsigned>(request_id),
+                                allow ? "allowed" : "denied");
+                },
             .wifi_reset =
                 []() -> std::optional<std::string> {
                     // Firmware schedules esp_wifi_restore() + esp_restart()
@@ -214,6 +221,8 @@ int main() {
 
     lv_obj_t* test_button_panel = homedeck::sim::CreateTestButtonPanel(app_core.GetDashboard().Root());
     homedeck::sim::CreateTestWifiSetupNavButton(test_button_panel, app_core.GetNavigation());
+    homedeck::sim::CreateTestWifiChangeRequestButton(test_button_panel, app_core.GetNavigation(),
+                                                     app_core.GetWifiSetupScreen());
     homedeck::sim::CreateTestWifiDisconnectButton(test_button_panel, network_status);
     homedeck::sim::CreateTestPlayToneButton(test_button_panel, audio_output);
     homedeck::sim::CreateTestFakeKodiButton(test_button_panel, kodi_backend);

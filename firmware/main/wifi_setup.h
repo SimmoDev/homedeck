@@ -40,6 +40,14 @@ struct WifiUiCallbacks {
     // why that never gives up outright, even once it starts offering a
     // recovery access point via on_setup_needed above). May be empty.
     std::function<void()> on_connect_failed;
+    // Fires when a visitor to the recovery access point's form (the second
+    // case on_setup_needed describes) asks to switch to another network.
+    // The request is only pending: the caller should show `ssid` on the
+    // Touch UI and report the person's answer through
+    // ApproveRecoveryCredentials(request_id) or RejectRecoveryCredentials().
+    // The first-run form does not use this - it applies what it receives.
+    // May be empty (the request then stays pending and is never applied).
+    std::function<void(const std::string& ssid, uint32_t request_id)> on_credentials_pending;
 };
 
 // The outcome of checking stored credentials, without yet attempting to
@@ -97,5 +105,14 @@ void ConnectToWifi(const WifiUiCallbacks& ui_callbacks = {});
 // silently attempting to associate with a blank SSID or letting the
 // snprintf() below truncate an overlong field.
 bool ApplyWifiCredentials(const std::string& ssid, const std::string& password);
+
+// Applies the recovery form's pending request when `request_id` is still the
+// current one (see WifiUiCallbacks::on_credentials_pending). False if the
+// request was replaced, rejected or cleared in the meantime - the newer
+// request, if any, has its own pending notification.
+bool ApproveRecoveryCredentials(uint32_t request_id);
+
+// Discards the recovery form's pending request.
+void RejectRecoveryCredentials();
 
 }  // namespace homedeck

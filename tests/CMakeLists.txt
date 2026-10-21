@@ -41,6 +41,7 @@ add_executable(homedeck_tests
   wifi_reconnect_policy_test.cpp
   retry_backoff_test.cpp
   wifi_credentials_test.cpp
+  pending_wifi_credentials_test.cpp
   url_codec_test.cpp
   storage_test.cpp
   http_server_test.cpp

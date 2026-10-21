@@ -11,9 +11,14 @@ covered" has one place to check rather than needing to be pieced together.
 Addressed in [web-ui.md](web-ui.md#security) and
 [ADR-0007](../decisions/ADR-0007-web-management-ui-policies.md): the Web
 Management UI requires a local admin password after first login; the only
-unauthenticated surface is the SoftAP captive portal used for initial Wi-Fi
-provisioning, which is narrowly scoped to collecting Wi-Fi credentials and
-shuts down once provisioning succeeds.
+unauthenticated surfaces are the SoftAP captive portals used for Wi-Fi
+provisioning, which are narrowly scoped to collecting Wi-Fi credentials and
+shut down once the device connects. The first-run portal applies what it
+receives. The recovery portal, which an already-provisioned device opens
+after about two minutes without its network, is open too, so it applies
+nothing by itself: a submission becomes a request that a person at the device
+must allow on the Touch UI, with the request id bound to what was shown
+([ADR-0032](../decisions/ADR-0032-recovery-access-point-approval.md)).
 
 ## Requirement: protect configuration changes
 

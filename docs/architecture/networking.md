@@ -53,6 +53,23 @@ the setup form is a small HomeDeck-owned HTTP handler rather than
 ESP-IDF's `wifi_provisioning` component (a real incompatibility with
 this project's `esp_wifi_remote` stack, not a design preference).
 
+### Recovery access point
+
+A provisioned device retries its stored network indefinitely. After 40
+consecutive failed attempts (about two minutes) it also brings up an open
+SoftAP and the same setup form on port 8080, so a network that is gone for
+good (moved house, router replaced) does not strand it; the retries continue
+alongside. Because that access point is open and unauthenticated, a form
+submission there does not change the stored credentials. It becomes the one
+pending request, `WifiSetupScreen` shows the requested network name with
+Allow and Deny buttons, and only Allow applies the credentials. A newer
+submission replaces the pending one, and the request is dropped on Deny or
+once the device connects. Credentials typed on the Touch UI's own keyboard
+apply directly. See
+[ADR-0032](../decisions/ADR-0032-recovery-access-point-approval.md); the
+recovery access point's bring-up is not covered by automated tests, so it
+is verified on a Tab5 only.
+
 ## LAN discovery
 
 Core provides a thin wrapper around ESP-IDF's `mdns` component for modules

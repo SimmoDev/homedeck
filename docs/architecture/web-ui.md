@@ -116,7 +116,11 @@ of [CLAUDE.md](../../CLAUDE.md)'s security requirements. What's specific to the 
 - The SoftAP captive portal (unauthenticated by nature — there's no
   credential to check yet) is scoped narrowly to collecting Wi-Fi
   credentials, and shuts down once provisioning succeeds. It is not the
-  same unauthenticated surface as the full Web Management UI.
+  same unauthenticated surface as the full Web Management UI. The recovery
+  access point a provisioned device offers after a long Wi-Fi outage serves
+  the same form, but there a submission only becomes a request that someone
+  at the device must allow on the Touch UI
+  ([ADR-0032](../decisions/ADR-0032-recovery-access-point-approval.md)).
 - Once on the LAN, configuration-changing endpoints require authentication
   — see [Authentication mechanism](#authentication-mechanism) below for
   what that mechanism is.

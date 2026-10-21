@@ -6,7 +6,10 @@ Accepted. Supersedes the *mechanism* named in
 [ADR-0006](ADR-0006-networking-discovery-provisioning.md#decision-initial-wi-fi-provisioning-flow)'s
 Initial Wi-Fi provisioning decision. That decision's SoftAP +
 captive-portal *architecture* (primary path, Touch UI keyboard entry as
-fallback) is unchanged and still governs.
+fallback) is unchanged and still governs. The recovery access point a
+provisioned device offers after a long outage is covered by
+[ADR-0032](ADR-0032-recovery-access-point-approval.md), which requires
+approval on the device before its form changes anything.
 
 ## Context
 

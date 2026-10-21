@@ -464,7 +464,16 @@ void BlockUntilWifiConnected(homedeck::AppCore& app_core) {
         });
     };
     wifi_ui_callbacks.on_connected = [&app_core]() {
-        homedeck::PostToUiThread([&app_core]() { app_core.GetNavigation().GoHome(); });
+        homedeck::PostToUiThread([&app_core]() {
+            app_core.GetWifiSetupScreen().ClearPendingRequest();
+            app_core.GetNavigation().GoHome();
+        });
+    };
+    wifi_ui_callbacks.on_credentials_pending = [&app_core](const std::string& ssid, uint32_t request_id) {
+        homedeck::PostToUiThread([&app_core, ssid, request_id]() {
+            app_core.GetWifiSetupScreen().ShowPendingRequest(ssid, request_id);
+            app_core.GetNavigation().GoTo(homedeck::routes::kWifiSetup);
+        });
     };
     wifi_ui_callbacks.on_connect_failed = [&app_core]() {
         homedeck::PostToUiThread([&app_core]() {
@@ -602,6 +611,16 @@ extern "C" void app_main(void) {
             .wifi_submit =
                 [](const std::string& ssid, const std::string& password) {
                     return homedeck::ApplyWifiCredentials(ssid, password);
+                },
+            .wifi_pending_decision =
+                [](uint32_t request_id, bool allow) {
+                    // A false return means the request was replaced after it
+                    // was shown; the replacement has its own prompt.
+                    if (allow) {
+                        homedeck::ApproveRecoveryCredentials(request_id);
+                    } else {
+                        homedeck::RejectRecoveryCredentials();
+                    }
                 },
             .wifi_reset =
                 [ap_ssid = wifi_check.ap_ssid]() -> std::optional<std::string> {
