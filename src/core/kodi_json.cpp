@@ -11,7 +11,7 @@ namespace homedeck::kodi_json {
 // builds with C++ exceptions disabled (CONFIG_COMPILER_CXX_EXCEPTIONS is
 // unset), so json.hpp's JSON_THROW resolves to std::abort() there instead
 // of throw. Kodi's 9090 API has no authentication (ADR-0030), so any
-// device on the LAN can trigger this with a malformed reply. These three
+// device on the LAN can trigger this with a malformed reply. These
 // helpers check both the receiver's and the field's type before
 // extracting, the same hazard weather_routes.cpp's geocode parsing
 // already guards against - never reach for j.value(key, default) on data
