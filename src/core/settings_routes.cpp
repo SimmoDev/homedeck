@@ -163,10 +163,12 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"settings"})", {}};
             }
             // Not atomic - no transaction concept exists anywhere else in
-            // this codebase either. Each entry either applies or is
-            // reported back, so a partial restore is visible rather than
-            // silently incomplete.
+            // this codebase either. Each entry either applies, is
+            // reported in failed/rejected, or is counted in skipped (not
+            // an object, or a field missing or of the wrong type), so a
+            // partial restore is visible rather than silently incomplete.
             int applied = 0;
+            int skipped = 0;
             nlohmann::json failed = nlohmann::json::array();
             // Kept separate from failed - a reserved-key entry (e.g. a
             // backup containing admin_pw_hash) is a deliberate security
@@ -177,7 +179,10 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             // indistinguishably from a genuine storage fault.
             nlohmann::json rejected = nlohmann::json::array();
             for (const auto& entry : *settings_it) {
-                if (!entry.is_object()) continue;
+                if (!entry.is_object()) {
+                    ++skipped;
+                    continue;
+                }
                 auto module_it = entry.find("module");
                 auto key_it = entry.find("key");
                 auto value_it = entry.find("value");
@@ -185,6 +190,7 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 if (module_it == entry.end() || !module_it->is_string() || key_it == entry.end() ||
                     !key_it->is_string() || value_it == entry.end() || !value_it->is_string() ||
                     schema_it == entry.end() || !schema_it->is_number_integer()) {
+                    ++skipped;
                     continue;
                 }
                 std::string module = module_it->get<std::string>();
@@ -214,7 +220,10 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 }
             }
             nlohmann::json body = {
-                {"applied", applied}, {"failed", std::move(failed)}, {"rejected", std::move(rejected)}};
+                {"applied", applied},
+                {"skipped", skipped},
+                {"failed", std::move(failed)},
+                {"rejected", std::move(rejected)}};
             return HttpResponse{200, "application/json", body.dump(), {}};
         }));
 }

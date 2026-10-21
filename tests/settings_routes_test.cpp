@@ -245,7 +245,7 @@ TEST_F(SettingsRoutesTest, ReservedAdminPasswordKeyIsRejectedAndNeverExposed) {
     EXPECT_EQ(hash_after->value, original_hash->value);
 }
 
-TEST_F(SettingsRoutesTest, RestoreReplaysEntriesAndReportsFailures) {
+TEST_F(SettingsRoutesTest, RestoreReplaysEntries) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
     homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
@@ -261,6 +261,62 @@ TEST_F(SettingsRoutesTest, RestoreReplaysEntriesAndReportsFailures) {
 
     auto get = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
     EXPECT_NE(get.body.find(R"("value":"10.0.0.5")"), std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, RestoreCountsMalformedEntriesAsSkipped) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    auto restore = HttpRequestRaw(
+        server.BoundPort(), "POST", "/api/backup/restore",
+        R"({"settings":["not an object",)"
+        R"({"module":"weather","key":"latitude","value":"51.5"},)"
+        R"({"module":"weather","key":"longitude","value":"-0.1","schemaVersion":"1"},)"
+        R"({"module":"weather","key":"units","value":"c","schemaVersion":1}]})",
+        cookie);
+    EXPECT_EQ(restore.status_code, 200);
+    EXPECT_NE(restore.body.find(R"("applied":1)"), std::string::npos);
+    EXPECT_NE(restore.body.find(R"("skipped":3)"), std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, RestoreReportsAnOversizedValueAndAFailedWriteAsFailed) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    const std::string oversized(10000, 'x');
+    auto restore = HttpRequestRaw(
+        server.BoundPort(), "POST", "/api/backup/restore",
+        R"({"settings":[{"module":"weather","key":"latitude","value":")" + oversized +
+            R"(","schemaVersion":1},{"module":"../x","key":"k","value":"v","schemaVersion":1}]})",
+        cookie);
+    EXPECT_EQ(restore.status_code, 200);
+    EXPECT_NE(restore.body.find(R"("applied":0)"), std::string::npos);
+    EXPECT_NE(restore.body.find(R"("failed":[{"key":"latitude","module":"weather"},{"key":"k","module":"../x"}])"),
+              std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, RestoreReportsAFailingStorageWriteAsFailed) {
+    FailingSettingsStore failing_settings_store;
+    homedeck::Storage failing_storage(failing_settings_store, *cache_store_, *secret_store_);
+    homedeck::AdminAuthService failing_auth(failing_storage, time_source_);
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, failing_auth);
+    homedeck::RegisterSettingsRoutes(server, failing_storage, failing_auth);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    auto restore = HttpRequestRaw(
+        server.BoundPort(), "POST", "/api/backup/restore",
+        R"({"settings":[{"module":"weather","key":"latitude","value":"51.5","schemaVersion":1}]})", cookie);
+    EXPECT_EQ(restore.status_code, 200);
+    EXPECT_NE(restore.body.find(R"("applied":0)"), std::string::npos);
+    EXPECT_NE(restore.body.find(R"("failed":[{"key":"latitude","module":"weather"}])"), std::string::npos);
 }
 
 TEST_F(SettingsRoutesTest, DeviceNameValidateCallbackCanReject) {
