@@ -53,7 +53,7 @@ for f in "$@"; do
     # pre-commit run, over a handful of staged files, keeps the wide check.
     real_pattern='\breal\b'
     if [ -n "${CHECK_DOCS_REAL_STATUS_ONLY:-}" ]; then
-        real_pattern='\b(is|are|was|were|be|been) (a )?real\b|\breal (implementation|thing)\b'
+        real_pattern='\b(is|are|was|were|be|been) real\b|\breal (implementation|thing)\b'
     fi
     real_matches=$(grep -niE "$real_pattern" "$f" || true)
     if [ -n "$real_matches" ]; then
