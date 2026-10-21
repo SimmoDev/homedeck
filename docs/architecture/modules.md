@@ -132,7 +132,10 @@ Core change beyond the `MdnsBrowser` platform capability (a peer of
 `WebSocketClient`, not part of the module contract), and it reuses the
 shared `RetryBackoff`
 ([ADR-0006](../decisions/ADR-0006-networking-discovery-provisioning.md#decision-retrybackoff-policy-ownership))
-unchanged.
+unchanged. A module with a background connection loop sleeps on the shared
+`ConnectionWake` (`src/core/connection_wake.h`), which carries a reconnect
+trigger and the wake-up for work queued by other threads; the module keeps
+its own queues and guards them with the channel's mutex.
 
 A module being "enabled" is Core constructing and `Start()`-ing an
 instance of it; "disabled" is not doing so. `AppCore` holds

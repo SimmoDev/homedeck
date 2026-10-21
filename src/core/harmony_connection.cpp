@@ -213,11 +213,7 @@ HarmonyConnectionSnapshot HarmonyConnection::Snapshot() const {
 }
 
 void HarmonyConnection::TriggerReconnect() {
-    {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
-        wake_requested_ = true;
-    }
-    wake_cv_.notify_one();
+    wake_.Trigger();
 }
 
 void HarmonyConnection::StartActivity(const std::string& activity_id) {
@@ -236,32 +232,20 @@ void HarmonyConnection::EnqueueDeviceCommand(const std::string& action, const st
 
 void HarmonyConnection::EnqueueCommand(PendingCommand command) {
     {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
+        std::lock_guard<std::mutex> lock(wake_.Mutex());
         pending_commands_.push_back(std::move(command));
         while (pending_commands_.size() > kMaxPendingCommands) {
             pending_commands_.pop_front();
         }
     }
-    wake_cv_.notify_one();
+    wake_.NotifyWorkQueued();
 }
 
 HarmonyConnection::WakeReason HarmonyConnection::Sleep(std::chrono::milliseconds delay, std::stop_token stop,
                                                         bool watch_commands) {
-    std::unique_lock<std::mutex> lock(wake_mutex_);
-    wake_cv_.wait_for(lock, stop, delay, [this, watch_commands] {
-        return wake_requested_ || (watch_commands && !pending_commands_.empty());
-    });
-    if (stop.stop_requested()) {
-        return WakeReason::kStopRequested;
-    }
-    if (wake_requested_) {
-        wake_requested_ = false;
-        return WakeReason::kTriggered;
-    }
-    if (watch_commands && !pending_commands_.empty()) {
-        return WakeReason::kCommandPending;
-    }
-    return WakeReason::kTimeout;
+    return wake_.Wait(delay, stop,
+                      watch_commands ? std::function<bool()>([this] { return !pending_commands_.empty(); })
+                                     : std::function<bool()>());
 }
 
 void HarmonyConnection::SetState(HarmonyConnectionState state) {
@@ -299,7 +283,7 @@ void HarmonyConnection::ClearConfigIfPresent(bool force_publish) {
 void HarmonyConnection::ClearPendingCommandsIfAny() {
     bool had_commands;
     {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
+        std::lock_guard<std::mutex> lock(wake_.Mutex());
         had_commands = !pending_commands_.empty();
         pending_commands_.clear();
     }
@@ -378,17 +362,17 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         // the connection on the address it just connected to, indefinitely
         // (a plain liveness timeout doesn't re-check storage; only another
         // explicit trigger or a connection drop does). storage_ is read
-        // again here, under wake_mutex_ (so no concurrent TriggerReconnect()
+        // again here, under wake_.Mutex() (so no concurrent TriggerReconnect()
         // call can land between this read and the reset below), to tell
         // the two cases apart: only discard the trigger if hub_host is
         // still what this iteration connected with.
         {
-            std::lock_guard<std::mutex> lock(wake_mutex_);
+            std::lock_guard<std::mutex> lock(wake_.Mutex());
             std::optional<VersionedValue> post_connect_hub_host = storage_.GetSetting(kModuleId, kHubHostKey);
             bool hub_host_unchanged =
                 post_connect_hub_host.has_value() && post_connect_hub_host->value == hub_host_setting->value;
             if (hub_host_unchanged) {
-                wake_requested_ = false;
+                wake_.ClearTriggerLocked();
             }
         }
 
@@ -424,7 +408,7 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
     // convention.
     bool dropped_on_shutdown;
     {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
+        std::lock_guard<std::mutex> lock(wake_.Mutex());
         dropped_on_shutdown = !pending_commands_.empty();
         pending_commands_.clear();
     }
@@ -616,7 +600,7 @@ HarmonyConnection::ActivityFetchResult HarmonyConnection::FetchCurrentActivity(s
 bool HarmonyConnection::SendPendingCommands(std::stop_token stop) {
     std::deque<PendingCommand> commands;
     {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
+        std::lock_guard<std::mutex> lock(wake_.Mutex());
         commands.swap(pending_commands_);
     }
     if (!ws_client_) {

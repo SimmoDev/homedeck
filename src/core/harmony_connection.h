@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/connection_wake.h"
 #include "core/event_bus.h"
 #include "core/module.h"
 #include "core/retry_backoff.h"
@@ -282,7 +283,7 @@ private:
     // shared by StartActivity()/EnqueueDeviceCommand() below.
     void EnqueueCommand(PendingCommand command);
 
-    enum class WakeReason { kTimeout, kTriggered, kCommandPending, kStopRequested };
+    using WakeReason = ConnectionWake::Reason;
 
     void ConnectionLoop(std::stop_token stop);
     // Runs the HTTP handshake, opens the WebSocket, and fetches the
@@ -444,12 +445,8 @@ private:
     mutable std::mutex mutex_;
     HarmonyConnectionSnapshot state_;
 
-    std::mutex wake_mutex_;
-    // _any for the stop_token-aware wait_for(): a stop request cannot be
-    // missed between the predicate check and the block.
-    std::condition_variable_any wake_cv_;
-    bool wake_requested_ = false;
-    // Guarded by wake_mutex_ too, not a separate mutex - StartActivity()/
+    ConnectionWake wake_;
+    // Guarded by wake_.Mutex() too, not a separate mutex - StartActivity()/
     // Press/Hold/ReleaseDeviceCommand() and TriggerReconnect() both just
     // need to wake the same connection-loop thread, so one wake channel
     // is enough (see Sleep()'s watch_commands parameter for how the loop

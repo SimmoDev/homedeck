@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/connection_wake.h"
 #include "core/event_bus.h"
 #include "core/module.h"
 #include "core/retry_backoff.h"
@@ -433,7 +434,7 @@ private:
         uint16_t port = kDefaultPort;
     };
 
-    enum class WakeReason { kTimeout, kTriggered, kCommandPending, kStopRequested };
+    using WakeReason = ConnectionWake::Reason;
 
     // A player command whose params can't be built until the connection
     // loop's own thread resolves the active playerid (see
@@ -654,12 +655,8 @@ private:
     mutable std::mutex mutex_;
     KodiSnapshot state_;
 
-    std::mutex wake_mutex_;
-    // _any for the stop_token-aware wait_for(): a stop request cannot be
-    // missed between the predicate check and the block.
-    std::condition_variable_any wake_cv_;
-    bool wake_requested_ = false;
-    // Guarded by wake_mutex_ too (one wake channel for both a trigger
+    ConnectionWake wake_;
+    // Guarded by wake_.Mutex() too (one wake channel for both a trigger
     // and a queued command - Sleep() tells them apart), same as
     // HarmonyConnection::pending_commands_.
     std::deque<PendingCommand> pending_commands_;

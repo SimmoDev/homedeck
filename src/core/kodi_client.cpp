@@ -148,11 +148,7 @@ bool KodiClient::IsConnected() const {
 }
 
 void KodiClient::TriggerReconnect() {
-    {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
-        wake_requested_ = true;
-    }
-    wake_cv_.notify_one();
+    wake_.Trigger();
 }
 
 void KodiClient::SetState(KodiConnectionState state) {
@@ -182,22 +178,11 @@ void KodiClient::SetLibraryBusy(bool busy) {
 }
 
 KodiClient::WakeReason KodiClient::Sleep(std::chrono::milliseconds delay, std::stop_token stop, bool watch_commands) {
-    std::unique_lock<std::mutex> lock(wake_mutex_);
-    wake_cv_.wait_for(lock, stop, delay, [this, watch_commands] {
-        return wake_requested_ ||
-               (watch_commands && (!pending_commands_.empty() || !pending_library_requests_.empty()));
-    });
-    if (stop.stop_requested()) {
-        return WakeReason::kStopRequested;
-    }
-    if (wake_requested_) {
-        wake_requested_ = false;
-        return WakeReason::kTriggered;
-    }
-    if (watch_commands && (!pending_commands_.empty() || !pending_library_requests_.empty())) {
-        return WakeReason::kCommandPending;
-    }
-    return WakeReason::kTimeout;
+    return wake_.Wait(delay, stop,
+                      watch_commands ? std::function<bool()>([this] {
+                          return !pending_commands_.empty() || !pending_library_requests_.empty();
+                      })
+                                     : std::function<bool()>());
 }
 
 std::optional<KodiClient::Target> KodiClient::ResolveTarget() {
@@ -823,13 +808,13 @@ const char* InputMethod(KodiInput input) {
 void KodiClient::EnqueueCommand(PendingCommand command) {
     command.enqueued_at = std::chrono::steady_clock::now();
     {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
+        std::lock_guard<std::mutex> lock(wake_.Mutex());
         pending_commands_.push_back(std::move(command));
         while (pending_commands_.size() > kMaxPendingCommands) {
             pending_commands_.pop_front();
         }
     }
-    wake_cv_.notify_one();
+    wake_.NotifyWorkQueued();
 }
 
 void KodiClient::PlayPause() {
@@ -892,7 +877,7 @@ void KodiClient::PlayFile(const std::string& path) {
 
 void KodiClient::EnqueueLibraryRequest(LibraryRequest request) {
     {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
+        std::lock_guard<std::mutex> lock(wake_.Mutex());
         // An identical request already waiting answers this one too. Kodi
         // runs every listing to completion, so each duplicate sent behind a
         // slow listing is more work Kodi must finish before it answers the
@@ -906,7 +891,7 @@ void KodiClient::EnqueueLibraryRequest(LibraryRequest request) {
             pending_library_requests_.pop_front();
         }
     }
-    wake_cv_.notify_one();
+    wake_.NotifyWorkQueued();
 }
 
 void KodiClient::RequestMovies() { EnqueueLibraryRequest({LibraryRequest::Kind::kMovies}); }
@@ -957,7 +942,7 @@ int KodiClient::ResolveActivePlayerId(std::stop_token stop) {
 bool KodiClient::SendPendingCommands(std::stop_token stop) {
     std::deque<PendingCommand> batch;
     {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
+        std::lock_guard<std::mutex> lock(wake_.Mutex());
         batch.swap(pending_commands_);
     }
     if (batch.empty()) {
@@ -1143,7 +1128,7 @@ KodiClient::LibraryQuery KodiClient::BuildLibraryQuery(const LibraryRequest& req
 bool KodiClient::SendPendingLibraryRequests(std::stop_token stop) {
     std::deque<LibraryRequest> batch;
     {
-        std::lock_guard<std::mutex> lock(wake_mutex_);
+        std::lock_guard<std::mutex> lock(wake_.Mutex());
         batch.swap(pending_library_requests_);
     }
     if (batch.empty()) {

@@ -45,7 +45,7 @@ for why.
 | `power_manager_test.cpp` | `Active`/`Idle`/`Sleeping`/`Updating`/`Error` transitions, sleep veto, brightness clamping |
 | `ota_gate_test.cpp` | The OTA battery/power gate |
 | `host_validation_test.cpp`, `json_request_test.cpp` | Host-string screening, the device-name hostname-label rule, and the JSON nesting-depth bound shared by both modules and the routes |
-| `retry_backoff_test.cpp` | `RetryBackoff`, used by both modules |
+| `retry_backoff_test.cpp`, `connection_wake_test.cpp` | `RetryBackoff` and `ConnectionWake` (the loop wake channel), used by both modules |
 | `wifi_reconnect_policy_test.cpp`, `wifi_credentials_test.cpp`, `pending_wifi_credentials_test.cpp`, `url_codec_test.cpp` | The portable decision logic behind `wifi_setup.cpp` (reconnect policy, credential limits, the pending recovery request) and query/form parsing |
 | `grid_occupancy_test.cpp`, `activity_start_tracker_test.cpp`, `command_button_press_tracker_test.cpp` | LVGL-free logic of the dashboard grid, `ActivitiesScreen` and `DevicesScreen` |
 | `http_server_test.cpp`, `http_client_test.cpp`, `static_assets_test.cpp` | Host HTTP server and client, static asset serving |
