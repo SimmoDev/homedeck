@@ -130,7 +130,7 @@ answered concretely.
 than the marginal convenience of writing directly to SD, especially since
 backup size (config + settings, not cached data) is small enough that a
 browser download has no real disadvantage — the SD-native path would add
-real implementation complexity (detecting card presence, handling
+implementation complexity (detecting card presence, handling
 write failures, a different UI flow) for a case that doesn't clearly need
 it. Restore is the same JSON file re-uploaded through the Web UI. This can
 be revisited if backup scope ever grows to include something too

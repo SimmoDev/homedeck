@@ -58,7 +58,7 @@ this project's `esp_wifi_remote` stack, not a design preference).
 Core provides a thin wrapper around ESP-IDF's `mdns` component for modules
 whose external service supports standard mDNS/Zeroconf discovery — Home
 Assistant and Kodi both do. This is deliberately not a universal discovery
-abstraction: Harmony Hub has no confirmed working discovery protocol at
+abstraction: Harmony Hub has no working discovery protocol at
 all for current-generation firmware (a manually-entered hub address is
 its own module's mechanism instead — see
 [ADR-0029](../decisions/ADR-0029-harmony-local-protocol.md)), and Uptime

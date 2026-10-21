@@ -30,7 +30,7 @@ before reprogramming a previously-written region regardless of the
 logical byte count changed, so even a small log entry write carries the
 same worst-case duration as a large one. The exact mechanism by which
 this disrupts the DSI DMA engine's framebuffer read isn't independently
-confirmed at the hardware-signal level (no logic analyzer access), but
+established at the hardware-signal level (no logic analyzer access), but
 the evidence - glitch timing precisely bracketing the flash-writing
 calls, glitch gone once those calls are removed - is strong enough to
 act on.
@@ -81,7 +81,7 @@ It captures the entry (with a real timestamp, taken immediately) and
 pushes it onto a `Queue<Item>`; a dedicated background `Task`
 (`WorkerLoop()`) owns all actual `Storage` access. This is the first
 production use of both `Task` and `Queue<T>` together on firmware -
-previously implemented and unit-tested individually, but not exercised
+each is unit-tested individually, but nothing else exercised them
 together on FreeRTOS. Boot-sequence entries persist correctly on
 hardware, in order, with accurate individual timestamps.
 

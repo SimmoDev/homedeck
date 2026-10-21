@@ -282,7 +282,7 @@ then, rather than carrying an unused second framework from M1.
 - All decisions above (fixed and supporting library/tooling) can be relied
   upon immediately when M1 implementation starts.
 - If any of the supporting library/tooling decisions need to be revisited
-  once real implementation experience contradicts the reasoning here (e.g.
+  once implementation experience contradicts the reasoning here (e.g.
   civetweb proves unworkable, or nlohmann::json's footprint becomes a real
   constraint), record that as a new ADR that supersedes the relevant section
   of this one, rather than editing history in place.

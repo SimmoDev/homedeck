@@ -80,7 +80,7 @@ alert-priority checking periodically re-enters a brief awake window *during*
 Sleeping.
 
 **Superseded by [ADR-0024](ADR-0024-sleeping-wake-mechanism.md).** The RTC
-wake premise this decision rests on was never confirmed on this hardware,
+wake premise this decision rests on was never shown to work on this hardware,
 and M5Stack's own official Tab5 firmware does not depend on it
 either — see ADR-0024 for the finding and the replacement design. The
 decision text above is left as the historical record of what was

@@ -64,7 +64,7 @@ a handshake, not a login.
 **Discovery: manual hub IP/hostname entry, not a broadcast/mDNS
 mechanism.** The XMPP-era UDP broadcast discovery protocol
 (`_logitech-reverse-bonjour._tcp.local.` on port 5224) some historical
-tooling used has no confirmed working equivalent for WebSocket-era
+tooling used has no known working equivalent for WebSocket-era
 firmware, and this project found no alternative standard mechanism either.
 Building a discovery prober against an unconfirmed protocol isn't worth
 the cost for the one-hub-per-household case this project's own reference

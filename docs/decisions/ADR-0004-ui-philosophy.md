@@ -71,7 +71,7 @@ delivers this to the user.
 ## Decision: Return-home affordance
 
 **Context:** the Tab5 has no dedicated navigation button — the only
-physical button confirmed on the hardware is the power button, used as a
+physical button on the hardware is the power button, used as a
 deep-sleep wake source (see [hardware.md](../architecture/hardware.md#power)),
 with its behavior as a general input during Active state unconfirmed. "A
 simple, consistent way to return home" must therefore be a software
