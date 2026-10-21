@@ -55,6 +55,12 @@ FetchContent_MakeAvailable(mbedtls)
 # civetweb/mbedtls were.
 find_package(CURL REQUIRED)
 
+# Warnings for this project's own targets only (declared after the fetched
+# dependencies above, which would otherwise inherit them).
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wall> $<$<COMPILE_LANGUAGE:CXX>:-Wextra>)
+endif()
+
 add_library(homedeck_platform_host
   platform/host/task.cpp
   platform/host/timer.cpp

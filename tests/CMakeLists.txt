@@ -20,6 +20,10 @@ FetchContent_MakeAvailable(googletest)
 # homedeck_core (and its homedeck_platform_host dependency) are.
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../src ${CMAKE_CURRENT_BINARY_DIR}/src)
 
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  add_compile_options(-Wall -Wextra)
+endif()
+
 enable_testing()
 include(GoogleTest)
 
