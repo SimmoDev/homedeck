@@ -143,4 +143,8 @@ narration_patterns=(
     'the original [a-z-]+ case'
     'regression test for the'
     'for the [a-z-]+ finding'
+    # Comments that point at a past fix or incident instead of stating the
+    # current constraint: "half of this fix", "already hit on real hardware".
+    '(half|part|other half) of this fix'
+    '(already|previously) hit on'
 )
