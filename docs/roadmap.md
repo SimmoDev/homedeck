@@ -258,7 +258,7 @@ simulator.
 - [x] Notifications service, with presentation (banners, sound, dashboard
       indicators) mapped to existing mechanisms rather than designed fresh
       (see [ui.md](architecture/ui.md#notification-presentation)) —
-      vibration is out of scope, no motor exists on the confirmed BOM.
+      vibration is out of scope, no motor exists on the Tab5 BOM.
       All three presentation outputs are implemented: `NotificationEvent`/
       `NotificationSeverity` (`src/core/notification.h`, carrying an
       alert-priority/deferred urgency that gates no wake behaviour, see

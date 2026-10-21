@@ -18,7 +18,7 @@ namespace homedeck {
 // visible screen.
 //
 // Rows are a fixed height, not sized to content - matched (see
-// dashboard_grid.cpp's kRowHeight) to the Tab5's confirmed 720px panel
+// dashboard_grid.cpp's kRowHeight) to the Tab5's 720px panel
 // width (see docs/architecture/hardware.md#display-and-touch), minus
 // this grid's own padding and inter-cell gaps, divided across kColumns,
 // so a 1x1 cell is square rather than however tall its own label happens

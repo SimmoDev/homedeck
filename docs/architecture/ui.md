@@ -192,7 +192,7 @@ explicitly doesn't yet:
   visible this way once it's back on, whether that's an immediate
   render that was invisible with the backlight off, or a
   deliberate replay — an implementation detail not yet decided.
-- **Sound** — uses the confirmed ES8388 codec and onboard speaker (see
+- **Sound** — uses the ES8388 codec and onboard speaker (see
   [hardware.md](hardware.md#audio)) via `AudioOutput`
   (`src/platform/audio_output.h`), the portable audio-out hardware
   interface already named in
@@ -213,7 +213,7 @@ explicitly doesn't yet:
   [roadmap.md](../roadmap.md)), since nothing today fires more than one
   notification per episode.
 - **Vibration** — [CLAUDE.md](../../CLAUDE.md) names this as explicitly "future," and
-  correctly so: no haptic motor exists on the confirmed Tab5 BOM (see
+  correctly so: no haptic motor exists on the Tab5 BOM (see
   [hardware.md](hardware.md)). Not planned until hardware exists to support
   it, and not a gap in the current design.
 

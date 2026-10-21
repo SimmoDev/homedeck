@@ -64,11 +64,10 @@ re-reading in full up front.
   pinned to this version specifically: v5.4.2 lacks a HAL function
   (`espressif/m5stack_tab5`'s `usb` dependency needs custom FIFO sizing,
   backported to v5.4.3) that the display bring-up work needs, while
-  v5.5.x has its own confirmed DSI display bugs on this exact chip — see
-  [hardware.md](docs/architecture/hardware.md#display-and-touch). Confirmed
-  to build for the `esp32p4` target (see [ESP-IDF setup](#esp-idf-setup)
-  below for how this was verified). Not used for the simulator, which is a
-  separate host-native CMake build — see
+  v5.5.x has its own DSI display bugs on this exact chip — see
+  [hardware.md](docs/architecture/hardware.md#display-and-touch). Builds
+  for the `esp32p4` target (see [ESP-IDF setup](#esp-idf-setup) below).
+  Not used for the simulator, which is a separate host-native CMake build — see
   [ADR-0002](docs/decisions/ADR-0002-technology-stack.md#decision-build-system).
 - **Docker** — runs the `espressif/idf:v5.4.3` image, the verified way to
   get the ESP-IDF toolchain without installing it natively on the host.

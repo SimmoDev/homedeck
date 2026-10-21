@@ -11,7 +11,7 @@ constexpr int32_t kColumnTemplate[] = {LV_GRID_FR(1), LV_GRID_FR(1), LV_GRID_FR(
 static_assert(sizeof(kColumnTemplate) / sizeof(kColumnTemplate[0]) == DashboardGrid::kColumns + 1,
               "kColumnTemplate must have one LV_GRID_FR(1) entry per column, plus the terminator");
 
-// Confirmed panel width (docs/architecture/hardware.md#display-and-touch)
+// Panel width (docs/architecture/hardware.md#display-and-touch)
 // minus this grid's own 8px-per-side padding and the 8px gaps between
 // columns (3 gaps across kColumns=4 columns), divided across kColumns -
 // a fixed row height matching the resulting column width makes a 1x1
