@@ -322,8 +322,6 @@ struct KodiNowPlayingChangedEvent {};
 // (see Call()).
 class KodiClient : public Module {
 public:
-    using WebSocketClientFactory = std::function<std::unique_ptr<WebSocketClient>()>;
-
     // module_id "kodi" - see ADR-0012's per-module Storage namespacing.
     static constexpr char kModuleId[] = "kodi";
     // Manual address override; empty/unset means "use discovery".

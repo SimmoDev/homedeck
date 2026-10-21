@@ -188,8 +188,6 @@ struct HarmonyCommandDroppedEvent {};
 // happens outside those triggers.
 class HarmonyConnection : public Module {
 public:
-    using WebSocketClientFactory = std::function<std::unique_ptr<WebSocketClient>()>;
-
     // module_id "harmony" - see ADR-0012's per-module Storage namespacing.
     static constexpr char kModuleId[] = "harmony";
     static constexpr char kHubHostKey[] = "hub_host";

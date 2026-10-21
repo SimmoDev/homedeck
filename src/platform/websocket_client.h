@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -60,5 +62,9 @@ public:
 
     virtual void Close() = 0;
 };
+
+// A fresh WebSocketClient per (re)connect attempt: a connection owns exactly
+// one at a time and replaces it on every reconnect.
+using WebSocketClientFactory = std::function<std::unique_ptr<WebSocketClient>()>;
 
 }  // namespace homedeck

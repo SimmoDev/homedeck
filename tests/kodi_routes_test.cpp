@@ -114,7 +114,7 @@ protected:
     }
     void TearDown() override { std::filesystem::remove_all(root_dir_); }
 
-    std::unique_ptr<homedeck::KodiClient> MakeClient(homedeck::KodiClient::WebSocketClientFactory factory) {
+    std::unique_ptr<homedeck::KodiClient> MakeClient(homedeck::WebSocketClientFactory factory) {
         return std::make_unique<homedeck::KodiClient>(std::move(factory), browser_, *storage_, *event_bus_);
     }
 

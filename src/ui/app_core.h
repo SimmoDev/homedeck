@@ -97,9 +97,7 @@ public:
         // HttpClient's stateless-per-call Get()/Post() doesn't need but a
         // stateful connection does. Firmware passes a factory returning
         // FirmwareWebSocketClient, the simulator HostWebSocketClient.
-        // (Typedef'd on HarmonyConnection, but KodiClient's is the same
-        // std::function type - one factory serves both.)
-        HarmonyConnection::WebSocketClientFactory make_websocket_client;
+        WebSocketClientFactory make_websocket_client;
         // One-shot mDNS service browser - the Kodi module (M4) is the
         // first consumer. Firmware passes FirmwareMdnsBrowser, the
         // simulator HostMdnsBrowser.
