@@ -14,7 +14,7 @@ read that first if a script here does something unexpected.
   make the device bootable again.
 - `set-password.sh [host]` - sets the Web UI admin password on a device
   that doesn't have one yet (default host `homedeck.local` - pass an IP
-  if mDNS resolution doesn't work on your machine).
+  if mDNS resolution doesn't work on your machine). Needs `curl` and `jq`.
 
 All four target the K145 reference unit.
 

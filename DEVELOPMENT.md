@@ -117,6 +117,7 @@ re-reading in full up front.
   [ADR-0025](docs/decisions/ADR-0025-webui-static-asset-storage.md)
   for why this is a separate, explicit build step rather than
   auto-invoked from CMake.
+- **curl** and **jq** — only for `tools/set-password.sh`.
 - **shellcheck** — optional locally; the pre-commit hook lints staged shell
   scripts with it when present, and CI lints all of them.
 - **Pre-commit hooks** — run `git config core.hooksPath tools/githooks`
