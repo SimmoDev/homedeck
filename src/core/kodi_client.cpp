@@ -699,8 +699,8 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
         // position_ms advances every poll so this holds, but a poll that
         // lands on an unchanged paused snapshot must not re-render every
         // bound widget/screen once per reconcile interval forever - the
-        // same guard the volume/mute block above and the idle path below
-        // already apply.
+        // same guard the volume/mute block and the idle path above already
+        // apply.
         if (np != before) {
             changed = true;
         }
