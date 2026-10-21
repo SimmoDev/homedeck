@@ -57,5 +57,5 @@ TEST(IsValidHostnameLabelTest, RejectsEverythingElse) {
     EXPECT_FALSE(homedeck::IsValidHostnameLabel("living room"));
     EXPECT_FALSE(homedeck::IsValidHostnameLabel("room.local"));
     EXPECT_FALSE(homedeck::IsValidHostnameLabel("under_score"));
-    EXPECT_FALSE(homedeck::IsValidHostnameLabel("k\xc3\xb6di"));
+    EXPECT_FALSE(homedeck::IsValidHostnameLabel("k\xc3\xb6" "di"));
 }
