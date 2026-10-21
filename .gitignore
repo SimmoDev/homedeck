@@ -7,8 +7,9 @@ firmware/managed_components/
 # Simulator build (host-native CMake)
 simulator/build/
 
-# Test build (host-native CMake)
-tests/build/
+# Test builds (host-native CMake): the default build/ plus the sanitizer
+# and coverage variants DEVELOPMENT.md and CI use (build-asan, build-tsan)
+tests/build*/
 
 # Web Management UI frontend
 webui/node_modules/
