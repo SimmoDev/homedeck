@@ -163,8 +163,8 @@ private:
     // ShowDeviceDetail() call.
     std::unordered_map<lv_obj_t*, std::string> command_button_actions_;
     // Long-press/scroll-vs-tap decision logic for command buttons,
-    // pulled out into its own LVGL-free, host-testable class - see its
-    // own header comment. Reset alongside command_button_actions_ on
+    // is its own LVGL-free, host-testable class - see its own header
+    // comment. Reset alongside command_button_actions_ on
     // every ShowDeviceDetail() rebuild, since the buttons it was
     // tracking are about to be deleted (stale pointers otherwise).
     CommandButtonPressTracker press_tracker_;

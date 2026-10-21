@@ -14,8 +14,8 @@ session flow - password setup, login, and an authenticated view - off
 `src/lib/PasswordForm.svelte` is shared by both setup and login (same
 field, same submit mechanics; setup adds a confirm-password field, a
 safeguard since there's no password-recovery flow yet), with its
-validation/error-mapping logic pulled out into
-`src/lib/passwordValidation.ts` so it's unit-testable without a
+validation/error-mapping logic in
+`src/lib/passwordValidation.ts`, so it's unit-testable without a
 component-testing stack (see `npm run test` below).
 The non-component modules in `src/lib/` are plain TypeScript with Vitest
 tests beside them: `api.ts` (fetch/JSON helpers and the session-expiry

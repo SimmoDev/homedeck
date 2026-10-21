@@ -3,8 +3,8 @@
 namespace homedeck {
 
 // The reconnect-attempt bookkeeping half of wifi_setup.cpp's
-// WIFI_EVENT_STA_DISCONNECTED handler, pulled out on its own so this one
-// piece of decision logic is host-testable - wifi_setup.cpp itself is
+// WIFI_EVENT_STA_DISCONNECTED handler, kept on its own so this one piece
+// of decision logic is host-testable - wifi_setup.cpp itself is
 // 100% ESP-IDF-coupled (esp_wifi/esp_http_server/FreeRTOS) and
 // unreachable from tests/, where a concurrency bug in this logic would
 // otherwise have no test coverage to catch it.

@@ -10,14 +10,13 @@ namespace homedeck {
 // only in which physical NVS partition they open (see
 // docs/decisions/ADR-0027-secret-store-partition-separation.md - the two
 // are separate partitions) and the log tag used for failures, so
-// the actual NVS calls are factored out rather than duplicated (mirroring
+// the actual NVS calls live here once (mirroring
 // platform/host/file_backed_store.h's role for the host-side stores).
 bool NvsSetBlob(const char* partition_name, const char* tag, const std::string& ns, const std::string& key,
                 const std::string& value);
 std::optional<std::string> NvsGetBlob(const char* partition_name, const char* tag, const std::string& ns,
                                        const std::string& key);
-// No log tag - unlike Set/Get, neither original implementation logged an
-// erase failure.
+// No log tag - unlike Set/Get, an erase failure is not logged.
 bool NvsEraseBlob(const char* partition_name, const std::string& ns, const std::string& key);
 
 }  // namespace homedeck

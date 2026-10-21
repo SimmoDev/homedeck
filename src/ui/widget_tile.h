@@ -8,9 +8,8 @@ namespace homedeck {
 // 8px padding, non-scrollable, column flex, centered on both axes so
 // stacked content stays centered regardless of the cell's exact size
 // rather than needing hand-tuned pixel offsets tied to today's row
-// height. Factored out once ClockWidget/NetworkStatusWidget/
-// WeatherWidget/NotificationWidget had all independently repeated the
-// identical setup.
+// height. ClockWidget, NetworkStatusWidget, WeatherWidget and
+// NotificationWidget all share this setup.
 lv_obj_t* CreateWidgetTileRoot(lv_obj_t* parent);
 
 }  // namespace homedeck

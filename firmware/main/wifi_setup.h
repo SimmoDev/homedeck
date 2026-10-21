@@ -57,11 +57,10 @@ struct WifiCredentialsCheck {
 // Brings up the Wi-Fi subsystem (SDIO/ESP-Hosted link to the C6 - see
 // docs/architecture/hardware.md#wireless) far enough to answer "are
 // credentials already stored," without attempting to associate or
-// starting SoftAP yet. Split out from ConnectToWifi() below so a caller
-// that wants to pick the correct initial Touch UI screen (dashboard vs.
-// the Wi-Fi setup fallback) can do so before ever showing a screen,
-// rather than always showing the dashboard first and correcting course
-// once Wi-Fi state becomes known.
+// starting SoftAP yet. Separate from ConnectToWifi() below so a caller
+// can pick the correct initial Touch UI screen (dashboard vs. the Wi-Fi
+// setup fallback) before showing any screen, rather than showing the
+// dashboard first and correcting course once Wi-Fi state is known.
 //
 // Must be called after esp_netif_init() and
 // esp_event_loop_create_default(), and before ConnectToWifi() below.

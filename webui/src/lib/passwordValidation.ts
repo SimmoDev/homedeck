@@ -1,5 +1,5 @@
-// Pure validation/error-mapping logic pulled out of PasswordForm.svelte
-// so it's unit-testable without a component-testing stack (Testing
+// Pure validation/error-mapping logic for PasswordForm.svelte, kept out of
+// the component so it's unit-testable without a component-testing stack (Testing
 // Library + jsdom) - not yet justified for the rest of the Web UI,
 // which is still thin fetch-and-render (see
 // docs/architecture/web-ui.md#status).

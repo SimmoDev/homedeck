@@ -1,5 +1,5 @@
-// Pure validation logic pulled out of HarmonySettings.svelte so it's
-// unit-testable without a component-testing stack - same reasoning as
+// Pure validation logic for HarmonySettings.svelte, kept out of the
+// component so it's unit-testable without a component-testing stack - same reasoning as
 // passwordValidation.ts.
 
 import { hostError } from "./hostValidation";

@@ -14,7 +14,7 @@
   }
   let { onWifiReset }: Props = $props();
 
-  // Reset Wi-Fi credentials (see core/wifi_routes.h) - added as a
+  // Reset Wi-Fi credentials (see core/wifi_routes.h) - a
   // diagnostic aid for reproducing the intermittent Wi-Fi-connect crash
   // documented in docs/architecture/hardware.md#wi-fi-bring-up, without a
   // full tools/factory-reset.sh erase-and-reflash cycle per attempt. An

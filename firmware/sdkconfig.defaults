@@ -60,15 +60,14 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
 # Wi-Fi runs through the ESP32-C6 co-processor over SDIO (via esp_hosted/
-# esp_wifi_remote - see docs/architecture/hardware.md#wireless). Confirmed
-# on real hardware:
+# esp_wifi_remote - see docs/architecture/hardware.md#wireless).
 # - ESP-Hosted's SDIO transport needs a ~48KB contiguous block of internal
 #   DMA-capable RAM that isn't available that early in boot - redirecting
 #   those buffers into PSRAM (the same GDMA-through-PSRAM-cache path the
 #   display already uses) fixes it.
 # - ESP-Hosted's default SDIO pin config assumes Espressif's P4 eval
-#   board, not this hardware - the real Tab5 pins are set explicitly
-#   below (see hardware.md#wireless for how these were found).
+#   board, not this hardware - the Tab5 pins are set explicitly below (see
+#   hardware.md#wireless).
 CONFIG_ESP_HOSTED_MEMPOOL_PREFER_SPIRAM=y
 CONFIG_ESP_HOSTED_SDIO_SLOT_1=y
 CONFIG_ESP_HOSTED_PRIV_SDIO_PIN_CLK_SLOT_1=12
@@ -106,8 +105,7 @@ CONFIG_FATFS_DONT_TRUST_LAST_ALLOC=1
 # Crash/reboot diagnostics (ADR-0013) - capture a core dump to the
 # `coredump` partition (already reserved, see ADR-0017) on panic. ELF
 # format and CRC32 checksum are already the defaults once this is
-# enabled - not set explicitly here. Two things confirmed already
-# handled without further config, not left to chance:
+# enabled - not set explicitly here. Two things need no further config:
 # - espcoredump's Kconfig warns core dumps to flash aren't available
 #   when task stacks are in PSRAM, but ESP_COREDUMP_USE_STACK_SIZE
 #   already defaults to y whenever this is combined with

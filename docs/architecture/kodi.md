@@ -213,8 +213,8 @@ module tile, after `HarmonyWidget`. It shows what Kodi is playing / the
 connection state and, on tap, opens `NowPlayingScreen`.
 
 `NowPlayingScreen` (`src/ui/screens/now_playing_screen.h`/`.cpp`) - built
-on the shared `ScreenChrome` (`src/ui/screens/screen_chrome.h`, factored
-out of Harmony's screens) - has a subtitle, an `lv_bar` progress bar
+on the shared `ScreenChrome` (`src/ui/screens/screen_chrome.h`, also used
+by Harmony's screens) - has a subtitle, an `lv_bar` progress bar
 with an `m:ss` time label, and transport buttons (seek ±, play/pause,
 stop, volume ±, mute) wired to the `KodiClient` commands. The seek
 buttons disable themselves (`LV_STATE_DISABLED`) when

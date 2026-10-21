@@ -19,9 +19,9 @@ public:
     virtual void SetPercent(int percent) = 0;
 };
 
-// Shared by both HostDisplayBrightness and FirmwareDisplayBrightness -
-// factored out here (portable, no LVGL/ESP-IDF dependency) so it's
-// host-testable directly, unlike the two implementations themselves.
+// Shared by both HostDisplayBrightness and FirmwareDisplayBrightness.
+// Portable (no LVGL/ESP-IDF dependency), so it's host-testable directly,
+// unlike the two implementations themselves.
 inline int ClampBrightnessPercent(int percent) { return std::clamp(percent, 0, 100); }
 
 }  // namespace homedeck

@@ -5,8 +5,8 @@
 namespace homedeck {
 
 // Pure long-press/scroll-vs-tap decision logic behind DevicesScreen's
-// command buttons - extracted so it's host-testable without LVGL, same
-// precedent as ActivityStartTracker/text_format.h. Mirrors DevicesScreen's
+// command buttons - LVGL-free so it's host-testable, the same split as
+// ActivityStartTracker/text_format.h. Mirrors DevicesScreen's
 // own three LVGL event handlers (OnCommandButtonLongPressed/
 // LongPressRepeat/Released) one-to-one; this class only decides which of
 // Press/Hold/Release to send (if any) and tracks which buttons are

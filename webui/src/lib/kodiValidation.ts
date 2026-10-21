@@ -1,5 +1,5 @@
-// Pure validation for the manual Kodi address, pulled out of
-// KodiSettings.svelte so it's unit-testable - same shape as
+// Pure validation for the manual Kodi address in KodiSettings.svelte,
+// kept out of the component so it's unit-testable - same shape as
 // harmonyValidation.ts. The backend URL-builds this as
 // `ws://<value>:9090/jsonrpc`.
 

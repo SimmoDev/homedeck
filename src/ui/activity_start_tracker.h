@@ -6,10 +6,8 @@
 namespace homedeck {
 
 // Pure decision logic behind ActivitiesScreen's optimistic "Starting
-// <name>..." status line - extracted out of activities_screen.cpp so it's
-// host-testable without LVGL, the same "pull LVGL-adjacent pure logic out
-// of src/ui/ specifically to make it testable" precedent text_format.h's
-// SplitCamelCase() already established. Tracks the two fields
+// <name>..." status line - LVGL-free so it's host-testable, the same
+// split text_format.h's SplitCamelCase() uses. Tracks the two fields
 // ActivitiesScreen's status line depends on: which activity (if any)
 // is optimistically "pending" a hub-side confirmation, and whether the
 // most recent attempt is already known to have failed. This class only

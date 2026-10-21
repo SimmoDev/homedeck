@@ -1,5 +1,5 @@
-// Pure validation logic pulled out of DeviceNameSettings.svelte so it's
-// unit-testable without a component-testing stack - same reasoning as
+// Pure validation logic for DeviceNameSettings.svelte, kept out of the
+// component so it's unit-testable without a component-testing stack - same reasoning as
 // harmonyValidation.ts/passwordValidation.ts. Mirrors the backend's
 // IsValidHostnameLabel() (src/core/host_validation.h): RFC 1035/6763
 // label rules - non-empty, at most 63 characters, alphanumeric or hyphen

@@ -147,4 +147,10 @@ narration_patterns=(
     # current constraint: "half of this fix", "already hit on real hardware".
     '(half|part|other half) of this fix'
     '(already|previously) hit on'
+    # Comments that say how a helper came to exist ("pulled out of X",
+    # "extracted so it's testable", "factored out once Devices needed
+    # it", "added as a diagnostic aid") instead of what it is for.
+    '(pulled|extracted|factored|split) out (of|from|here|once|on its own|into)'
+    'extracted so\b'
+    'added as a'
 )

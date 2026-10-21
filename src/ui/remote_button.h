@@ -42,9 +42,7 @@ constexpr int32_t kMinNavTouchTarget = 88;
 // than the theme's own default button padding - see ActivitiesScreen's
 // own original comment on why: this is the remote control, the primary
 // reason CLAUDE.md calls for "large touch targets" in the Touch UI at
-// all. Factored out once Devices needed the identical styling
-// ActivitiesScreen's own buttons already established, rather than a
-// third independent copy.
+// all. ActivitiesScreen and DevicesScreen share this styling.
 //
 // `width` defaults to full-width (one button per row - activity/device
 // lists, where labels are long and unpredictable); DevicesScreen's own
