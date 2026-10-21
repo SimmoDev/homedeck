@@ -1884,10 +1884,14 @@ TEST_F(KodiClientTest, RequestMoviesTruncatesAtTheLibraryItemCap) {
     client->Start();
     ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
     client->RequestMovies();
-    ASSERT_TRUE(WaitFor([&] {
-        std::lock_guard<std::mutex> lock(result_mutex);
-        return received.has_value();
-    }));
+    // Twenty pages of 500 entries, each built and parsed as JSON; a
+    // sanitizer build on a slow runner needs far longer than WaitFor's default.
+    ASSERT_TRUE(WaitFor(
+        [&] {
+            std::lock_guard<std::mutex> lock(result_mutex);
+            return received.has_value();
+        },
+        4000));
 
     std::lock_guard<std::mutex> lock(result_mutex);
     EXPECT_EQ(received->size(), 10000u);
