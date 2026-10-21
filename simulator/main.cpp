@@ -39,8 +39,8 @@ static constexpr int32_t kWindowHeight = 1280;
 // space. LVGL still renders at the real logical resolution above -
 // layout behaves identically to hardware, just displayed smaller. Any
 // zoom other than 1.0 softens text, even with UiTask's scale-quality hint
-// (see src/ui/ui_task.cpp) - real hardware is unaffected, since it never
-// scales at all. No single value fits every desktop/taskbar layout, so
+// (see src/platform/host/ui_task.cpp) - real hardware is unaffected, since
+// it never scales at all. No single value fits every desktop/taskbar layout, so
 // override at runtime with HOMEDECK_SIM_ZOOM (e.g. `HOMEDECK_SIM_ZOOM=0.6
 // ./homedeck_simulator`) rather than editing this default.
 static constexpr float kDefaultWindowZoom = 0.75f;

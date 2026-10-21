@@ -30,7 +30,7 @@ std::vector<int16_t> ScaleVolume(const int16_t* samples, size_t sample_count, in
 
 bool HostAudioOutput::Play(const int16_t* samples, size_t sample_count, uint32_t sample_rate) {
     // Reference-counted per subsystem - safe to call alongside LVGL's
-    // own SDL_INIT_VIDEO (via lv_sdl_window_create(), src/ui/ui_task.cpp),
+    // own SDL_INIT_VIDEO (via lv_sdl_window_create(), src/platform/host/ui_task.cpp),
     // additive rather than re-initializing anything already active.
     if (SDL_InitSubSystem(SDL_INIT_AUDIO) != 0) {
         std::fprintf(stderr, "SDL_InitSubSystem(SDL_INIT_AUDIO) failed: %s\n", SDL_GetError());

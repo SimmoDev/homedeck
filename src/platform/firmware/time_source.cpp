@@ -36,10 +36,9 @@ std::chrono::system_clock::time_point Rx8130TimeSource::Now() const {
     std::tm tm = rtc_->get_time(ec);
     if (ec) {
         // Fallback if the RTC can't be read: whatever the system clock
-        // currently holds (likely wrong/near-epoch on firmware, since
-        // nothing sets it from another source yet) - imperfect, but
-        // better than crashing or returning a fixed sentinel a caller
-        // might mistake for a real time.
+        // currently holds (SNTP sets it once Wi-Fi connects, near-epoch
+        // before that) - imperfect, but better than crashing or returning
+        // a fixed sentinel a caller might mistake for a real time.
         return std::chrono::system_clock::now();
     }
     std::time_t t = std::mktime(&tm);

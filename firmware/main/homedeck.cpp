@@ -49,8 +49,8 @@
 // docs/architecture/web-ui.md), all running on-device. See
 // docs/architecture/hardware.md#display-driver-strategy for the
 // display/touch driver stack this runs on.
-// firmware/platform/task.cpp and timer.cpp (FreeRTOS-backed, per
-// ADR-0002) exist because Clock needs a working Timer.
+// The FreeRTOS-backed Task and Timer (ADR-0002) are
+// src/platform/firmware/task.cpp and timer.cpp.
 namespace {
 
 // webui/dist/{index.html,app.js,app.css} - the built Svelte/Vite bundle,
@@ -303,7 +303,8 @@ void OnSntpTimeSync(timeval* tv) {
 // See ADR-0028 for why SNTP over a manual-set Web UI field. pool.ntp.org
 // is a public NTP pool with no configuration needed - this project has
 // no per-user NTP-server setting, the same "no premature abstraction"
-// reasoning weather.md's direct Open-Meteo default already follows.
+// reasoning the direct Open-Meteo weather default already follows (see
+// docs/architecture/dashboard.md#weather-source).
 // Fire-and-forget: init with wait_for_sync=false (ESP_NETIF_SNTP_DEFAULT_CONFIG's
 // own default) so this never blocks app_main() waiting on a sync that
 // might not come (e.g. Wi-Fi connected but no internet route) -
