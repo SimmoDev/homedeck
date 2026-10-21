@@ -66,9 +66,10 @@ extern const uint8_t webui_app_js_end[] asm("_binary_app_js_end");
 extern const uint8_t webui_app_css_start[] asm("_binary_app_css_start");
 extern const uint8_t webui_app_css_end[] asm("_binary_app_css_end");
 
-// Task stacks and the websocket client's per-connection allocations can only
-// come from internal RAM, so its headroom - not total free heap, which is
-// dominated by PSRAM - is what decides whether a reconnect succeeds.
+// Internal RAM headroom, not total free heap (dominated by PSRAM), decides
+// whether a reconnect succeeds: task stacks and the websocket client's
+// per-connection allocations can only come from internal RAM. The heap is
+// logged every this many one-second heartbeats.
 constexpr uint32_t kHeapLogIntervalHeartbeats = 30;
 
 homedeck::MemoryStats ReadMemoryStats() {
