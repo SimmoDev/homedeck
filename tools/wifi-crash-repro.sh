@@ -25,10 +25,26 @@ BASE="http://$HOST"
 JAR="$(mktemp)"
 trap 'rm -f "$JAR"' EXIT
 
+# The device can answer /api/auth/status before the rest of the Web UI is
+# ready, so a request that fails is retried for a while before giving up.
+retry() {
+  local _
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    "$@" && return 0
+    sleep 3
+  done
+  echo "Gave up on: $*" >&2
+  return 1
+}
+
 # Sessions live in RAM, so every reboot needs a fresh login.
 login() {
   jq -n --arg password "$HOMEDECK_PASSWORD" '{password: $password}' |
-    curl -sf -c "$JAR" -X POST "$BASE/api/auth/login" -H "Content-Type: application/json" -d @- >/dev/null
+    curl -sf --max-time 15 -c "$JAR" -X POST "$BASE/api/auth/login" -H "Content-Type: application/json" -d @- >/dev/null
+}
+
+diagnostics_reset_reason() {
+  curl -sf --max-time 15 -b "$JAR" "$BASE/api/diagnostics" | jq -r .resetReason
 }
 
 wait_for_device() {
@@ -49,16 +65,16 @@ unclean() {
 }
 
 wait_for_device
-login
-echo "Reset reason before starting: $(curl -sf -b "$JAR" "$BASE/api/diagnostics" | jq -r .resetReason)"
+retry login
+echo "Reset reason before starting: $(retry diagnostics_reset_reason)"
 
 for i in $(seq 1 "$MAX"); do
-  curl -sf -b "$JAR" -X POST "$BASE/api/ota/reboot" >/dev/null
+  retry curl -sf --max-time 15 -b "$JAR" -X POST "$BASE/api/ota/reboot" >/dev/null
   sleep 5   # the device restarts 500 ms after the response; let the old server go away
   wait_for_device || exit 2
   sleep 5   # let the boot finish before the next request
-  login
-  reason="$(curl -sf -b "$JAR" "$BASE/api/diagnostics" | jq -r .resetReason)"
+  retry login
+  reason="$(retry diagnostics_reset_reason)"
   echo "reboot $i/$MAX: previous boot ended with '$reason'"
   if unclean "$reason"; then
     out="coredump-$(date +%Y%m%d-%H%M%S).bin"
