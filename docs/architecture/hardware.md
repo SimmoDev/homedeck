@@ -102,30 +102,33 @@ timeouts` — the C6's own ESP-Hosted slave firmware reports version
 `0.0.0`. Basic Wi-Fi association and IP acquisition work regardless, but
 RPC timeouts under heavier use remain a real, deferred risk.
 
+**Restarts must reset the whole system.** On the reference unit, the SDIO
+link to the C6 stops answering after a run of restarts that reset only the
+CPUs (ESP-IDF's default `esp_restart()`): commands time out, reads return
+all ones, and SDIO D1 (GPIO10, the slave interrupt line) reads low. The
+failure persists across every following boot until a whole-system reset; a
+CPU-only reset or switching the C6's power rail off and on does not clear
+it. HomeDeck resets the whole system on every restart
+([ADR-0033](../decisions/ADR-0033-whole-system-restart.md)).
+
 **Known, not yet root-caused: an intermittent crash during the Wi-Fi-connect
-burst.** Twice out of four on-device connection attempts, the device
-panicked (`Guru Meditation Error: Instruction access fault`, Core 1) a few
-hundred milliseconds after logging a successful IP acquisition, during the
-highest-SDIO-traffic window in the boot sequence. The fault signature
-doesn't match any currently-open upstream issue for this exact
-ESP32-P4+C6 combination. Debugging it further needs a debugger attached:
-the P4's built-in USB-Serial/JTAG controller on the USB-C port is reachable
-over JTAG with no external probe (both RISC-V cores examine cleanly).
+burst.** Twice in early bring-up the device panicked (`Guru Meditation
+Error: Instruction access fault`, Core 1) a few hundred milliseconds after
+logging a successful IP acquisition, during the highest-SDIO-traffic window
+in the boot sequence. The fault signature doesn't match any open upstream
+issue for this ESP32-P4+C6 combination. It has not recurred across several
+hundred reboot cycles since. The P4's built-in USB-Serial/JTAG controller on
+the USB-C port is reachable over JTAG with no external probe (both RISC-V
+cores examine cleanly), so a recurrence can be inspected in place.
+`tools/wifi-crash-repro.sh` reboots the device repeatedly through the Web UI
+until a boot ends in a crash, and `tools/decode-coredump.sh` decodes the
+core dump it saves.
 
-Reproducing this repeatedly doesn't need a full
-`tools/factory-reset.sh` erase-and-reflash cycle per attempt - see
-[web-ui.md](web-ui.md#diagnostics) for the Web UI's Reset Wi-Fi
-credentials diagnostic aid.
-
-**Accepted risk:** carried forward into M3 as a known, explicitly
-accepted gap, not resolved. The device recovers on its own (a
-self-triggered reboot, not a hang). Accepted specifically because every
-root-cause avenue available without a debugger or upstream engagement has
-already been exhausted, not because the reproduction rate is considered
-acceptable in the abstract. M3 added more background network activity at
-connect time (see [harmony.md](harmony.md#connection)), but the crash
-rate hasn't been re-evaluated against it - still an open, accepted gap,
-not a resolved one.
+**Accepted risk:** the panic above is a known, explicitly accepted gap, not
+resolved. The device recovers on its own (a self-triggered reboot, not a
+hang). M3 added more background network activity at connect time (see
+[harmony.md](harmony.md#connection)), and the reboot cycles above ran
+against it.
 
 The provisioning flow's SoftAP setup, credential submission, connection,
 and SoftAP teardown all work end to end on the Tab5, including with a

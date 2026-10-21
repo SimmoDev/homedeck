@@ -11,6 +11,7 @@
 #include "esp_netif.h"
 #include "esp_netif_sntp.h"
 #include "esp_ota_ops.h"
+#include "esp_rom_sys.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
@@ -95,6 +96,17 @@ void PrintBootBanner() {
            chip_info.cores, chip_info.revision / 100, chip_info.revision % 100);
     printf("  Free heap:    %lu bytes\n", (unsigned long)esp_get_free_heap_size());
     printf("  Free PSRAM:   %zu bytes\n", heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+}
+
+// esp_restart() resets only the CPUs, leaving the SDMMC host and the SDIO pads
+// as they were. After a number of such restarts the SDIO link to the C6
+// stays dead (reads fail, D1 held low) on every following boot until a
+// whole-system reset clears it. Registered as a shutdown handler, this makes
+// every esp_restart() - ours and ESP-Hosted's transport-failure restart - a
+// whole-system reset. It runs after the other handlers registered earlier or
+// by ESP-IDF itself, since handlers run in reverse order of registration.
+void ResetWholeSystem() {
+    esp_rom_software_reset_system();
 }
 
 // Runs `callback` once, 500 ms from now, from the esp_timer task. The delay
@@ -542,6 +554,11 @@ void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, hom
 }  // namespace
 
 extern "C" void app_main(void) {
+    // Registered first so it runs last among the shutdown handlers.
+    esp_err_t shutdown_err = esp_register_shutdown_handler(ResetWholeSystem);
+    if (shutdown_err != ESP_OK) {
+        printf("Failed to register the whole-system reset: %s\n", esp_err_to_name(shutdown_err));
+    }
     PrintBootBanner();
     InitDisplayOrHalt();
 

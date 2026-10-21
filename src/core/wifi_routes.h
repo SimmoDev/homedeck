@@ -45,7 +45,7 @@ using WifiResetFn = std::function<std::optional<std::string>()>;
 
 // Registers POST /api/wifi/reset - admin-only via auth.RequireAuth().
 // A diagnostic aid for reproducing the intermittent Wi-Fi-connect crash
-// (see hardware.md's "Known, not yet root-caused" note) without a full
+// (see hardware.md's Wi-Fi bring-up section) without a full
 // tools/factory-reset.sh erase-and-reflash cycle each time. Deliberately
 // narrow: clears only the Wi-Fi credentials living on
 // the C6 co-processor's own flash - Core's own Storage (settings,
