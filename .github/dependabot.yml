@@ -10,3 +10,8 @@ updates:
     directory: /webui
     schedule:
       interval: weekly
+    ignore:
+      # TypeScript 7 has no JavaScript compiler API, which svelte-check
+      # loads (peer range ^5 || ^6); drop this once svelte-check supports it.
+      - dependency-name: typescript
+        versions: [">=7.0.0"]
