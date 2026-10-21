@@ -1,15 +1,15 @@
 name: Lint check
 
-# Runs the seven tools/githooks/ checks that have no other CI backstop
+# Runs the eight tools/githooks/ checks that have no other CI backstop
 # (check-esp-idf-returns.sh/check-curl-timeouts.sh/check-esp-http-timeouts.sh/
 # check-unauthenticated-routes.sh/check-unchecked-json-field-access.sh/
-# check-json-dump-strict.sh/check-build-artifacts.sh) against every tracked file, not just a
+# check-json-dump-strict.sh/check-build-artifacts.sh/check-comment-paths.sh) against every tracked file, not just a
 # commit's diff - same "the local pre-commit hook only ever sees staged
 # files, so a violation in a file nobody happens to touch again stays
 # invisible indefinitely" reasoning
 # docs.yml already uses for check-docs.sh/check-hardware-md-scope.sh.
 # Non-blocking, same as the pre-commit hook itself (see pre-commit's own
-# header comment for why these seven stay warn-only): this is a periodic
+# header comment for why these eight stay warn-only): this is a periodic
 # report, not a merge gate. The shellcheck and LVGL-version steps are
 # deterministic and do fail the job.
 
@@ -55,6 +55,13 @@ jobs:
       # reporting - see check-lvgl-version-sync.sh's own header.
       - name: Check the simulator and firmware resolve the same LVGL version
         run: bash tools/githooks/check-lvgl-version-sync.sh
+
+      - name: Run check-comment-paths.sh against every tracked doc/code file
+        continue-on-error: true
+        run: |
+          files=$(git ls-files -- '*.md' '*.cpp' '*.h' '*.hpp' '*.ts' '*.svelte' '*.yml' '*.sh' \
+            ':!firmware/components/m5stack_tab5/**' ':!src/third_party/nlohmann/**')
+          bash tools/githooks/check-comment-paths.sh $files
 
       - name: Run check-curl-timeouts.sh, check-unauthenticated-routes.sh, check-unchecked-json-field-access.sh, and check-json-dump-strict.sh against every tracked .cpp/.h/.hpp file
         continue-on-error: true

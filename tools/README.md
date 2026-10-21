@@ -100,7 +100,10 @@ why that split exists. Checking for the following defect classes:
   throws on invalid UTF-8 - `std::abort()` on firmware
   (`githooks/check-json-dump-strict.sh`); a staged generated file -
   Python bytecode, object file or log - that belongs in `.gitignore`
-  (`githooks/check-build-artifacts.sh`); and, against every
+  (`githooks/check-build-artifacts.sh`); a comment or doc that cites a
+  repo file path (a directory path under a top-level repo directory, or a
+  bare `*.md` name) that no tracked file has
+  (`githooks/check-comment-paths.sh`); and, against every
   staged file regardless of extension, private-key blocks,
   cloud-provider/API-token credential shapes, and a staged `.env` file -
   the one check that blocks the commit
