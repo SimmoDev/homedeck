@@ -2,8 +2,7 @@
 
 ## Layers
 
-HomeDeck is organized into four layers, each depending only on the layer
-below it:
+HomeDeck is organized into four layers:
 
 ```text
 UI
@@ -28,10 +27,13 @@ External Services / Devices
   Kuma server, Home Assistant instance, and eventually other LAN/cloud
   services a module talks to.
 
-Dependencies point strictly downward. A module may depend on Core; Core must
-never depend on a module. The UI depends on Core (and, indirectly, on
-modules only through Core-mediated registration — see
-[modules.md](modules.md#registration-not-coupling)), never the reverse.
+The diagram shows how a user reaches a service, not the direction of source
+dependencies. A module depends on Core's services (event bus, storage,
+platform capabilities); Core's generic services never include a module. The
+UI reaches modules through Core-mediated registration — see
+[modules.md](modules.md#registration-not-coupling). The one place that names
+concrete modules is `AppCore` (`src/ui/app_core.h`), the composition root
+that constructs and starts them.
 
 ## Event-driven design
 
