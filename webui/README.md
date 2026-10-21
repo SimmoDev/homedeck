@@ -17,6 +17,12 @@ safeguard since there's no password-recovery flow yet), with its
 validation/error-mapping logic pulled out into
 `src/lib/passwordValidation.ts` so it's unit-testable without a
 component-testing stack (see `npm run test` below).
+The non-component modules in `src/lib/` are plain TypeScript with Vitest
+tests beside them: `api.ts` (fetch/JSON helpers and the session-expiry
+hook), `guardedAction.ts` (the double-submit guard), `memoryFormat.ts`
+(diagnostics memory figures), and the input validators `hostValidation.ts`
+(shared host rules), `kodiValidation.ts`, `harmonyValidation.ts` and
+`deviceNameValidation.ts`, each mirroring a C++ validator.
 Once authenticated, `App.svelte` composes three screens:
 `src/lib/Settings.svelte` (device name, weather location search/save,
 Harmony hub configuration, Kodi instance selection, backup
