@@ -105,7 +105,19 @@ bool RunOnceAfterResponseDelay(const char* name, esp_timer_cb_t callback) {
     esp_timer_create_args_t args = {};
     args.callback = callback;
     args.name = name;
-    return esp_timer_create(&args, &timer) == ESP_OK && esp_timer_start_once(timer, 500 * 1000) == ESP_OK;
+    if (esp_timer_create(&args, &timer) != ESP_OK) {
+        return false;
+    }
+    if (esp_timer_start_once(timer, 500 * 1000) != ESP_OK) {
+        // A started timer is left to fire and restart the device; one that
+        // never started would otherwise stay allocated.
+        esp_err_t delete_err = esp_timer_delete(timer);
+        if (delete_err != ESP_OK) {
+            printf("RunOnceAfterResponseDelay: esp_timer_delete failed: %s\n", esp_err_to_name(delete_err));
+        }
+        return false;
+    }
+    return true;
 }
 
 // Passed to RegisterOtaRoutes as its OtaRebootFn - esp_restart() can't
