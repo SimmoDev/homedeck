@@ -1367,6 +1367,96 @@ TEST_F(KodiClientTest, RelativeSeekAndVolumeStepsUseKodiStepVerbs) {
     client->Stop();
 }
 
+// Player.OnStop can be missed (a dropped frame, a reconnect); the poll that
+// finds no active player is what clears the stale "playing" state.
+TEST_F(KodiClientTest, AReconcilePollFindingNoActivePlayerClearsStaleNowPlaying) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kFastReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.playback == KodiPlaybackState::kPlaying; }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Player.GetActivePlayers"] = R"([])";
+    }
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.playback == KodiPlaybackState::kInactive; }));
+    EXPECT_TRUE(client->Snapshot().now_playing.title.empty());
+    EXPECT_EQ(client->Snapshot().now_playing.show_title, "");
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, AReconcilePollPicksUpAMuteChangeKodiDidNotPush) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kFastReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    ASSERT_FALSE(client->Snapshot().muted);
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Application.GetProperties"] =
+            R"({"volume":42,"muted":true,"version":{"major":21,"minor":2}})";
+    }
+    EXPECT_TRUE(WaitFor([&] { return client->Snapshot().muted; }));
+    client->Stop();
+}
+
+// The queue keeps the newest kMaxPendingLibraryRequests requests; a screen
+// that issued more than that while the link was down loses the oldest ones.
+TEST_F(KodiClientTest, LibraryRequestsQueuedWhileDisconnectedKeepOnlyTheNewest) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["VideoLibrary.GetSeasons"] = R"({"seasons":[]})";
+        script->connect_ok = false;
+    }
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kError; }));
+
+    for (int show = 1; show <= 12; ++show) {
+        client->RequestSeasons(show);
+    }
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->connect_ok = true;
+    }
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "VideoLibrary.GetSeasons") == 8; }));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    EXPECT_EQ(CountSent(script, "VideoLibrary.GetSeasons"), 8);
+    EXPECT_EQ(CountSent(script, "\"tvshowid\":1}"), 0) << "the oldest request was dropped";
+    EXPECT_EQ(CountSent(script, "\"tvshowid\":4}"), 0);
+    EXPECT_EQ(CountSent(script, "\"tvshowid\":5}"), 1);
+    EXPECT_EQ(CountSent(script, "\"tvshowid\":12}"), 1);
+    client->Stop();
+}
+
+TEST_F(KodiClientTest, EveryNavigationInputSendsItsDedicatedMethod) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    const std::pair<homedeck::KodiInput, const char*> kExpected[] = {
+        {homedeck::KodiInput::kUp, "Input.Up"},
+        {homedeck::KodiInput::kDown, "Input.Down"},
+        {homedeck::KodiInput::kLeft, "Input.Left"},
+        {homedeck::KodiInput::kRight, "Input.Right"},
+        {homedeck::KodiInput::kSelect, "Input.Select"},
+        {homedeck::KodiInput::kBack, "Input.Back"},
+        {homedeck::KodiInput::kHome, "Input.Home"},
+        {homedeck::KodiInput::kInfo, "Input.Info"},
+        {homedeck::KodiInput::kContextMenu, "Input.ContextMenu"},
+        {homedeck::KodiInput::kShowOsd, "Input.ShowOSD"},
+    };
+    for (const auto& [input, method] : kExpected) {
+        client->SendInput(input);
+        const std::string needle = std::string("\"method\":\"") + method + "\"";
+        EXPECT_TRUE(WaitFor([&] { return CountSent(script, needle) == 1; })) << method;
+    }
+    client->Stop();
+}
+
 TEST_F(KodiClientTest, GlobalCommandsNeedNoPlayerId) {
     KODI_COMMAND_RIG();
     auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
