@@ -19,7 +19,7 @@ any implementation begins.
       (in progress, scoped) and the module interface (intentionally
       deferred to M3 by design)
 - [x] Development environment set up and verified — the
-      `espressif/idf:v5.4.3` Docker image (`esp32p4` target support, a
+      `espressif/idf:v5.4.3` Docker image (`esp32p4` target support,
       an `idf.py build` producing a flashable `.bin` — see
       [hardware.md](architecture/hardware.md#display-and-touch) for why
       this specific version is pinned), and simulator build prerequisites
