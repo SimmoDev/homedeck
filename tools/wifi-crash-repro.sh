@@ -44,11 +44,11 @@ retry() {
 # Sessions live in RAM, so every reboot needs a fresh login.
 login() {
   jq -n --arg password "$HOMEDECK_PASSWORD" '{password: $password}' |
-    curl -sf --max-time 15 -c "$JAR" -X POST "$BASE/api/auth/login" -H "Content-Type: application/json" -d @- >/dev/null
+    curl -sSf --max-time 15 -c "$JAR" -X POST "$BASE/api/auth/login" -H "Content-Type: application/json" -d @- >/dev/null
 }
 
 diagnostics_reset_reason() {
-  curl -sf --max-time 15 -b "$JAR" "$BASE/api/diagnostics" | jq -r .resetReason
+  curl -sSf --max-time 15 -b "$JAR" "$BASE/api/diagnostics" | jq -r .resetReason
 }
 
 wait_for_device() {
@@ -75,7 +75,7 @@ retry login
 echo "Reset reason before starting: $(retry diagnostics_reset_reason)"
 
 for i in $(seq 1 "$MAX"); do
-  retry curl -sf --max-time 15 -b "$JAR" -X POST "$BASE/api/ota/reboot" >/dev/null
+  retry curl -sSf --max-time 15 -b "$JAR" -X POST "$BASE/api/ota/reboot" >/dev/null
   sleep 5   # the device restarts 500 ms after the response; let the old server go away
   wait_for_device || exit 2
   sleep "$SETTLE"   # let the boot finish, and the device run, before the next request
