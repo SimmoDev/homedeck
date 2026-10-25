@@ -52,9 +52,11 @@ diagnostics_reset_reason() {
 }
 
 wait_for_device() {
-  local deadline=$((SECONDS + 120))
+  # The Web UI starts only once Wi-Fi has an IP address, and DHCP has taken
+  # over four minutes on some boots.
+  local deadline=$((SECONDS + 600))
   until curl -sf --max-time 3 "$BASE/api/auth/status" >/dev/null 2>&1; do
-    [ "$SECONDS" -lt "$deadline" ] || { echo "Device did not come back within 120 s." >&2; return 1; }
+    [ "$SECONDS" -lt "$deadline" ] || { echo "Device did not come back within 600 s." >&2; return 1; }
     sleep 2
   done
 }
