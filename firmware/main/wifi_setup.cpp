@@ -343,7 +343,8 @@ esp_err_t HandlePostConnect(httpd_req_t* req) {
     }
     if (!ApplyWifiCredentials(ssid, password)) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
-                             "Network name (SSID) is required, and both fields must be within Wi-Fi's length limits");
+                             "Could not apply the Wi-Fi settings: the network name (SSID) is required, both fields "
+                             "must be within Wi-Fi's length limits, and the Wi-Fi co-processor must respond");
         return ESP_FAIL;
     }
 
@@ -689,7 +690,11 @@ bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     // ConnectToWifi()'s equivalent esp_wifi_get_config() call below, so a
     // slow RPC here can't stall OnEvent() processing a concurrent Wi-Fi/
     // IP event on the shared ESP-IDF event-loop task.
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &sta_config));
+    esp_err_t config_err = esp_wifi_set_config(WIFI_IF_STA, &sta_config);
+    if (config_err != ESP_OK) {
+        ESP_LOGW(kTag, "esp_wifi_set_config (on credential submission) failed: %s", esp_err_to_name(config_err));
+        return false;
+    }
     // Connecting immediately below supersedes any retry a previous
     // disconnect already scheduled.
     CancelReconnectTimer();

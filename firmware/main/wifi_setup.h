@@ -103,7 +103,9 @@ void ConnectToWifi(const WifiUiCallbacks& ui_callbacks = {});
 // to the user (a 400 response for the HTTP form,
 // WifiSetupScreen::SetConnectError for the Touch UI) rather than
 // silently attempting to associate with a blank SSID or letting the
-// snprintf() below truncate an overlong field.
+// snprintf() below truncate an overlong field. Also returns false if
+// esp_wifi_set_config() fails (an RPC to the C6 that can time out), leaving
+// the previous configuration in place.
 bool ApplyWifiCredentials(const std::string& ssid, const std::string& password);
 
 // Applies the recovery form's pending request when `request_id` is still the
