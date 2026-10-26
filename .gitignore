@@ -26,3 +26,6 @@ webui/dist/
 # Python bytecode (tools/)
 __pycache__/
 *.pyc
+
+# Core dumps saved by tools/wifi-crash-repro.sh
+coredump-*.bin
