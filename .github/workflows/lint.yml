@@ -1,15 +1,15 @@
 name: Lint check
 
-# Runs the eight tools/githooks/ checks that have no other CI backstop
+# Runs the nine tools/githooks/ checks that have no other CI backstop
 # (check-esp-idf-returns.sh/check-curl-timeouts.sh/check-esp-http-timeouts.sh/
 # check-unauthenticated-routes.sh/check-unchecked-json-field-access.sh/
-# check-json-dump-strict.sh/check-build-artifacts.sh/check-comment-paths.sh) against every tracked file, not just a
-# commit's diff - same "the local pre-commit hook only ever sees staged
-# files, so a violation in a file nobody happens to touch again stays
-# invisible indefinitely" reasoning
-# docs.yml already uses for check-docs.sh/check-hardware-md-scope.sh.
+# check-json-dump-strict.sh/check-build-artifacts.sh/check-comment-paths.sh,
+# plus check-security-surface.sh over a pull request's range) against every
+# tracked file, not just a commit's diff - same "the local pre-commit hook
+# only ever sees staged files, so a violation in a file nobody happens to
+# touch again stays invisible indefinitely" reasoning docs.yml already uses for check-docs.sh/check-hardware-md-scope.sh.
 # Non-blocking, same as the pre-commit hook itself (see pre-commit's own
-# header comment for why these eight stay warn-only): this is a periodic
+# header comment for why these stay warn-only): this is a periodic
 # report, not a merge gate. The shellcheck and LVGL-version steps are
 # deterministic and do fail the job.
 
@@ -32,6 +32,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
 
       - name: Run check-esp-idf-returns.sh and check-esp-http-timeouts.sh against firmware/main and src/platform/firmware
         continue-on-error: true
@@ -50,6 +52,15 @@ jobs:
       - name: Run check-build-artifacts.sh against every tracked file
         continue-on-error: true
         run: bash tools/githooks/check-build-artifacts.sh $(git ls-files)
+
+      - name: Run check-security-surface.sh against the pull request's changes
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          HOMEDECK_DIFF_RANGE: origin/${{ github.base_ref }}...HEAD
+        run: |
+          files=$(git ls-files -- 'firmware/main/*.cpp' 'firmware/main/*.h' 'src/platform/firmware/*.cpp' 'src/platform/firmware/*.h')
+          bash tools/githooks/check-security-surface.sh $files
 
       # Deterministic, so a mismatch fails the job instead of only
       # reporting - see check-lvgl-version-sync.sh's own header.
