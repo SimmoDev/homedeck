@@ -112,12 +112,12 @@ it. HomeDeck resets the whole system on every restart
 ([ADR-0033](../decisions/ADR-0033-whole-system-restart.md)).
 
 **Known, not yet root-caused: an intermittent crash during the Wi-Fi-connect
-burst.** Twice in early bring-up the device panicked (`Guru Meditation
-Error: Instruction access fault`, Core 1) a few hundred milliseconds after
-logging a successful IP acquisition, during the highest-SDIO-traffic window
-in the boot sequence. The fault signature doesn't match any open upstream
-issue for this ESP32-P4+C6 combination. It has not recurred across several
-hundred reboot cycles since. The P4's built-in USB-Serial/JTAG controller on
+burst.** The device has panicked (`Guru Meditation Error: Instruction access
+fault`, Core 1) a few hundred milliseconds after logging a successful IP
+acquisition, during the highest-SDIO-traffic window in the boot sequence.
+The fault signature doesn't match any open upstream issue for this
+ESP32-P4+C6 combination, and it is rare: it did not recur in several
+hundred reboot cycles. The P4's built-in USB-Serial/JTAG controller on
 the USB-C port is reachable over JTAG with no external probe (both RISC-V
 cores examine cleanly), so a recurrence can be inspected in place.
 `tools/wifi-crash-repro.sh` reboots the device repeatedly through the Web UI
