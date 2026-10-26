@@ -90,7 +90,10 @@ for why this ruled out a separate web-based mock UI.
 - **Networking:** the simulator runs on a real machine with a real network
   stack, so networking, the embedded HTTP server, and the Web Management UI
   can be exercised against real (or locally mocked) external services
-  during development.
+  during development. The simulator has no Wi-Fi recovery access point, so
+  the "Test: show Wi-Fi change request" control (`simulator/debug_panel.cpp`)
+  shows `WifiSetupScreen`'s Allow/Deny prompt for a sample network (see
+  [networking.md](networking.md#recovery-access-point)).
 
 ## What the simulator is not
 
