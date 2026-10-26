@@ -59,7 +59,7 @@
       }
       restoreResult = `Restored ${data.applied} setting${data.applied === 1 ? "" : "s"}${
         data.failed.length > 0 ? `, ${data.failed.length} failed` : ""
-      }${data.rejected.length > 0 ? `, ${data.rejected.length} rejected as protected` : ""}${
+      }${data.rejected.length > 0 ? `, ${data.rejected.length} not allowed` : ""}${
         data.skipped > 0 ? `, ${data.skipped} skipped as malformed` : ""
       }.`;
     } catch (err) {

@@ -259,12 +259,13 @@ reserved-key guard as a second-layer safeguard, covered by a dedicated
 regression test). `webui/src/lib/Settings.svelte` shows a concrete
 device name field (the first setting exposed this way - controls the
 mDNS hostname, applied live via `mdns_hostname_set()` without a reboot)
-plus backup download/restore -
-restore answers `{"applied","skipped","failed","rejected"}`: `skipped` counts
-entries that are not objects or lack a string `module`/`key`/`value` or an
-integer `schemaVersion`, `failed` lists entries Storage could not write, and
-`rejected` lists reserved or validator-refused ones -
-deliberately not a generic raw settings editor, since device name alone
+plus backup download/restore. Restore answers
+`{"applied","skipped","failed","rejected"}`: `skipped` counts entries that
+are not objects or lack a string `module`/`key`/`value` or an in-range integer
+`schemaVersion`, `failed` lists entries with an invalid key, an oversized value
+or a write Storage refused, and `rejected` lists reserved or
+validator-refused ones. The page is deliberately not a generic raw settings
+editor, since device name alone
 gave the design nothing to check itself against.
 
 **Weather location is the second setting exposed this way** - a

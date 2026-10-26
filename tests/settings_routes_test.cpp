@@ -275,11 +275,12 @@ TEST_F(SettingsRoutesTest, RestoreCountsMalformedEntriesAsSkipped) {
         R"({"settings":["not an object",)"
         R"({"module":"weather","key":"latitude","value":"51.5"},)"
         R"({"module":"weather","key":"longitude","value":"-0.1","schemaVersion":"1"},)"
+        R"({"module":"weather","key":"altitude","value":"9","schemaVersion":4294967296},)"
         R"({"module":"weather","key":"units","value":"c","schemaVersion":1}]})",
         cookie);
     EXPECT_EQ(restore.status_code, 200);
     EXPECT_NE(restore.body.find(R"("applied":1)"), std::string::npos);
-    EXPECT_NE(restore.body.find(R"("skipped":3)"), std::string::npos);
+    EXPECT_NE(restore.body.find(R"("skipped":4)"), std::string::npos);
 }
 
 TEST_F(SettingsRoutesTest, RestoreReportsAnOversizedValueAndAFailedWriteAsFailed) {

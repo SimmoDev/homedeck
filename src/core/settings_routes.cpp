@@ -4,6 +4,7 @@
 #include "platform/store_key_validation.h"
 #include "third_party/nlohmann/json.hpp"
 
+#include <climits>
 #include <utility>
 
 namespace homedeck {
@@ -165,7 +166,7 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             // Not atomic - no transaction concept exists anywhere else in
             // this codebase either. Each entry either applies, is
             // reported in failed/rejected, or is counted in skipped (not
-            // an object, or a field missing or of the wrong type), so a
+            // an object, or a field missing, of the wrong type or out of range), so a
             // partial restore is visible rather than silently incomplete.
             int applied = 0;
             int skipped = 0;
@@ -189,7 +190,8 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 auto schema_it = entry.find("schemaVersion");
                 if (module_it == entry.end() || !module_it->is_string() || key_it == entry.end() ||
                     !key_it->is_string() || value_it == entry.end() || !value_it->is_string() ||
-                    schema_it == entry.end() || !schema_it->is_number_integer()) {
+                    schema_it == entry.end() || !schema_it->is_number_integer() || *schema_it < 0 ||
+                    *schema_it > INT_MAX) {
                     ++skipped;
                     continue;
                 }
