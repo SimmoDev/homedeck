@@ -114,6 +114,15 @@ and the resulting budget are in
 logging and persisting both via [Storage](core.md#responsibilities) —
 see [ADR-0013](../decisions/ADR-0013-crash-and-reboot-diagnostics.md).
 
+A deliberate restart (the Web UI's reboot and Wi-Fi-reset actions) occasionally
+ends in a hardware watchdog reset instead of the immediate system reset: about
+one restart in 500 on the reference unit. The next boot then reports
+`other-watchdog` and no core dump. The saved program counters show Core 1
+waiting on a FreeRTOS critical-section spinlock while Core 0 is in the
+panic handler's interrupt-watchdog path. The restart happens either way, so
+the only effect is the reported reset reason. `other-watchdog` after a restart
+the user requested is therefore not a crash by itself.
+
 **Web UI presentation of crash/reboot diagnostics is also implemented**
 (`src/core/diagnostics_routes.h`/`.cpp`, `webui/src/lib/Diagnostics.svelte`)
 — `GET /api/diagnostics` (reset reason, core dump presence, heap figures, plus live
