@@ -15,6 +15,10 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib-narration-patterns.sh"
 
 for f in "$@"; do
     [ -f "$f" ] || continue
+    # Vendored files are not this repo's documentation or comments.
+    case "$f" in
+        *firmware/components/m5stack_tab5/*|*src/third_party/*) continue ;;
+    esac
 
     for pat in "${narration_patterns[@]}"; do
         matches=$(grep -niE "$pat" "$f" || true)
@@ -78,7 +82,7 @@ for f in "$@"; do
         *.md) filler='actually|genuinely|truly|simply|basically|essentially|obviously|really|very|quite' ;;
     esac
     case "$f" in
-        *CLAUDE.md|*m5stack_tab5*|*third_party*|*lib-narration-patterns.sh|*check-docs.sh) ;;
+        *CLAUDE.md|*lib-narration-patterns.sh|*check-docs.sh) ;;
         *)
             filler_matches=$(grep -niE "\\b($filler)\\b" "$f" || true)
             if [ -n "$filler_matches" ]; then
