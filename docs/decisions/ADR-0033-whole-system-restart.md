@@ -46,6 +46,11 @@ fault and added a delay to every boot.
 - `esp_restart()`'s own steps (a PSRAM data-cache write-back and the
   peripheral resets) are skipped, which does not matter since the whole
   system, including those peripherals, is reset immediately.
+- Shutdown handlers run in reverse registration order, so the handler runs
+  before the ones ESP-IDF registers during startup, before `app_main()`.
+  Those are skipped; the only one in this configuration is
+  `esp_sync_timekeeping_timers`, which carries the system time across a CPU
+  restart. HomeDeck sets the time from the RX8130 RTC and SNTP at boot.
 - Restarts that do not go through `esp_restart()`, such as a panic's, are
   unchanged.
 - The Wi-Fi-connect panic recorded in [hardware.md](../architecture/hardware.md#wi-fi-bring-up)

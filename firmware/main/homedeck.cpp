@@ -103,8 +103,9 @@ void PrintBootBanner() {
 // stays dead (reads fail, D1 held low) on every following boot until a
 // whole-system reset clears it. Registered as a shutdown handler, this makes
 // every esp_restart() - ours and ESP-Hosted's transport-failure restart - a
-// whole-system reset. It runs after the other handlers registered earlier or
-// by ESP-IDF itself, since handlers run in reverse order of registration.
+// whole-system reset. Handlers run in reverse order of registration, so it
+// runs after every handler registered later (such as esp_wifi_stop) and
+// before those ESP-IDF registered during startup, which it therefore skips.
 void ResetWholeSystem() {
     esp_rom_software_reset_system();
 }
@@ -554,7 +555,8 @@ void FinalizeBootAfterWifiConnected(homedeck::Rx8130TimeSource& time_source, hom
 }  // namespace
 
 extern "C" void app_main(void) {
-    // Registered first so it runs last among the shutdown handlers.
+    // Registered first among the application's handlers, so it runs after
+    // theirs.
     esp_err_t shutdown_err = esp_register_shutdown_handler(ResetWholeSystem);
     if (shutdown_err != ESP_OK) {
         printf("Failed to register the whole-system reset: %s\n", esp_err_to_name(shutdown_err));
