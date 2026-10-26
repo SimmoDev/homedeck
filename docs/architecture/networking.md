@@ -64,8 +64,10 @@ submission there does not change the stored credentials. It becomes the one
 pending request, `WifiSetupScreen` shows the requested network name with
 Allow and Deny buttons, and only Allow applies the credentials. A newer
 submission replaces the pending one, and the request is dropped on Deny or
-once the device connects. Credentials typed on the Touch UI's own keyboard
-apply directly. See
+once the device connects. The prompt does not wake the display: while the
+device is Sleeping the screen stays dark until the next touch, which wakes it
+onto the prompt. Credentials typed on the Touch UI's own keyboard apply
+directly. See
 [ADR-0032](../decisions/ADR-0032-recovery-access-point-approval.md); the
 recovery access point's bring-up is not covered by automated tests, so it
 is verified on a Tab5 only.
