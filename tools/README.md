@@ -16,8 +16,9 @@ read that first if a script here does something unexpected.
   that doesn't have one yet (default host `homedeck.local` - pass an IP
   if mDNS resolution doesn't work on your machine). Needs `curl` and `jq`.
 
-- `wifi-crash-repro.sh [host] [max-reboots]` - reboots the device through
-  the Web UI until a boot ends in a crash (every boot repeats the Wi-Fi
+- `wifi-crash-repro.sh [host] [max-reboots] [settle-seconds]` - reboots the
+  device through the Web UI (waiting `settle-seconds`, default 5, after each
+  boot) until a boot ends in a crash (every boot repeats the Wi-Fi
   connect burst of [issue #8](https://github.com/SimmoDev/homedeck/issues/8))
   and saves the core dump. The admin password goes in `HOMEDECK_PASSWORD`;
   needs `curl` and `jq`.
