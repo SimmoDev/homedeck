@@ -5,6 +5,7 @@
 #include "core/wifi_credentials.h"
 #include "core/wifi_reconnect_policy.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -57,6 +58,9 @@ constexpr int kNormalModeRecoveryAttempts = 40;
 // contract exists for). A short fixed interval recovers from a router
 // reboot quickly without meaningfully affecting battery life.
 constexpr int kReconnectBackoffMs = 500;
+// Spacing between attempts once the recovery access point is up - see
+// WifiReconnectPolicy::RetryDelayMs() for why the normal rate can't be kept.
+constexpr int kRecoveryApReconnectBackoffMs = 30000;
 
 // esp_netif's default AP gateway - not currently derived from
 // esp_netif_get_ip_info() since the default AP netif config is never
@@ -114,7 +118,11 @@ struct WifiSetupState {
     // WifiReconnectPolicy (src/core/wifi_reconnect_policy.h) - this file
     // just executes whatever it decides via the ESP-IDF APIs it can't be
     // tested with.
-    WifiReconnectPolicy reconnect_policy{kMaxSetupReconnectAttempts, kNormalModeRecoveryAttempts};
+    WifiReconnectPolicy reconnect_policy{kMaxSetupReconnectAttempts, kNormalModeRecoveryAttempts, kReconnectBackoffMs,
+                                         kRecoveryApReconnectBackoffMs};
+    // Stations currently joined to the SoftAP, from WIFI_EVENT_AP_STACONNECTED/
+    // STADISCONNECTED. Only the recovery path acts on it.
+    int ap_client_count = 0;
     // True only during the device's first, no-stored-credentials setup
     // flow (set in ConnectToWifi() before StartSetupAccessPoint(),
     // cleared on a successful connect) - distinct from `setup_server !=
@@ -522,6 +530,14 @@ void StartRecoveryAccessPoint() {
     }
 }
 
+// True while the recovery access point is up and its retry pacing differs
+// from the normal one - the only time a client joining or leaving it has
+// anything to do with the reconnect timer.
+bool RecoveryRetriesAreSlowed(const WifiSetupState& state) {
+    std::lock_guard<std::mutex> lock(g_state_mutex);
+    return !state.initial_provisioning && state.setup_server != nullptr;
+}
+
 // arg is &g_state - registered twice below, for WIFI_EVENT and
 // IP_EVENT, always with the same &g_state.
 //
@@ -556,6 +572,7 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
             case WIFI_EVENT_STA_DISCONNECTED: {
                 bool give_up = false;
                 bool offer_recovery = false;
+                std::optional<int> retry_delay_ms;
                 std::function<void()> on_connect_failed;
                 {
                     std::lock_guard<std::mutex> lock(g_state_mutex);
@@ -578,6 +595,8 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                         // too keeps this branch's intent explicit).
                         offer_recovery = state.reconnect_policy.ShouldOfferRecovery(state.initial_provisioning);
                     }
+                    retry_delay_ms = state.reconnect_policy.RetryDelayMs(
+                        !state.initial_provisioning && state.setup_server != nullptr, state.ap_client_count);
                 }
                 // on_connect_failed() invoked outside g_state_mutex, same as
                 // on_connected()/on_setup_needed() below - this function's
@@ -599,15 +618,53 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                     // StartRecoveryAccessPoint()'s own comment for why
                     // this can't run on this task. The plain reconnect
                     // retry below is still scheduled regardless -
-                    // bringing up recovery never pauses it.
+                    // bringing up recovery doesn't cancel it, it only
+                    // slows the retries that follow.
                     if (esp_timer_start_once(g_recovery_timer, 0) != ESP_OK) {
                         ESP_LOGW(kTag, "Failed to schedule the recovery access point - staying unreachable");
                     }
                 }
-                ESP_LOGI(kTag, "Disconnected, retrying in %dms...", kReconnectBackoffMs);
                 CancelReconnectTimer();
-                ESP_ERROR_CHECK(esp_timer_start_once(g_reconnect_timer,
-                                                      static_cast<uint64_t>(kReconnectBackoffMs) * 1000));
+                if (!retry_delay_ms.has_value()) {
+                    // The AP_STADISCONNECTED case below resumes retries
+                    // once the last client leaves.
+                    ESP_LOGI(kTag, "Disconnected, holding retries while a client is joined to the recovery network");
+                    break;
+                }
+                ESP_LOGI(kTag, "Disconnected, retrying in %dms...", *retry_delay_ms);
+                ESP_ERROR_CHECK(esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(*retry_delay_ms) * 1000));
+                break;
+            }
+            case WIFI_EVENT_AP_STACONNECTED: {
+                {
+                    std::lock_guard<std::mutex> lock(g_state_mutex);
+                    ++state.ap_client_count;
+                }
+                // A scan that has already started finishes, but no further
+                // attempt starts while this client is joined.
+                if (RecoveryRetriesAreSlowed(state)) {
+                    CancelReconnectTimer();
+                }
+                break;
+            }
+            case WIFI_EVENT_AP_STADISCONNECTED: {
+                std::optional<int> retry_delay_ms;
+                {
+                    std::lock_guard<std::mutex> lock(g_state_mutex);
+                    state.ap_client_count = std::max(0, state.ap_client_count - 1);
+                    if (state.ap_client_count == 0) {
+                        retry_delay_ms = state.reconnect_policy.RetryDelayMs(
+                            !state.initial_provisioning && state.setup_server != nullptr, 0);
+                    }
+                }
+                if (retry_delay_ms.has_value() && RecoveryRetriesAreSlowed(state)) {
+                    CancelReconnectTimer();
+                    esp_err_t err =
+                        esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(*retry_delay_ms) * 1000);
+                    if (err != ESP_OK) {
+                        ESP_LOGW(kTag, "Failed to resume reconnect retries: %s", esp_err_to_name(err));
+                    }
+                }
                 break;
             }
             default:
@@ -634,6 +691,7 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
             }
             server_to_stop = state.setup_server;
             state.setup_server = nullptr;
+            state.ap_client_count = 0;
             state.initial_provisioning = false;
             // A real successful connection deserves its own full set of
             // attempts before either the setup-mode cap or the recovery

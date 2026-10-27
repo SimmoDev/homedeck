@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 namespace homedeck {
 
 // The reconnect-attempt bookkeeping half of wifi_setup.cpp's
@@ -12,8 +14,12 @@ class WifiReconnectPolicy {
 public:
     enum class Decision { kRetry, kGiveUp };
 
-    WifiReconnectPolicy(int max_setup_attempts, int normal_mode_recovery_attempts)
-        : max_setup_attempts_(max_setup_attempts), normal_mode_recovery_attempts_(normal_mode_recovery_attempts) {}
+    WifiReconnectPolicy(int max_setup_attempts, int normal_mode_recovery_attempts, int retry_delay_ms = 500,
+                        int recovery_ap_retry_delay_ms = 30000)
+        : max_setup_attempts_(max_setup_attempts),
+          normal_mode_recovery_attempts_(normal_mode_recovery_attempts),
+          retry_delay_ms_(retry_delay_ms),
+          recovery_ap_retry_delay_ms_(recovery_ap_retry_delay_ms) {}
 
     // `in_setup_mode` mirrors wifi_setup.cpp's own `state.initial_provisioning` -
     // the give-up cap only applies while a freshly-submitted, maybe-wrong
@@ -47,6 +53,26 @@ public:
         return !in_setup_mode && attempts_ == normal_mode_recovery_attempts_;
     }
 
+    // How long to wait before the next reconnect attempt, or nullopt to
+    // hold retries until the caller asks again. A station attempt scans
+    // every channel, which takes the radio off the recovery access point's
+    // channel for most of each attempt: back to back, that leaves the
+    // access point barely visible to a phone looking for it and drops a
+    // client already joined. So once the recovery access point is up the
+    // retries slow down, and stop entirely while someone is joined to it.
+    // The first max_setup_attempts_ attempts after ResetAttempts() keep the
+    // normal spacing, so credentials the person just submitted get a quick
+    // answer.
+    std::optional<int> RetryDelayMs(bool recovery_ap_up, int ap_clients) const {
+        if (!recovery_ap_up || attempts_ <= max_setup_attempts_) {
+            return retry_delay_ms_;
+        }
+        if (ap_clients > 0) {
+            return std::nullopt;
+        }
+        return recovery_ap_retry_delay_ms_;
+    }
+
     // A freshly-submitted set of credentials, or a real successful
     // connection, always deserves its own full set of attempts before
     // either the setup-mode cap or the recovery threshold applies again -
@@ -59,6 +85,8 @@ public:
 private:
     int max_setup_attempts_;
     int normal_mode_recovery_attempts_;
+    int retry_delay_ms_;
+    int recovery_ap_retry_delay_ms_;
     int attempts_ = 0;
 };
 

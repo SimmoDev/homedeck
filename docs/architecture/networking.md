@@ -58,8 +58,12 @@ this project's `esp_wifi_remote` stack, not a design preference).
 A provisioned device retries its stored network indefinitely. After 40
 consecutive failed attempts (about two minutes) it also brings up an open
 SoftAP and the same setup form on port 8080, so a network that is gone for
-good (moved house, router replaced) does not strand it; the retries continue
-alongside. Because that access point is open and unauthenticated, a form
+good (moved house, router replaced) does not strand it. The retries continue
+alongside, but every attempt scans all channels and takes the radio off the
+access point's channel, which would leave it barely visible and drop a joined
+client. So they slow to one every 30 seconds while the access point is up and
+pause while any client is joined to it. Credentials just submitted get the
+first few attempts at the normal pace. Because that access point is open and unauthenticated, a form
 submission there does not change the stored credentials. It becomes the one
 pending request, `WifiSetupScreen` shows the requested network name with
 Allow and Deny buttons, and only Allow applies the credentials. A newer

@@ -107,3 +107,49 @@ TEST(WifiReconnectPolicyTest, ResetAttemptsAllowsRecoveryToBeOfferedAgainAfterAL
     policy.OnDisconnected(/*in_setup_mode=*/false);
     EXPECT_TRUE(policy.ShouldOfferRecovery(/*in_setup_mode=*/false));
 }
+
+TEST(WifiReconnectPolicyTest, RetriesAtTheNormalSpacingWhileNoRecoveryAccessPointIsUp) {
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/5,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
+    for (int i = 0; i < 10; ++i) {
+        policy.OnDisconnected(/*in_setup_mode=*/false);
+    }
+
+    EXPECT_EQ(policy.RetryDelayMs(/*recovery_ap_up=*/false, /*ap_clients=*/0), 500);
+    EXPECT_EQ(policy.RetryDelayMs(/*recovery_ap_up=*/false, /*ap_clients=*/2), 500);
+}
+
+TEST(WifiReconnectPolicyTest, SlowsRetriesOnceTheRecoveryAccessPointIsUp) {
+    homedeck::WifiReconnectPolicy policy(2, 5, 500, 30000);
+    for (int i = 0; i < 5; ++i) {
+        policy.OnDisconnected(false);
+    }
+
+    EXPECT_EQ(policy.RetryDelayMs(/*recovery_ap_up=*/true, /*ap_clients=*/0), 30000);
+}
+
+TEST(WifiReconnectPolicyTest, HoldsRetriesWhileAClientIsJoinedToTheRecoveryAccessPoint) {
+    homedeck::WifiReconnectPolicy policy(2, 5, 500, 30000);
+    for (int i = 0; i < 5; ++i) {
+        policy.OnDisconnected(false);
+    }
+
+    EXPECT_EQ(policy.RetryDelayMs(true, /*ap_clients=*/1), std::nullopt);
+    EXPECT_EQ(policy.RetryDelayMs(true, /*ap_clients=*/0), 30000);
+}
+
+TEST(WifiReconnectPolicyTest, FreshCredentialsGetQuickAttemptsEvenWithTheRecoveryAccessPointUp) {
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, 5, 500, 30000);
+    for (int i = 0; i < 5; ++i) {
+        policy.OnDisconnected(false);
+    }
+    policy.ResetAttempts();
+
+    // The person who submitted them is still joined to the access point.
+    EXPECT_EQ(policy.RetryDelayMs(true, /*ap_clients=*/1), 500);
+    policy.OnDisconnected(false);
+    policy.OnDisconnected(false);
+    EXPECT_EQ(policy.RetryDelayMs(true, 1), 500);
+    policy.OnDisconnected(false);
+    EXPECT_EQ(policy.RetryDelayMs(true, 1), std::nullopt);
+}
