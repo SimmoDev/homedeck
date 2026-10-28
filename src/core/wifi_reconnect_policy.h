@@ -14,8 +14,8 @@ class WifiReconnectPolicy {
 public:
     enum class Decision { kRetry, kGiveUp };
 
-    WifiReconnectPolicy(int max_setup_attempts, int normal_mode_recovery_attempts, int retry_delay_ms = 500,
-                        int recovery_ap_retry_delay_ms = 30000)
+    WifiReconnectPolicy(int max_setup_attempts, int normal_mode_recovery_attempts, int retry_delay_ms,
+                        int recovery_ap_retry_delay_ms)
         : max_setup_attempts_(max_setup_attempts),
           normal_mode_recovery_attempts_(normal_mode_recovery_attempts),
           retry_delay_ms_(retry_delay_ms),

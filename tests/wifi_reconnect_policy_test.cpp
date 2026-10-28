@@ -3,7 +3,8 @@
 #include <gtest/gtest.h>
 
 TEST(WifiReconnectPolicyTest, RetriesInSetupModeUntilTheCapIsReached) {
-    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/3, /*normal_mode_recovery_attempts=*/100);
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/3, /*normal_mode_recovery_attempts=*/100,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
 
     EXPECT_EQ(policy.OnDisconnected(/*in_setup_mode=*/true), homedeck::WifiReconnectPolicy::Decision::kRetry);
     EXPECT_EQ(policy.OnDisconnected(/*in_setup_mode=*/true), homedeck::WifiReconnectPolicy::Decision::kRetry);
@@ -13,7 +14,8 @@ TEST(WifiReconnectPolicyTest, RetriesInSetupModeUntilTheCapIsReached) {
 }
 
 TEST(WifiReconnectPolicyTest, GivingUpDoesNotIncrementFurther) {
-    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/1, /*normal_mode_recovery_attempts=*/100);
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/1, /*normal_mode_recovery_attempts=*/100,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
 
     EXPECT_EQ(policy.OnDisconnected(true), homedeck::WifiReconnectPolicy::Decision::kRetry);
     EXPECT_EQ(policy.OnDisconnected(true), homedeck::WifiReconnectPolicy::Decision::kGiveUp);
@@ -27,7 +29,8 @@ TEST(WifiReconnectPolicyTest, OutsideSetupModeRetriesIndefinitelyPastTheCap) {
     // into setup mode would be worse than retrying forever. It gets a
     // recovery access point instead - see the ShouldOfferRecovery tests
     // below - without this ever returning kGiveUp.
-    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/100);
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/100,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
 
     for (int i = 0; i < 150; ++i) {
         EXPECT_EQ(policy.OnDisconnected(/*in_setup_mode=*/false), homedeck::WifiReconnectPolicy::Decision::kRetry);
@@ -36,7 +39,8 @@ TEST(WifiReconnectPolicyTest, OutsideSetupModeRetriesIndefinitelyPastTheCap) {
 }
 
 TEST(WifiReconnectPolicyTest, ResetAttemptsGivesAFreshSubmissionItsOwnFullCap) {
-    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/1, /*normal_mode_recovery_attempts=*/100);
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/1, /*normal_mode_recovery_attempts=*/100,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
 
     EXPECT_EQ(policy.OnDisconnected(true), homedeck::WifiReconnectPolicy::Decision::kRetry);
     EXPECT_EQ(policy.OnDisconnected(true), homedeck::WifiReconnectPolicy::Decision::kGiveUp);
@@ -52,7 +56,8 @@ TEST(WifiReconnectPolicyTest, SwitchingIntoSetupModeAppliesTheCapToAttemptsAlrea
     // during a normal post-setup stretch) still counts toward the cap
     // the moment setup mode applies - attempts_ is one running counter,
     // not two separate ones per mode.
-    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/100);
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/100,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
 
     EXPECT_EQ(policy.OnDisconnected(/*in_setup_mode=*/false), homedeck::WifiReconnectPolicy::Decision::kRetry);
     EXPECT_EQ(policy.OnDisconnected(/*in_setup_mode=*/false), homedeck::WifiReconnectPolicy::Decision::kRetry);
@@ -60,7 +65,8 @@ TEST(WifiReconnectPolicyTest, SwitchingIntoSetupModeAppliesTheCapToAttemptsAlrea
 }
 
 TEST(WifiReconnectPolicyTest, OffersRecoveryExactlyOnceWhenTheNormalModeThresholdIsCrossed) {
-    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/3);
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/3,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
 
     for (int i = 0; i < 2; ++i) {
         policy.OnDisconnected(/*in_setup_mode=*/false);
@@ -80,7 +86,8 @@ TEST(WifiReconnectPolicyTest, NeverOffersRecoveryWhileInSetupMode) {
     // The initial no-stored-credentials setup flow already has its own
     // access point and form up; ShouldOfferRecovery exists for the
     // separate normal-mode case, where nothing is up yet.
-    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/100, /*normal_mode_recovery_attempts=*/3);
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/100, /*normal_mode_recovery_attempts=*/3,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
 
     for (int i = 0; i < 5; ++i) {
         policy.OnDisconnected(/*in_setup_mode=*/true);
@@ -94,7 +101,8 @@ TEST(WifiReconnectPolicyTest, ResetAttemptsAllowsRecoveryToBeOfferedAgainAfterAL
     // same as a fresh credential submission does) and later disconnects
     // for a second, separate long outage should get offered recovery
     // again, not just once per the device's entire uptime.
-    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/2);
+    homedeck::WifiReconnectPolicy policy(/*max_setup_attempts=*/2, /*normal_mode_recovery_attempts=*/2,
+                                         /*retry_delay_ms=*/500, /*recovery_ap_retry_delay_ms=*/30000);
 
     policy.OnDisconnected(/*in_setup_mode=*/false);
     policy.OnDisconnected(/*in_setup_mode=*/false);
