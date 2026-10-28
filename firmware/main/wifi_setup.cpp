@@ -503,13 +503,16 @@ void StartRecoveryAccessPoint() {
         return;
     }
 
-    // kRecoveryHttpPort's failure path here degrades the same way every
-    // other call in this function already does - the AP itself is already
-    // up (Wi-Fi-adjacent recovery still works, e.g. a Touch UI resubmission
-    // if it's ever reachable another way), just without this particular
-    // HTTP form; the plain reconnect timer keeps running regardless.
+    // Without its form the access point offers nothing, and only a running
+    // setup_server makes the reconnect timer slow down for it, so it is
+    // dropped again rather than left up to be knocked off the air by
+    // back-to-back scans.
     if (StartSetupHttpServer(kRecoveryHttpPort, kRecoveryHttpCtrlPort) != ESP_OK) {
-        ESP_LOGW(kTag, "StartRecoveryAccessPoint: failed to start the recovery HTTP server");
+        ESP_LOGW(kTag,
+                 "StartRecoveryAccessPoint: failed to start the recovery HTTP server - dropping the access point");
+        if (esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK) {
+            ESP_LOGW(kTag, "StartRecoveryAccessPoint: failed to drop out of AP+STA mode - staying in AP+STA");
+        }
         return;
     }
 
