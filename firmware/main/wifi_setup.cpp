@@ -736,11 +736,6 @@ bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     std::snprintf(reinterpret_cast<char*>(sta_config.sta.ssid), sizeof(sta_config.sta.ssid), "%s", ssid.c_str());
     std::snprintf(reinterpret_cast<char*>(sta_config.sta.password), sizeof(sta_config.sta.password), "%s",
                   password.c_str());
-    {
-        std::lock_guard<std::mutex> lock(g_state_mutex);
-        g_state.pending_ssid = ssid;
-        g_state.reconnect_policy.ResetAttempts();
-    }
     ESP_LOGI(kTag, "Applying credentials, SSID: %s", sta_config.sta.ssid);
     // esp_wifi_set_config()/esp_wifi_connect() are RPC calls proxied to
     // the C6 co-processor over SDIO (see hardware.md#wireless for the
@@ -752,6 +747,13 @@ bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     if (config_err != ESP_OK) {
         ESP_LOGW(kTag, "esp_wifi_set_config (on credential submission) failed: %s", esp_err_to_name(config_err));
         return false;
+    }
+    // Only after set_config succeeds: on failure the previous configuration
+    // stays active, so its SSID and attempt count must stay too.
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        g_state.pending_ssid = ssid;
+        g_state.reconnect_policy.ResetAttempts();
     }
     // Connecting immediately below supersedes any retry a previous
     // disconnect already scheduled.
