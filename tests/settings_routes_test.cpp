@@ -126,6 +126,22 @@ TEST_F(SettingsRoutesTest, PostSettingsRejectsMissingFields) {
     EXPECT_NE(missing_key.body.find(R"("field":"key")"), std::string::npos);
 }
 
+TEST_F(SettingsRoutesTest, PostSettingsRejectsAnOutOfRangeSchemaVersion) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    for (const char* version : {"4294967296", "-1"}) {
+        std::string body =
+            std::string(R"({"module":"harmony","key":"hub_ip","value":"x","schemaVersion":)") + version + "}";
+        auto response = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings", body, cookie);
+        EXPECT_EQ(response.status_code, 400) << version;
+        EXPECT_NE(response.body.find(R"("field":"schemaVersion")"), std::string::npos) << version;
+    }
+}
+
 TEST_F(SettingsRoutesTest, PostSettingsRejectsOversizedModuleOrKey) {
     homedeck::HostHttpServer server;
     homedeck::RegisterAdminAuthRoutes(server, *auth_);
@@ -276,11 +292,12 @@ TEST_F(SettingsRoutesTest, RestoreCountsMalformedEntriesAsSkipped) {
         R"({"module":"weather","key":"latitude","value":"51.5"},)"
         R"({"module":"weather","key":"longitude","value":"-0.1","schemaVersion":"1"},)"
         R"({"module":"weather","key":"altitude","value":"9","schemaVersion":4294967296},)"
+        R"({"module":"weather","key":"depth","value":"9","schemaVersion":-1},)"
         R"({"module":"weather","key":"units","value":"c","schemaVersion":1}]})",
         cookie);
     EXPECT_EQ(restore.status_code, 200);
     EXPECT_NE(restore.body.find(R"("applied":1)"), std::string::npos);
-    EXPECT_NE(restore.body.find(R"("skipped":4)"), std::string::npos);
+    EXPECT_NE(restore.body.find(R"("skipped":5)"), std::string::npos);
 }
 
 TEST_F(SettingsRoutesTest, RestoreReportsAnOversizedValueAndAFailedWriteAsFailed) {

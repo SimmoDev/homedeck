@@ -32,6 +32,12 @@ bool InvalidKey(const std::string& module_id, const std::string& key) {
     return !IsValidStoreSegment(module_id) || !IsValidStoreSegment(key);
 }
 
+// schemaVersion is stored as an int; a wider JSON integer would truncate
+// silently on conversion.
+bool IsValidSchemaVersion(const nlohmann::json& value) {
+    return value.is_number_integer() && value >= 0 && value <= INT_MAX;
+}
+
 nlohmann::json EntryToJson(const SettingEntry& entry) {
     return {
         {"module", entry.module_id},
@@ -81,7 +87,7 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
             if (value_it == parsed.end() || !value_it->is_string()) {
                 return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"value"})", {}};
             }
-            if (schema_it == parsed.end() || !schema_it->is_number_integer()) {
+            if (schema_it == parsed.end() || !IsValidSchemaVersion(*schema_it)) {
                 return HttpResponse{
                     400, "application/json", R"({"error":"missing_field","field":"schemaVersion"})", {}};
             }
@@ -190,8 +196,7 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 auto schema_it = entry.find("schemaVersion");
                 if (module_it == entry.end() || !module_it->is_string() || key_it == entry.end() ||
                     !key_it->is_string() || value_it == entry.end() || !value_it->is_string() ||
-                    schema_it == entry.end() || !schema_it->is_number_integer() || *schema_it < 0 ||
-                    *schema_it > INT_MAX) {
+                    schema_it == entry.end() || !IsValidSchemaVersion(*schema_it)) {
                     ++skipped;
                     continue;
                 }
