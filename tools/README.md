@@ -33,6 +33,34 @@ read that first if a script here does something unexpected.
 
 All of these target the K145 reference unit.
 
+## Device smoke test
+
+`device-smoke-test/smoke_test.py` checks a flashed Tab5 through the Web UI
+API and exits non-zero if any check fails. Needs Python 3 and the device on
+the LAN; the admin password goes in `HOMEDECK_PASSWORD`, and
+`HOMEDECK_HOST` overrides `homedeck.local`.
+
+```sh
+HOMEDECK_PASSWORD=... tools/device-smoke-test/smoke_test.py [--reboot]
+```
+
+It checks that:
+
+- Protected endpoints refuse an unauthenticated request and login works.
+- The previous boot ended cleanly and internal RAM has headroom
+  (`--min-internal-low-water`, default 8192 bytes).
+- Harmony and Kodi are connected, when a target is configured
+  (`--wait` seconds, default 60).
+- Settings write, read back, reject an out-of-range `schemaVersion` and a
+  reserved key, appear in the backup and are erased; a restore of malformed
+  and reserved entries changes nothing.
+
+`--reboot` also restarts the device through the Web UI and repeats the
+diagnostics and connection checks, expecting a `software` reset reason. It
+does not send a wrong password, because the login lockout is device-wide.
+Touch UI behaviour, sleep/wake and the recovery access point are outside what
+the API can reach and stay manual.
+
 ## Kodi on-hardware checks
 
 `kodi-hardware-test/` supports the Kodi part of a Tab5 verification pass
