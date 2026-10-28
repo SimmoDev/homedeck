@@ -19,9 +19,9 @@ import urllib.error
 import urllib.request
 
 HOST = os.environ.get("HOMEDECK_HOST", "homedeck.local")
-# Resets that mean the previous boot did not end cleanly; software, power-on, external-pin and
-# deep-sleep-wake are the expected ones.
-CLEAN_RESETS = {"software", "power-on", "external-pin", "deep-sleep-wake"}
+# Resets that mean the previous boot did not end cleanly are everything outside this set. usb and
+# jtag are the host resetting the chip, which flashing and debugging do on purpose.
+CLEAN_RESETS = {"software", "power-on", "external-pin", "deep-sleep-wake", "usb", "jtag"}
 PROBE_MODULE = "smoketest"
 PROBE_KEY = "probe"
 
