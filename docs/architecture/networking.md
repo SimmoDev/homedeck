@@ -62,7 +62,8 @@ good (moved house, router replaced) does not strand it. The retries continue
 alongside, but every attempt scans all channels and takes the radio off the
 access point's channel, which would leave it barely visible and drop a joined
 client. So they slow to one every 30 seconds while the access point is up and
-pause while any client is joined to it. Credentials just submitted get the
+pause while any client is joined to it, however idle, so the device stays
+off its stored network until the last client leaves. Credentials just submitted get the
 first few attempts at the normal pace. Because that access point is open and
 unauthenticated, a form submission there does not change the stored
 credentials. It becomes the one pending request, `WifiSetupScreen` shows the requested network name with
