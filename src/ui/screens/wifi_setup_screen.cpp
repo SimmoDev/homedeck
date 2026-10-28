@@ -7,6 +7,12 @@
 
 namespace homedeck {
 
+namespace {
+constexpr const char* kApplyFailedMessage =
+    "Could not apply the Wi-Fi settings: the network name (SSID) is required, both fields must be within Wi-Fi's "
+    "length limits, and the Wi-Fi co-processor must respond.";
+}  // namespace
+
 WifiSetupScreen::WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                                   SubmitCallback on_submit, DecisionCallback on_decision)
     : root_(lv_obj_create(nullptr)),
@@ -145,8 +151,8 @@ void WifiSetupScreen::Decide(bool allow) {
     }
     const uint32_t request_id = pending_request_id_;
     ClearPendingRequest();
-    if (on_decision_) {
-        on_decision_(request_id, allow);
+    if (on_decision_ && !on_decision_(request_id, allow)) {
+        SetConnectError(kApplyFailedMessage);
     }
 }
 
@@ -172,7 +178,7 @@ void WifiSetupScreen::OnConnectClicked(lv_event_t* e) {
     bool accepted =
         self->on_submit_(lv_textarea_get_text(self->ssid_field_), lv_textarea_get_text(self->password_field_));
     if (!accepted) {
-        self->SetConnectError("Network name (SSID) is required, and both fields must be within Wi-Fi's length limits.");
+        self->SetConnectError(kApplyFailedMessage);
     }
 }
 

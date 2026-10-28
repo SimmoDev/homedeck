@@ -109,10 +109,16 @@ void ConnectToWifi(const WifiUiCallbacks& ui_callbacks = {});
 bool ApplyWifiCredentials(const std::string& ssid, const std::string& password);
 
 // Applies the recovery form's pending request when `request_id` is still the
-// current one (see WifiUiCallbacks::on_credentials_pending). False if the
-// request was replaced, rejected or cleared in the meantime - the newer
-// request, if any, has its own pending notification.
-bool ApproveRecoveryCredentials(uint32_t request_id);
+// current one (see WifiUiCallbacks::on_credentials_pending).
+enum class RecoveryApproval {
+    kApplied,
+    // The request was replaced, rejected or cleared in the meantime - the
+    // newer request, if any, has its own pending notification.
+    kNoLongerPending,
+    // ApplyWifiCredentials() failed; the previous configuration stays active.
+    kApplyFailed,
+};
+RecoveryApproval ApproveRecoveryCredentials(uint32_t request_id);
 
 // Discards the recovery form's pending request.
 void RejectRecoveryCredentials();

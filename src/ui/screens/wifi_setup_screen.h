@@ -37,8 +37,9 @@ public:
     // worked.
     using SubmitCallback = std::function<bool(const std::string& ssid, const std::string& password)>;
     // The answer to a request shown by ShowPendingRequest(): `request_id` is
-    // the id it was shown with, `allow` is false for Deny.
-    using DecisionCallback = std::function<void(uint32_t request_id, bool allow)>;
+    // the id it was shown with, `allow` is false for Deny. Returns false when
+    // allowing failed to apply the network, which Decide() then shows.
+    using DecisionCallback = std::function<bool(uint32_t request_id, bool allow)>;
 
     WifiSetupScreen(EventBus& event_bus, BatteryReader& battery_reader, NetworkStatus& network_status,
                      SubmitCallback on_submit, DecisionCallback on_decision);

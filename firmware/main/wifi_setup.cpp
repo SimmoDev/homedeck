@@ -765,12 +765,13 @@ bool ApplyWifiCredentials(const std::string& ssid, const std::string& password) 
     return true;
 }
 
-bool ApproveRecoveryCredentials(uint32_t request_id) {
+RecoveryApproval ApproveRecoveryCredentials(uint32_t request_id) {
     const std::optional<WifiCredentials> credentials = g_state.pending_credentials.Take(request_id);
     if (!credentials.has_value()) {
-        return false;
+        return RecoveryApproval::kNoLongerPending;
     }
-    return ApplyWifiCredentials(credentials->ssid, credentials->password);
+    return ApplyWifiCredentials(credentials->ssid, credentials->password) ? RecoveryApproval::kApplied
+                                                                          : RecoveryApproval::kApplyFailed;
 }
 
 void RejectRecoveryCredentials() { g_state.pending_credentials.Clear(); }

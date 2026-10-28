@@ -632,14 +632,15 @@ extern "C" void app_main(void) {
                     return homedeck::ApplyWifiCredentials(ssid, password);
                 },
             .wifi_pending_decision =
-                [](uint32_t request_id, bool allow) {
-                    // A false return means the request was replaced after it
-                    // was shown; the replacement has its own prompt.
-                    if (allow) {
-                        homedeck::ApproveRecoveryCredentials(request_id);
-                    } else {
+                [](uint32_t request_id, bool allow) -> bool {
+                    // A replaced request needs no report: the replacement has
+                    // its own prompt. Only a failed apply is reported back.
+                    if (!allow) {
                         homedeck::RejectRecoveryCredentials();
+                        return true;
                     }
+                    return homedeck::ApproveRecoveryCredentials(request_id) !=
+                           homedeck::RecoveryApproval::kApplyFailed;
                 },
             .wifi_reset =
                 [ap_ssid = wifi_check.ap_ssid]() -> std::optional<std::string> {

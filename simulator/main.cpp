@@ -179,6 +179,7 @@ int main() {
                 [](uint32_t request_id, bool allow) {
                     std::printf("Wi-Fi change request %u %s (no-op in simulator)\n", static_cast<unsigned>(request_id),
                                 allow ? "allowed" : "denied");
+                    return true;
                 },
             .wifi_reset =
                 []() -> std::optional<std::string> {
