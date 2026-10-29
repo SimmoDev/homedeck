@@ -45,4 +45,5 @@ jobs:
       - name: Build via ESP-IDF Docker image
         run: |
           docker run --rm -v "$(pwd):/project" -w /project/firmware \
-            espressif/idf:v5.4.3 idf.py set-target esp32p4 build
+            espressif/idf:v5.4.3 idf.py -DPROJECT_VER="$(git describe --tags --always --dirty)" \
+            set-target esp32p4 build

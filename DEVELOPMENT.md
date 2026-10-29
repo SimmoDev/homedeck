@@ -153,7 +153,8 @@ do and why, worth reading at least once.
 3. From the repository root:
    ```sh
    docker run --rm -v "$(pwd):/project" -w /project/firmware \
-     espressif/idf:v5.4.3 idf.py set-target esp32p4 build
+     espressif/idf:v5.4.3 idf.py -DPROJECT_VER="$(git describe --tags --always --dirty)" \
+     set-target esp32p4 build
    docker run --rm -v "$(pwd):/project" \
      espressif/idf:v5.4.3 chown -R "$(id -u):$(id -g)" /project/firmware
    ```
@@ -164,8 +165,11 @@ do and why, worth reading at least once.
    own behavior (where `build/`, `sdkconfig`, etc. end up) unchanged
    despite the wider mount. Mounting the repo root does surface a cosmetic
    git ownership warning ("detected dubious ownership") during configure —
-   harmless, it only means `PROJECT_VER` can't be derived from `git
-   describe` inside this container, regardless of mount width.
+   harmless, but it means `PROJECT_VER` can't be derived from `git
+   describe` inside this container, regardless of mount width. The build
+   therefore takes the version from `-DPROJECT_VER`, computed on the host;
+   without it the image reports version `1`, which the Web UI shows as the
+   running version. `tools/flash.sh` passes it.
 
    **Two steps, not one:** the build runs as root inside the container —
    root always has a valid, writable `$HOME`, so ccache, git, and
