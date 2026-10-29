@@ -48,7 +48,7 @@ It checks that:
 
 - Protected endpoints refuse an unauthenticated request and login works.
 - The previous boot ended cleanly and internal RAM has headroom
-  (`--min-internal-low-water`, default 8192 bytes).
+  (`--min-internal-low-water`, default 51200 bytes).
 - Harmony and Kodi are connected, when a target is configured
   (`--wait` seconds, default 60).
 - Settings write, read back, reject an out-of-range `schemaVersion` and a

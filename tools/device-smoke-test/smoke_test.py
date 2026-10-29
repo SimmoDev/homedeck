@@ -191,8 +191,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--reboot", action="store_true", help="also restart the device and re-check")
     parser.add_argument("--wait", type=int, default=60, help="seconds to wait for module connections (default 60)")
-    parser.add_argument("--min-internal-low-water", type=int, default=8192,
-                        help="fail below this internal RAM low-water mark in bytes (default 8192)")
+    parser.add_argument("--min-internal-low-water", type=int, default=51200,
+                        help="fail below this internal RAM low-water mark in bytes (default 51200)")
     args = parser.parse_args()
     if "HOMEDECK_PASSWORD" not in os.environ:
         sys.exit("Set HOMEDECK_PASSWORD to the Web UI admin password.")
