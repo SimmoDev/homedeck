@@ -47,6 +47,8 @@ HOMEDECK_PASSWORD=... tools/device-smoke-test/smoke_test.py [--reboot]
 It checks that:
 
 - Protected endpoints refuse an unauthenticated request and login works.
+- The running firmware version is a `git describe` string, not the `1`
+  that a build without `PROJECT_VER` reports.
 - The previous boot ended cleanly and internal RAM has headroom
   (`--min-internal-low-water`, default 51200 bytes).
 - Harmony and Kodi are connected, when a target is configured

@@ -110,8 +110,9 @@ def check_diagnostics(min_low_water):
           f"{low_water} bytes, minimum {min_low_water}")
     check("battery present", body.get("batteryPresent") is True)
     status, ota = call("/api/ota/status")
-    check("GET /api/ota/status reports a running version", status == 200 and bool(ota and ota.get("runningVersion")),
-          (ota or {}).get("runningVersion", ""))
+    version = (ota or {}).get("runningVersion", "")
+    # "1" is what ESP-IDF reports when the build was not given a git version.
+    check("GET /api/ota/status reports a git version", status == 200 and version not in ("", "1", "unknown"), version)
     status, logs = call("/api/diagnostics/logs", raw=True)
     check("GET /api/diagnostics/logs", status == 200 and len(logs) > 0, f"{len(logs)} bytes")
 
