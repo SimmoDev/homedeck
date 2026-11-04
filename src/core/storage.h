@@ -35,8 +35,8 @@ struct SettingEntry {
     std::string value;
 };
 
-// Fulfils both of core.md's named-but-unimplemented "Configuration" and
-// "Storage" responsibilities: reading/writing settings, backed by the
+// Core's "Configuration" and "Storage" responsibilities (see core.md):
+// reading/writing settings, backed by the
 // three-tier physical split from ADR-0012
 // (docs/decisions/ADR-0012-storage-tiers.md). Three stores are wired up
 // here - NVS-backed Settings and Secrets (small, frequently-read; kept
