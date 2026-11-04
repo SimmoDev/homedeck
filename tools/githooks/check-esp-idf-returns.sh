@@ -13,7 +13,7 @@ status=0
 # is the only way to call them. Filtered out of all three passes below so
 # they don't produce a finding no one can action. Extend as new ones turn
 # up; keep it to functions declared void/noreturn in ESP-IDF.
-void_returning='(esp_restart|esp_chip_info|esp_deep_sleep_start|esp_system_abort|mdns_query_results_free|mdns_free)\('
+void_returning='(esp_restart|esp_chip_info|esp_deep_sleep_start|esp_system_abort|esp_rom_software_reset_system|mdns_query_results_free|mdns_free)\('
 
 for f in "$@"; do
     [ -f "$f" ] || continue
