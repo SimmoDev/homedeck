@@ -465,22 +465,15 @@ void StartSetupAccessPoint() {
 // would fail outright (two live listeners can't share one port).
 //
 // Unlike StartSetupAccessPoint(), Wi-Fi is already running in STA mode
-// here (mid reconnect-retry loop) - esp_wifi_start() can't be called
-// again without first stopping the driver (ESP-IDF returns
-// ESP_ERR_WIFI_STATE for a second start while already started).
-// Stop-then-reconfigure-then-start is the conservative, well-established
-// sequence for adding AP mode to an already-running STA session,
-// regardless of whether a live mode switch without stopping first would
-// also work - not verified against real Tab5 hardware,
-// unlike the rest of this file's Wi-Fi behavior (see hardware.md's own
-// "Confirmed" vs. not-yet-confirmed convention for why that distinction
-// matters here). Every esp_wifi_*() call below is checked explicitly
-// rather than via ESP_ERROR_CHECK for the same reason: this path only
-// runs after the device already connected once, so an unexpected failure
-// here should degrade to "still retrying STA in the background, no
-// recovery access point this attempt" rather than crash a device that
-// was otherwise working - the plain reconnect timer keeps running
-// regardless of whether this succeeds.
+// here (mid reconnect-retry loop), and esp_wifi_start() returns
+// ESP_ERR_WIFI_STATE for a second start while the driver is running, so
+// the driver is stopped, reconfigured for AP+STA and started again.
+// Every esp_wifi_*() call below is checked explicitly rather than via
+// ESP_ERROR_CHECK: this path only runs after the device already connected
+// once, so an unexpected failure should degrade to "still retrying STA in
+// the background, no recovery access point this attempt" rather than crash
+// a device that was otherwise working. The plain reconnect timer keeps
+// running regardless of whether this succeeds.
 void StartRecoveryAccessPoint() {
     char ap_ssid[kApSsidBufferSize];
     GetApSsid(ap_ssid, sizeof(ap_ssid));
