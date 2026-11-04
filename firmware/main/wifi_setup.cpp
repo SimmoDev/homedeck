@@ -628,7 +628,11 @@ void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* eve
                     break;
                 }
                 ESP_LOGI(kTag, "Disconnected, retrying in %dms...", *retry_delay_ms);
-                ESP_ERROR_CHECK(esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(*retry_delay_ms) * 1000));
+                esp_err_t timer_err =
+                    esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(*retry_delay_ms) * 1000);
+                if (timer_err != ESP_OK) {
+                    ESP_LOGW(kTag, "Failed to schedule the reconnect retry: %s", esp_err_to_name(timer_err));
+                }
                 break;
             }
             case WIFI_EVENT_AP_STACONNECTED: {
