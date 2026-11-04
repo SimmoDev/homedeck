@@ -10,9 +10,8 @@ namespace homedeck {
 
 namespace {
 
-// Provisional placeholders, not measured against real hardware - see
-// docs/architecture/power-management.md's "every timing/threshold
-// number in this document is a provisional placeholder" note.
+// Provisional starting points, not measured against real hardware - see
+// docs/architecture/power-management.md's "Known gap" note.
 constexpr uint32_t kIdleTimeoutMs = 30000;
 // Cumulative inactivity, the same counter kIdleTimeoutMs above gates -
 // built as an additional delay past the Idle threshold (not a bare
@@ -20,7 +19,7 @@ constexpr uint32_t kIdleTimeoutMs = 30000;
 // how long total inactivity before Sleeping takes too.
 constexpr uint32_t kSleepTimeoutMs = kIdleTimeoutMs + 90000;
 constexpr int kDimBrightnessPercent = 20;
-// Not a placeholder like the two timeouts/kDimBrightnessPercent above -
+// Not a provisional value like the two timeouts/kDimBrightnessPercent above -
 // 0% (backlight fully off) is definitionally what Sleeping means, not a
 // value to be tuned against hardware measurements.
 constexpr int kSleepBrightnessPercent = 0;
