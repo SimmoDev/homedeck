@@ -58,7 +58,9 @@ It checks that:
   and reserved entries changes nothing.
 
 `--reboot` also restarts the device through the Web UI and repeats the
-diagnostics and connection checks, expecting a `software` reset reason. It
+diagnostics and connection checks, expecting a `software` reset reason
+(about one restart in 500 is reported as `other-watchdog` instead, see
+[diagnostics.md](../docs/architecture/diagnostics.md), and fails that check). It
 does not send a wrong password, because the login lockout is device-wide.
 Touch UI behaviour, sleep/wake and the recovery access point are outside what
 the API can reach and stay manual.
