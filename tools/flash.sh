@@ -17,6 +17,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="$(git -C "$REPO_ROOT" describe --tags --always --dirty)"
 
 docker run --rm -v "$REPO_ROOT:/project" -w /project/firmware \
+  -e IDF_COMPONENT_CHECK_NEW_VERSION=0 \
   --device="$PORT" \
   "$IDF_IMAGE" idf.py -p "$PORT" -DPROJECT_VER="$VERSION" set-target esp32p4 build flash
 

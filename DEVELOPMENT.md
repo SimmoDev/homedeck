@@ -153,6 +153,7 @@ do and why, worth reading at least once.
 3. From the repository root:
    ```sh
    docker run --rm -v "$(pwd):/project" -w /project/firmware \
+     -e IDF_COMPONENT_CHECK_NEW_VERSION=0 \
      espressif/idf:v5.4.3 idf.py -DPROJECT_VER="$(git describe --tags --always --dirty)" \
      set-target esp32p4 build
    docker run --rm -v "$(pwd):/project" \
@@ -170,6 +171,12 @@ do and why, worth reading at least once.
    therefore takes the version from `-DPROJECT_VER`, computed on the host;
    without it the image reports version `1`, which the Web UI shows as the
    running version. `tools/flash.sh` passes it.
+
+   `IDF_COMPONENT_CHECK_NEW_VERSION=0` stops the component manager from
+   looking up newer registry releases of the locked components. With the
+   check on, a clean configure fails with "Missing required kconfig option
+   after retry" because dependency rules of the newer `esp_hosted` release
+   reference Kconfig variables that no installed component defines.
 
    **Two steps, not one:** the build runs as root inside the container —
    root always has a valid, writable `$HOME`, so ccache, git, and
