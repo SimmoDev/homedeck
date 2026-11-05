@@ -33,7 +33,8 @@ milestone order, not opportunistically.
 4. Open a PR against `main` and complete the test-plan checklist in the
    PR template.
 
-`main` requires the three CI checks (simulator, firmware, unit tests)
+`main` requires six CI checks (simulator, firmware, unit tests, the
+AddressSanitizer and ThreadSanitizer test runs, and the secret scan)
 passing and one approving review before a PR merges; branches are
 squash-merged and deleted automatically after.
 
