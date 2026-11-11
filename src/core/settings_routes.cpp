@@ -55,191 +55,222 @@ nlohmann::json AllSettingsJson(Storage& storage) {
     return entries;
 }
 
+HttpResponse JsonError(int status, const char* body) {
+    return HttpResponse{status, "application/json", body, {}};
+}
+
+HttpResponse HandleSetSetting(Storage& storage, const HttpRequest& request,
+                              const DeviceNameValidateFn& on_device_name_validate,
+                              const DeviceNameCommittedFn& on_device_name_committed,
+                              const SettingValidateFn& on_setting_validate) {
+    auto parsed_opt = TryParseJsonObject(request.body);
+    if (!parsed_opt.has_value()) {
+        return JsonError(400, R"({"error":"invalid_request"})");
+    }
+    nlohmann::json& parsed = *parsed_opt;
+    auto module_it = parsed.find("module");
+    auto key_it = parsed.find("key");
+    auto value_it = parsed.find("value");
+    auto schema_it = parsed.find("schemaVersion");
+    if (module_it == parsed.end() || !module_it->is_string()) {
+        return JsonError(400, R"({"error":"missing_field","field":"module"})");
+    }
+    if (key_it == parsed.end() || !key_it->is_string()) {
+        return JsonError(400, R"({"error":"missing_field","field":"key"})");
+    }
+    if (value_it == parsed.end() || !value_it->is_string()) {
+        return JsonError(400, R"({"error":"missing_field","field":"value"})");
+    }
+    if (schema_it == parsed.end() || !IsValidSchemaVersion(*schema_it)) {
+        return JsonError(400, R"({"error":"missing_field","field":"schemaVersion"})");
+    }
+    std::string module = module_it->get<std::string>();
+    std::string key = key_it->get<std::string>();
+    std::string value = value_it->get<std::string>();
+    if (InvalidKey(module, key)) {
+        return JsonError(400, R"({"error":"invalid_key"})");
+    }
+    if (value.size() > kMaxSettingValueLength) {
+        return JsonError(400, R"({"error":"value_too_long"})");
+    }
+    if (AdminAuthService::IsReservedSettingsKey(module, key)) {
+        return JsonError(403, R"({"error":"reserved_key"})");
+    }
+    if (on_setting_validate && !on_setting_validate(module, key, value)) {
+        return JsonError(400, R"({"error":"invalid_value"})");
+    }
+    bool is_device_name = module == AdminAuthService::kModuleId && key == kDeviceNameKey;
+    if (is_device_name && on_device_name_validate && !on_device_name_validate(value)) {
+        return JsonError(400, R"({"error":"invalid_value"})");
+    }
+    if (!storage.SetSetting(module, key, schema_it->get<int>(), value)) {
+        return JsonError(500, R"({"error":"write_failed"})");
+    }
+    // Only applied once the value above is persisted - see
+    // DeviceNameCommittedFn's own comment for why the ordering
+    // matters.
+    if (is_device_name && on_device_name_committed) {
+        on_device_name_committed(value);
+    }
+    return JsonError(200, R"({"status":"ok"})");
+}
+
+HttpResponse HandleEraseSetting(Storage& storage, const HttpRequest& request) {
+    auto parsed_opt = TryParseJsonObject(request.body);
+    if (!parsed_opt.has_value()) {
+        return JsonError(400, R"({"error":"invalid_request"})");
+    }
+    nlohmann::json& parsed = *parsed_opt;
+    auto module_it = parsed.find("module");
+    auto key_it = parsed.find("key");
+    if (module_it == parsed.end() || !module_it->is_string() || key_it == parsed.end() || !key_it->is_string()) {
+        return JsonError(400, R"({"error":"missing_field"})");
+    }
+    std::string module = module_it->get<std::string>();
+    std::string key = key_it->get<std::string>();
+    if (InvalidKey(module, key)) {
+        return JsonError(400, R"({"error":"invalid_key"})");
+    }
+    if (AdminAuthService::IsReservedSettingsKey(module, key)) {
+        return JsonError(403, R"({"error":"reserved_key"})");
+    }
+    if (!storage.EraseSetting(module, key)) {
+        return JsonError(500, R"({"error":"erase_failed"})");
+    }
+    return JsonError(200, R"({"status":"ok"})");
+}
+
+// kSkipped: not an object, or a field missing, of the wrong type or out of
+// range. kFailed: a storage fault or a key/value too long to store.
+// kRejected: a deliberate policy refusal.
+enum class RestoreOutcome { kApplied, kSkipped, kFailed, kRejected };
+
+struct RestoreResult {
+    RestoreOutcome outcome;
+    std::string module;
+    std::string key;
+};
+
+RestoreResult RestoreEntry(Storage& storage, const nlohmann::json& entry,
+                           const DeviceNameValidateFn& on_device_name_validate,
+                           const SettingValidateFn& on_setting_validate) {
+    if (!entry.is_object()) {
+        return {RestoreOutcome::kSkipped, {}, {}};
+    }
+    auto module_it = entry.find("module");
+    auto key_it = entry.find("key");
+    auto value_it = entry.find("value");
+    auto schema_it = entry.find("schemaVersion");
+    if (module_it == entry.end() || !module_it->is_string() || key_it == entry.end() || !key_it->is_string() ||
+        value_it == entry.end() || !value_it->is_string() || schema_it == entry.end() ||
+        !IsValidSchemaVersion(*schema_it)) {
+        return {RestoreOutcome::kSkipped, {}, {}};
+    }
+    std::string module = module_it->get<std::string>();
+    std::string key = key_it->get<std::string>();
+    if (AdminAuthService::IsReservedSettingsKey(module, key)) {
+        return {RestoreOutcome::kRejected, module, key};
+    }
+    std::string value = value_it->get<std::string>();
+    if (InvalidKey(module, key) || value.size() > kMaxSettingValueLength) {
+        return {RestoreOutcome::kFailed, module, key};
+    }
+    // Same format check the direct POST /api/settings write
+    // path applies (e.g. IsValidHubHost() for Harmony's
+    // hub_host) - a restored value that fails it is a policy
+    // rejection, not a generic storage fault, the same
+    // distinction the reserved-key case above already makes.
+    if (on_setting_validate && !on_setting_validate(module, key, value)) {
+        return {RestoreOutcome::kRejected, module, key};
+    }
+    // Validated but not committed: the mDNS re-announce is not
+    // applied on restore, so the restored name takes effect at
+    // the next boot, where an invalid label would fail to apply.
+    const bool is_device_name = module == AdminAuthService::kModuleId && key == kDeviceNameKey;
+    if (is_device_name && on_device_name_validate && !on_device_name_validate(value)) {
+        return {RestoreOutcome::kRejected, module, key};
+    }
+    const bool stored = storage.SetSetting(module, key, schema_it->get<int>(), value);
+    return {stored ? RestoreOutcome::kApplied : RestoreOutcome::kFailed, module, key};
+}
+
+HttpResponse HandleBackupRestore(Storage& storage, const HttpRequest& request,
+                                 const DeviceNameValidateFn& on_device_name_validate,
+                                 const SettingValidateFn& on_setting_validate) {
+    auto parsed_opt = TryParseJsonObject(request.body);
+    if (!parsed_opt.has_value()) {
+        return JsonError(400, R"({"error":"invalid_request"})");
+    }
+    nlohmann::json& parsed = *parsed_opt;
+    auto settings_it = parsed.find("settings");
+    if (settings_it == parsed.end() || !settings_it->is_array()) {
+        return JsonError(400, R"({"error":"missing_field","field":"settings"})");
+    }
+    // Not atomic - no transaction concept exists anywhere else in
+    // this codebase either. Each entry either applies, is
+    // reported in failed/rejected, or is counted in skipped (not
+    // an object, or a field missing, of the wrong type or out of range), so a
+    // partial restore is visible rather than silently incomplete.
+    int applied = 0;
+    int skipped = 0;
+    nlohmann::json failed = nlohmann::json::array();
+    // Kept separate from failed - a reserved-key entry (e.g. a
+    // backup containing admin_pw_hash) is a deliberate security
+    // rejection, the same distinguishable case the direct
+    // POST /api/settings endpoint gives its own 403 "reserved_key"
+    // for. Without this, Storage::SetSetting's own internal guard
+    // would still block it, but it would land in failed
+    // indistinguishably from a genuine storage fault.
+    nlohmann::json rejected = nlohmann::json::array();
+    for (const auto& entry : *settings_it) {
+        RestoreResult result = RestoreEntry(storage, entry, on_device_name_validate, on_setting_validate);
+        const nlohmann::json id = {{"module", result.module}, {"key", result.key}};
+        switch (result.outcome) {
+            case RestoreOutcome::kApplied: ++applied; break;
+            case RestoreOutcome::kSkipped: ++skipped; break;
+            case RestoreOutcome::kFailed: failed.push_back(id); break;
+            case RestoreOutcome::kRejected: rejected.push_back(id); break;
+        }
+    }
+    nlohmann::json body = {
+        {"applied", applied}, {"skipped", skipped}, {"failed", std::move(failed)}, {"rejected", std::move(rejected)}};
+    return HttpResponse{200, "application/json", body.dump(), {}};
+}
+
 }  // namespace
 
 void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthService& auth,
-                             DeviceNameValidateFn on_device_name_validate,
-                             DeviceNameCommittedFn on_device_name_committed,
-                             SettingValidateFn on_setting_validate) {
+                            DeviceNameValidateFn on_device_name_validate,
+                            DeviceNameCommittedFn on_device_name_committed, SettingValidateFn on_setting_validate) {
     server.RegisterHandler(HttpMethod::kGet, "/api/settings", auth.RequireAuth([&storage](const HttpRequest&) {
-                                return HttpResponse{200, "application/json", AllSettingsJson(storage).dump(), {}};
-                            }));
+                               return HttpResponse{200, "application/json", AllSettingsJson(storage).dump(), {}};
+                           }));
 
     server.RegisterHandler(
         HttpMethod::kPost, "/api/settings",
         auth.RequireAuth([&storage, on_device_name_validate, on_device_name_committed,
-                           on_setting_validate](const HttpRequest& request) {
-            auto parsed_opt = TryParseJsonObject(request.body);
-            if (!parsed_opt.has_value()) {
-                return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
-            }
-            nlohmann::json& parsed = *parsed_opt;
-            auto module_it = parsed.find("module");
-            auto key_it = parsed.find("key");
-            auto value_it = parsed.find("value");
-            auto schema_it = parsed.find("schemaVersion");
-            if (module_it == parsed.end() || !module_it->is_string()) {
-                return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"module"})", {}};
-            }
-            if (key_it == parsed.end() || !key_it->is_string()) {
-                return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"key"})", {}};
-            }
-            if (value_it == parsed.end() || !value_it->is_string()) {
-                return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"value"})", {}};
-            }
-            if (schema_it == parsed.end() || !IsValidSchemaVersion(*schema_it)) {
-                return HttpResponse{
-                    400, "application/json", R"({"error":"missing_field","field":"schemaVersion"})", {}};
-            }
-            std::string module = module_it->get<std::string>();
-            std::string key = key_it->get<std::string>();
-            std::string value = value_it->get<std::string>();
-            if (InvalidKey(module, key)) {
-                return HttpResponse{400, "application/json", R"({"error":"invalid_key"})", {}};
-            }
-            if (value.size() > kMaxSettingValueLength) {
-                return HttpResponse{400, "application/json", R"({"error":"value_too_long"})", {}};
-            }
-            if (AdminAuthService::IsReservedSettingsKey(module, key)) {
-                return HttpResponse{403, "application/json", R"({"error":"reserved_key"})", {}};
-            }
-            if (on_setting_validate && !on_setting_validate(module, key, value)) {
-                return HttpResponse{400, "application/json", R"({"error":"invalid_value"})", {}};
-            }
-            bool is_device_name = module == AdminAuthService::kModuleId && key == kDeviceNameKey;
-            if (is_device_name && on_device_name_validate && !on_device_name_validate(value)) {
-                return HttpResponse{400, "application/json", R"({"error":"invalid_value"})", {}};
-            }
-            if (!storage.SetSetting(module, key, schema_it->get<int>(), value)) {
-                return HttpResponse{500, "application/json", R"({"error":"write_failed"})", {}};
-            }
-            // Only applied once the value above is persisted - see
-            // DeviceNameCommittedFn's own comment for why the ordering
-            // matters.
-            if (is_device_name && on_device_name_committed) {
-                on_device_name_committed(value);
-            }
-            return HttpResponse{200, "application/json", R"({"status":"ok"})", {}};
+                          on_setting_validate](const HttpRequest& request) {
+            return HandleSetSetting(storage, request, on_device_name_validate, on_device_name_committed,
+                                    on_setting_validate);
         }));
 
-    server.RegisterHandler(
-        HttpMethod::kPost, "/api/settings/erase", auth.RequireAuth([&storage](const HttpRequest& request) {
-            auto parsed_opt = TryParseJsonObject(request.body);
-            if (!parsed_opt.has_value()) {
-                return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
-            }
-            nlohmann::json& parsed = *parsed_opt;
-            auto module_it = parsed.find("module");
-            auto key_it = parsed.find("key");
-            if (module_it == parsed.end() || !module_it->is_string() || key_it == parsed.end() ||
-                !key_it->is_string()) {
-                return HttpResponse{400, "application/json", R"({"error":"missing_field"})", {}};
-            }
-            std::string module = module_it->get<std::string>();
-            std::string key = key_it->get<std::string>();
-            if (InvalidKey(module, key)) {
-                return HttpResponse{400, "application/json", R"({"error":"invalid_key"})", {}};
-            }
-            if (AdminAuthService::IsReservedSettingsKey(module, key)) {
-                return HttpResponse{403, "application/json", R"({"error":"reserved_key"})", {}};
-            }
-            if (!storage.EraseSetting(module, key)) {
-                return HttpResponse{500, "application/json", R"({"error":"erase_failed"})", {}};
-            }
-            return HttpResponse{200, "application/json", R"({"status":"ok"})", {}};
-        }));
+    server.RegisterHandler(HttpMethod::kPost, "/api/settings/erase",
+                           auth.RequireAuth([&storage](const HttpRequest& request) {
+                               return HandleEraseSetting(storage, request);
+                           }));
 
     server.RegisterHandler(HttpMethod::kGet, "/api/backup", auth.RequireAuth([&storage](const HttpRequest&) {
-                                nlohmann::json body = {{"settings", AllSettingsJson(storage)}};
-                                HttpResponse response{200, "application/json", body.dump(), {}};
-                                response.extra_headers.push_back(
-                                    {"Content-Disposition", "attachment; filename=\"homedeck-backup.json\""});
-                                return response;
-                            }));
+                               nlohmann::json body = {{"settings", AllSettingsJson(storage)}};
+                               HttpResponse response{200, "application/json", body.dump(), {}};
+                               response.extra_headers.push_back(
+                                   {"Content-Disposition", "attachment; filename=\"homedeck-backup.json\""});
+                               return response;
+                           }));
 
     server.RegisterHandler(
         HttpMethod::kPost, "/api/backup/restore",
         auth.RequireAuth([&storage, on_device_name_validate, on_setting_validate](const HttpRequest& request) {
-            auto parsed_opt = TryParseJsonObject(request.body);
-            if (!parsed_opt.has_value()) {
-                return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
-            }
-            nlohmann::json& parsed = *parsed_opt;
-            auto settings_it = parsed.find("settings");
-            if (settings_it == parsed.end() || !settings_it->is_array()) {
-                return HttpResponse{400, "application/json", R"({"error":"missing_field","field":"settings"})", {}};
-            }
-            // Not atomic - no transaction concept exists anywhere else in
-            // this codebase either. Each entry either applies, is
-            // reported in failed/rejected, or is counted in skipped (not
-            // an object, or a field missing, of the wrong type or out of range), so a
-            // partial restore is visible rather than silently incomplete.
-            int applied = 0;
-            int skipped = 0;
-            nlohmann::json failed = nlohmann::json::array();
-            // Kept separate from failed - a reserved-key entry (e.g. a
-            // backup containing admin_pw_hash) is a deliberate security
-            // rejection, the same distinguishable case the direct
-            // POST /api/settings endpoint gives its own 403 "reserved_key"
-            // for. Without this, Storage::SetSetting's own internal guard
-            // would still block it, but it would land in failed
-            // indistinguishably from a genuine storage fault.
-            nlohmann::json rejected = nlohmann::json::array();
-            for (const auto& entry : *settings_it) {
-                if (!entry.is_object()) {
-                    ++skipped;
-                    continue;
-                }
-                auto module_it = entry.find("module");
-                auto key_it = entry.find("key");
-                auto value_it = entry.find("value");
-                auto schema_it = entry.find("schemaVersion");
-                if (module_it == entry.end() || !module_it->is_string() || key_it == entry.end() ||
-                    !key_it->is_string() || value_it == entry.end() || !value_it->is_string() ||
-                    schema_it == entry.end() || !IsValidSchemaVersion(*schema_it)) {
-                    ++skipped;
-                    continue;
-                }
-                std::string module = module_it->get<std::string>();
-                std::string key = key_it->get<std::string>();
-                if (AdminAuthService::IsReservedSettingsKey(module, key)) {
-                    rejected.push_back({{"module", module}, {"key", key}});
-                    continue;
-                }
-                std::string value = value_it->get<std::string>();
-                if (InvalidKey(module, key) || value.size() > kMaxSettingValueLength) {
-                    failed.push_back({{"module", module}, {"key", key}});
-                    continue;
-                }
-                // Same format check the direct POST /api/settings write
-                // path applies (e.g. IsValidHubHost() for Harmony's
-                // hub_host) - a restored value that fails it is a policy
-                // rejection, not a generic storage fault, the same
-                // distinction the reserved-key case above already makes.
-                if (on_setting_validate && !on_setting_validate(module, key, value)) {
-                    rejected.push_back({{"module", module}, {"key", key}});
-                    continue;
-                }
-                // Validated but not committed: the mDNS re-announce is not
-                // applied on restore, so the restored name takes effect at
-                // the next boot, where an invalid label would fail to apply.
-                const bool is_device_name = module == AdminAuthService::kModuleId && key == kDeviceNameKey;
-                if (is_device_name && on_device_name_validate && !on_device_name_validate(value)) {
-                    rejected.push_back({{"module", module}, {"key", key}});
-                    continue;
-                }
-                if (storage.SetSetting(module, key, schema_it->get<int>(), value)) {
-                    ++applied;
-                } else {
-                    failed.push_back({{"module", module}, {"key", key}});
-                }
-            }
-            nlohmann::json body = {
-                {"applied", applied},
-                {"skipped", skipped},
-                {"failed", std::move(failed)},
-                {"rejected", std::move(rejected)}};
-            return HttpResponse{200, "application/json", body.dump(), {}};
+            return HandleBackupRestore(storage, request, on_device_name_validate, on_setting_validate);
         }));
 }
 
