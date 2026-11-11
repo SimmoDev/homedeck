@@ -296,47 +296,14 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
     while (!stop.stop_requested()) {
         std::optional<VersionedValue> hub_host_setting = storage_.GetSetting(kModuleId, kHubHostKey);
         if (!hub_host_setting.has_value() || hub_host_setting->value.empty()) {
-            ClearConfigIfPresent();
-            // Only once a previous hub was configured - a command queued
-            // before any hub has ever been set (last_hub_host_ still empty)
-            // has no prior hub to have been wrongly addressed to; it stays
-            // queued, waiting for whichever hub is configured first, same
-            // as StartActivity()'s own "no-op if never connected" contract
-            // already documents.
-            if (!last_hub_host_.empty()) {
-                ClearPendingCommandsIfAny();
-            }
-            SetState(HarmonyConnectionState::kDisconnected);
-            Sleep(kUnconfiguredRecheckInterval, stop, /*watch_commands=*/false);
+            WaitWhileUnconfigured(stop);
             continue;
         }
-
-        // A hub_host value change (not just clearing it, already handled
-        // by the unconfigured branch above) means any currently-shown
-        // devices/activities belong to a *different* hub, not the one
-        // about to be (re)connected to - the "keep showing last-known
-        // state through a transient drop" policy
-        // (HarmonyConnectionSnapshot::has_config's own comment) only
-        // makes sense for reconnecting to the *same* hub. Compared
-        // before SetState(kConnecting) below so a Web UI status poll
-        // racing this transition sees has_config already false rather
-        // than a stale "connected" snapshot for the old hub - see
-        // HarmonySettings.svelte's own post-save comment.
-        if (hub_host_setting->value != last_hub_host_) {
-            ClearConfigIfPresent(/*force_publish=*/true);
-            // Same "only if a previous hub existed" guard as the
-            // unconfigured branch above - last_hub_host_ empty here means
-            // this is the first connect attempt of the process, not a
-            // switch away from a hub any queued command could have been
-            // meant for.
-            if (!last_hub_host_.empty()) {
-                ClearPendingCommandsIfAny();
-            }
-        }
-        last_hub_host_ = hub_host_setting->value;
+        const std::string& hub_host = hub_host_setting->value;
+        NoteHubHost(hub_host);
 
         SetState(HarmonyConnectionState::kConnecting);
-        if (!ConnectAndFetchConfig(hub_host_setting->value, stop)) {
+        if (!ConnectAndFetchConfig(hub_host, stop)) {
             SetState(HarmonyConnectionState::kError);
             Sleep(backoff_.NextDelay(), stop, /*watch_commands=*/false);
             continue;
@@ -345,81 +312,155 @@ void HarmonyConnection::ConnectionLoop(std::stop_token stop) {
         SetState(HarmonyConnectionState::kConnected);
         event_bus_.Publish(HarmonyConfigUpdatedEvent{});
 
-        // Any TriggerReconnect() call whose hub_host is still the one just
-        // connected to - whether it landed before Start()'s background
-        // thread even began running, or during the handshake/config-fetch
-        // above - is already satisfied: the connection just established
-        // already reflects it. Left set, it would instead be consumed by
-        // the first Sleep() below, forcing one wholly unnecessary extra
-        // reconnect cycle for a trigger that's already answered.
-        //
-        // But hub_host_setting (read once, at the top of this iteration)
-        // can go stale during ConnectAndFetchConfig()'s own network round
-        // trip (up to ~kConnectTimeoutMs + kConfigFetchTimeoutMs): a Web UI
-        // save landing in that window is a genuine "the configured address
-        // changed since I connected" request, not one this iteration's
-        // connection already satisfies - discarding it here would strand
-        // the connection on the address it just connected to, indefinitely
-        // (a plain liveness timeout doesn't re-check storage; only another
-        // explicit trigger or a connection drop does). storage_ is read
-        // again here, under wake_.Mutex() (so no concurrent TriggerReconnect()
-        // call can land between this read and the reset below), to tell
-        // the two cases apart: only discard the trigger if hub_host is
-        // still what this iteration connected with.
-        {
-            std::lock_guard<std::mutex> lock(wake_.Mutex());
-            std::optional<VersionedValue> post_connect_hub_host = storage_.GetSetting(kModuleId, kHubHostKey);
-            bool hub_host_unchanged =
-                post_connect_hub_host.has_value() && post_connect_hub_host->value == hub_host_setting->value;
-            if (hub_host_unchanged) {
-                wake_.ClearTriggerLocked();
-            }
-        }
-
-        while (!stop.stop_requested()) {
-            WakeReason reason = Sleep(liveness_interval_, stop, /*watch_commands=*/true);
-            if (reason == WakeReason::kStopRequested) break;
-            // Sleep() reports only one reason even though a trigger and a
-            // pending command are independent conditions, not mutually
-            // exclusive - draining here regardless of which one woke this
-            // cycle means a manual reconnect request (kTriggered) never
-            // strands an already-queued command until the next cycle
-            // happens to catch it. A no-op when nothing is queued.
-            if (!SendPendingCommands(stop)) break;  // connection dropped mid-send
-            if (reason == WakeReason::kTriggered) break;  // re-check the configured address
-            if (reason == WakeReason::kCommandPending) continue;  // stay connected - a command isn't a reconnect request
-            if (FetchCurrentActivity(stop) != ActivityFetchResult::kOk) break;  // connection silently dropped, or unparseable
-        }
-
-        if (ws_client_) {
-            ws_client_->Close();
-            ws_client_.reset();
-        }
+        DiscardSatisfiedReconnectTrigger(hub_host);
+        RunConnectedLoop(stop);
+        CloseWebSocket();
     }
 
     // A command enqueued at the exact moment Stop() requests the stop
     // token races Sleep()'s predicate: stop_requested() takes priority
-    // over kCommandPending, so the inner loop above can break without
+    // over kCommandPending, so the connected loop above can break without
     // ever reaching SendPendingCommands() for a command that was already
     // sitting in pending_commands_. Draining it here keeps every loss
     // path publishing HarmonyCommandDroppedEvent, not just the ones
     // SendPendingCommands() itself sees - one event for the batch,
     // matching its own "one event per batch, not one per dropped entry"
     // convention.
-    bool dropped_on_shutdown;
-    {
-        std::lock_guard<std::mutex> lock(wake_.Mutex());
-        dropped_on_shutdown = !pending_commands_.empty();
-        pending_commands_.clear();
-    }
-    if (dropped_on_shutdown) {
-        event_bus_.Publish(HarmonyCommandDroppedEvent{});
-    }
+    ClearPendingCommandsIfAny();
 
     SetState(HarmonyConnectionState::kDisconnected);
 }
 
+void HarmonyConnection::WaitWhileUnconfigured(std::stop_token stop) {
+    ClearConfigIfPresent();
+    // Only once a previous hub was configured - a command queued
+    // before any hub has ever been set (last_hub_host_ still empty)
+    // has no prior hub to have been wrongly addressed to; it stays
+    // queued, waiting for whichever hub is configured first, same
+    // as StartActivity()'s own "no-op if never connected" contract
+    // already documents.
+    if (!last_hub_host_.empty()) {
+        ClearPendingCommandsIfAny();
+    }
+    SetState(HarmonyConnectionState::kDisconnected);
+    Sleep(kUnconfiguredRecheckInterval, stop, /*watch_commands=*/false);
+}
+
+void HarmonyConnection::NoteHubHost(const std::string& hub_host) {
+    // A hub_host value change (not just clearing it, already handled
+    // by WaitWhileUnconfigured()) means any currently-shown
+    // devices/activities belong to a *different* hub, not the one
+    // about to be (re)connected to - the "keep showing last-known
+    // state through a transient drop" policy
+    // (HarmonyConnectionSnapshot::has_config's own comment) only
+    // makes sense for reconnecting to the *same* hub. Compared
+    // before the caller's SetState(kConnecting) so a Web UI status poll
+    // racing this transition sees has_config already false rather
+    // than a stale "connected" snapshot for the old hub - see
+    // HarmonySettings.svelte's own post-save comment.
+    if (hub_host != last_hub_host_) {
+        ClearConfigIfPresent(/*force_publish=*/true);
+        // Same "only if a previous hub existed" guard as
+        // WaitWhileUnconfigured() - last_hub_host_ empty here means
+        // this is the first connect attempt of the process, not a
+        // switch away from a hub any queued command could have been
+        // meant for.
+        if (!last_hub_host_.empty()) {
+            ClearPendingCommandsIfAny();
+        }
+    }
+    last_hub_host_ = hub_host;
+}
+
+void HarmonyConnection::DiscardSatisfiedReconnectTrigger(const std::string& connected_host) {
+    // Any TriggerReconnect() call whose hub_host is still the one just
+    // connected to - whether it landed before Start()'s background
+    // thread even began running, or during the handshake/config-fetch
+    // - is already satisfied: the connection just established
+    // already reflects it. Left set, it would instead be consumed by
+    // the first Sleep() of the connected loop, forcing one wholly
+    // unnecessary extra reconnect cycle for a trigger that's already
+    // answered.
+    //
+    // But the hub_host the caller read (once, at the top of its
+    // iteration) can go stale during ConnectAndFetchConfig()'s own network
+    // round trip (up to ~kConnectTimeoutMs + kConfigFetchTimeoutMs): a Web
+    // UI save landing in that window is a genuine "the configured address
+    // changed since I connected" request, not one this iteration's
+    // connection already satisfies - discarding it here would strand
+    // the connection on the address it just connected to, indefinitely
+    // (a plain liveness timeout doesn't re-check storage; only another
+    // explicit trigger or a connection drop does). storage_ is read
+    // again here, under wake_.Mutex() (so no concurrent TriggerReconnect()
+    // call can land between this read and the reset below), to tell
+    // the two cases apart: only discard the trigger if hub_host is
+    // still what this iteration connected with.
+    std::lock_guard<std::mutex> lock(wake_.Mutex());
+    std::optional<VersionedValue> post_connect_hub_host = storage_.GetSetting(kModuleId, kHubHostKey);
+    bool hub_host_unchanged = post_connect_hub_host.has_value() && post_connect_hub_host->value == connected_host;
+    if (hub_host_unchanged) {
+        wake_.ClearTriggerLocked();
+    }
+}
+
+void HarmonyConnection::RunConnectedLoop(std::stop_token stop) {
+    while (!stop.stop_requested()) {
+        WakeReason reason = Sleep(liveness_interval_, stop, /*watch_commands=*/true);
+        if (reason == WakeReason::kStopRequested) break;
+        // Sleep() reports only one reason even though a trigger and a
+        // pending command are independent conditions, not mutually
+        // exclusive - draining here regardless of which one woke this
+        // cycle means a manual reconnect request (kTriggered) never
+        // strands an already-queued command until the next cycle
+        // happens to catch it. A no-op when nothing is queued.
+        if (!SendPendingCommands(stop)) break;  // connection dropped mid-send
+        if (reason == WakeReason::kTriggered) break;  // re-check the configured address
+        if (reason == WakeReason::kCommandPending) continue;  // stay connected - a command isn't a reconnect request
+        if (FetchCurrentActivity(stop) != ActivityFetchResult::kOk) break;  // connection silently dropped, or unparseable
+    }
+}
+
+void HarmonyConnection::CloseWebSocket() {
+    if (ws_client_) {
+        ws_client_->Close();
+        ws_client_.reset();
+    }
+}
+
 bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::stop_token stop) {
+    if (!FetchHubId(hub_host, stop)) return false;
+    if (!OpenWebSocket(hub_host, stop)) return false;
+    // The hub's WS protocol can send unsolicited notifications (see this
+    // class's own header comment) - draining before the config request,
+    // the same reasoning FetchCurrentActivity() already applies
+    // to its own send/receive, keeps a message pushed in the connect ->
+    // config-request window from being misread as the config response
+    // and failing this connect attempt spuriously.
+    DrainStaleMessages();
+
+    if (!FetchConfig(stop)) {
+        CloseWebSocket();
+        return false;
+    }
+    // A parse-level failure here doesn't fail the connect (has_config is
+    // already true); the next liveness probe retries it, and the
+    // connection itself is still known-healthy - see this class's own
+    // header comment on the current-activity freshness trade-off. A
+    // transport-level failure is different: it means the socket this
+    // function just opened is already dead (e.g. the hub rebooted in the
+    // narrow window between the config response and this probe),
+    // so reporting a successful connect anyway would leave the caller
+    // believing kConnected for up to one full liveness_interval_ before
+    // the next probe discovers it - fail the connect outright instead,
+    // same as every earlier step in this function.
+    if (FetchCurrentActivity(stop) == ActivityFetchResult::kTransportFailed) {
+        CloseWebSocket();
+        return false;
+    }
+    return true;
+}
+
+bool HarmonyConnection::FetchHubId(const std::string& hub_host, std::stop_token stop) {
     HttpClientResponse handshake =
         http_client_.Post(HandshakeUrl(hub_host), kProvisionInfoRequestBody, {{"Origin", kHandshakeOrigin}});
     if (!handshake.success || handshake.status_code != 200) {
@@ -427,9 +468,9 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
     }
     // Checked after each blocking call, not before it - a stop requested
     // while this thread was blocked has nothing left to interrupt mid-call
-    // (see this method's own header comment), but there's no reason to
-    // chain into the *next* blocking call once it's already known to be
-    // pointless.
+    // (see ConnectAndFetchConfig()'s own header comment), but there's no
+    // reason to chain into the *next* blocking call once it's already
+    // known to be pointless.
     if (stop.stop_requested()) return false;
     nlohmann::json parsed = ParseBoundedJson(handshake.body);
     if (parsed.is_discarded() || !parsed.is_object()) {
@@ -448,25 +489,23 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
         hub_id_.clear();
         return false;
     }
+    return true;
+}
 
+bool HarmonyConnection::OpenWebSocket(const std::string& hub_host, std::stop_token stop) {
     ws_client_ = make_websocket_client_();
     if (!ws_client_->Connect(WebSocketUrl(hub_host, hub_id_))) {
         ws_client_.reset();
         return false;
     }
     if (stop.stop_requested()) {
-        ws_client_->Close();
-        ws_client_.reset();
+        CloseWebSocket();
         return false;
     }
-    // The hub's WS protocol can send unsolicited notifications (see this
-    // class's own header comment) - draining before the config request
-    // below, the same reasoning FetchCurrentActivity() already applies
-    // to its own send/receive, keeps a message pushed in the connect ->
-    // config-request window from being misread as the config response
-    // and failing this connect attempt spuriously.
-    DrainStaleMessages();
+    return true;
+}
 
+bool HarmonyConnection::FetchConfig(std::stop_token stop) {
     nlohmann::json config_request = {
         {"hubId", hub_id_},
         {"timeout", 30},
@@ -474,33 +513,23 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
          {{"cmd", "vnd.logitech.harmony/vnd.logitech.harmony.engine?config"}, {"id", "0"}, {"params", nlohmann::json::object()}}},
     };
     if (!ws_client_->SendText(config_request.dump())) {
-        ws_client_->Close();
-        ws_client_.reset();
         return false;
     }
     if (stop.stop_requested()) {
-        ws_client_->Close();
-        ws_client_.reset();
         return false;
     }
 
     std::optional<std::string> response_text = ws_client_->ReceiveText(kConfigFetchTimeoutMs);
     if (!response_text.has_value()) {
-        ws_client_->Close();
-        ws_client_.reset();
         return false;
     }
 
     nlohmann::json response = ParseBoundedJson(*response_text);
     if (response.is_discarded() || !response.is_object()) {
-        ws_client_->Close();
-        ws_client_.reset();
         return false;
     }
     auto config_data_it = response.find("data");
     if (config_data_it == response.end() || !config_data_it->is_object()) {
-        ws_client_->Close();
-        ws_client_.reset();
         return false;
     }
 
@@ -508,28 +537,10 @@ bool HarmonyConnection::ConnectAndFetchConfig(const std::string& hub_host, std::
     std::vector<HarmonyActivity> activities =
         ParseIdLabelArray<HarmonyActivity>(config_data_it->value("activity", nlohmann::json::array()));
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        state_.devices = std::move(devices);
-        state_.activities = std::move(activities);
-        state_.has_config = true;
-    }
-    // A parse-level failure here doesn't fail the connect (has_config is
-    // already true above); the next liveness probe retries it, and the
-    // connection itself is still known-healthy - see this class's own
-    // header comment on the current-activity freshness trade-off. A
-    // transport-level failure is different: it means the socket this
-    // function just opened is already dead (e.g. the hub rebooted in the
-    // narrow window between the config response above and this probe),
-    // so reporting a successful connect anyway would leave the caller
-    // believing kConnected for up to one full liveness_interval_ before
-    // the next probe discovers it - fail the connect outright instead,
-    // same as every earlier step in this function.
-    if (FetchCurrentActivity(stop) == ActivityFetchResult::kTransportFailed) {
-        ws_client_->Close();
-        ws_client_.reset();
-        return false;
-    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    state_.devices = std::move(devices);
+    state_.activities = std::move(activities);
+    state_.has_config = true;
     return true;
 }
 

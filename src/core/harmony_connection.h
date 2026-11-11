@@ -303,6 +303,24 @@ private:
     // already-pointless sequence; each individual call still has its own
     // bounded timeout regardless.
     bool ConnectAndFetchConfig(const std::string& hub_host, std::stop_token stop);
+    // ConnectAndFetchConfig()'s steps, in order. FetchHubId() runs the HTTP
+    // handshake and stores the validated hub_id_; OpenWebSocket() opens
+    // ws_client_ (reset on failure); FetchConfig() sends the config request
+    // and stores the parsed devices/activities. FetchConfig() leaves
+    // ws_client_ open on failure - the caller closes it.
+    bool FetchHubId(const std::string& hub_host, std::stop_token stop);
+    bool OpenWebSocket(const std::string& hub_host, std::stop_token stop);
+    bool FetchConfig(std::stop_token stop);
+    // ConnectionLoop()'s phases: the unconfigured wait, the hub-identity
+    // bookkeeping before a connect attempt, the post-connect trigger reset
+    // and the connected loop itself (returns when the connection should be
+    // torn down or re-evaluated).
+    void WaitWhileUnconfigured(std::stop_token stop);
+    void NoteHubHost(const std::string& hub_host);
+    void DiscardSatisfiedReconnectTrigger(const std::string& connected_host);
+    void RunConnectedLoop(std::stop_token stop);
+    // Closes and releases ws_client_ if open.
+    void CloseWebSocket();
     // FetchCurrentActivity()'s outcome, distinguishing *why* it failed -
     // ConnectAndFetchConfig()'s own best-effort call (see its comment)
     // needs to tell "the transport itself is dead" apart from "the hub
