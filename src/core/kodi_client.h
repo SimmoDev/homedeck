@@ -563,6 +563,12 @@ private:
     // up-front poll in ConnectAndPrime() does not tolerate it: it is what
     // proves a new connection answers.
     bool ReconcilePoll(std::stop_token stop, bool tolerate_timeout);
+    // The snapshot updates ReconcilePoll() applies from each reply. Each
+    // returns whether anything observable changed; the caller publishes.
+    bool ApplyApplicationProperties(const std::string& reply_text);
+    // Clears now_playing when something was playing.
+    bool ClearNowPlaying();
+    bool ApplyPlayerReplies(const std::string& properties_text, const std::string& item_text);
     // Applies one pushed notification (Player.On* / Application.OnVolumeChanged),
     // given as raw frame text, to the snapshot and publishes
     // KodiNowPlayingChangedEvent if anything changed. Sets

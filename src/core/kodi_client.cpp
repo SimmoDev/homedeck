@@ -527,8 +527,97 @@ std::optional<std::string> KodiClient::CallLibrary(const std::string& method, co
     return result.dump();
 }
 
+bool KodiClient::ApplyApplicationProperties(const std::string& reply_text) {
+    bool changed = false;
+    nlohmann::json app = ParseBoundedJson(reply_text);
+    auto result_it = app.is_object() ? app.find("result") : app.end();
+    if (result_it == app.end() || !result_it->is_object()) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    // changed drives KodiNowPlayingChangedEvent, so flip it only on an
+    // actual volume/mute delta - otherwise every reconcile cycle would
+    // re-render the widget/screen while connected and idle, when nothing
+    // about playback has moved.
+    if (result_it->contains("volume") && (*result_it)["volume"].is_number_integer()) {
+        int volume = ClampVolume((*result_it)["volume"].get<long long>());
+        if (volume != state_.volume) {
+            state_.volume = volume;
+            changed = true;
+        }
+    }
+    if (result_it->contains("muted") && (*result_it)["muted"].is_boolean()) {
+        bool muted = (*result_it)["muted"].get<bool>();
+        if (muted != state_.muted) {
+            state_.muted = muted;
+            changed = true;
+        }
+    }
+    auto version_it = result_it->find("version");
+    if (version_it != result_it->end() && version_it->is_object()) {
+        state_.app_version =
+            std::to_string(GetInt(*version_it, "major", 0)) + "." + std::to_string(GetInt(*version_it, "minor", 0));
+    }
+    return changed;
+}
+
+bool KodiClient::ClearNowPlaying() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (state_.now_playing.playback == KodiPlaybackState::kInactive && state_.now_playing.title.empty()) {
+        return false;
+    }
+    state_.now_playing = KodiNowPlaying{};
+    return true;
+}
+
+bool KodiClient::ApplyPlayerReplies(const std::string& properties_text, const std::string& item_text) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    KodiNowPlaying& np = state_.now_playing;
+    const KodiNowPlaying before = np;
+
+    nlohmann::json props = ParseBoundedJson(properties_text);
+    auto props_result = props.is_object() ? props.find("result") : props.end();
+    if (props_result != props.end() && props_result->is_object()) {
+        // GetInt/GetDouble/GetBool, not ->value(key, default) - see
+        // kodi_json.h. The ->value("time"/"totaltime", nlohmann::json::object())
+        // calls below are the one safe exception: their default is itself a
+        // json, so the extraction is an identity conversion that can't throw
+        // regardless of the field's actual type, and MillisFromTimeObject()
+        // does its own per-field type checks.
+        np.speed = ClampSpeed(GetInt(*props_result, "speed", np.speed));
+        np.playback = PlaybackFromSpeed(np.speed);
+        np.percent = GetDouble(*props_result, "percentage", np.percent);
+        np.position_ms = MillisFromTimeObject(props_result->value("time", nlohmann::json::object()));
+        np.duration_ms = MillisFromTimeObject(props_result->value("totaltime", nlohmann::json::object()));
+        np.can_seek = GetBool(*props_result, "canseek", np.can_seek);
+    }
+
+    // GetItem's identity is only used until a notification supplies one for
+    // this playback - see identity_from_notification_.
+    if (!identity_from_notification_) {
+        nlohmann::json item = ParseBoundedJson(item_text);
+        auto item_result = item.is_object() ? item.find("result") : item.end();
+        if (item_result != item.end() && item_result->is_object()) {
+            auto item_it = item_result->find("item");
+            if (item_it != item_result->end()) {
+                ApplyItemFields(*item_it, np);
+            }
+        }
+    }
+    // Only a genuine change republishes: during uninterrupted playback
+    // position_ms advances every poll so this holds, but a poll that lands
+    // on an unchanged paused snapshot must not re-render every bound
+    // widget/screen once per reconcile interval forever.
+    return np != before;
+}
+
 bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
     bool changed = false;
+    const auto publish_if_changed = [&] {
+        if (changed) {
+            event_bus_.Publish(KodiNowPlayingChangedEvent{});
+        }
+    };
     // A reply that does not arrive on a link that is still open means Kodi
     // is busy (it answers one call at a time), not that the transport is
     // dead. The poll is abandoned until the next interval; what it had
@@ -536,9 +625,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
     // row that get no answer at all count as a dead link: the firmware
     // client's pong timeout is 120 s and the simulator's has no keepalive.
     const auto call_failed = [&] {
-        if (changed) {
-            event_bus_.Publish(KodiNowPlayingChangedEvent{});
-        }
+        publish_if_changed();
         if (!tolerate_timeout || !last_call_timed_out_) {
             return false;
         }
@@ -550,39 +637,9 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
         return call_failed();
     }
     consecutive_poll_timeouts_ = 0;  // Kodi answered, so the link is alive
-    {
-        nlohmann::json app = ParseBoundedJson(*app_text);
-        auto result_it = app.is_object() ? app.find("result") : app.end();
-        if (result_it != app.end() && result_it->is_object()) {
-            std::lock_guard<std::mutex> lock(mutex_);
-            // changed drives KodiNowPlayingChangedEvent, so flip it only
-            // on an actual volume/mute delta - otherwise every reconcile
-            // cycle would re-render the widget/screen while connected and
-            // idle, when nothing about playback has moved.
-            if (result_it->contains("volume") && (*result_it)["volume"].is_number_integer()) {
-                int volume = ClampVolume((*result_it)["volume"].get<long long>());
-                if (volume != state_.volume) {
-                    state_.volume = volume;
-                    changed = true;
-                }
-            }
-            if (result_it->contains("muted") && (*result_it)["muted"].is_boolean()) {
-                bool muted = (*result_it)["muted"].get<bool>();
-                if (muted != state_.muted) {
-                    state_.muted = muted;
-                    changed = true;
-                }
-            }
-            auto version_it = result_it->find("version");
-            if (version_it != result_it->end() && version_it->is_object()) {
-                state_.app_version = std::to_string(GetInt(*version_it, "major", 0)) + "." +
-                                     std::to_string(GetInt(*version_it, "minor", 0));
-            }
-        }
-    }
+    changed = ApplyApplicationProperties(*app_text);
 
-    std::optional<std::string> players_text =
-        Call("Player.GetActivePlayers", "", kCallTimeoutMs, stop);
+    std::optional<std::string> players_text = Call("Player.GetActivePlayers", "", kCallTimeoutMs, stop);
     if (!players_text.has_value()) {
         return call_failed();
     }
@@ -592,17 +649,9 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
         players_result != players.end() && players_result->is_array() && !players_result->empty();
 
     if (!anything_playing) {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            if (state_.now_playing.playback != KodiPlaybackState::kInactive || !state_.now_playing.title.empty()) {
-                state_.now_playing = KodiNowPlaying{};
-                changed = true;
-            }
-        }
+        changed = ClearNowPlaying() || changed;
         identity_from_notification_ = false;
-        if (changed) {
-            event_bus_.Publish(KodiNowPlayingChangedEvent{});
-        }
+        publish_if_changed();
         return true;
     }
 
@@ -611,9 +660,7 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
         // A -1 playerid comes back in notifications on some builds
         // (ADR-0030); GetActivePlayers itself should never return one,
         // but guard rather than send a request Kodi will reject.
-        if (changed) {
-            event_bus_.Publish(KodiNowPlayingChangedEvent{});
-        }
+        publish_if_changed();
         return true;
     }
 
@@ -639,60 +686,12 @@ bool KodiClient::ReconcilePoll(std::stop_token stop, bool tolerate_timeout) {
         // Playback stopped while these replies were in flight; the next poll
         // reads the state after the stop.
         needs_immediate_poll_ = true;
-        if (changed) {
-            event_bus_.Publish(KodiNowPlayingChangedEvent{});
-        }
+        publish_if_changed();
         return true;
     }
 
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        KodiNowPlaying& np = state_.now_playing;
-        const KodiNowPlaying before = np;
-
-        nlohmann::json props = ParseBoundedJson(*props_text);
-        auto props_result = props.is_object() ? props.find("result") : props.end();
-        if (props_result != props.end() && props_result->is_object()) {
-            // GetInt/GetDouble/GetBool, not ->value(key, default) - see
-            // kodi_json.h. The ->value("time"/
-            // "totaltime", nlohmann::json::object()) calls below are the
-            // one safe exception: their default is itself a json, so the
-            // extraction is an identity conversion that can't throw
-            // regardless of the field's actual type, and
-            // MillisFromTimeObject() does its own per-field type checks.
-            np.speed = ClampSpeed(GetInt(*props_result, "speed", np.speed));
-            np.playback = PlaybackFromSpeed(np.speed);
-            np.percent = GetDouble(*props_result, "percentage", np.percent);
-            np.position_ms = MillisFromTimeObject(props_result->value("time", nlohmann::json::object()));
-            np.duration_ms = MillisFromTimeObject(props_result->value("totaltime", nlohmann::json::object()));
-            np.can_seek = GetBool(*props_result, "canseek", np.can_seek);
-        }
-
-        // GetItem's identity is only used until a notification supplies
-        // one for this playback - see identity_from_notification_.
-        if (!identity_from_notification_) {
-            nlohmann::json item = ParseBoundedJson(*item_text);
-            auto item_result = item.is_object() ? item.find("result") : item.end();
-            if (item_result != item.end() && item_result->is_object()) {
-                auto item_it = item_result->find("item");
-                if (item_it != item_result->end()) {
-                    ApplyItemFields(*item_it, np);
-                }
-            }
-        }
-        // Only a genuine change republishes: during uninterrupted playback
-        // position_ms advances every poll so this holds, but a poll that
-        // lands on an unchanged paused snapshot must not re-render every
-        // bound widget/screen once per reconcile interval forever - the
-        // same guard the volume/mute block and the idle path above already
-        // apply.
-        if (np != before) {
-            changed = true;
-        }
-    }
-    if (changed) {
-        event_bus_.Publish(KodiNowPlayingChangedEvent{});
-    }
+    changed = ApplyPlayerReplies(*props_text, *item_text) || changed;
+    publish_if_changed();
     return true;
 }
 
