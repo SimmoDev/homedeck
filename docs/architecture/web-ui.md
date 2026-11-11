@@ -264,7 +264,9 @@ plus backup download/restore. Restore answers
 are not objects or lack a string `module`/`key`/`value` or an in-range integer
 `schemaVersion`, `failed` lists entries with an invalid key, an oversized value
 or a write Storage refused, and `rejected` lists reserved or
-validator-refused ones. The page is deliberately not a generic raw settings
+validator-refused ones, including a `device_name` that fails
+`DeviceNameValidateFn`. Restore never calls `DeviceNameCommittedFn`, so a
+restored device name takes effect at the next boot. The page is deliberately not a generic raw settings
 editor, since device name alone
 gave the design nothing to check itself against.
 

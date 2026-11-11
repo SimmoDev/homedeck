@@ -11,6 +11,10 @@ not because it's still the only protection. That Decision section's
 [ADR-0029](ADR-0029-harmony-local-protocol.md): Harmony's local protocol
 has no credential of any kind — the durable fix landed anyway (per
 ADR-0027 above), just not triggered by M3 as originally expected.
+The Decision section's statement that `POST /api/backup/restore` invokes
+neither device-name callback no longer holds: restore now calls
+`DeviceNameValidateFn` (still never `DeviceNameCommittedFn`), see
+[web-ui.md](../architecture/web-ui.md#status).
 
 ## Context
 

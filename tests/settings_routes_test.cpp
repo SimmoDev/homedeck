@@ -443,6 +443,58 @@ TEST_F(SettingsRoutesTest, RestoreRejectsAnEntryFailingOnSettingValidate) {
     EXPECT_NE(get.body.find(R"("value":"51.5")"), std::string::npos);
 }
 
+// A restored device name takes effect at the next boot, where an invalid
+// hostname label would fail to apply, so restore applies the same validator
+// as the direct write - without re-announcing mDNS.
+TEST_F(SettingsRoutesTest, RestoreRejectsAnInvalidDeviceNameAndNeverFiresTheCommittedCallback) {
+    std::vector<std::string> committed_values;
+    homedeck::DeviceNameValidateFn on_device_name_validate = [](const std::string& value) -> bool {
+        return value != "reject-me";
+    };
+    homedeck::DeviceNameCommittedFn on_device_name_committed = [&committed_values](const std::string& value) {
+        committed_values.push_back(value);
+    };
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, on_device_name_validate, on_device_name_committed);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    auto restore = HttpRequestRaw(
+        server.BoundPort(), "POST", "/api/backup/restore",
+        R"({"settings":[{"module":"core","key":"device_name","value":"reject-me","schemaVersion":1},)"
+        R"({"module":"weather","key":"latitude","value":"51.5","schemaVersion":1}]})",
+        cookie);
+    EXPECT_EQ(restore.status_code, 200);
+    EXPECT_NE(restore.body.find(R"("applied":1)"), std::string::npos);
+    EXPECT_NE(restore.body.find(R"("rejected":[{"key":"device_name","module":"core"}])"), std::string::npos);
+    EXPECT_TRUE(committed_values.empty());
+
+    auto get = HttpRequestRaw(server.BoundPort(), "GET", "/api/settings", "", cookie);
+    EXPECT_EQ(get.body.find("reject-me"), std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, RestoreAppliesAValidDeviceNameWithoutFiringTheCommittedCallback) {
+    std::vector<std::string> committed_values;
+    homedeck::DeviceNameCommittedFn on_device_name_committed = [&committed_values](const std::string& value) {
+        committed_values.push_back(value);
+    };
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_, [](const std::string&) { return true; },
+                                     on_device_name_committed);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    auto restore = HttpRequestRaw(
+        server.BoundPort(), "POST", "/api/backup/restore",
+        R"({"settings":[{"module":"core","key":"device_name","value":"living-room","schemaVersion":1}]})", cookie);
+    EXPECT_NE(restore.body.find(R"("applied":1)"), std::string::npos);
+    EXPECT_TRUE(committed_values.empty());
+}
+
 TEST_F(SettingsRoutesTest, DeviceNameCommittedCallbackDoesNotFireWhenTheStorageWriteFails) {
     FailingSettingsStore failing_settings_store;
     homedeck::HostCacheStore cache_store(root_dir_ / "device_name_write_fail_case");

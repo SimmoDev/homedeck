@@ -159,7 +159,7 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
 
     server.RegisterHandler(
         HttpMethod::kPost, "/api/backup/restore",
-        auth.RequireAuth([&storage, on_setting_validate](const HttpRequest& request) {
+        auth.RequireAuth([&storage, on_device_name_validate, on_setting_validate](const HttpRequest& request) {
             auto parsed_opt = TryParseJsonObject(request.body);
             if (!parsed_opt.has_value()) {
                 return HttpResponse{400, "application/json", R"({"error":"invalid_request"})", {}};
@@ -217,6 +217,14 @@ void RegisterSettingsRoutes(HttpServer& server, Storage& storage, AdminAuthServi
                 // rejection, not a generic storage fault, the same
                 // distinction the reserved-key case above already makes.
                 if (on_setting_validate && !on_setting_validate(module, key, value)) {
+                    rejected.push_back({{"module", module}, {"key", key}});
+                    continue;
+                }
+                // Validated but not committed: the mDNS re-announce is not
+                // applied on restore, so the restored name takes effect at
+                // the next boot, where an invalid label would fail to apply.
+                const bool is_device_name = module == AdminAuthService::kModuleId && key == kDeviceNameKey;
+                if (is_device_name && on_device_name_validate && !on_device_name_validate(value)) {
                     rejected.push_back({{"module", module}, {"key", key}});
                     continue;
                 }

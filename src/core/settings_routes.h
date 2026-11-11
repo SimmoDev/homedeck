@@ -18,15 +18,16 @@ namespace homedeck {
 // DeviceNameCommittedFn below for that), since Storage::SetSetting()
 // itself can still fail after this returns true, and a side effect
 // applied here would then be live while the persisted value still held
-// the old one. Not consulted by POST /api/backup/restore's replay - see
-// docs/decisions/ADR-0023-settings-backup-api.md for why that's an
-// accepted simplification, not an oversight.
+// the old one. Also consulted by POST /api/backup/restore's replay (a
+// rejection is reported in `rejected`), since a restored name is applied at
+// the next boot.
 using DeviceNameValidateFn = std::function<bool(const std::string& value)>;
 
 // Called only once storage.SetSetting() has persisted the new device
 // name - the one point it's safe to apply a live side effect that can't
 // itself be rolled back (firmware: re-announces mDNS with no reboot
 // needed; simulator: omitted, nothing to apply).
+// Never called by POST /api/backup/restore.
 using DeviceNameCommittedFn = std::function<void(const std::string& value)>;
 
 // Called for every (module, key, value) written via POST /api/settings,
