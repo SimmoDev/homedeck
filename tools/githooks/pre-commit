@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Runs the doc-narration, hardware.md-scope, ESP-IDF-return, curl-timeout,
 # esp-http-timeout, unauthenticated-route, json-field-type,
-# json-dump-strict, build-artifact, comment-path, security-surface, shellcheck, and
+# json-dump-strict, build-artifact, comment-path, stale-claim, security-surface, shellcheck, and
 # secret-scan checks
 # against staged files.
 # Only check-secrets.sh blocks the commit - its patterns are narrow and
 # high-precision (private key headers, known credential-token shapes) and a
-# missed leak is high-severity and hard to reverse once pushed. The other twelve checks
+# missed leak is high-severity and hard to reverse once pushed. The other thirteen checks
 # are heuristic (free-text wording/narration, or syntactic checks that
 # sometimes need human judgment) and stay warn-only, so a false positive
 # there can't force a --no-verify habit that would also bypass the secret
@@ -38,6 +38,10 @@ esp_files=$(echo "$staged_files" | grep -E '^(firmware/main|src/platform/firmwar
 # live in a header-only inline function just as easily as a .cpp.
 cpp_files=$(echo "$staged_files" | grep -E '\.(cpp|h|hpp)$' || true)
 
+# Comment-bearing code only: Markdown legitimately says "not yet" in roadmap
+# items, and `#` is a heading marker there.
+claim_files=$(echo "$staged_files" | grep -E '\.(cpp|h|hpp|ts|svelte)$' | grep -vE '^(src/third_party/|firmware/components/m5stack_tab5/|simulator/lv_conf\.h)' || true)
+
 found_issue=0
 
 if [ -n "$doc_files" ]; then
@@ -47,6 +51,11 @@ if [ -n "$doc_files" ]; then
     "$repo_root/tools/githooks/check-hardware-md-scope.sh" $doc_files || found_issue=1
     # shellcheck disable=SC2086
     "$repo_root/tools/githooks/check-comment-paths.sh" $doc_files || found_issue=1
+fi
+
+if [ -n "$claim_files" ]; then
+    # shellcheck disable=SC2086
+    "$repo_root/tools/githooks/check-stale-claims.sh" $claim_files || found_issue=1
 fi
 
 if [ -n "$esp_files" ]; then

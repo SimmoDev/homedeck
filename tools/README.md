@@ -150,7 +150,9 @@ why that split exists. Checking for the following defect classes:
   (`githooks/check-build-artifacts.sh`); a comment or doc that cites a
   repo file path (a directory path under a top-level repo directory, or a
   bare `*.md` name) that no tracked file has
-  (`githooks/check-comment-paths.sh`); a staged firmware change that adds
+  (`githooks/check-comment-paths.sh`); a code comment asserting that
+  something does not exist yet or is not verified, which goes stale when
+  it lands elsewhere (`githooks/check-stale-claims.sh`); a staged firmware change that adds
   `WIFI_AUTH_OPEN` or an `httpd_start(` call without
   [security.md](../docs/architecture/security.md) staged too
   (`githooks/check-security-surface.sh`); and, against every

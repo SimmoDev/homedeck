@@ -1,9 +1,10 @@
 name: Lint check
 
-# Runs the nine tools/githooks/ checks that have no other CI backstop
+# Runs the ten tools/githooks/ checks that have no other CI backstop
 # (check-esp-idf-returns.sh/check-curl-timeouts.sh/check-esp-http-timeouts.sh/
 # check-unauthenticated-routes.sh/check-unchecked-json-field-access.sh/
-# check-json-dump-strict.sh/check-build-artifacts.sh/check-comment-paths.sh,
+# check-json-dump-strict.sh/check-build-artifacts.sh/check-comment-paths.sh/
+# check-stale-claims.sh,
 # plus check-security-surface.sh over a pull request's range) against every
 # tracked file, not just a commit's diff - same "the local pre-commit hook
 # only ever sees staged files, so a violation in a file nobody happens to
@@ -73,6 +74,13 @@ jobs:
           files=$(git ls-files -- '*.md' '*.cpp' '*.h' '*.hpp' '*.ts' '*.svelte' '*.yml' '*.sh' \
             ':!firmware/components/m5stack_tab5/**' ':!src/third_party/nlohmann/**')
           bash tools/githooks/check-comment-paths.sh $files
+
+      - name: Run check-stale-claims.sh against every tracked code file
+        continue-on-error: true
+        run: |
+          files=$(git ls-files -- '*.cpp' '*.h' '*.hpp' '*.ts' '*.svelte' \
+            ':!firmware/components/m5stack_tab5/**' ':!src/third_party/**' ':!simulator/lv_conf.h')
+          bash tools/githooks/check-stale-claims.sh $files
 
       - name: Run check-curl-timeouts.sh, check-unauthenticated-routes.sh, check-unchecked-json-field-access.sh, and check-json-dump-strict.sh against every tracked .cpp/.h/.hpp file
         continue-on-error: true
