@@ -85,6 +85,10 @@ Against fake `MdnsBrowser`/`WebSocketClient` doubles:
 - Timeouts on an open link: a library listing or a reconcile poll that
   times out keeps the connection, except that repeated unanswered polls
   reconnect.
+- Error paths: a player command dropped when nothing is playing or the
+  active-player lookup fails, a failed send reconnecting, an unparseable
+  frame skipped while awaiting a reply, player-property and item timeouts
+  keeping the link, and a negative `playerid` not being queried.
 - Identical library requests waiting in the queue being sent once.
 - The `library_busy` flag: raised by a slow library reply, cleared by any
   reply (including a late one read while idle) and on disconnect, and never

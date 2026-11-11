@@ -2666,6 +2666,140 @@ TEST_F(KodiClientTest, PendingQueueDropsTheOldestCommandsPastItsCap) {
     client->Stop();
 }
 
+// --- Error paths ----------------------------------------------------------
+
+// A player-scoped command has no target when nothing is playing, so it is
+// dropped; a global command queued with it is still sent.
+TEST_F(KodiClientTest, APlayerCommandIsDroppedWhenNothingIsPlayingButGlobalOnesStillSend) {
+    KODI_COMMAND_RIG();
+    ScriptIdleKodi(script);
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->PlayPause();
+    client->VolumeStep(true);
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "Application.SetVolume") == 1; }));
+    EXPECT_EQ(CountSent(script, "Player.PlayPause"), 0);
+    client->Stop();
+}
+
+// A failed active-player lookup is handled the same way as no player.
+TEST_F(KodiClientTest, APlayerCommandIsDroppedWhenTheActivePlayerLookupReturnsAnError) {
+    KODI_COMMAND_RIG();
+    ScriptIdleKodi(script);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->handlers["Player.GetActivePlayers"] = [](const nlohmann::json&) {
+            return nlohmann::json{{"error", {{"code", -32602}, {"message", "Invalid params."}}}};
+        };
+    }
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    client->PlayPause();
+    client->VolumeStep(true);
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "Application.SetVolume") == 1; }));
+    EXPECT_EQ(CountSent(script, "Player.PlayPause"), 0);
+    client->Stop();
+}
+
+// A send that fails mid-batch means the transport is gone: the loop
+// reconnects instead of carrying on with a dead socket.
+TEST_F(KodiClientTest, AFailedCommandSendReconnects) {
+    KODI_COMMAND_RIG();
+    auto client = MakeClient(script, browser, storage, bus, kNoReconcile);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->send_ok = false;
+    }
+    client->VolumeStep(true);
+    EXPECT_TRUE(WaitFor([&] {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        return script->connect_urls.size() >= 2u;
+    }));
+    client->Stop();
+}
+
+// A frame that isn't JSON, arriving while a call waits for its reply, is
+// skipped; the call still completes and the link stays up.
+TEST_F(KodiClientTest, AnUnparseableFrameWhileAwaitingAReplyIsSkipped) {
+    KODI_COMMAND_RIG();
+    ScriptIdleKodi(script);
+    auto volume = std::make_shared<std::atomic<int>>(42);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->handlers["Application.GetProperties"] = [script_ptr = script.get(), volume](const nlohmann::json&) {
+            // Called with script->mutex held, so the garbage frame is queued ahead of this reply.
+            script_ptr->pushed.push_back("{not json");
+            return nlohmann::json{{"result", {{"volume", volume->load()}, {"muted", false}}}};
+        };
+    }
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+
+    volume->store(77);
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().volume == 77; }));
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_EQ(script->connect_urls.size(), 1u);
+    }
+    client->Stop();
+}
+
+// A reply that never arrives for the player calls of a poll abandons the
+// poll without dropping a link that is still open, whichever call it was.
+TEST_F(KodiClientTest, APlayerPropertiesOrItemCallThatTimesOutKeepsTheLink) {
+    for (const char* stalled_method : {"Player.GetProperties", "Player.GetItem"}) {
+        KODI_COMMAND_RIG();
+        auto stalled = std::make_shared<std::atomic<bool>>(false);
+        auto dropped = std::make_shared<std::atomic<int>>(0);
+        const std::string method = stalled_method;
+        {
+            std::lock_guard<std::mutex> lock(script->mutex);
+            script->drop_request = [stalled, dropped, method](const nlohmann::json& request) {
+                return stalled->load() && request["method"].get<std::string>() == method &&
+                       dropped->fetch_add(1) < 2;
+            };
+        }
+        auto client = MakeClient(script, browser, storage, bus);
+        client->Start();
+        ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; })) << method;
+
+        stalled->store(true);
+        ASSERT_TRUE(WaitFor([&] { return dropped->load() >= 3; })) << method;  // two dropped, then one answered
+        EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected) << method;
+        {
+            std::lock_guard<std::mutex> lock(script->mutex);
+            EXPECT_EQ(script->connect_urls.size(), 1u) << method;
+        }
+        client->Stop();
+    }
+}
+
+// Kodi builds report playerid -1 in notifications; the poll must not send
+// player-scoped requests for it.
+TEST_F(KodiClientTest, AnActivePlayerWithANegativeIdIsNotQueried) {
+    KODI_COMMAND_RIG();
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->results["Player.GetActivePlayers"] = R"([{"playerid":-1,"type":"video"}])";
+    }
+    auto client = MakeClient(script, browser, storage, bus);
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == KodiConnectionState::kConnected; }));
+    ASSERT_TRUE(WaitFor([&] { return CountSent(script, "Player.GetActivePlayers") >= 2; }));  // polled again
+    EXPECT_EQ(CountSent(script, "Player.GetProperties"), 0);
+    EXPECT_EQ(client->Snapshot().state, KodiConnectionState::kConnected);
+    client->Stop();
+}
+
 // PumpNotifications() bounds its own non-blocking drain at
 // kMaxPumpIterations (32, kodi_client.cpp) so a peer that keeps the
 // receive buffer full can't turn one pump into an unbounded loop. Queue
