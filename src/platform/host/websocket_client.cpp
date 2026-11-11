@@ -335,6 +335,165 @@ std::vector<unsigned char> BuildMaskedFrame(uint8_t opcode, const std::string& p
     return frame;
 }
 
+// Reads the response headers one byte at a time, so nothing past them is
+// consumed - the server may send a frame immediately after the 101.
+std::optional<std::string> ReadHandshakeResponse(CURL* curl, curl_socket_t sockfd,
+                                                 std::chrono::steady_clock::time_point deadline) {
+    std::string response;
+    unsigned char byte;
+    while (response.find("\r\n\r\n") == std::string::npos) {
+        if (response.size() >= kMaxHandshakeResponseBytes) {
+            return std::nullopt;
+        }
+        if (!ReadExact(curl, sockfd, &byte, 1, deadline)) {
+            return std::nullopt;
+        }
+        response += static_cast<char>(byte);
+    }
+    return response;
+}
+
+bool IsValidUpgradeResponse(const std::string& response, const std::string& client_key) {
+    size_t status_line_end = response.find("\r\n");
+    std::string status_line = response.substr(0, status_line_end);
+    size_t first_space = status_line.find(' ');
+    if (first_space == std::string::npos || status_line.compare(first_space + 1, 3, "101") != 0) {
+        return false;
+    }
+
+    // RFC 6455 4.2.2's other two required response checks, alongside the
+    // Sec-WebSocket-Accept check below: Upgrade/Connection headers
+    // confirming the response itself is shaped as a WebSocket upgrade,
+    // not just a 101 from something that answers every request that way.
+    std::optional<std::string> upgrade = FindHeaderValue(response, "Upgrade");
+    if (!upgrade.has_value() || !HeaderValueContainsTokenIgnoreCase(*upgrade, "websocket")) {
+        return false;
+    }
+    std::optional<std::string> connection = FindHeaderValue(response, "Connection");
+    if (!connection.has_value() || !HeaderValueContainsTokenIgnoreCase(*connection, "upgrade")) {
+        return false;
+    }
+
+    // A bare "101" isn't enough on its own - RFC 6455's own handshake
+    // verification step confirms the far end understood the request
+    // as a WebSocket upgrade (see ComputeAcceptKey()'s own
+    // comment), not just something that happens to answer 101.
+    std::optional<std::string> accept = FindHeaderValue(response, "Sec-WebSocket-Accept");
+    return accept.has_value() && *accept == ComputeAcceptKey(client_key);
+}
+
+// Hand-built RFC 6455 Upgrade over the connect-only curl handle: sends the
+// request and verifies the response. False on any transport or
+// verification failure; the caller owns the handle either way.
+bool PerformUpgradeHandshake(CURL* curl, curl_socket_t sockfd, const std::string& url) {
+    ParsedUrl parsed = ParseWsUrl(url);
+    std::string key = GenerateWebSocketKey();
+    std::string request = "GET " + parsed.request_target +
+                           " HTTP/1.1\r\n"
+                           "Host: " +
+                           parsed.host_header +
+                           "\r\n"
+                           "Connection: Upgrade\r\n"
+                           "Upgrade: websocket\r\n"
+                           "Sec-WebSocket-Version: 13\r\n"
+                           "Sec-WebSocket-Key: " +
+                           key + "\r\n\r\n";
+
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kConnectTimeoutMs);
+    if (!WriteExact(curl, sockfd, reinterpret_cast<const unsigned char*>(request.data()), request.size(), deadline)) {
+        return false;
+    }
+    std::optional<std::string> response = ReadHandshakeResponse(curl, sockfd, deadline);
+    return response.has_value() && IsValidUpgradeResponse(*response, key);
+}
+
+struct FrameHeader {
+    bool fin = false;
+    uint8_t opcode = 0;
+    bool masked = false;
+    uint64_t length = 0;
+    unsigned char mask[4] = {};
+};
+
+// Reads the rest of a frame header once its first byte (`first_byte`, FIN
+// + opcode) has arrived: the length byte, any extended length, and the
+// mask if present. False on a read failure or an unacceptable opcode.
+bool ReadFrameHeader(CURL* curl, curl_socket_t sockfd, unsigned char first_byte,
+                     std::chrono::steady_clock::time_point deadline, FrameHeader& out) {
+    unsigned char length_byte;
+    if (!ReadExact(curl, sockfd, &length_byte, 1, deadline)) return false;
+
+    out.fin = (first_byte & 0x80) != 0;
+    out.opcode = first_byte & 0x0F;
+    // RFC 6455 requires failing the connection on receipt of a
+    // reserved (0x3-0x7, 0xB-0xF) or otherwise-unexpected (0x2,
+    // binary) opcode - bail before reading anything else about this
+    // frame (its length may itself be adversarial) rather than
+    // falling through to the TEXT/CONTINUATION accumulation path
+    // in ReceiveText(), which would otherwise silently treat it as message
+    // content. This transport has no authentication at all
+    // (ADR-0029), so a hostile/misbehaving LAN peer sending one is a
+    // real possibility, not just a spec technicality.
+    if (out.opcode != 0x0 && out.opcode != 0x1 && out.opcode != 0x8 && out.opcode != 0x9 && out.opcode != 0xA) {
+        return false;
+    }
+    // Real WS servers never mask frames sent to a client (RFC 6455),
+    // but this transport has no authentication at all (ADR-0029) - a
+    // malformed or hostile peer setting the mask bit anyway is still
+    // handled correctly here rather than silently corrupting the
+    // payload.
+    out.masked = (length_byte & 0x80) != 0;
+    out.length = length_byte & 0x7F;
+    if (out.length == 126) {
+        unsigned char ext[2];
+        if (!ReadExact(curl, sockfd, ext, sizeof(ext), deadline)) return false;
+        out.length = (static_cast<uint64_t>(ext[0]) << 8) | ext[1];
+    } else if (out.length == 127) {
+        unsigned char ext[8];
+        if (!ReadExact(curl, sockfd, ext, sizeof(ext), deadline)) return false;
+        out.length = 0;
+        for (unsigned char b : ext) out.length = (out.length << 8) | b;
+    }
+    if (out.masked) {
+        if (!ReadExact(curl, sockfd, out.mask, sizeof(out.mask), deadline)) return false;
+    }
+    return true;
+}
+
+// Reads and unmasks one frame's payload. `already_accumulated` is the size
+// of the message's earlier frames: see kMaxWebSocketMessageBytes's own
+// comment for why the total is capped. Checked against the frame length
+// alone first (cheap, no overflow risk even for an adversarial 64-bit
+// extended length) before the cumulative check, which only matters once a
+// multi-frame message is in progress.
+bool ReadFramePayload(CURL* curl, curl_socket_t sockfd, const FrameHeader& header, size_t already_accumulated,
+                      std::chrono::steady_clock::time_point deadline, std::string& payload) {
+    if (header.length > kMaxWebSocketMessageBytes || already_accumulated + header.length > kMaxWebSocketMessageBytes) {
+        return false;
+    }
+    payload.assign(header.length, '\0');
+    if (header.length == 0) return true;
+    if (!ReadExact(curl, sockfd, reinterpret_cast<unsigned char*>(payload.data()), header.length, deadline)) {
+        return false;
+    }
+    if (header.masked) {
+        for (size_t i = 0; i < payload.size(); ++i) {
+            payload[i] = static_cast<char>(static_cast<unsigned char>(payload[i]) ^ header.mask[i % 4]);
+        }
+    }
+    return true;
+}
+
+// Echoes a bare close frame back per RFC 6455's own closing handshake,
+// best-effort same as ReceiveText()'s PONG reply (a failed write here only
+// affects how cleanly this side's TCP connection closes, not correctness -
+// Close() tears down the handle regardless, and the caller already treats
+// std::nullopt as a dead connection).
+void EchoCloseFrame(CURL* curl, curl_socket_t sockfd, std::chrono::steady_clock::time_point deadline) {
+    std::vector<unsigned char> close_frame = BuildMaskedFrame(0x8, "");
+    WriteExact(curl, sockfd, close_frame.data(), close_frame.size(), deadline);
+}
+
 }  // namespace
 
 HostWebSocketClient::~HostWebSocketClient() { Close(); }
@@ -373,67 +532,7 @@ bool HostWebSocketClient::Connect(const std::string& url) {
         return false;
     }
 
-    ParsedUrl parsed = ParseWsUrl(url);
-    std::string key = GenerateWebSocketKey();
-    std::string request = "GET " + parsed.request_target +
-                           " HTTP/1.1\r\n"
-                           "Host: " +
-                           parsed.host_header +
-                           "\r\n"
-                           "Connection: Upgrade\r\n"
-                           "Upgrade: websocket\r\n"
-                           "Sec-WebSocket-Version: 13\r\n"
-                           "Sec-WebSocket-Key: " +
-                           key + "\r\n\r\n";
-
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(kConnectTimeoutMs);
-    if (!WriteExact(curl, sockfd, reinterpret_cast<const unsigned char*>(request.data()), request.size(), deadline)) {
-        curl_easy_cleanup(curl);
-        return false;
-    }
-
-    std::string response;
-    unsigned char byte;
-    while (response.find("\r\n\r\n") == std::string::npos) {
-        if (response.size() >= kMaxHandshakeResponseBytes) {
-            curl_easy_cleanup(curl);
-            return false;
-        }
-        if (!ReadExact(curl, sockfd, &byte, 1, deadline)) {
-            curl_easy_cleanup(curl);
-            return false;
-        }
-        response += static_cast<char>(byte);
-    }
-    size_t status_line_end = response.find("\r\n");
-    std::string status_line = response.substr(0, status_line_end);
-    size_t first_space = status_line.find(' ');
-    if (first_space == std::string::npos || status_line.compare(first_space + 1, 3, "101") != 0) {
-        curl_easy_cleanup(curl);
-        return false;
-    }
-
-    // RFC 6455 4.2.2's other two required response checks, alongside the
-    // Sec-WebSocket-Accept check below: Upgrade/Connection headers
-    // confirming the response itself is shaped as a WebSocket upgrade,
-    // not just a 101 from something that answers every request that way.
-    std::optional<std::string> upgrade = FindHeaderValue(response, "Upgrade");
-    if (!upgrade.has_value() || !HeaderValueContainsTokenIgnoreCase(*upgrade, "websocket")) {
-        curl_easy_cleanup(curl);
-        return false;
-    }
-    std::optional<std::string> connection = FindHeaderValue(response, "Connection");
-    if (!connection.has_value() || !HeaderValueContainsTokenIgnoreCase(*connection, "upgrade")) {
-        curl_easy_cleanup(curl);
-        return false;
-    }
-
-    // A bare "101" isn't enough on its own - RFC 6455's own handshake
-    // verification step confirms the far end understood the request
-    // as a WebSocket upgrade (see ComputeAcceptKey()'s own
-    // comment), not just something that happens to answer 101.
-    std::optional<std::string> accept = FindHeaderValue(response, "Sec-WebSocket-Accept");
-    if (!accept.has_value() || *accept != ComputeAcceptKey(key)) {
+    if (!PerformUpgradeHandshake(curl, sockfd, url)) {
         curl_easy_cleanup(curl);
         return false;
     }
@@ -493,89 +592,28 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
         // anywhere after the first byte (or between frames of one
         // message) has consumed part of a message, losing the framing, so
         // the connection is closed instead.
-        unsigned char header[2];
-        if (!ReadExact(curl, sockfd, header, 1, deadline)) {
+        unsigned char first_byte;
+        if (!ReadExact(curl, sockfd, &first_byte, 1, deadline)) {
             if (!accumulated.empty()) closed_ = true;
             return std::nullopt;
         }
-        if (!ReadExact(curl, sockfd, header + 1, 1, deadline)) return Fail();
+        FrameHeader header;
+        if (!ReadFrameHeader(curl, sockfd, first_byte, deadline, header)) return Fail();
+        const uint8_t opcode = header.opcode;
 
-        bool fin = (header[0] & 0x80) != 0;
-        uint8_t opcode = header[0] & 0x0F;
-        // RFC 6455 requires failing the connection on receipt of a
-        // reserved (0x3-0x7, 0xB-0xF) or otherwise-unexpected (0x2,
-        // binary) opcode - bail before reading anything else about this
-        // frame (its length may itself be adversarial) rather than
-        // falling through to the TEXT/CONTINUATION accumulation path
-        // below, which would otherwise silently treat it as message
-        // content. This transport has no authentication at all
-        // (ADR-0029), so a hostile/misbehaving LAN peer sending one is a
-        // real possibility, not just a spec technicality.
-        if (opcode != 0x0 && opcode != 0x1 && opcode != 0x8 && opcode != 0x9 && opcode != 0xA) {
-            return Fail();
-        }
-        // Real WS servers never mask frames sent to a client (RFC 6455),
-        // but this transport has no authentication at all (ADR-0029) - a
-        // malformed or hostile peer setting the mask bit anyway is still
-        // handled correctly here rather than silently corrupting the
-        // payload.
-        bool masked = (header[1] & 0x80) != 0;
-        uint64_t len = header[1] & 0x7F;
-        if (len == 126) {
-            unsigned char ext[2];
-            if (!ReadExact(curl, sockfd, ext, sizeof(ext), deadline)) return Fail();
-            len = (static_cast<uint64_t>(ext[0]) << 8) | ext[1];
-        } else if (len == 127) {
-            unsigned char ext[8];
-            if (!ReadExact(curl, sockfd, ext, sizeof(ext), deadline)) return Fail();
-            len = 0;
-            for (unsigned char b : ext) len = (len << 8) | b;
-        }
-        unsigned char mask[4] = {};
-        if (masked) {
-            if (!ReadExact(curl, sockfd, mask, sizeof(mask), deadline)) return Fail();
-        }
-
-        if (opcode == 0x8) {  // CLOSE - echo a bare close frame back per
-                               // RFC 6455's own closing handshake,
-                               // best-effort same as the PONG reply below
-                               // (a failed write here only affects how
-                               // cleanly this side's TCP connection
-                               // closes, not correctness - Close() tears
-                               // down the handle regardless, and the
-                               // caller already treats std::nullopt as a
-                               // dead connection). closed_ is set first,
-                               // unlike the TCP-level failures below that
-                               // return std::nullopt without it - unlike
-                               // those, a CLOSE frame is unambiguous: the
-                               // peer is done, so a later SendText() must
-                               // not attempt a write curl_ itself has no
-                               // way to know is now pointless (see
-                               // SendText()'s own check).
+        if (opcode == 0x8) {  // CLOSE
+            // closed_ is set first, unlike the TCP-level failures that
+            // return std::nullopt without it - unlike those, a CLOSE frame
+            // is unambiguous: the peer is done, so a later SendText() must
+            // not attempt a write curl_ itself has no way to know is now
+            // pointless (see SendText()'s own check).
             closed_ = true;
-            std::vector<unsigned char> close_frame = BuildMaskedFrame(0x8, "");
-            WriteExact(curl, sockfd, close_frame.data(), close_frame.size(), deadline);
+            EchoCloseFrame(curl, sockfd, deadline);
             return Fail();
         }
 
-        // See kMaxWebSocketMessageBytes's own comment for why. Checked
-        // against `len` alone first (cheap, no overflow risk even for an
-        // adversarial 64-bit extended length) before the cumulative
-        // check, which only matters once a multi-frame message is
-        // in progress.
-        if (len > kMaxWebSocketMessageBytes || accumulated.size() + len > kMaxWebSocketMessageBytes) {
-            return Fail();
-        }
-
-        std::string payload(len, '\0');
-        if (len > 0) {
-            if (!ReadExact(curl, sockfd, reinterpret_cast<unsigned char*>(payload.data()), len, deadline)) return Fail();
-            if (masked) {
-                for (size_t i = 0; i < payload.size(); ++i) {
-                    payload[i] = static_cast<char>(static_cast<unsigned char>(payload[i]) ^ mask[i % 4]);
-                }
-            }
-        }
+        std::string payload;
+        if (!ReadFramePayload(curl, sockfd, header, accumulated.size(), deadline, payload)) return Fail();
 
         if (opcode == 0x9) {  // PING - reply in kind (echoing the payload,
                                // per RFC 6455) and keep waiting; not a
@@ -597,7 +635,7 @@ std::optional<std::string> HostWebSocketClient::ReceiveText(int timeout_ms) {
 
         // TEXT (0x1) or CONTINUATION (0x0).
         accumulated += payload;
-        if (fin) {
+        if (header.fin) {
             return accumulated;
         }
         // Not the final frame of this message - loop to collect the rest
