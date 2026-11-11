@@ -15,7 +15,6 @@ read that first if a script here does something unexpected.
 - `set-password.sh [host]` - sets the Web UI admin password on a device
   that doesn't have one yet (default host `homedeck.local` - pass an IP
   if mDNS resolution doesn't work on your machine). Needs `curl` and `jq`.
-
 - `wifi-crash-repro.sh [host] [max-reboots] [settle-seconds]` - reboots the
   device through the Web UI (waiting `settle-seconds`, default 5, after each
   boot) until a boot ends in a crash (every boot repeats the Wi-Fi
