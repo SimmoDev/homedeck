@@ -72,14 +72,13 @@ lv_obj_t* CreateTestButtonPanel(lv_obj_t* parent);
 // but it leaves the simulator with no way back to the dashboard once
 // CreateTestWifiSetupNavButton below navigates here. Parent this to
 // wifi_setup_screen.Root() itself, not the test button panel - this
-// screen's controls are the only ones visible once it's loaded. Removed
-// once a trigger exists, same as CreateTestWifiSetupNavButton below.
+// screen's controls are the only ones visible once it's loaded. A lasting
+// hook, like CreateTestWifiSetupNavButton below.
 void CreateTestBackToDashboardButton(lv_obj_t* parent, Navigation& navigation);
 
-// Temporary test-only wiring to reach the Wi-Fi setup screen - the
-// simulator has no real SoftAP "not provisioned" path to trigger it
-// naturally (see ui/screens/wifi_setup_screen.h). Removed once a
-// trigger exists.
+// Reaches the Wi-Fi setup screen - the simulator has no SoftAP
+// "not provisioned" path to trigger it naturally (see
+// ui/screens/wifi_setup_screen.h). A lasting hook.
 void CreateTestWifiSetupNavButton(lv_obj_t* parent, Navigation& navigation);
 
 // Shows WifiSetupScreen's Allow/Deny request for a sample network - the
@@ -87,10 +86,9 @@ void CreateTestWifiSetupNavButton(lv_obj_t* parent, Navigation& navigation);
 // (see networking.md#recovery-access-point).
 void CreateTestWifiChangeRequestButton(lv_obj_t* parent, Navigation& navigation, WifiSetupScreen& screen);
 
-// Temporary test-only wiring to exercise StatusBar's and
-// NetworkStatusWidget's disconnected rendering - HostNetworkStatus
-// defaults to connected with nothing to disconnect it. Removed once a
-// trigger exists.
+// Exercises StatusBar's and NetworkStatusWidget's disconnected rendering -
+// HostNetworkStatus defaults to connected with nothing to disconnect it. A
+// lasting hook.
 void CreateTestWifiDisconnectButton(lv_obj_t* parent, HostNetworkStatus& network_status);
 
 // Not temporary - there's no other way to manually exercise AudioOutput
@@ -105,12 +103,11 @@ void CreateTestPlayToneButton(lv_obj_t* parent, HostAudioOutput& audio_output);
 // debug_kodi_backend.h for the fake's scope.
 void CreateTestFakeKodiButton(lv_obj_t* parent, DebugKodiBackend& kodi_backend);
 
-// Temporary test-only wiring proving LowBatteryMonitor/NotificationBanner
-// end to end - HostBatteryReader is a fixed-then-adjustable mock (see
-// platform/host/battery_reader.h) that never naturally crosses the
-// low-battery threshold on its own, so there's no other way to see the
-// notification flow run in the simulator. Removed once a widget
-// (weather) or some other trigger exists to exercise this naturally.
+// Drives LowBatteryMonitor/NotificationBanner end to end - HostBatteryReader
+// is a fixed-then-adjustable mock (see platform/host/battery_reader.h) that
+// never naturally crosses the low-battery threshold on its own, so there's
+// no other way to see the notification flow run in the simulator. A lasting
+// hook.
 void CreateTestLowBatteryButton(lv_obj_t* parent, HostBatteryReader& battery_reader);
 
 // Same reasoning as CreateTestLowBatteryButton above, for
@@ -119,34 +116,29 @@ void CreateTestLowBatteryButton(lv_obj_t* parent, HostBatteryReader& battery_rea
 // margin style that button's 10 uses against LowBatteryMonitor's 15.
 void CreateTestCriticalBatteryButton(lv_obj_t* parent, HostBatteryReader& battery_reader);
 
-// Temporary test-only wiring proving GET /api/diagnostics' external-power
-// field end to end - HostBatteryReader's external-power flag never
-// changes on its own. Removed once a Power Management screen exists
-// to exercise this.
+// Drives GET /api/diagnostics' external-power field end to end -
+// HostBatteryReader's external-power flag never changes on its own. A
+// lasting hook.
 void CreateTestExternalPowerButton(lv_obj_t* parent, HostBatteryReader& battery_reader);
 
-// Temporary test-only wiring proving LowBatteryMonitor doesn't fire (and
-// GET /api/diagnostics' batteryPresent field reflects reality) when no
-// battery is installed. Removed once a Power Management screen
-// exists to exercise this.
+// Shows that LowBatteryMonitor doesn't fire (and GET /api/diagnostics'
+// batteryPresent field reflects reality) when no battery is installed. A
+// lasting hook.
 void CreateTestBatteryPresentButton(lv_obj_t* parent, HostBatteryReader& battery_reader);
 
-// Temporary test-only wiring proving the Web UI's OTA page surfaces a
-// real upload failure, not just the success path - see
-// docs/architecture/simulator.md's OTA mock description. Removed once a
-// Power Management screen (or similar) exists to exercise this.
+// Makes the simulator's OTA mock fail, so the Web UI's OTA page surfaces an
+// upload failure, not just the success path - see
+// docs/architecture/simulator.md's OTA mock description. A lasting hook.
 void CreateTestForceOtaFailureButton(lv_obj_t* parent, bool& force_failure);
 
 void CreateTestTriggerIdleButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source);
 void CreateTestTriggerSleepingButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source);
 void CreateTestTriggerActiveButton(lv_obj_t* parent, DebugOverridableUserActivitySource& source);
 
-// Temporary test-only wiring proving the Web UI's Logs section renders
-// real entries without needing multiple simulator restarts to accumulate
-// them - see docs/decisions/ADR-0019-structured-logging.md. Removed once
-// a naturally-occurring event exists to exercise this in the
-// simulator (there's no Wi-Fi/mDNS bring-up here to log, unlike
-// firmware).
+// Adds a log entry so the Web UI's Logs section renders entries without
+// multiple simulator restarts to accumulate them - see
+// docs/decisions/ADR-0019-structured-logging.md. The simulator has no
+// Wi-Fi/mDNS bring-up to log, unlike firmware. A lasting hook.
 void CreateTestLogEntryButton(lv_obj_t* parent, Logger& logger);
 
 }  // namespace homedeck::sim
