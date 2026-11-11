@@ -57,7 +57,7 @@ for why.
 | `harmony_connection_test.cpp` | `HarmonyConnection`: connect/retry/liveness, the press/hold/release command path and its queue, plus two real-backend tests (`HostHttpClient`/`HostWebSocketClient` against a stand-in hub) |
 | `harmony_notification_bridge_test.cpp`, `harmony_routes_test.cpp` | Notify-once-per-outage latch; Harmony routes |
 | `kodi_client_test.cpp` | `KodiClient`: see below |
-| `kodi_routes_test.cpp` | `/api/kodi/status` and `/api/kodi/reconnect`: authentication and snapshot serialisation, including non-UTF-8 discovered strings |
+| `kodi_routes_test.cpp` | `/api/kodi/status` and `/api/kodi/reconnect`: authentication and snapshot serialisation (every connection and playback state string), including non-UTF-8 discovered strings |
 | `kodi_display_test.cpp` | The Kodi widget line, Now Playing subtitle and clock formatting |
 | `virtual_list_window_test.cpp` | `ComputeVisibleRows()`, the arithmetic behind `VirtualList` |
 | `lazy_load_test.cpp` | `LazyLoad`, which decides when a browse screen requests its list, including the retry after a failed load |

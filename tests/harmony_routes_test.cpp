@@ -12,6 +12,7 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <memory>
@@ -94,6 +95,26 @@ public:
     }
     bool IsOpen() const override { return true; }
     void Close() override {}
+};
+
+// Holds Connect() until released, so the connection stays in kConnecting.
+class BlockedConnectWebSocketClient : public homedeck::WebSocketClient {
+public:
+    explicit BlockedConnectWebSocketClient(std::shared_ptr<std::atomic<bool>> release)
+        : release_(std::move(release)) {}
+    bool Connect(const std::string&) override {
+        while (!release_->load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return false;
+    }
+    bool SendText(const std::string&) override { return false; }
+    std::optional<std::string> ReceiveText(int) override { return std::nullopt; }
+    bool IsOpen() const override { return false; }
+    void Close() override {}
+
+private:
+    std::shared_ptr<std::atomic<bool>> release_;
 };
 
 class HarmonyRoutesTest : public ::testing::Test {
@@ -192,6 +213,47 @@ TEST_F(HarmonyRoutesTest, StatusReportsPopulatedSnapshotOnceConnected) {
     EXPECT_NE(result.body.find(R"("currentActivityId":"-1")"), std::string::npos);
 
     connected_connection.Stop();
+}
+
+// The Web UI switches on these exact strings (HarmonySettings.svelte), so
+// each enum value's wire form is pinned here.
+TEST_F(HarmonyRoutesTest, StatusReportsConnectingWhileTheConnectionIsBeingEstablished) {
+    ASSERT_TRUE(storage_->SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+    auto release = std::make_shared<std::atomic<bool>>(false);
+    FixedSuccessHttpClient http_client;
+    homedeck::HarmonyConnection connection(
+        http_client, [release] { return std::make_unique<BlockedConnectWebSocketClient>(release); }, *storage_,
+        *event_bus_);
+    connection.Start();
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kConnecting; }));
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterHarmonyRoutes(server, connection, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/harmony/status", "", Login(server.BoundPort()));
+    EXPECT_NE(result.body.find(R"("state":"connecting")"), std::string::npos);
+
+    release->store(true);
+    connection.Stop();
+}
+
+TEST_F(HarmonyRoutesTest, StatusReportsErrorWhenTheConnectionFails) {
+    ASSERT_TRUE(storage_->SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+    FixedSuccessHttpClient http_client;
+    homedeck::HarmonyConnection connection(
+        http_client, [] { return std::make_unique<UnusedWebSocketClient>(); }, *storage_, *event_bus_);
+    connection.Start();
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterHarmonyRoutes(server, connection, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/harmony/status", "", Login(server.BoundPort()));
+    EXPECT_NE(result.body.find(R"("state":"error")"), std::string::npos);
+
+    connection.Stop();
 }
 
 TEST_F(HarmonyRoutesTest, ReconnectReturnsOk) {

@@ -14,6 +14,7 @@
 
 #include <gtest/gtest.h>
 
+#include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <memory>
@@ -65,6 +66,10 @@ public:
 // polls so the connection keeps passing its own liveness check.
 class ConnectedKodiWebSocketClient : public homedeck::WebSocketClient {
 public:
+    // A non-null speed makes the double report one active player moving at
+    // that speed (1 playing, 0 paused); none reports nothing playing.
+    explicit ConnectedKodiWebSocketClient(std::optional<int> player_speed = std::nullopt)
+        : player_speed_(player_speed) {}
     bool Connect(const std::string&) override { return true; }
     bool SendText(const std::string& text) override {
         nlohmann::json request = nlohmann::json::parse(text, nullptr, false);
@@ -82,7 +87,12 @@ public:
         if (last_method_ == "Application.GetProperties") {
             result = {{"volume", 55}, {"muted", false}, {"version", {{"major", 21}, {"minor", 2}}}};
         } else if (last_method_ == "Player.GetActivePlayers") {
-            result = nlohmann::json::array();
+            result = player_speed_.has_value() ? nlohmann::json::array({{{"playerid", 1}, {"type", "video"}}})
+                                               : nlohmann::json::array();
+        } else if (last_method_ == "Player.GetProperties") {
+            result = {{"speed", player_speed_.value_or(0)}, {"percentage", 10.0}, {"canseek", true}};
+        } else if (last_method_ == "Player.GetItem") {
+            result = {{"item", {{"title", "Film"}, {"type", "movie"}}}};
         } else {
             result = "OK";
         }
@@ -94,8 +104,29 @@ public:
     void Close() override {}
 
 private:
+    std::optional<int> player_speed_;
     nlohmann::json last_id_ = 0;
     std::string last_method_;
+};
+
+// Holds Connect() until released, so the client stays in kConnecting.
+class BlockedConnectWebSocketClient : public homedeck::WebSocketClient {
+public:
+    explicit BlockedConnectWebSocketClient(std::shared_ptr<std::atomic<bool>> release)
+        : release_(std::move(release)) {}
+    bool Connect(const std::string&) override {
+        while (!release_->load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        return false;
+    }
+    bool SendText(const std::string&) override { return false; }
+    std::optional<std::string> ReceiveText(int) override { return std::nullopt; }
+    bool IsOpen() const override { return false; }
+    void Close() override {}
+
+private:
+    std::shared_ptr<std::atomic<bool>> release_;
 };
 
 class KodiRoutesTest : public ::testing::Test {
@@ -116,6 +147,25 @@ protected:
 
     std::unique_ptr<homedeck::KodiClient> MakeClient(homedeck::WebSocketClientFactory factory) {
         return std::make_unique<homedeck::KodiClient>(std::move(factory), browser_, *storage_, *event_bus_);
+    }
+
+    // Connects a client whose Kodi reports one active player at `speed` and
+    // returns the status body once that item reached the snapshot.
+    std::string StatusWithPlayerAtSpeed(int speed) {
+        EXPECT_TRUE(
+            storage_->SetSetting(homedeck::KodiClient::kModuleId, homedeck::KodiClient::kHostKey, 1, "127.0.0.1"));
+        auto client = MakeClient([speed] { return std::make_unique<ConnectedKodiWebSocketClient>(speed); });
+        client->Start();
+        EXPECT_TRUE(WaitFor([&] { return client->Snapshot().now_playing.title == "Film"; }));
+
+        homedeck::HostHttpServer server;
+        homedeck::RegisterAdminAuthRoutes(server, *auth_);
+        homedeck::RegisterKodiRoutes(server, *client, *auth_);
+        EXPECT_TRUE(server.Start(0));
+        std::string body =
+            HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "", Login(server.BoundPort())).body;
+        client->Stop();
+        return body;
     }
 
     std::string Login(uint16_t port) {
@@ -193,6 +243,50 @@ TEST_F(KodiRoutesTest, StatusReportsPopulatedSnapshotOnceConnected) {
     EXPECT_NE(result.body.find(R"("canSeek":false)"), std::string::npos);
 
     client->Stop();
+}
+
+// The Web UI switches on these exact strings (KodiSettings.svelte), so each
+// enum value's wire form is pinned here.
+TEST_F(KodiRoutesTest, StatusReportsConnectingWhileTheConnectionIsBeingEstablished) {
+    ASSERT_TRUE(storage_->SetSetting(homedeck::KodiClient::kModuleId, homedeck::KodiClient::kHostKey, 1, "127.0.0.1"));
+    auto release = std::make_shared<std::atomic<bool>>(false);
+    auto client = MakeClient([release] { return std::make_unique<BlockedConnectWebSocketClient>(release); });
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == homedeck::KodiConnectionState::kConnecting; }));
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterKodiRoutes(server, *client, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "", Login(server.BoundPort()));
+    EXPECT_NE(result.body.find(R"("state":"connecting")"), std::string::npos);
+
+    release->store(true);
+    client->Stop();
+}
+
+TEST_F(KodiRoutesTest, StatusReportsErrorWhenTheConnectionFails) {
+    ASSERT_TRUE(storage_->SetSetting(homedeck::KodiClient::kModuleId, homedeck::KodiClient::kHostKey, 1, "127.0.0.1"));
+    auto client = MakeClient([] { return std::make_unique<UnusedWebSocketClient>(); });
+    client->Start();
+    ASSERT_TRUE(WaitFor([&] { return client->Snapshot().state == homedeck::KodiConnectionState::kError; }));
+
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterKodiRoutes(server, *client, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    auto result = HttpRequestRaw(server.BoundPort(), "GET", "/api/kodi/status", "", Login(server.BoundPort()));
+    EXPECT_NE(result.body.find(R"("state":"error")"), std::string::npos);
+
+    client->Stop();
+}
+
+TEST_F(KodiRoutesTest, StatusReportsPlayingWhileAPlayerRuns) {
+    EXPECT_NE(StatusWithPlayerAtSpeed(1).find(R"("playback":"playing")"), std::string::npos);
+}
+
+TEST_F(KodiRoutesTest, StatusReportsPausedWhileAPlayerIsStopped) {
+    EXPECT_NE(StatusWithPlayerAtSpeed(0).find(R"("playback":"paused")"), std::string::npos);
 }
 
 TEST_F(KodiRoutesTest, ReconnectReturnsOk) {
