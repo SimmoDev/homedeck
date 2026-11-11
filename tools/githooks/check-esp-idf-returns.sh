@@ -160,6 +160,14 @@ for f in "$@"; do
         echo "$cf_matches" | sed 's/^/    /'
         status=1
     fi
+    # assert() can be compiled out or silenced by the assertion-level Kconfig
+    # setting, so a call inside one is skipped or unchecked in those builds.
+    assert_matches=$(grep -nE '(^|[^A-Za-z0-9_])(assert|configASSERT)\(.*(esp_|mdns_|httpd_|x[A-Z])[A-Za-z0-9_]*\(' "$f" || true)
+    if [ -n "$assert_matches" ]; then
+        echo "[esp-idf-return] $f: ESP-IDF/FreeRTOS call inside assert() - assign the result and check it explicitly:"
+        echo "$assert_matches" | cut -c1-160 | sed 's/^/    /'
+        status=1
+    fi
 done
 
 exit $status

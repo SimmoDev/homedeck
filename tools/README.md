@@ -118,7 +118,7 @@ why that split exists. Checking for the following defect classes:
   (`githooks/check-docs.sh`); [hardware.md](../docs/architecture/hardware.md)'s
   documented electrical/physical-facts-only scope, when that file is
   staged (`githooks/check-hardware-md-scope.sh`); unchecked ESP-IDF/mDNS/httpd
-  return values in `firmware/main/` and `src/platform/firmware/`
+  return values, and ESP-IDF/FreeRTOS calls inside `assert()`, in `firmware/main/` and `src/platform/firmware/`
   (`githooks/check-esp-idf-returns.sh`); a `curl_easy_perform()`
   call with no `CURLOPT_TIMEOUT`/`CURLOPT_CONNECTTIMEOUT` set anywhere
   in the same file, in any staged `.cpp` file
