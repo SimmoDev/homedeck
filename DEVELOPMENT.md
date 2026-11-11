@@ -74,6 +74,12 @@ re-reading in full up front.
   This is the primary supported path; a native install per Espressif's own
   "Get Started" guide remains a documented alternative for anyone who
   prefers it, but isn't what this project verifies against.
+- **Git and network access** — the first CMake configure of the simulator
+  and of the unit tests downloads LVGL, civetweb, mbedTLS and GoogleTest
+  from GitHub at pinned tags (`FetchContent`), so `git` and a network
+  connection are needed then. Later builds reuse the downloads.
+- **pkg-config** — the simulator's CMake project locates SDL2 and
+  Avahi through it.
 - **CMake** and **Ninja** — build system for the simulator's own host-native
   project, and (wrapped by `idf.py`) for the firmware target. These are two
   independent build definitions, not one shared one — see
