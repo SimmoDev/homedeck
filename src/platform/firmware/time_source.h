@@ -21,7 +21,7 @@ class I2cDevice;
 // see docs/architecture/hardware.md's I2C address map) rather than the
 // simulator's std::chrono::system_clock::now(). Interprets the RTC's
 // reported time as local wall time directly (via std::mktime) - no
-// timezone handling exists yet anywhere in this project; that's a known
+// timezone handling exists anywhere in this project; that's a known
 // gap, not something this class tries to solve on its own.
 //
 // Thread-safe: Now() and SetTime() both lock mutex_ around the actual

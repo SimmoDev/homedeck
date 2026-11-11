@@ -127,7 +127,7 @@
     // something this request waits on synchronously.
     await postJson("/api/harmony/reconnect");
     // The Refresh button below covers whatever this snapshot doesn't
-    // catch, since no live-push mechanism exists yet for the Web UI (see
+    // catch, since the Web UI has no live-push mechanism (see
     // docs/decisions/ADR-0002-technology-stack.md#3-embedded-webwebsocket-server).
     loadStatus();
   }
