@@ -93,93 +93,102 @@ void OpenMeteoWeatherProvider::PollOnce() {
     bool configured = latitude.has_value() && longitude.has_value() && ParsesAsNumber(latitude->value) &&
                        ParsesAsNumber(longitude->value);
     if (!configured) {
-        // Published after mutex_ releases (a nested scope, not held across
-        // the call) - a synchronous (non-UI Subscribe, not SubscribeUi)
-        // WeatherUpdatedEvent subscriber that calls back into Snapshot()
-        // from inside its callback would otherwise self-deadlock on this
-        // same, non-recursive mutex_. Same reasoning as
-        // EventBus::PublishImpl's own comment about copying its subscriber
-        // list out from under its lock before invoking callbacks.
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            state_ = WeatherState{false, false, false, 0.0, 0, ""};
-        }
-        event_bus_.Publish(WeatherUpdatedEvent{});
+        PublishState(WeatherState{false, false, false, 0.0, 0, ""});
         return;
     }
 
-    std::string url = "https://api.open-meteo.com/v1/forecast?latitude=" + latitude->value +
-                       "&longitude=" + longitude->value + "&current=temperature_2m,weather_code";
-    HttpClientResponse response = http_client_.Get(url);
-
     std::string name = display_name.has_value() ? display_name->value : "";
 
-    if (response.success && response.status_code == 200) {
-        std::optional<nlohmann::json> parsed = TryParseJsonObject(response.body);
-        auto current = parsed.has_value() ? parsed->find("current") : nlohmann::json::iterator{};
-        // is_number(), not just contains() - .get<T>() throws
-        // json::type_error on a type-mismatched field (not just a missing
-        // one), which is std::abort() on firmware (exceptions disabled -
-        // see kodi_json.h's GetInt()/GetDouble()/GetBool() for the
-        // full hazard). Open-Meteo is a single trusted HTTPS endpoint, not
-        // an unauthenticated LAN peer, but a differently-shaped response
-        // (an API change, a proxy, an error payload) still reaches here.
-        if (parsed.has_value() && current != parsed->end() && current->is_object() &&
-            current->contains("temperature_2m") && current->at("temperature_2m").is_number() &&
-            current->contains("weather_code") && current->at("weather_code").is_number()) {
-            double temperature_c = current->at("temperature_2m").get<double>();
-            int weather_code = ClampWeatherCode(current->at("weather_code").get<double>());
-
-            nlohmann::json cache = {
-                {"temperature_c", temperature_c},
-                {"weather_code", weather_code},
-                {"display_name", name},
-            };
-            // A failed write only risks a reboot before the next successful
-            // poll falling back to stale or absent cached data, so it is
-            // logged rather than treated as a poll failure.
-            if (!storage_.WriteCache(kModuleId, kCacheKey, kCacheSchemaVersion, cache.dump()) && logger_ != nullptr) {
-                logger_->Log(LogLevel::kWarning, "weather", "Failed to persist the weather cache");
-            }
-
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                state_ = WeatherState{true, true, true, temperature_c, weather_code, name};
-            }
-            event_bus_.Publish(WeatherUpdatedEvent{});
-            return;
-        }
+    if (std::optional<WeatherState> live = FetchLive(latitude->value, longitude->value, name)) {
+        PublishState(*live);
+        return;
     }
 
     // Fetch failed or returned something unparseable - fall back to the
     // last cached reading (restart-persisted or from an earlier
     // successful poll this session) rather than showing blank, marked
     // non-live so the UI can distinguish it from a fresh reading.
-    auto cached = storage_.ReadCache(kModuleId, kCacheKey);
-    if (cached.has_value()) {
-        std::optional<nlohmann::json> parsed = TryParseJsonObject(cached->value);
-        // Same is_number() reasoning as the live-fetch parse above - a
-        // future schema change or on-disk corruption must not crash on
-        // read, just fall through to "no reading" below.
-        if (parsed.has_value() && parsed->contains("temperature_c") && parsed->at("temperature_c").is_number() &&
-            parsed->contains("weather_code") && parsed->at("weather_code").is_number()) {
-            {
-                std::lock_guard<std::mutex> lock(mutex_);
-                state_ = WeatherState{true, true, false, parsed->at("temperature_c").get<double>(),
-                                       ClampWeatherCode(parsed->at("weather_code").get<double>()), name};
-            }
-            event_bus_.Publish(WeatherUpdatedEvent{});
-            return;
-        }
+    if (std::optional<WeatherState> cached = ReadCached(name)) {
+        PublishState(*cached);
+        return;
     }
     // Configured, but no reading has ever been obtained (first poll
     // still in flight or failed, and nothing cached from a prior
     // session either) - has_reading=false, not a 0.0/0 reading.
+    PublishState(WeatherState{true, false, false, 0.0, 0, name});
+}
+
+void OpenMeteoWeatherProvider::PublishState(const WeatherState& state) {
+    // Published after mutex_ releases (a nested scope, not held across
+    // the call) - a synchronous (non-UI Subscribe, not SubscribeUi)
+    // WeatherUpdatedEvent subscriber that calls back into Snapshot()
+    // from inside its callback would otherwise self-deadlock on this
+    // same, non-recursive mutex_. Same reasoning as
+    // EventBus::PublishImpl's own comment about copying its subscriber
+    // list out from under its lock before invoking callbacks.
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        state_ = WeatherState{true, false, false, 0.0, 0, name};
+        state_ = state;
     }
     event_bus_.Publish(WeatherUpdatedEvent{});
+}
+
+std::optional<WeatherState> OpenMeteoWeatherProvider::FetchLive(const std::string& latitude,
+                                                                const std::string& longitude,
+                                                                const std::string& name) {
+    std::string url = "https://api.open-meteo.com/v1/forecast?latitude=" + latitude + "&longitude=" + longitude +
+                       "&current=temperature_2m,weather_code";
+    HttpClientResponse response = http_client_.Get(url);
+    if (!response.success || response.status_code != 200) {
+        return std::nullopt;
+    }
+
+    std::optional<nlohmann::json> parsed = TryParseJsonObject(response.body);
+    auto current = parsed.has_value() ? parsed->find("current") : nlohmann::json::iterator{};
+    // is_number(), not just contains() - .get<T>() throws
+    // json::type_error on a type-mismatched field (not just a missing
+    // one), which is std::abort() on firmware (exceptions disabled -
+    // see kodi_json.h's GetInt()/GetDouble()/GetBool() for the
+    // full hazard). Open-Meteo is a single trusted HTTPS endpoint, not
+    // an unauthenticated LAN peer, but a differently-shaped response
+    // (an API change, a proxy, an error payload) still reaches here.
+    if (!parsed.has_value() || current == parsed->end() || !current->is_object() ||
+        !current->contains("temperature_2m") || !current->at("temperature_2m").is_number() ||
+        !current->contains("weather_code") || !current->at("weather_code").is_number()) {
+        return std::nullopt;
+    }
+    double temperature_c = current->at("temperature_2m").get<double>();
+    int weather_code = ClampWeatherCode(current->at("weather_code").get<double>());
+
+    nlohmann::json cache = {
+        {"temperature_c", temperature_c},
+        {"weather_code", weather_code},
+        {"display_name", name},
+    };
+    // A failed write only risks a reboot before the next successful
+    // poll falling back to stale or absent cached data, so it is
+    // logged rather than treated as a poll failure.
+    if (!storage_.WriteCache(kModuleId, kCacheKey, kCacheSchemaVersion, cache.dump()) && logger_ != nullptr) {
+        logger_->Log(LogLevel::kWarning, "weather", "Failed to persist the weather cache");
+    }
+    return WeatherState{true, true, true, temperature_c, weather_code, name};
+}
+
+std::optional<WeatherState> OpenMeteoWeatherProvider::ReadCached(const std::string& name) {
+    auto cached = storage_.ReadCache(kModuleId, kCacheKey);
+    if (!cached.has_value()) {
+        return std::nullopt;
+    }
+    std::optional<nlohmann::json> parsed = TryParseJsonObject(cached->value);
+    // Same is_number() reasoning as FetchLive()'s parse - a
+    // future schema change or on-disk corruption must not crash on
+    // read, just fall through to "no reading".
+    if (!parsed.has_value() || !parsed->contains("temperature_c") || !parsed->at("temperature_c").is_number() ||
+        !parsed->contains("weather_code") || !parsed->at("weather_code").is_number()) {
+        return std::nullopt;
+    }
+    return WeatherState{true, true, false, parsed->at("temperature_c").get<double>(),
+                        ClampWeatherCode(parsed->at("weather_code").get<double>()), name};
 }
 
 }  // namespace homedeck

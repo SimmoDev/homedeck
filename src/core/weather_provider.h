@@ -9,6 +9,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <mutex>
+#include <optional>
 #include <string>
 
 namespace homedeck {
@@ -105,6 +106,14 @@ public:
 
 private:
     void PollOnce();
+    // PollOnce()'s steps. FetchLive() queries the API and refreshes the
+    // cache; ReadCached() returns the last cached reading as non-live.
+    // Both return nullopt when there is no usable reading.
+    std::optional<WeatherState> FetchLive(const std::string& latitude, const std::string& longitude,
+                                          const std::string& name);
+    std::optional<WeatherState> ReadCached(const std::string& name);
+    // Stores `state` and publishes WeatherUpdatedEvent.
+    void PublishState(const WeatherState& state);
     void PollLoop(std::stop_token stop);
 
     HttpClient& http_client_;
