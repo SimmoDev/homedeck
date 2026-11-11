@@ -6,9 +6,7 @@
   // Crash/reboot diagnostics (see docs/architecture/diagnostics.md and
   // ADR-0013) and live battery/power state (see
   // docs/architecture/hardware.md#power) - implemented today.
-  // Module status, connection state, and error reporting are still
-  // unbuilt (no modules exist yet), so there's nothing else to show here
-  // yet.
+  // Each module's connection state is shown on its own settings panel.
   interface DiagnosticsStatus extends BatteryStatus {
     resetReason: string;
     hasCoreDump: boolean;
