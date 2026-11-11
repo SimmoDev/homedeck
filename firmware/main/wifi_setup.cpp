@@ -6,8 +6,8 @@
 #include "core/wifi_reconnect_policy.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <functional>
 #include <mutex>
@@ -806,9 +806,11 @@ WifiCredentialsCheck InitWifiAndCheckStoredCredentials(FirmwareNetworkStatus& ne
     // assumes both netifs exist - a null here is an unrecoverable boot-time
     // misconfiguration (e.g. out of memory this early), not a case with a
     // meaningful fallback, so it's fatal the same way the ESP_ERROR_CHECK()
-    // calls below already are.
-    assert(esp_netif_create_default_wifi_sta() != nullptr);
-    assert(esp_netif_create_default_wifi_ap() != nullptr);
+    // calls below already are. An explicit abort rather than assert(), which
+    // can be compiled out or silenced by the assertion-level Kconfig setting.
+    if (esp_netif_create_default_wifi_sta() == nullptr || esp_netif_create_default_wifi_ap() == nullptr) {
+        abort();
+    }
 
     wifi_init_config_t wifi_config = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&wifi_config));
