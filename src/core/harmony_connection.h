@@ -197,7 +197,7 @@ public:
     // are injectable (defaulted to production values) so tests can
     // exercise the retry path and the periodic current-activity refresh
     // without waiting out the full 2s/60s backoff or the full 30s
-    // liveness interval - the same "real default, test-overridable" shape
+    // liveness interval - the same "production default, test-overridable" shape
     // OpenMeteoWeatherProvider::poll_interval already uses.
     HarmonyConnection(HttpClient& http_client, WebSocketClientFactory make_websocket_client, Storage& storage,
                        EventBus& event_bus, std::chrono::milliseconds initial_backoff = std::chrono::seconds(2),
@@ -441,7 +441,7 @@ private:
     std::chrono::milliseconds liveness_interval_;
     // SendPendingCommands() drops any entry older than this rather than
     // sending it - a queued command from long enough ago no longer
-    // reflects what the user wants sent to a hub whose real-world state
+    // reflects what the user wants sent to a hub whose state
     // has moved on. Not applied to a release-status device command - see
     // that method's own comment on why a release is always worth
     // attempting once a connection exists to send it over, however late.
