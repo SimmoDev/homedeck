@@ -2458,3 +2458,119 @@ TEST_F(HarmonyConnectionTest, RealBackendDrainsAStaleFrameBeforeTheNextLivenessP
     hub_thread.join();
     close(listen_fd);
 }
+
+// A failed SendText() for the config request is a transport failure of the
+// socket just opened, so the connect attempt fails rather than waiting for a
+// reply that cannot come.
+TEST_F(HarmonyConnectionTest, ConfigRequestSendFailureEntersErrorState) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    script->send_should_succeed = false;
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+
+    ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }));
+    EXPECT_FALSE(connection.Snapshot().has_config);
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        EXPECT_GT(script->close_count, 0);
+    }
+
+    connection.Stop();
+}
+
+// Each of these replies to a liveness probe is unusable as an activity id:
+// not JSON at all, JSON without a `data` object, and a probe whose request
+// cannot be sent. All of them must drop the connection instead of leaving
+// it reported as connected.
+TEST_F(HarmonyConnectionTest, UnusableLivenessProbesDropTheConnection) {
+    enum class Probe { kNotJson, kNoDataObject, kSendFails };
+    for (Probe probe : {Probe::kNotJson, Probe::kNoDataObject, Probe::kSendFails}) {
+        homedeck::HostSettingsStore settings_store(root_dir_);
+        homedeck::HostCacheStore cache_store(root_dir_);
+        homedeck::HostSecretStore secret_store(root_dir_);
+        homedeck::Storage storage(settings_store, cache_store, secret_store);
+        ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+        homedeck::EventBus bus;
+        FakeHttpClient http_client;
+        http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+        auto script = std::make_shared<WsScript>();
+        PushResponse(script, kConfigSuccessBody);
+        PushResponse(script, CurrentActivityResponseBody("-1"));
+        if (probe == Probe::kNotJson) PushResponse(script, "this is not json");
+        if (probe == Probe::kNoDataObject) PushResponse(script, R"({"cmd":"x"})");
+
+        homedeck::HarmonyConnection connection(
+            http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus,
+            kFastBackoff, kFastBackoff, /*liveness_interval=*/std::chrono::milliseconds(30));
+        connection.Start();
+
+        ASSERT_TRUE(WaitFor([&] { return connection.Snapshot().has_config; }));
+        if (probe == Probe::kSendFails) {
+            std::lock_guard<std::mutex> lock(script->mutex);
+            script->send_should_succeed = false;
+        }
+        EXPECT_TRUE(WaitFor([&] { return connection.Snapshot().state == homedeck::HarmonyConnectionState::kError; }))
+            << "probe case " << static_cast<int>(probe);
+
+        connection.Stop();
+    }
+}
+
+// A stop requested while the config request's SendText() is in flight ends
+// the connect attempt without publishing a connection.
+TEST_F(HarmonyConnectionTest, StopDuringTheConfigRequestSendNeverReportsConnected) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    PushResponse(script, kConfigSuccessBody);
+    PushResponse(script, CurrentActivityResponseBody("-1"));
+    script->block_next_send = true;
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+    {
+        std::unique_lock<std::mutex> lock(script->mutex);
+        ASSERT_TRUE(script->send_cv.wait_for(lock, std::chrono::seconds(3), [&] { return script->send_blocked; }));
+    }
+
+    std::atomic<bool> stopper_running{false};
+    std::thread stopper([&] {
+        stopper_running = true;
+        connection.Stop();
+    });
+    ASSERT_TRUE(WaitFor([&] { return stopper_running.load(); }));
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->release_blocked_send = true;
+    }
+    script->send_cv.notify_all();
+    stopper.join();
+
+    EXPECT_FALSE(connection.Snapshot().has_config);
+    EXPECT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kDisconnected);
+}
