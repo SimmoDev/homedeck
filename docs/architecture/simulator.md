@@ -82,10 +82,8 @@ for why this ruled out a separate web-based mock UI.
 
     Harmony's `ActivitiesScreen` / `DevicesScreen` gate their populated
     content on a live hub connection the same way, but have **no
-    equivalent debug backend yet** — exercising them in the simulator
-    still needs a reachable Harmony Hub on the LAN. A known gap in the
-    debug tooling, not a design constraint; a `DebugHarmonyBackend`
-    mirroring `DebugKodiBackend` would close it.
+    debug backend**, so exercising them in the simulator needs a
+    reachable Harmony Hub on the LAN.
 - **Networking:** the simulator runs on a real machine with a real network
   stack, so networking, the embedded HTTP server, and the Web Management UI
   can be exercised against real (or locally mocked) external services
