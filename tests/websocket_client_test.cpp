@@ -745,3 +745,93 @@ TEST(HostWebSocketClient, IsOpenIsFalseOnceThePeerCloses) {
     EXPECT_FALSE(client.ReceiveText(1000).has_value());
     EXPECT_FALSE(client.IsOpen());
 }
+
+// A payload over 65535 bytes needs the 8-byte extended length field.
+TEST(HostWebSocketClient, SendTextCarriesAPayloadOverSixtyFourKibWithAnEightByteLength) {
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
+    const std::string payload(70000, 'x');
+    std::string received_from_client;
+
+    std::jthread server_thread([listen_fd, &received_from_client] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        PerformServerHandshake(conn_fd);
+        received_from_client = ReadClientTextFrame(conn_fd);
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
+    EXPECT_TRUE(client.SendText(payload));
+
+    server_thread.join();
+    close(listen_fd);
+
+    EXPECT_EQ(received_from_client, payload);
+}
+
+// RFC 6455 forbids a server masking its frames, but a peer that does so
+// anyway must still have its payload decoded correctly.
+TEST(HostWebSocketClient, ReceiveTextUnmasksAServerFrameThatSetsTheMaskBit) {
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
+    const std::string payload = "masked payload";
+
+    std::jthread server_thread([listen_fd, &payload] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        PerformServerHandshake(conn_fd);
+        const unsigned char mask[4] = {0x12, 0x34, 0x56, 0x78};
+        std::vector<unsigned char> frame = {0x81, static_cast<unsigned char>(0x80 | payload.size())};
+        frame.insert(frame.end(), mask, mask + 4);
+        for (size_t i = 0; i < payload.size(); ++i) {
+            frame.push_back(static_cast<unsigned char>(payload[i]) ^ mask[i % 4]);
+        }
+        send(conn_fd, frame.data(), frame.size(), MSG_NOSIGNAL);
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    ASSERT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port) + "/"));
+    std::optional<std::string> response = client.ReceiveText(2000);
+
+    server_thread.join();
+    close(listen_fd);
+
+    ASSERT_TRUE(response.has_value());
+    EXPECT_EQ(*response, payload);
+}
+
+// A URL with no path requests "/".
+TEST(HostWebSocketClient, ConnectAcceptsAUrlWithNoPath) {
+    uint16_t port = 0;
+    int listen_fd = ListenOnLoopback(&port);
+    ASSERT_GE(listen_fd, 0);
+    std::string request_line;
+
+    std::jthread server_thread([listen_fd, &request_line] {
+        int conn_fd = accept(listen_fd, nullptr, nullptr);
+        if (conn_fd < 0) return;
+        std::string request = ReadHttpRequest(conn_fd);
+        request_line = request.substr(0, request.find("\r\n"));
+        std::string client_key = ExtractHeaderValue(request, "Sec-WebSocket-Key");
+        std::string response = "HTTP/1.1 101 Switching Protocols\r\n"
+                                "Upgrade: websocket\r\n"
+                                "Connection: Upgrade\r\n"
+                                "Sec-WebSocket-Accept: " +
+                                ComputeAcceptKey(client_key) + "\r\n\r\n";
+        send(conn_fd, response.data(), response.size(), MSG_NOSIGNAL);
+        close(conn_fd);
+    });
+
+    homedeck::HostWebSocketClient client;
+    EXPECT_TRUE(client.Connect("ws://127.0.0.1:" + std::to_string(port)));
+
+    server_thread.join();
+    close(listen_fd);
+
+    EXPECT_EQ(request_line, "GET / HTTP/1.1");
+}

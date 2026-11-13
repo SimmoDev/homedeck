@@ -49,7 +49,7 @@ for why.
 | `wifi_reconnect_policy_test.cpp`, `wifi_credentials_test.cpp`, `pending_wifi_credentials_test.cpp`, `url_codec_test.cpp` | The portable decision logic behind `wifi_setup.cpp` (reconnect policy, credential limits, the pending recovery request) and query/form parsing |
 | `grid_occupancy_test.cpp`, `activity_start_tracker_test.cpp`, `command_button_press_tracker_test.cpp` | LVGL-free logic of the dashboard grid, `ActivitiesScreen` and `DevicesScreen` |
 | `http_server_test.cpp`, `http_client_test.cpp`, `static_assets_test.cpp` | Host HTTP server and client, static asset serving |
-| `websocket_client_test.cpp` | `HostWebSocketClient` against a raw-socket RFC 6455 server: reassembly across reads and frames, ping/pong, close echo, reserved-opcode rejection, `Sec-WebSocket-Accept` validation, the message-size cap, `ReceiveText(0)`, and `IsOpen()` (a timeout before a frame leaves the link open; a timeout mid-frame or a peer close closes it) |
+| `websocket_client_test.cpp` | `HostWebSocketClient` against a raw-socket RFC 6455 server: reassembly across reads and frames, ping/pong, close echo, reserved-opcode rejection, `Sec-WebSocket-Accept` validation, the message-size cap, 8-byte frame lengths, server-masked frames, a path-less URL, `ReceiveText(0)`, and `IsOpen()` (a timeout before a frame leaves the link open; a timeout mid-frame or a peer close closes it) |
 | `logger_test.cpp` | Structured logging and async persistence |
 | `weather_provider_test.cpp`, `weather_routes_test.cpp` | `OpenMeteoWeatherProvider` against an `HttpClient` double, and its routes |
 | `admin_auth_service_test.cpp`, `admin_auth_routes_test.cpp` | Admin password, sessions and their routes |
