@@ -55,7 +55,7 @@ nlohmann::json AllSettingsJson(Storage& storage) {
     return entries;
 }
 
-HttpResponse JsonError(int status, const char* body) {
+HttpResponse JsonResponse(int status, const char* body) {
     return HttpResponse{status, "application/json", body, {}};
 }
 
@@ -65,7 +65,7 @@ HttpResponse HandleSetSetting(Storage& storage, const HttpRequest& request,
                               const SettingValidateFn& on_setting_validate) {
     auto parsed_opt = TryParseJsonObject(request.body);
     if (!parsed_opt.has_value()) {
-        return JsonError(400, R"({"error":"invalid_request"})");
+        return JsonResponse(400, R"({"error":"invalid_request"})");
     }
     nlohmann::json& parsed = *parsed_opt;
     auto module_it = parsed.find("module");
@@ -73,38 +73,38 @@ HttpResponse HandleSetSetting(Storage& storage, const HttpRequest& request,
     auto value_it = parsed.find("value");
     auto schema_it = parsed.find("schemaVersion");
     if (module_it == parsed.end() || !module_it->is_string()) {
-        return JsonError(400, R"({"error":"missing_field","field":"module"})");
+        return JsonResponse(400, R"({"error":"missing_field","field":"module"})");
     }
     if (key_it == parsed.end() || !key_it->is_string()) {
-        return JsonError(400, R"({"error":"missing_field","field":"key"})");
+        return JsonResponse(400, R"({"error":"missing_field","field":"key"})");
     }
     if (value_it == parsed.end() || !value_it->is_string()) {
-        return JsonError(400, R"({"error":"missing_field","field":"value"})");
+        return JsonResponse(400, R"({"error":"missing_field","field":"value"})");
     }
     if (schema_it == parsed.end() || !IsValidSchemaVersion(*schema_it)) {
-        return JsonError(400, R"({"error":"missing_field","field":"schemaVersion"})");
+        return JsonResponse(400, R"({"error":"missing_field","field":"schemaVersion"})");
     }
     std::string module = module_it->get<std::string>();
     std::string key = key_it->get<std::string>();
     std::string value = value_it->get<std::string>();
     if (InvalidKey(module, key)) {
-        return JsonError(400, R"({"error":"invalid_key"})");
+        return JsonResponse(400, R"({"error":"invalid_key"})");
     }
     if (value.size() > kMaxSettingValueLength) {
-        return JsonError(400, R"({"error":"value_too_long"})");
+        return JsonResponse(400, R"({"error":"value_too_long"})");
     }
     if (AdminAuthService::IsReservedSettingsKey(module, key)) {
-        return JsonError(403, R"({"error":"reserved_key"})");
+        return JsonResponse(403, R"({"error":"reserved_key"})");
     }
     if (on_setting_validate && !on_setting_validate(module, key, value)) {
-        return JsonError(400, R"({"error":"invalid_value"})");
+        return JsonResponse(400, R"({"error":"invalid_value"})");
     }
     bool is_device_name = module == AdminAuthService::kModuleId && key == kDeviceNameKey;
     if (is_device_name && on_device_name_validate && !on_device_name_validate(value)) {
-        return JsonError(400, R"({"error":"invalid_value"})");
+        return JsonResponse(400, R"({"error":"invalid_value"})");
     }
     if (!storage.SetSetting(module, key, schema_it->get<int>(), value)) {
-        return JsonError(500, R"({"error":"write_failed"})");
+        return JsonResponse(500, R"({"error":"write_failed"})");
     }
     // Only applied once the value above is persisted - see
     // DeviceNameCommittedFn's own comment for why the ordering
@@ -112,32 +112,32 @@ HttpResponse HandleSetSetting(Storage& storage, const HttpRequest& request,
     if (is_device_name && on_device_name_committed) {
         on_device_name_committed(value);
     }
-    return JsonError(200, R"({"status":"ok"})");
+    return JsonResponse(200, R"({"status":"ok"})");
 }
 
 HttpResponse HandleEraseSetting(Storage& storage, const HttpRequest& request) {
     auto parsed_opt = TryParseJsonObject(request.body);
     if (!parsed_opt.has_value()) {
-        return JsonError(400, R"({"error":"invalid_request"})");
+        return JsonResponse(400, R"({"error":"invalid_request"})");
     }
     nlohmann::json& parsed = *parsed_opt;
     auto module_it = parsed.find("module");
     auto key_it = parsed.find("key");
     if (module_it == parsed.end() || !module_it->is_string() || key_it == parsed.end() || !key_it->is_string()) {
-        return JsonError(400, R"({"error":"missing_field"})");
+        return JsonResponse(400, R"({"error":"missing_field"})");
     }
     std::string module = module_it->get<std::string>();
     std::string key = key_it->get<std::string>();
     if (InvalidKey(module, key)) {
-        return JsonError(400, R"({"error":"invalid_key"})");
+        return JsonResponse(400, R"({"error":"invalid_key"})");
     }
     if (AdminAuthService::IsReservedSettingsKey(module, key)) {
-        return JsonError(403, R"({"error":"reserved_key"})");
+        return JsonResponse(403, R"({"error":"reserved_key"})");
     }
     if (!storage.EraseSetting(module, key)) {
-        return JsonError(500, R"({"error":"erase_failed"})");
+        return JsonResponse(500, R"({"error":"erase_failed"})");
     }
-    return JsonError(200, R"({"status":"ok"})");
+    return JsonResponse(200, R"({"status":"ok"})");
 }
 
 // kSkipped: not an object, or a field missing, of the wrong type or out of
@@ -199,12 +199,12 @@ HttpResponse HandleBackupRestore(Storage& storage, const HttpRequest& request,
                                  const SettingValidateFn& on_setting_validate) {
     auto parsed_opt = TryParseJsonObject(request.body);
     if (!parsed_opt.has_value()) {
-        return JsonError(400, R"({"error":"invalid_request"})");
+        return JsonResponse(400, R"({"error":"invalid_request"})");
     }
     nlohmann::json& parsed = *parsed_opt;
     auto settings_it = parsed.find("settings");
     if (settings_it == parsed.end() || !settings_it->is_array()) {
-        return JsonError(400, R"({"error":"missing_field","field":"settings"})");
+        return JsonResponse(400, R"({"error":"missing_field","field":"settings"})");
     }
     // Not atomic - no transaction concept exists anywhere else in
     // this codebase either. Each entry either applies, is
