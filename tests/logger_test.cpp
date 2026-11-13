@@ -183,3 +183,20 @@ TEST_F(LoggerTest, ConcurrentLogCallsAreCoalescedIntoOneBatch) {
     EXPECT_EQ(parsed[2]["message"], "c");
     EXPECT_FALSE(storage_->ReadCache("core", "log_rotated").has_value());
 }
+
+// The Web UI's level filter matches these exact strings.
+TEST_F(LoggerTest, EveryLevelIsSerialisedWithTheNameTheWebUiFiltersOn) {
+    homedeck::Logger logger(*storage_, time_source_);
+
+    logger.Log(homedeck::LogLevel::kDebug, "c", "d");
+    logger.Log(homedeck::LogLevel::kInfo, "c", "i");
+    logger.Log(homedeck::LogLevel::kWarning, "c", "w");
+    logger.Log(homedeck::LogLevel::kError, "c", "e");
+
+    auto parsed = nlohmann::json::parse(logger.ReadAll());
+    ASSERT_EQ(parsed.size(), 4u);
+    EXPECT_EQ(parsed[0]["level"], "debug");
+    EXPECT_EQ(parsed[1]["level"], "info");
+    EXPECT_EQ(parsed[2]["level"], "warning");
+    EXPECT_EQ(parsed[3]["level"], "error");
+}
