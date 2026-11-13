@@ -348,6 +348,25 @@ void StartTimeSync(homedeck::Rx8130TimeSource& time_source, homedeck::Logger& lo
     }
 }
 
+// Reads the core dump partition (see
+// docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md). Mirrors
+// crash_diagnostics.cpp's esp_core_dump_image_check() gate rather than
+// trusting esp_core_dump_image_get() alone to signal absence.
+std::optional<std::string> ReadCoreDump() {
+    if (esp_core_dump_image_check() != ESP_OK) {
+        return std::nullopt;
+    }
+    size_t addr = 0, size = 0;
+    if (esp_core_dump_image_get(&addr, &size) != ESP_OK || size == 0) {
+        return std::nullopt;
+    }
+    std::string buffer(size, '\0');
+    if (esp_flash_read(esp_flash_default_chip, buffer.data(), addr, size) != ESP_OK) {
+        return std::nullopt;
+    }
+    return buffer;
+}
+
 // See docs/decisions/ADR-0005-power-and-sleep-model.md's OTA gate
 // decision and core/ota_gate.h.
 homedeck::OtaWriter BuildOtaWriter() {
@@ -651,27 +670,7 @@ extern "C" void app_main(void) {
                 },
             .ota_writer = BuildOtaWriter(),
             .ota_reboot = ScheduleReboot,
-            .read_core_dump =
-                []() -> std::optional<std::string> {
-                    // Real flash read against the coredump partition (see
-                    // docs/decisions/ADR-0013-crash-and-reboot-diagnostics.md)
-                    // - mirrors crash_diagnostics.cpp's own
-                    // esp_core_dump_image_check() gate rather than
-                    // trusting esp_core_dump_image_get() alone to signal
-                    // absence.
-                    if (esp_core_dump_image_check() != ESP_OK) {
-                        return std::nullopt;
-                    }
-                    size_t addr = 0, size = 0;
-                    if (esp_core_dump_image_get(&addr, &size) != ESP_OK || size == 0) {
-                        return std::nullopt;
-                    }
-                    std::string buffer(size, '\0');
-                    if (esp_flash_read(esp_flash_default_chip, buffer.data(), addr, size) != ESP_OK) {
-                        return std::nullopt;
-                    }
-                    return buffer;
-                },
+            .read_core_dump = ReadCoreDump,
             .read_memory_stats = ReadMemoryStats,
         });
     // wifi_check (above) already knows whether setup is needed, so the
