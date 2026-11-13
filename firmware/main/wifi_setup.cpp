@@ -433,7 +433,7 @@ void StartSetupAccessPoint() {
     ESP_ERROR_CHECK(StartSetupHttpServer(kSetupHttpPort, ESP_HTTPD_DEF_CTRL_PORT));
     // Copied under lock, then invoked outside it - consistent with this
     // file's own rule of never holding g_state_mutex across a call that
-    // isn't a plain state read/write (see OnEvent()'s own comment above).
+    // isn't a plain state read/write (see the comment above OnStaStart()).
     std::function<void(const std::string&, const std::string&, uint16_t)> on_setup_needed;
     {
         std::lock_guard<std::mutex> lock(g_state_mutex);
@@ -534,194 +534,214 @@ bool RecoveryRetriesAreSlowed(const WifiSetupState& state) {
     return !state.initial_provisioning && state.setup_server != nullptr;
 }
 
-// arg is &g_state - registered twice below, for WIFI_EVENT and
-// IP_EVENT, always with the same &g_state.
-//
-// Each branch below takes g_state_mutex only around the actual state
+// Each handler below takes g_state_mutex only around the actual state
 // reads/writes, never across httpd_stop()/esp_wifi_*() - both block (the
 // former waits for the SoftAP httpd task to go idle, the latter is an RPC
-// to the C6 co-processor, see hardware.md#wireless), and this function
-// runs on the shared ESP-IDF event-loop task. HandlePostConnect()/
+// to the C6 co-processor, see hardware.md#wireless), and these handlers
+// run on the shared ESP-IDF event-loop task. HandlePostConnect()/
 // ApplyWifiCredentials() (running on the httpd task) need the same
 // mutex, so holding it across a blocking call here would let a second
 // /connect submission landing mid-teardown deadlock the event-loop task
 // against the httpd task.
+
+// The WIFI_EVENT_STA_START branch of OnEvent().
+void OnStaStart() {
+    // No WifiSetupState field is touched here - esp_wifi_connect()
+    // stays outside g_state_mutex entirely, same reasoning as
+    // ApplyWifiCredentials()'s own RPC calls below.
+    esp_err_t err = esp_wifi_connect();
+    if (err != ESP_OK) {
+        // A failure here means WIFI_EVENT_STA_DISCONNECTED
+        // never fires either (the connection never started),
+        // so the retry logic below would otherwise never
+        // engage - logged so a stuck-unconnected device isn't
+        // silently unexplained.
+        ESP_LOGW(kTag, "esp_wifi_connect (on STA start) failed: %s", esp_err_to_name(err));
+    }
+}
+
+// The WIFI_EVENT_STA_DISCONNECTED branch of OnEvent().
+void OnStaDisconnected(WifiSetupState& state) {
+    bool give_up = false;
+    bool offer_recovery = false;
+    std::optional<int> retry_delay_ms;
+    std::function<void()> on_connect_failed;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        if (state.network_status != nullptr) {
+            state.network_status->SetConnectionState(false, "", "");
+        }
+        give_up = state.reconnect_policy.OnDisconnected(state.initial_provisioning) ==
+                  WifiReconnectPolicy::Decision::kGiveUp;
+        if (give_up) {
+            on_connect_failed = state.ui_callbacks.on_connect_failed;
+        } else if (state.setup_server == nullptr) {
+            // Only offer recovery if some access point/form
+            // isn't already up - ShouldOfferRecovery() itself
+            // only returns true once per accrued-attempts
+            // threshold, but this also skips it while the
+            // initial no-stored-credentials flow already has
+            // its own access point up (initial_provisioning
+            // is true there, so ShouldOfferRecovery() would
+            // already return false, but checking setup_server
+            // too keeps this branch's intent explicit).
+            offer_recovery = state.reconnect_policy.ShouldOfferRecovery(state.initial_provisioning);
+        }
+        retry_delay_ms = state.reconnect_policy.RetryDelayMs(
+            !state.initial_provisioning && state.setup_server != nullptr, state.ap_client_count);
+    }
+    // on_connect_failed() invoked outside g_state_mutex, same as
+    // on_connected()/on_setup_needed() below - the invariant
+    // (see the comment above OnStaStart()) is that a UI
+    // callback never runs while holding the lock, since a
+    // future implementation that blocks or re-enters
+    // ApplyWifiCredentials()/ConnectToWifi() would otherwise
+    // deadlock against the httpd task.
+    if (give_up) {
+        ESP_LOGW(kTag, "Giving up after %d failed attempts - submit the setup form again to retry",
+                 kMaxSetupReconnectAttempts);
+        if (on_connect_failed) {
+            on_connect_failed();
+        }
+        return;
+    }
+    if (offer_recovery) {
+        // Scheduled, not called directly - see
+        // StartRecoveryAccessPoint()'s own comment for why
+        // this can't run on this task. The plain reconnect
+        // retry below is still scheduled regardless -
+        // bringing up recovery doesn't cancel it, it only
+        // slows the retries that follow.
+        if (esp_timer_start_once(g_recovery_timer, 0) != ESP_OK) {
+            ESP_LOGW(kTag, "Failed to schedule the recovery access point - staying unreachable");
+        }
+    }
+    CancelReconnectTimer();
+    if (!retry_delay_ms.has_value()) {
+        // OnApStationDisconnected() below resumes retries
+        // once the last client leaves.
+        ESP_LOGI(kTag, "Disconnected, holding retries while a client is joined to the recovery network");
+        return;
+    }
+    ESP_LOGI(kTag, "Disconnected, retrying in %dms...", *retry_delay_ms);
+    esp_err_t timer_err =
+        esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(*retry_delay_ms) * 1000);
+    if (timer_err != ESP_OK) {
+        ESP_LOGW(kTag, "Failed to schedule the reconnect retry: %s", esp_err_to_name(timer_err));
+    }
+}
+
+// The WIFI_EVENT_AP_STACONNECTED branch of OnEvent().
+void OnApStationConnected(WifiSetupState& state) {
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        ++state.ap_client_count;
+    }
+    // A scan that has already started finishes, but no further
+    // attempt starts while this client is joined.
+    if (RecoveryRetriesAreSlowed(state)) {
+        CancelReconnectTimer();
+    }
+}
+
+// The WIFI_EVENT_AP_STADISCONNECTED branch of OnEvent().
+void OnApStationDisconnected(WifiSetupState& state) {
+    std::optional<int> retry_delay_ms;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        state.ap_client_count = std::max(0, state.ap_client_count - 1);
+        if (state.ap_client_count == 0) {
+            retry_delay_ms = state.reconnect_policy.RetryDelayMs(
+                !state.initial_provisioning && state.setup_server != nullptr, 0);
+        }
+    }
+    if (retry_delay_ms.has_value() && RecoveryRetriesAreSlowed(state)) {
+        CancelReconnectTimer();
+        esp_err_t err =
+            esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(*retry_delay_ms) * 1000);
+        if (err != ESP_OK) {
+            ESP_LOGW(kTag, "Failed to resume reconnect retries: %s", esp_err_to_name(err));
+        }
+    }
+}
+
+// The IP_EVENT_STA_GOT_IP branch of OnEvent().
+void OnGotIp(WifiSetupState& state, const ip_event_got_ip_t& event) {
+    // A retry scheduled just before this connection succeeded would
+    // otherwise still fire later and call esp_wifi_connect() again
+    // while already connected - harmless, but pointless.
+    CancelReconnectTimer();
+    ESP_LOGI(kTag, "Connected, IP: " IPSTR, IP2STR(&event.ip_info.ip));
+
+    httpd_handle_t server_to_stop = nullptr;
+    std::function<void()> on_connected;
+    {
+        std::lock_guard<std::mutex> lock(g_state_mutex);
+        if (state.network_status != nullptr) {
+            char ip_str[16];
+            if (esp_ip4addr_ntoa(&event.ip_info.ip, ip_str, sizeof(ip_str)) == nullptr) {
+                ip_str[0] = '\0';  // 16 bytes always fits an IPv4 string; never reached
+            }
+            state.network_status->SetConnectionState(true, state.pending_ssid, ip_str);
+        }
+        server_to_stop = state.setup_server;
+        state.setup_server = nullptr;
+        state.ap_client_count = 0;
+        state.initial_provisioning = false;
+        // A real successful connection deserves its own full set of
+        // attempts before either the setup-mode cap or the recovery
+        // threshold applies again, the same as a fresh credential
+        // submission already gets via ApplyWifiCredentials() - see
+        // WifiReconnectPolicy::ResetAttempts()'s own comment. Without
+        // this, a device that reconnects successfully and later loses
+        // Wi-Fi again for a second, separate long outage would never
+        // be offered recovery again for the rest of its uptime.
+        state.reconnect_policy.ResetAttempts();
+        on_connected = state.ui_callbacks.on_connected;
+    }
+    // Both block (see the comment above OnStaStart()) - deliberately
+    // outside g_state_mutex.
+    if (server_to_stop != nullptr) {
+        esp_err_t stop_err = httpd_stop(server_to_stop);
+        if (stop_err != ESP_OK) {
+            ESP_LOGW(kTag, "Failed to stop the recovery access point's httpd: %s", esp_err_to_name(stop_err));
+        }
+        if (esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK) {
+            ESP_LOGW(kTag, "Failed to drop out of AP+STA mode after recovery - staying in AP+STA");
+        }
+    }
+    // A request left pending belongs to the recovery form that just
+    // closed.
+    state.pending_credentials.Clear();
+    if (on_connected) {
+        on_connected();
+    }
+    xEventGroupSetBits(state.event_group, kConnectedBit);
+}
+
+// arg is &g_state - registered twice below, for WIFI_EVENT and
+// IP_EVENT, always with the same &g_state.
 void OnEvent(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     auto& state = *static_cast<WifiSetupState*>(arg);
     if (event_base == WIFI_EVENT) {
         switch (event_id) {
-            case WIFI_EVENT_STA_START: {
-                // No WifiSetupState field is touched here - esp_wifi_connect()
-                // stays outside g_state_mutex entirely, same reasoning as
-                // ApplyWifiCredentials()'s own RPC calls below.
-                esp_err_t err = esp_wifi_connect();
-                if (err != ESP_OK) {
-                    // A failure here means WIFI_EVENT_STA_DISCONNECTED
-                    // never fires either (the connection never started),
-                    // so the retry logic below would otherwise never
-                    // engage - logged so a stuck-unconnected device isn't
-                    // silently unexplained.
-                    ESP_LOGW(kTag, "esp_wifi_connect (on STA start) failed: %s", esp_err_to_name(err));
-                }
+            case WIFI_EVENT_STA_START:
+                OnStaStart();
                 break;
-            }
-            case WIFI_EVENT_STA_DISCONNECTED: {
-                bool give_up = false;
-                bool offer_recovery = false;
-                std::optional<int> retry_delay_ms;
-                std::function<void()> on_connect_failed;
-                {
-                    std::lock_guard<std::mutex> lock(g_state_mutex);
-                    if (state.network_status != nullptr) {
-                        state.network_status->SetConnectionState(false, "", "");
-                    }
-                    give_up = state.reconnect_policy.OnDisconnected(state.initial_provisioning) ==
-                              WifiReconnectPolicy::Decision::kGiveUp;
-                    if (give_up) {
-                        on_connect_failed = state.ui_callbacks.on_connect_failed;
-                    } else if (state.setup_server == nullptr) {
-                        // Only offer recovery if some access point/form
-                        // isn't already up - ShouldOfferRecovery() itself
-                        // only returns true once per accrued-attempts
-                        // threshold, but this also skips it while the
-                        // initial no-stored-credentials flow already has
-                        // its own access point up (initial_provisioning
-                        // is true there, so ShouldOfferRecovery() would
-                        // already return false, but checking setup_server
-                        // too keeps this branch's intent explicit).
-                        offer_recovery = state.reconnect_policy.ShouldOfferRecovery(state.initial_provisioning);
-                    }
-                    retry_delay_ms = state.reconnect_policy.RetryDelayMs(
-                        !state.initial_provisioning && state.setup_server != nullptr, state.ap_client_count);
-                }
-                // on_connect_failed() invoked outside g_state_mutex, same as
-                // on_connected()/on_setup_needed() below - this function's
-                // own invariant (see its comment above) is that a UI
-                // callback never runs while holding the lock, since a
-                // future implementation that blocks or re-enters
-                // ApplyWifiCredentials()/ConnectToWifi() would otherwise
-                // deadlock against the httpd task.
-                if (give_up) {
-                    ESP_LOGW(kTag, "Giving up after %d failed attempts - submit the setup form again to retry",
-                             kMaxSetupReconnectAttempts);
-                    if (on_connect_failed) {
-                        on_connect_failed();
-                    }
-                    break;
-                }
-                if (offer_recovery) {
-                    // Scheduled, not called directly - see
-                    // StartRecoveryAccessPoint()'s own comment for why
-                    // this can't run on this task. The plain reconnect
-                    // retry below is still scheduled regardless -
-                    // bringing up recovery doesn't cancel it, it only
-                    // slows the retries that follow.
-                    if (esp_timer_start_once(g_recovery_timer, 0) != ESP_OK) {
-                        ESP_LOGW(kTag, "Failed to schedule the recovery access point - staying unreachable");
-                    }
-                }
-                CancelReconnectTimer();
-                if (!retry_delay_ms.has_value()) {
-                    // The AP_STADISCONNECTED case below resumes retries
-                    // once the last client leaves.
-                    ESP_LOGI(kTag, "Disconnected, holding retries while a client is joined to the recovery network");
-                    break;
-                }
-                ESP_LOGI(kTag, "Disconnected, retrying in %dms...", *retry_delay_ms);
-                esp_err_t timer_err =
-                    esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(*retry_delay_ms) * 1000);
-                if (timer_err != ESP_OK) {
-                    ESP_LOGW(kTag, "Failed to schedule the reconnect retry: %s", esp_err_to_name(timer_err));
-                }
+            case WIFI_EVENT_STA_DISCONNECTED:
+                OnStaDisconnected(state);
                 break;
-            }
-            case WIFI_EVENT_AP_STACONNECTED: {
-                {
-                    std::lock_guard<std::mutex> lock(g_state_mutex);
-                    ++state.ap_client_count;
-                }
-                // A scan that has already started finishes, but no further
-                // attempt starts while this client is joined.
-                if (RecoveryRetriesAreSlowed(state)) {
-                    CancelReconnectTimer();
-                }
+            case WIFI_EVENT_AP_STACONNECTED:
+                OnApStationConnected(state);
                 break;
-            }
-            case WIFI_EVENT_AP_STADISCONNECTED: {
-                std::optional<int> retry_delay_ms;
-                {
-                    std::lock_guard<std::mutex> lock(g_state_mutex);
-                    state.ap_client_count = std::max(0, state.ap_client_count - 1);
-                    if (state.ap_client_count == 0) {
-                        retry_delay_ms = state.reconnect_policy.RetryDelayMs(
-                            !state.initial_provisioning && state.setup_server != nullptr, 0);
-                    }
-                }
-                if (retry_delay_ms.has_value() && RecoveryRetriesAreSlowed(state)) {
-                    CancelReconnectTimer();
-                    esp_err_t err =
-                        esp_timer_start_once(g_reconnect_timer, static_cast<uint64_t>(*retry_delay_ms) * 1000);
-                    if (err != ESP_OK) {
-                        ESP_LOGW(kTag, "Failed to resume reconnect retries: %s", esp_err_to_name(err));
-                    }
-                }
+            case WIFI_EVENT_AP_STADISCONNECTED:
+                OnApStationDisconnected(state);
                 break;
-            }
             default:
                 break;
         }
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        auto* event = static_cast<ip_event_got_ip_t*>(event_data);
-        // A retry scheduled just before this connection succeeded would
-        // otherwise still fire later and call esp_wifi_connect() again
-        // while already connected - harmless, but pointless.
-        CancelReconnectTimer();
-        ESP_LOGI(kTag, "Connected, IP: " IPSTR, IP2STR(&event->ip_info.ip));
-
-        httpd_handle_t server_to_stop = nullptr;
-        std::function<void()> on_connected;
-        {
-            std::lock_guard<std::mutex> lock(g_state_mutex);
-            if (state.network_status != nullptr) {
-                char ip_str[16];
-                if (esp_ip4addr_ntoa(&event->ip_info.ip, ip_str, sizeof(ip_str)) == nullptr) {
-                    ip_str[0] = '\0';  // 16 bytes always fits an IPv4 string; never reached
-                }
-                state.network_status->SetConnectionState(true, state.pending_ssid, ip_str);
-            }
-            server_to_stop = state.setup_server;
-            state.setup_server = nullptr;
-            state.ap_client_count = 0;
-            state.initial_provisioning = false;
-            // A real successful connection deserves its own full set of
-            // attempts before either the setup-mode cap or the recovery
-            // threshold applies again, the same as a fresh credential
-            // submission already gets via ApplyWifiCredentials() - see
-            // WifiReconnectPolicy::ResetAttempts()'s own comment. Without
-            // this, a device that reconnects successfully and later loses
-            // Wi-Fi again for a second, separate long outage would never
-            // be offered recovery again for the rest of its uptime.
-            state.reconnect_policy.ResetAttempts();
-            on_connected = state.ui_callbacks.on_connected;
-        }
-        // Both block (see this function's own comment above) - deliberately
-        // outside g_state_mutex.
-        if (server_to_stop != nullptr) {
-            esp_err_t stop_err = httpd_stop(server_to_stop);
-            if (stop_err != ESP_OK) {
-                ESP_LOGW(kTag, "Failed to stop the recovery access point's httpd: %s", esp_err_to_name(stop_err));
-            }
-            if (esp_wifi_set_mode(WIFI_MODE_STA) != ESP_OK) {
-                ESP_LOGW(kTag, "Failed to drop out of AP+STA mode after recovery - staying in AP+STA");
-            }
-        }
-        // A request left pending belongs to the recovery form that just
-        // closed.
-        state.pending_credentials.Clear();
-        if (on_connected) {
-            on_connected();
-        }
-        xEventGroupSetBits(state.event_group, kConnectedBit);
+        OnGotIp(state, *static_cast<ip_event_got_ip_t*>(event_data));
     }
 }
 
