@@ -76,10 +76,9 @@ for why this ruled out a separate web-based mock UI.
     movie/TV show/music/filesystem/live-TV library), so Now Playing /
     Remote / the Movies, TV Shows, Music, Files, and Live TV browse
     screens can all be exercised without one. Disarmed it is
-    transparent — a
-    Kodi on the LAN and Harmony's own connection are unaffected. It
-    renders state, not a Kodi: a transport/nav tap sends its command but
-    nothing on screen moves in response.
+    transparent — a Kodi on the LAN and Harmony's own connection are
+    unaffected. It renders state, not a Kodi: a transport/nav tap sends its
+    command but nothing on screen moves in response.
 
     Harmony's `ActivitiesScreen` / `DevicesScreen` gate their populated
     content on a live hub connection the same way, but have **no

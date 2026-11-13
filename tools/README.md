@@ -111,14 +111,15 @@ why that split exists. Checking for the following defect classes:
 
 - `githooks/pre-commit` runs against staged doc/code files: doc
   narration/banned wording/stale ADR cross-references, broken relative
-  Markdown links and anchors, filler-adverb warnings (a wider word list in Markdown outside
-  `docs/decisions/`), and a staged `tests/*_test.cpp`, `webui/src/lib/*.svelte`
+  Markdown links and anchors, filler-adverb warnings (a wider word list in
+  Markdown outside `docs/decisions/`), and a staged `tests/*_test.cpp`, `webui/src/lib/*.svelte`
   or tool script missing from its directory README's inventory
   ([tests/](../tests/README.md), [webui/](../webui/README.md), this file)
   (`githooks/check-docs.sh`); [hardware.md](../docs/architecture/hardware.md)'s
   documented electrical/physical-facts-only scope, when that file is
   staged (`githooks/check-hardware-md-scope.sh`); unchecked ESP-IDF/mDNS/httpd
-  return values, and ESP-IDF/FreeRTOS calls inside `assert()`, in `firmware/main/` and `src/platform/firmware/`
+  return values, and ESP-IDF/FreeRTOS calls inside `assert()`, in
+  `firmware/main/` and `src/platform/firmware/`
   (`githooks/check-esp-idf-returns.sh`); a `curl_easy_perform()`
   call with no `CURLOPT_TIMEOUT`/`CURLOPT_CONNECTTIMEOUT` set anywhere
   in the same file, in any staged `.cpp` file
@@ -150,8 +151,9 @@ why that split exists. Checking for the following defect classes:
   repo file path (a directory path under a top-level repo directory, or a
   bare `*.md` name) that no tracked file has
   (`githooks/check-comment-paths.sh`); a code comment asserting that
-  something does not exist yet, is not verified or is "removed once" a condition
-  holds, which goes stale when it lands elsewhere (`githooks/check-stale-claims.sh`); a staged firmware change that adds
+  something does not exist yet, is not verified or is "removed once" a
+  condition holds, which goes stale when it lands elsewhere
+  (`githooks/check-stale-claims.sh`); a staged firmware change that adds
   `WIFI_AUTH_OPEN` or an `httpd_start(` call without
   [security.md](../docs/architecture/security.md) staged too
   (`githooks/check-security-surface.sh`); and, against every

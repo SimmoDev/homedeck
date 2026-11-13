@@ -266,9 +266,9 @@ are not objects or lack a string `module`/`key`/`value` or an in-range integer
 or a write Storage refused, and `rejected` lists reserved or
 validator-refused ones, including a `device_name` that fails
 `DeviceNameValidateFn`. Restore never calls `DeviceNameCommittedFn`, so a
-restored device name takes effect at the next boot. The page is deliberately not a generic raw settings
-editor, since device name alone
-gave the design nothing to check itself against.
+restored device name takes effect at the next boot. The page is deliberately
+not a generic raw settings editor, since device name alone gave the design
+nothing to check itself against.
 
 **Weather location is the second setting exposed this way** - a
 place-name search box backed by
