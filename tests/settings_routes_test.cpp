@@ -561,3 +561,65 @@ TEST_F(SettingsRoutesTest, PostSettingsEraseReturns500WhenTheStorageEraseFails) 
     EXPECT_EQ(result.status_code, 500);
     EXPECT_NE(result.body.find("erase_failed"), std::string::npos);
 }
+
+TEST_F(SettingsRoutesTest, PostSettingsRejectsANonJsonBodyAndMissingModuleOrValue) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    auto not_json = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings", "not json", cookie);
+    EXPECT_EQ(not_json.status_code, 400);
+    EXPECT_NE(not_json.body.find("invalid_request"), std::string::npos);
+
+    auto missing_module = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
+                                          R"({"key":"k","value":"x","schemaVersion":1})", cookie);
+    EXPECT_EQ(missing_module.status_code, 400);
+    EXPECT_NE(missing_module.body.find(R"("field":"module")"), std::string::npos);
+
+    auto missing_value = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings",
+                                         R"({"module":"m","key":"k","schemaVersion":1})", cookie);
+    EXPECT_EQ(missing_value.status_code, 400);
+    EXPECT_NE(missing_value.body.find(R"("field":"value")"), std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, EraseRejectsANonJsonBodyAMissingFieldAndAnInvalidKey) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    auto not_json = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings/erase", "not json", cookie);
+    EXPECT_EQ(not_json.status_code, 400);
+    EXPECT_NE(not_json.body.find("invalid_request"), std::string::npos);
+
+    auto missing_key = HttpRequestRaw(server.BoundPort(), "POST", "/api/settings/erase", R"({"module":"m"})", cookie);
+    EXPECT_EQ(missing_key.status_code, 400);
+    EXPECT_NE(missing_key.body.find("missing_field"), std::string::npos);
+
+    auto bad_key =
+        HttpRequestRaw(server.BoundPort(), "POST", "/api/settings/erase", R"({"module":"..","key":"k"})", cookie);
+    EXPECT_EQ(bad_key.status_code, 400);
+    EXPECT_NE(bad_key.body.find("invalid_key"), std::string::npos);
+}
+
+TEST_F(SettingsRoutesTest, RestoreRejectsANonJsonBodyAndAMissingOrNonArraySettingsField) {
+    homedeck::HostHttpServer server;
+    homedeck::RegisterAdminAuthRoutes(server, *auth_);
+    homedeck::RegisterSettingsRoutes(server, *storage_, *auth_);
+    ASSERT_TRUE(server.Start(0));
+    std::string cookie = Login(server.BoundPort());
+
+    auto not_json = HttpRequestRaw(server.BoundPort(), "POST", "/api/backup/restore", "not json", cookie);
+    EXPECT_EQ(not_json.status_code, 400);
+    EXPECT_NE(not_json.body.find("invalid_request"), std::string::npos);
+
+    auto missing = HttpRequestRaw(server.BoundPort(), "POST", "/api/backup/restore", "{}", cookie);
+    EXPECT_EQ(missing.status_code, 400);
+    EXPECT_NE(missing.body.find(R"("field":"settings")"), std::string::npos);
+
+    auto not_array = HttpRequestRaw(server.BoundPort(), "POST", "/api/backup/restore", R"({"settings":{}})", cookie);
+    EXPECT_EQ(not_array.status_code, 400);
+}
