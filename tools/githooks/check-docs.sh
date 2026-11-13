@@ -93,6 +93,28 @@ for f in "$@"; do
             ;;
     esac
 
+    # A sentence inserted into a wrapped paragraph tends to leave a line far
+    # past the wrap width. Warn-only. Tables, headings, code fences and the
+    # URL part of a link are not counted, since none of them can be wrapped.
+    case "$f" in
+        *CLAUDE.md|firmware/components/*) ;;
+        *.md)
+            long_lines=$(awk '
+                /^```/ { in_fence = !in_fence; next }
+                in_fence || /^\|/ || /^#/ { next }
+                {
+                    line = $0
+                    gsub(/\]\([^)]*\)/, "]", line)
+                    if (length(line) > 100) printf "%d: %d characters\n", NR, length(line)
+                }' "$f")
+            if [ -n "$long_lines" ]; then
+                echo "[wrap] $f: prose line over 100 characters - rewrap the paragraph:"
+                echo "$long_lines" | sed 's/^/    /'
+                status=1
+            fi
+            ;;
+    esac
+
     # A C/C++ hex escape swallows every hex digit that follows it, so
     # "\xb6di" is one out-of-range escape, not "\xb6" then "di". Split the
     # literal ("\xb6" "di") instead.
