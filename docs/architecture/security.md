@@ -106,7 +106,7 @@ verify that an OTA image came from the project itself. Today, the
 only barrier to pushing an arbitrary firmware image is the Web UI's admin
 authentication gating the OTA endpoint (see
 [web-ui.md](web-ui.md#security)) — so the realistic exposure is an
-authenticated LAN attacker, not an open one, but it is still a real gap
+authenticated LAN attacker, not an open one, but it is still a gap
 against a first-class [CLAUDE.md](../../CLAUDE.md) feature.
 
 ESP-IDF supports signed app image verification independent of full secure

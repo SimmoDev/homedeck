@@ -13,5 +13,5 @@ mbedtls) each only reach one of the two targets.
   v3.11.3, the official single-header amalgamated release artifact (not the
   multi-file source tree), unmodified. MIT licensed. This is the JSON
   library [ADR-0002](../../docs/decisions/ADR-0002-technology-stack.md#2-json-library)
-  already decided project-wide; `AdminAuthService`'s HTTP endpoints (see
-  `core/admin_auth_service.cpp`) are its first consumer.
+  already decided project-wide; every Core HTTP route and module parser
+  (`core/*_routes.cpp`, `core/kodi_json.cpp`) consumes it.

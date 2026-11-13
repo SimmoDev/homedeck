@@ -50,7 +50,7 @@ for why this was chosen over a Touch-UI-first flow or a camera-based
 QR-code alternative, and
 [ADR-0026](../decisions/ADR-0026-wifi-provisioning-mechanism.md) for why
 the setup form is a small HomeDeck-owned HTTP handler rather than
-ESP-IDF's `wifi_provisioning` component (a real incompatibility with
+ESP-IDF's `wifi_provisioning` component (an incompatibility with
 this project's `esp_wifi_remote` stack, not a design preference).
 
 ### Recovery access point

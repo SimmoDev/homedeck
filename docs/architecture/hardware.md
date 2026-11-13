@@ -100,7 +100,7 @@ enable above:
 mismatch: Host [2.12.0] > Co-proc [0.0.0] ==> Upgrade co-proc to avoid RPC
 timeouts` — the C6's own ESP-Hosted slave firmware reports version
 `0.0.0`. Basic Wi-Fi association and IP acquisition work regardless, but
-RPC timeouts under heavier use remain a real, deferred risk.
+RPC timeouts under heavier use remain a deferred risk.
 
 **Restarts must reset the whole system.** On the reference unit, the SDIO
 link to the C6 stops answering after a run of restarts that reset only the

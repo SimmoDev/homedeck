@@ -59,7 +59,7 @@ does not surface diagnostic detail; this is explicitly a Web UI concern per
 
 ## Crash and reboot diagnostics
 
-Not named explicitly in [CLAUDE.md](../../CLAUDE.md)'s requirement list, but a real gap
+Not named explicitly in [CLAUDE.md](../../CLAUDE.md)'s requirement list, but a gap
 without it: normal structured logs don't survive a crash, panic, watchdog
 timeout, or brownout, since those are exactly the situations where ordinary
 execution — including flushing a log entry — doesn't complete. Every boot
