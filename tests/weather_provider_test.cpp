@@ -385,6 +385,15 @@ TEST(IsValidWeatherCoordinateTest, RejectsANonNumericValue) {
     EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("longitude", "51.5,13.4"));
 }
 
+TEST(IsValidWeatherCoordinateTest, RejectsWhitespaceHexAndNonFiniteValuesThatBreakTheRequestUrl) {
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("latitude", " 5"));
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("latitude", "\r\n5"));
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("latitude", "0x1p3"));
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("latitude", "inf"));
+    EXPECT_FALSE(homedeck::IsValidWeatherCoordinate("longitude", "nan"));
+    EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("latitude", "1e1"));
+}
+
 TEST(IsValidWeatherCoordinateTest, AcceptsAnyValueForAnUnrelatedKey) {
     EXPECT_TRUE(homedeck::IsValidWeatherCoordinate("display_name", "anything at all"));
 }

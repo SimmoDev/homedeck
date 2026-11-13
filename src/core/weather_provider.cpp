@@ -4,9 +4,11 @@
 #include "third_party/nlohmann/json.hpp"
 
 #include <algorithm>
+#include <charconv>
 #include <chrono>
-#include <cstdlib>
+#include <cmath>
 #include <optional>
+#include <system_error>
 
 namespace homedeck {
 
@@ -19,17 +21,18 @@ constexpr int kCacheSchemaVersion = 1;
 // narrowing: converting an out-of-range double to int is undefined.
 int ClampWeatherCode(double code) { return static_cast<int>(std::clamp(code, 0.0, 99.0)); }
 
-// A full, successful strtod parse of the whole string - not just a
-// leading numeric prefix - the same defensive-input-validation
-// reasoning CLAUDE.md asks for at a boundary (these values come from
-// the Web UI's Settings API, effectively user input). Returns the
-// parsed value so IsValidWeatherCoordinate() below can range-check it
-// too, instead of parsing the string twice.
+// A full parse of the whole string as a plain finite decimal. std::from_chars,
+// not strtod: strtod also accepts leading whitespace (including CR/LF), hex
+// floats and "inf"/"nan", none of which survive being spliced unencoded into
+// the request URL. The values come from the Web UI's Settings API, so this
+// is input validation at a boundary. Returns the parsed value so
+// IsValidWeatherCoordinate() below can range-check it too.
 std::optional<double> ParseNumber(const std::string& text) {
-    if (text.empty()) return std::nullopt;
-    char* end = nullptr;
-    double value = std::strtod(text.c_str(), &end);
-    if (end != text.c_str() + text.size()) return std::nullopt;
+    double value = 0.0;
+    const char* const first = text.data();
+    const char* const last = first + text.size();
+    const auto [end, error] = std::from_chars(first, last, value);
+    if (error != std::errc{} || end != last || !std::isfinite(value)) return std::nullopt;
     return value;
 }
 
