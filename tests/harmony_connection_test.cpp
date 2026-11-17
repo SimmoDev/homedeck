@@ -98,6 +98,12 @@ struct WsScript {
     bool send_blocked = false;
     bool release_blocked_send = false;
     std::condition_variable send_cv;
+    // Same pause for Connect(), landing a Stop() while the socket is still
+    // being opened.
+    bool block_next_connect = false;
+    bool connect_blocked = false;
+    bool release_blocked_connect = false;
+    std::condition_variable connect_cv;
 };
 
 class FakeWebSocketClient : public homedeck::WebSocketClient {
@@ -105,8 +111,14 @@ public:
     explicit FakeWebSocketClient(std::shared_ptr<WsScript> script) : script_(std::move(script)) {}
 
     bool Connect(const std::string& url) override {
-        std::lock_guard<std::mutex> lock(script_->mutex);
+        std::unique_lock<std::mutex> lock(script_->mutex);
         script_->connect_urls.push_back(url);
+        if (script_->block_next_connect) {
+            script_->block_next_connect = false;
+            script_->connect_blocked = true;
+            script_->connect_cv.notify_all();
+            script_->connect_cv.wait(lock, [this] { return script_->release_blocked_connect; });
+        }
         return script_->connect_should_succeed;
     }
 
@@ -2573,4 +2585,50 @@ TEST_F(HarmonyConnectionTest, StopDuringTheConfigRequestSendNeverReportsConnecte
 
     EXPECT_FALSE(connection.Snapshot().has_config);
     EXPECT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kDisconnected);
+}
+
+// A stop requested while the WebSocket connect is in flight closes the socket
+// that connect then opens and never reports a connection.
+TEST_F(HarmonyConnectionTest, StopDuringTheWebSocketConnectClosesItAndNeverReportsConnected) {
+    homedeck::HostSettingsStore settings_store(root_dir_);
+    homedeck::HostCacheStore cache_store(root_dir_);
+    homedeck::HostSecretStore secret_store(root_dir_);
+    homedeck::Storage storage(settings_store, cache_store, secret_store);
+    ASSERT_TRUE(storage.SetSetting("harmony", "hub_host", 1, "127.0.0.1"));
+
+    homedeck::EventBus bus;
+    FakeHttpClient http_client;
+    http_client.SetResponse(homedeck::HttpClientResponse{true, 200, kHandshakeSuccessBody});
+
+    auto script = std::make_shared<WsScript>();
+    script->block_next_connect = true;
+
+    homedeck::HarmonyConnection connection(
+        http_client, [script] { return std::make_unique<FakeWebSocketClient>(script); }, storage, bus, kFastBackoff,
+        kFastBackoff);
+    connection.Start();
+    {
+        std::unique_lock<std::mutex> lock(script->mutex);
+        ASSERT_TRUE(
+            script->connect_cv.wait_for(lock, std::chrono::seconds(3), [&] { return script->connect_blocked; }));
+    }
+
+    std::atomic<bool> stopper_running{false};
+    std::thread stopper([&] {
+        stopper_running = true;
+        connection.Stop();
+    });
+    ASSERT_TRUE(WaitFor([&] { return stopper_running.load(); }));
+    {
+        std::lock_guard<std::mutex> lock(script->mutex);
+        script->release_blocked_connect = true;
+    }
+    script->connect_cv.notify_all();
+    stopper.join();
+
+    EXPECT_FALSE(connection.Snapshot().has_config);
+    EXPECT_EQ(connection.Snapshot().state, homedeck::HarmonyConnectionState::kDisconnected);
+    std::lock_guard<std::mutex> lock(script->mutex);
+    EXPECT_GT(script->close_count, 0);
+    EXPECT_TRUE(script->sent_texts.empty()) << "no request may be sent once a stop is pending";
 }
